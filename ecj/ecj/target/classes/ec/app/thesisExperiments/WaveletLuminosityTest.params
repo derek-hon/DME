@@ -1,0 +1,148 @@
+parent.0 = ../../distributedME/distributedME.params
+
+exch = ec.distributedME.DistributedMEExchanger
+
+eval.problem = ec.app.WaveletExperiment.ProceduralTextureFitness
+eval.problem.data = ec.app.WaveletExperiment.MultiData
+eval.problem.target = src/main/resources/ec/app/thesisExperiments/flower.jpg
+
+evalthreads = 				1
+breedthreads = 				1
+
+map.imagesize = 256
+eval.problem.imagesize = 256
+
+stat = ec.thesisStatistics.BaselineMEStatistics
+
+evaluations = 300000
+
+eval.problem.min_x = -2.5
+eval.problem.max_x = 2.25
+eval.problem.min_y = -1.5
+eval.problem.max_y = 1.25
+do-description = true
+do-final = true
+do-evaluation = true
+eval.problem.save-path = /lumCLRExp/BaselineDME/
+stat.do-memory = true
+stat.do-time = true
+stat.do-message = true
+stat.modulus = 1500
+
+mapelites.starting-individuals = 0.6
+
+map.submaps = 1
+
+map.submap.0             = ec.mapelites.EliteMap
+map.submap.0.name        = Average_Luminosity
+map.submap.0.behaviours  = 1
+map.submap.0.behaviour.0 = ec.mapelites.Behaviours
+map.submap.0.behaviour.0.name = Average Luminosity
+map.submap.0.behaviour.0.intervals = 15
+map.submap.0.behaviour.0.interval.0.ubound = 17
+map.submap.0.behaviour.0.interval.1.ubound = 34
+map.submap.0.behaviour.0.interval.2.ubound = 51
+map.submap.0.behaviour.0.interval.3.ubound = 68
+map.submap.0.behaviour.0.interval.4.ubound = 85
+map.submap.0.behaviour.0.interval.5.ubound = 102
+map.submap.0.behaviour.0.interval.6.ubound = 119
+map.submap.0.behaviour.0.interval.7.ubound = 136
+map.submap.0.behaviour.0.interval.8.ubound = 153
+map.submap.0.behaviour.0.interval.9.ubound = 170
+map.submap.0.behaviour.0.interval.10.ubound = 187
+map.submap.0.behaviour.0.interval.11.ubound = 204
+map.submap.0.behaviour.0.interval.12.ubound = 221
+map.submap.0.behaviour.0.interval.13.ubound = 238
+map.submap.0.behaviour.0.interval.14.ubound = 255
+map.submap.0.behaviour.1 = ec.mapelites.Behaviours
+map.submap.0.behaviour-source = ec.app.proceduralTexture.MeanLuminosityEvaluation
+map.submap.0.species.fitness = ec.gp.koza.KozaFitness
+map.submap.0.species = ec.mapelites.MapElitesGPSpecies
+map.submap.0.species.ind = ec.app.experiments.GeneralandFitness.TextureElite
+map.submap.0.species.fitness = ec.gp.koza.KozaFitness
+map.submap.0.species.pipe = ec.mapelites.MapElitesMultiBreedingPipeline
+
+gray=true
+
+#(Gray) Each individual has a single tree
+map.submap.0.species.ind.numtrees = 1
+map.submap.0.species.ind.numtrees = 1
+map.submap.0.species.ind.tree.0 = ec.gp.GPTree
+map.submap.0.species.ind.tree.0.tc = tc0
+
+#map.submap.0.species.ind.numtrees = 3
+#map.submap.0.species.ind.tree.0 = ec.gp.GPTree
+#map.submap.0.species.ind.tree.0.tc = tc0
+#map.submap.0.species.ind.tree.1 = ec.gp.GPTree
+#map.submap.0.species.ind.tree.1.tc = tc0
+#map.submap.0.species.ind.tree.2 = ec.gp.GPTree
+#map.submap.0.species.ind.tree.2.tc = tc0
+
+map.submap.0.species.pipe.num-sources = 2
+map.submap.0.species.pipe.source.0 = ec.mapelites.MapElitesCrossoverPipeline
+map.submap.0.species.pipe.source.0.prob = 0.9
+map.submap.0.species.pipe.source.0.source.0 = ec.distributedME.DistributedMERandomSelection
+map.submap.0.species.pipe.source.0.source.1 = same
+map.submap.0.species.pipe.source.1 = ec.mapelites.MapElitesMutationPipeline
+map.submap.0.species.pipe.source.1.prob = 0.1
+map.submap.0.species.pipe.source.1.source.0 = ec.distributedME.DistributedMERandomSelection
+
+# ======= Nodes =======
+# We have some functions.  They are:
+gp.fs.0.size = 25
+# Math (10):
+gp.fs.0.func.0 = ec.app.WaveletExperiment.Func_Math$Add
+gp.fs.0.func.0.nc = nc2
+gp.fs.0.func.1 = ec.app.WaveletExperiment.Func_Math$Sub
+gp.fs.0.func.1.nc = nc2
+gp.fs.0.func.2 = ec.app.WaveletExperiment.Func_Math$Mul
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = ec.app.WaveletExperiment.Func_Math$Div
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = ec.app.WaveletExperiment.Func_Math$Sin
+gp.fs.0.func.4.nc = nc1
+gp.fs.0.func.5 = ec.app.WaveletExperiment.Func_Math$Cos
+gp.fs.0.func.5.nc = nc1
+gp.fs.0.func.6 = ec.app.WaveletExperiment.Func_Math$Max
+gp.fs.0.func.6.nc = nc2
+gp.fs.0.func.7 = ec.app.WaveletExperiment.Func_Math$Min
+gp.fs.0.func.7.nc = nc2
+gp.fs.0.func.8 = ec.app.WaveletExperiment.Func_Math$Exp
+gp.fs.0.func.8.nc = nc1
+gp.fs.0.func.9 = ec.app.WaveletExperiment.Func_Math$Neg
+gp.fs.0.func.9.nc = nc1
+#
+# Ephemerals (3)
+gp.fs.0.func.10 = ec.app.WaveletExperiment.Func_Ephemeral$Eph_1
+gp.fs.0.func.10.nc = nc0
+gp.fs.0.func.11 = ec.app.WaveletExperiment.Func_Ephemeral$Eph_10
+gp.fs.0.func.11.nc = nc0
+gp.fs.0.func.12 = ec.app.WaveletExperiment.Func_Ephemeral$Eph_100
+gp.fs.0.func.12.nc = nc0
+#
+# Extended functions (12)
+gp.fs.0.func.13 = ec.app.WaveletExperiment.Func_Math$Abs
+gp.fs.0.func.13.nc = nc1
+gp.fs.0.func.14 = ec.app.WaveletExperiment.Func_Math$Pow
+gp.fs.0.func.14.nc = nc2
+gp.fs.0.func.15 = ec.app.WaveletExperiment.Func_Math$Log10
+gp.fs.0.func.15.nc = nc1
+gp.fs.0.func.16 = ec.app.WaveletExperiment.Func_Math$LogE
+gp.fs.0.func.16.nc = nc1
+gp.fs.0.func.17 = ec.app.WaveletExperiment.Func_Math$Floor
+gp.fs.0.func.17.nc = nc1
+gp.fs.0.func.18 = ec.app.WaveletExperiment.Func_Math$Ceil
+gp.fs.0.func.18.nc = nc1
+gp.fs.0.func.19 = ec.app.WaveletExperiment.Func_Math$Tan
+gp.fs.0.func.19.nc = nc1
+gp.fs.0.func.20 = ec.app.WaveletExperiment.Func_Math$Sqrt
+gp.fs.0.func.20.nc = nc1
+gp.fs.0.func.21 = ec.app.WaveletExperiment.Func_Math$Square
+gp.fs.0.func.21.nc = nc1
+gp.fs.0.func.22 = ec.app.WaveletExperiment.Func_Math$Cube
+gp.fs.0.func.22.nc = nc1
+# Direct Variables (2)
+gp.fs.0.func.23  = ec.app.WaveletExperiment.Func_Variable$Pos_X
+gp.fs.0.func.23.nc  = nc0
+gp.fs.0.func.24  = ec.app.WaveletExperiment.Func_Variable$Pos_Y
+gp.fs.0.func.24.nc  = nc0

@@ -1,0 +1,249 @@
+parent.0 = ../../distributedME/distributedME.params
+
+eval.problem = ec.app.proceduralTexture.ProceduralTextureFitness
+eval.problem.data = ec.app.proceduralTexture.MultiData
+eval.problem.target = src/main/resources/ec/app/proceduralTexture/flowertest.jpg
+
+map.imagesize = 256
+eval.problem.imagesize = 256
+
+stat.file = $out.stat
+stat = ec.distributedME.DistributedMEStatistics
+
+evaluations                 = 30000
+
+distributed=true
+
+eval.problem.min_x = -2.5
+eval.problem.max_x = 2.25
+eval.problem.min_y = -1.5
+eval.problem.max_y = 1.25
+do-description = true
+do-final = true
+do-evaluation = true
+do-message = true
+eval.problem.save-path = /Colour_AVG_Results/
+
+mapelites.gradient-debug = true
+mapelites.starting-individuals = 0.6
+
+map.submaps = 3
+
+map.submap.0             = ec.mapelites.EliteMap
+map.submap.0.name        = Mean_Red_Mean_Blue
+map.submap.0.behaviours  = 2
+map.submap.0.behaviour.0 = ec.mapelites.Behaviours
+map.submap.0.behaviour.0.name = Mean Red
+map.submap.0.behaviour.0.intervals = 7
+map.submap.0.behaviour.0.interval.0.ubound = 36
+map.submap.0.behaviour.0.interval.1.ubound = 72
+map.submap.0.behaviour.0.interval.2.ubound = 108
+map.submap.0.behaviour.0.interval.3.ubound = 144
+map.submap.0.behaviour.0.interval.4.ubound = 180
+map.submap.0.behaviour.0.interval.5.ubound = 216
+map.submap.0.behaviour.0.interval.6.ubound = 255
+map.submap.0.behaviour.1 = ec.mapelites.Behaviours
+map.submap.0.behaviour.1.name = Mean Blue
+map.submap.0.behaviour.1.intervals = 7
+map.submap.0.behaviour.1.interval.0.ubound = 36
+map.submap.0.behaviour.1.interval.1.ubound = 72
+map.submap.0.behaviour.1.interval.2.ubound = 108
+map.submap.0.behaviour.1.interval.3.ubound = 144
+map.submap.0.behaviour.1.interval.4.ubound = 180
+map.submap.0.behaviour.1.interval.5.ubound = 216
+map.submap.0.behaviour.1.interval.6.ubound = 255
+map.submap.0.behaviour-source = ec.app.proceduralTexture.MeanRedMeanBlueEvaluation
+map.submap.0.species.fitness = ec.gp.koza.KozaFitness
+map.submap.0.species = ec.mapelites.MapElitesGPSpecies
+map.submap.0.species.ind = ec.mapelites.Elite
+map.submap.0.species.fitness = ec.gp.koza.KozaFitness
+map.submap.0.species.pipe = ec.mapelites.MapElitesMultiBreedingPipeline
+map.submap.0.species.ind.numtrees = 3
+map.submap.0.species.ind.tree.0 = ec.gp.GPTree
+map.submap.0.species.ind.tree.0.tc = tc0
+map.submap.0.species.ind.tree.1 = ec.gp.GPTree
+map.submap.0.species.ind.tree.1.tc = tc0
+map.submap.0.species.ind.tree.2 = ec.gp.GPTree
+map.submap.0.species.ind.tree.2.tc = tc0
+map.submap.0.species.pipe.num-sources = 2
+map.submap.0.species.pipe.source.0 = ec.mapelites.MapElitesCrossoverPipeline
+map.submap.0.species.pipe.source.0.prob = 0.9
+map.submap.0.species.pipe.source.0.source.0 = ec.distributedME.DistributedMERandomSelection
+map.submap.0.species.pipe.source.0.source.1 = same
+map.submap.0.species.pipe.source.1 = ec.mapelites.MapElitesMutationPipeline
+map.submap.0.species.pipe.source.1.prob = 0.1
+map.submap.0.species.pipe.source.1.source.0 = ec.distributedME.DistributedMERandomSelection
+
+
+map.submap.1             = ec.mapelites.EliteMap
+map.submap.1.name        = Mean_Red_Mean_Green
+map.submap.1.behaviours  = 2
+map.submap.1.behaviour.0 = ec.mapelites.Behaviours
+map.submap.1.behaviour.0.name = Mean Red
+map.submap.1.behaviour.0.intervals = 7
+map.submap.1.behaviour.0.interval.0.ubound = 36
+map.submap.1.behaviour.0.interval.1.ubound = 72
+map.submap.1.behaviour.0.interval.2.ubound = 108
+map.submap.1.behaviour.0.interval.3.ubound = 144
+map.submap.1.behaviour.0.interval.4.ubound = 180
+map.submap.1.behaviour.0.interval.5.ubound = 216
+map.submap.1.behaviour.0.interval.6.ubound = 255
+map.submap.1.behaviour.1 = ec.mapelites.Behaviours
+map.submap.1.behaviour.1.name = Mean Green
+map.submap.1.behaviour.1.intervals = 7
+map.submap.1.behaviour.1.interval.0.ubound = 36
+map.submap.1.behaviour.1.interval.1.ubound = 72
+map.submap.1.behaviour.1.interval.2.ubound = 108
+map.submap.1.behaviour.1.interval.3.ubound = 144
+map.submap.1.behaviour.1.interval.4.ubound = 180
+map.submap.1.behaviour.1.interval.5.ubound = 216
+map.submap.1.behaviour.1.interval.6.ubound = 255
+map.submap.1.behaviour-source = ec.app.proceduralTexture.MeanRedMeanGreenEvaluation
+map.submap.1.species.fitness = ec.gp.koza.KozaFitness
+map.submap.1.species = ec.mapelites.MapElitesGPSpecies
+map.submap.1.species.ind = ec.mapelites.Elite
+map.submap.1.species.fitness = ec.gp.koza.KozaFitness
+map.submap.1.species.pipe = ec.mapelites.MapElitesMultiBreedingPipeline
+map.submap.1.species.ind.numtrees = 3
+map.submap.1.species.ind.tree.0 = ec.gp.GPTree
+map.submap.1.species.ind.tree.0.tc = tc0
+map.submap.1.species.ind.tree.1 = ec.gp.GPTree
+map.submap.1.species.ind.tree.1.tc = tc0
+map.submap.1.species.ind.tree.2 = ec.gp.GPTree
+map.submap.1.species.ind.tree.2.tc = tc0
+map.submap.1.species.pipe.num-sources = 2
+map.submap.1.species.pipe.source.0 = ec.mapelites.MapElitesCrossoverPipeline
+map.submap.1.species.pipe.source.0.prob = 0.9
+map.submap.1.species.pipe.source.0.source.0 = ec.distributedME.DistributedMERandomSelection
+map.submap.1.species.pipe.source.0.source.1 = same
+map.submap.1.species.pipe.source.1 = ec.mapelites.MapElitesMutationPipeline
+map.submap.1.species.pipe.source.1.prob = 0.1
+map.submap.1.species.pipe.source.1.source.0 = ec.distributedME.DistributedMERandomSelection
+
+
+map.submap.2             = ec.mapelites.EliteMap
+map.submap.2.name        = Mean_Green_Mean_Blue
+map.submap.2.behaviours  = 2
+map.submap.2.behaviour.0 = ec.mapelites.Behaviours
+map.submap.2.behaviour.0.name = Mean Blue
+map.submap.2.behaviour.0.intervals = 7
+map.submap.2.behaviour.0.interval.0.ubound = 36
+map.submap.2.behaviour.0.interval.1.ubound = 72
+map.submap.2.behaviour.0.interval.2.ubound = 108
+map.submap.2.behaviour.0.interval.3.ubound = 144
+map.submap.2.behaviour.0.interval.4.ubound = 180
+map.submap.2.behaviour.0.interval.5.ubound = 216
+map.submap.2.behaviour.0.interval.6.ubound = 255
+map.submap.2.behaviour.1 = ec.mapelites.Behaviours
+map.submap.2.behaviour.1.name = Mean Green
+map.submap.2.behaviour.1.intervals = 7
+map.submap.2.behaviour.1.interval.0.ubound = 36
+map.submap.2.behaviour.1.interval.1.ubound = 72
+map.submap.2.behaviour.1.interval.2.ubound = 108
+map.submap.2.behaviour.1.interval.3.ubound = 144
+map.submap.2.behaviour.1.interval.4.ubound = 180
+map.submap.2.behaviour.1.interval.5.ubound = 216
+map.submap.2.behaviour.1.interval.6.ubound = 255
+map.submap.2.behaviour-source = ec.app.proceduralTexture.MeanGreenMeanBlueEvaluation
+map.submap.2.species.fitness = ec.gp.koza.KozaFitness
+map.submap.2.species = ec.mapelites.MapElitesGPSpecies
+map.submap.2.species.ind = ec.mapelites.Elite
+map.submap.2.species.fitness = ec.gp.koza.KozaFitness
+map.submap.2.species.pipe = ec.mapelites.MapElitesMultiBreedingPipeline
+map.submap.2.species.ind.numtrees = 3
+map.submap.2.species.ind.tree.0 = ec.gp.GPTree
+map.submap.2.species.ind.tree.0.tc = tc0
+map.submap.2.species.ind.tree.1 = ec.gp.GPTree
+map.submap.2.species.ind.tree.1.tc = tc0
+map.submap.2.species.ind.tree.2 = ec.gp.GPTree
+map.submap.2.species.ind.tree.2.tc = tc0
+map.submap.2.species.pipe.num-sources = 2
+map.submap.2.species.pipe.source.0 = ec.mapelites.MapElitesCrossoverPipeline
+map.submap.2.species.pipe.source.0.prob = 0.9
+map.submap.2.species.pipe.source.0.source.0 = ec.distributedME.DistributedMERandomSelection
+map.submap.2.species.pipe.source.0.source.1 = same
+map.submap.2.species.pipe.source.1 = ec.mapelites.MapElitesMutationPipeline
+map.submap.2.species.pipe.source.1.prob = 0.1
+map.submap.2.species.pipe.source.1.source.0 = ec.distributedME.DistributedMERandomSelection
+
+
+exch.submap.0.select = ec.mapelites.MapElitesRandomSelection
+exch.submap.0.mod = 3000
+exch.submap.0.start = 0
+exch.submap.0.size = 5
+exch.submap.0.num-dest = 1
+exch.submap.0.dest.0 = 1
+
+exch.submap.1.select = ec.mapelites.MapElitesRandomSelection
+exch.submap.1.mod = 3000
+exch.submap.1.start = 0
+exch.submap.1.size = 5
+exch.submap.1.num-dest = 1
+exch.submap.1.dest.0 = 2
+
+exch.submap.2.select = ec.mapelites.MapElitesRandomSelection
+exch.submap.2.mod = 3000
+exch.submap.2.start = 0
+exch.submap.2.size = 5
+exch.submap.2.num-dest = 1
+exch.submap.2.dest.0 = 0
+
+# ======= Nodes =======
+# We have some functions.  They are:
+gp.fs.0.size = 25
+# Math (10):
+gp.fs.0.func.0 = ec.app.proceduralTexture.Func_Math$Add
+gp.fs.0.func.0.nc = nc2
+gp.fs.0.func.1 = ec.app.proceduralTexture.Func_Math$Sub
+gp.fs.0.func.1.nc = nc2
+gp.fs.0.func.2 = ec.app.proceduralTexture.Func_Math$Mul
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = ec.app.proceduralTexture.Func_Math$Div
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = ec.app.proceduralTexture.Func_Math$Sin
+gp.fs.0.func.4.nc = nc1
+gp.fs.0.func.5 = ec.app.proceduralTexture.Func_Math$Cos
+gp.fs.0.func.5.nc = nc1
+gp.fs.0.func.6 = ec.app.proceduralTexture.Func_Math$Max
+gp.fs.0.func.6.nc = nc2
+gp.fs.0.func.7 = ec.app.proceduralTexture.Func_Math$Min
+gp.fs.0.func.7.nc = nc2
+gp.fs.0.func.8 = ec.app.proceduralTexture.Func_Math$Exp
+gp.fs.0.func.8.nc = nc1
+gp.fs.0.func.9 = ec.app.proceduralTexture.Func_Math$Neg
+gp.fs.0.func.9.nc = nc1
+#
+# Ephemerals (3)
+gp.fs.0.func.10 = ec.app.proceduralTexture.Func_Ephemeral$Eph_1
+gp.fs.0.func.10.nc = nc0
+gp.fs.0.func.11 = ec.app.proceduralTexture.Func_Ephemeral$Eph_10
+gp.fs.0.func.11.nc = nc0
+gp.fs.0.func.12 = ec.app.proceduralTexture.Func_Ephemeral$Eph_100
+gp.fs.0.func.12.nc = nc0
+#
+# Extended functions (12)
+gp.fs.0.func.13 = ec.app.proceduralTexture.Func_Math$Abs
+gp.fs.0.func.13.nc = nc1
+gp.fs.0.func.14 = ec.app.proceduralTexture.Func_Math$Pow
+gp.fs.0.func.14.nc = nc2
+gp.fs.0.func.15 = ec.app.proceduralTexture.Func_Math$Log10
+gp.fs.0.func.15.nc = nc1
+gp.fs.0.func.16 = ec.app.proceduralTexture.Func_Math$LogE
+gp.fs.0.func.16.nc = nc1
+gp.fs.0.func.17 = ec.app.proceduralTexture.Func_Math$Floor
+gp.fs.0.func.17.nc = nc1
+gp.fs.0.func.18 = ec.app.proceduralTexture.Func_Math$Ceil
+gp.fs.0.func.18.nc = nc1
+gp.fs.0.func.19 = ec.app.proceduralTexture.Func_Math$Tan
+gp.fs.0.func.19.nc = nc1
+gp.fs.0.func.20 = ec.app.proceduralTexture.Func_Math$Sqrt
+gp.fs.0.func.20.nc = nc1
+gp.fs.0.func.21 = ec.app.proceduralTexture.Func_Math$Square
+gp.fs.0.func.21.nc = nc1
+gp.fs.0.func.22 = ec.app.proceduralTexture.Func_Math$Cube
+gp.fs.0.func.22.nc = nc1
+# Direct Variables (2)
+gp.fs.0.func.23  = ec.app.proceduralTexture.Func_Variable$Pos_X
+gp.fs.0.func.23.nc  = nc0
+gp.fs.0.func.24  = ec.app.proceduralTexture.Func_Variable$Pos_Y
+gp.fs.0.func.24.nc  = nc0

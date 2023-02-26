@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CMAESBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.cmaes</a> &gt; <span class="el_source">CMAESBreeder.java</span></div><h1>CMAESBreeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.eda.cmaes;
+
+import java.util.ArrayList;
+
+import ec.*;
+import ec.util.*;
+
+/* 
+ * CMAESBreeder.java
+ * 
+ * Created: Wed Jul  8 12:35:31 EDT 2015
+ * By: Sam McKay and Sean Luke
+ */
+
+/**
+ * CMAESBreeder is a Breeder which overrides the breedPopulation method
+ * to first update CMA-ES's internal distribution, then replace all the
+ * individuals in the population with new samples generated from the
+ * distribution.  All the heavy lifting is done in CMAESSpecies, not here.
+ *
+ * @author Sam McKay and Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L32">public class CMAESBreeder extends Breeder</span>
+    {
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // nothing to setup
+<span class="nc" id="L37">        }</span>
+
+    /** Updates the CMA-ES distribution given the current population, then 
+        replaces the population with new samples generated from the distribution.
+        Returns the revised population. */
+
+    public Population breedPopulation(final EvolutionState state)
+        {
+<span class="nc" id="L45">        Population pop = state.population;</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        for(int i = 0; i &lt; pop.subpops.size(); i++)</span>
+            {
+<span class="nc" id="L48">            Subpopulation subpop = pop.subpops.get(i);</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">            if (!(subpop.species instanceof CMAESSpecies))  // uh oh</span>
+<span class="nc" id="L50">                state.output.fatal(&quot;To use CMAESBreeder, subpopulation &quot; + i + &quot; must contain a CMAESSpecies.  But it contains a &quot; + subpop.species);</span>
+                        
+<span class="nc" id="L52">            CMAESSpecies species = (CMAESSpecies)(subpop.species);</span>
+                
+            // update distribution[i] for subpop
+<span class="nc" id="L55">            species.updateDistribution(state, subpop);</span>
+                
+            // overwrite individuals
+<span class="nc" id="L58">            ArrayList&lt;Individual&gt; inds = subpop.individuals;</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">            for(int j = 0; j &lt; inds.size(); j++)</span>
+<span class="nc" id="L60">                inds.set(j, species.newIndividual(state, 0));</span>
+            }
+                
+<span class="nc" id="L63">        return pop;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

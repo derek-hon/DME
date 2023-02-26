@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DistributedMEEvolutionState.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">DistributedMEEvolutionState.java</span></div><h1>DistributedMEEvolutionState.java</h1><pre class="source lang-java linenums">package ec.distributedME;
+
+
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import ec.EvolutionState;
+import ec.Exchanger;
+import ec.gp.GPIndividual;
+import ec.gp.GPTree;
+import ec.gp.koza.KozaFitness;
+import ec.thesisStatistics.BaselineMEStatistics;
+import ec.util.Parameter;
+
+/**
+ * DistributedMEEvolutionState.java
+ * 
+ * @see ec.EvolutionState
+ * Repurposes the EvolutionState for MAP-Elites.
+ * 
+ * 
+ * Created: 10 February, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+<span class="nc" id="L26">public class DistributedMEEvolutionState extends EvolutionState {</span>
+
+    /** Current number of evaluations which have occurred within the run. */
+    public int currentEvals;
+
+    /** Current distributed map, should be accessed in a read only fashion. */
+    public DistributedMap distributedMap;
+
+    /** First time calling evolve. */
+    protected boolean firstTime;
+
+    /** Holds which subpopulation we are currently operating on */
+    int whichSubmap;
+
+    /** How many individuals have we added to the initial map? */
+    int individualCount;
+
+    /** Total number of islands */
+    int totalSubmaps;
+
+    /** Percentage of the total map size to fill. */
+    double mapPercent;
+
+    /** The behaviour evaluations for each island */
+    public BehaviourEvaluation[] behaviourEvaluations;
+
+    /** Transactions made within the MAP */
+    // HashMap&lt;String, Integer&gt; transactions;
+
+    /**
+     * When a new individual arrives, with what probability should it directly
+     * replace the existing &quot;marked for death&quot; individual, as opposed to only
+     * replacing it if it's superior? Only considered when two individuals have the same fitness.
+     */
+    public double replacementProbability;
+
+    /** MAP exchanger, a singleton object. You should only access in a read-only fashion. */
+    DistributedMEExchanger exchanger;
+
+    public static final String P_STARTING_INDS           = &quot;starting-individuals&quot;;
+    public static final String P_REPLACEMENT_PROBABILITY = &quot;replacement-probability&quot;;
+    public static final String P_TOTAL_EVAL              = &quot;total-evaluations&quot;;
+    public static final String P_SUBMAP_SIZE             = &quot;submaps&quot;;
+    public static final String P_BEHAVIOUR_SOURCE        = &quot;behaviour-source&quot;;
+    public static final String P_MAP                     = &quot;map&quot;;
+    public static final String P_SUBMAP                  = &quot;submap&quot;;
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L74">        super.setup(state, base);</span>
+
+        // transactions = new HashMap&lt;String, Integer&gt;();
+
+        // double check that we have valid evaluators and breeders and exchangers
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        if (!(breeder instanceof DistributedMEBreeder))</span>
+<span class="nc" id="L80">            state.output.error(</span>
+                    &quot;You've chosen to use Distributed Map-Elites Evolution, but your breeder is not of the class Map-ElitesBreeder.&quot;,
+                    base);
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (!(evaluator instanceof MapElitesEvaluator))</span>
+<span class="nc" id="L84">            state.output.error(</span>
+                    &quot;You've chosen to use Distributed Map-Elites Evolution, but your evaluator is not of the class Map-ElitesEvaluator.&quot;,
+                    base);
+            
+
+        Parameter p;
+<span class="nc" id="L90">        Parameter map = new Parameter(P_MAP);</span>
+
+        /** Set up exchanger */
+<span class="nc" id="L93">        p = new Parameter(P_EXCHANGER);</span>
+<span class="nc" id="L94">        exchanger = (DistributedMEExchanger) (parameters.getInstanceForParameter(p, null, Exchanger.class));</span>
+<span class="nc" id="L95">        exchanger.setup(this, p);</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (parameters.exists(MapElitesDefaults.base().push(P_STARTING_INDS), null)) {</span>
+<span class="nc" id="L97">            mapPercent = parameters.getDouble(MapElitesDefaults.base().push(P_STARTING_INDS), null);</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            if (mapPercent &lt; 0.0) // uh oh</span>
+<span class="nc" id="L99">                state.output.error(&quot;Starting Individual Percent must be between 0.0 and 1.0 inclusive.&quot;,</span>
+<span class="nc" id="L100">                        MapElitesDefaults.base().push(P_STARTING_INDS), null);</span>
+            // state.output.message(&quot;Starting individuals will try to be &quot; + mapPercent + &quot;% of the maps. Hard cutoff at 50000 evaluations.&quot;);
+        } else {
+<span class="nc" id="L103">            mapPercent = 0.5;</span>
+<span class="nc" id="L104">            state.output.message(&quot;Starting individuals not defined: using 50% of the map size.&quot;);</span>
+        }
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (parameters.exists(MapElitesDefaults.base().push(P_REPLACEMENT_PROBABILITY), null)) {</span>
+<span class="nc" id="L107">            replacementProbability = parameters</span>
+<span class="nc" id="L108">                    .getDoubleWithMax(MapElitesDefaults.base().push(P_REPLACEMENT_PROBABILITY), null, 0.0, 1.0);</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">            if (replacementProbability &lt; 0.0) // uh oh</span>
+<span class="nc" id="L110">                state.output.error(&quot;Replacement probability must be between 0.0 and 1.0 inclusive.&quot;,</span>
+<span class="nc" id="L111">                        MapElitesDefaults.base().push(P_REPLACEMENT_PROBABILITY), null);</span>
+        } else {
+<span class="nc" id="L113">            replacementProbability = 1.0; // always replace</span>
+<span class="nc" id="L114">            state.output.message(&quot;Replacement probability not defined: using 1.0 (always replace)&quot;);</span>
+        }
+
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        if (parameters.exists(map.push(P_SUBMAP_SIZE), null)) {</span>
+<span class="nc" id="L118">            totalSubmaps = parameters.getInt(map.push(P_SUBMAP_SIZE), null);</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">            if (totalSubmaps &lt; 0)</span>
+<span class="nc" id="L120">                output.error(&quot;Submaps must be greater than 0&quot;);</span>
+<span class="nc" id="L121">            behaviourEvaluations = new BehaviourEvaluation[totalSubmaps];</span>
+            Parameter submap;
+<span class="nc bnc" id="L123" title="All 2 branches missed.">            for (int i = 0 ; i &lt; totalSubmaps ; i ++) {</span>
+<span class="nc" id="L124">                submap = map.push(P_SUBMAP).push(&quot;&quot; + i);</span>
+<span class="nc" id="L125">                behaviourEvaluations[i] = (BehaviourEvaluation) state.parameters.getInstanceForParameter(</span>
+<span class="nc" id="L126">                    submap.push(P_BEHAVIOUR_SOURCE), null, BehaviourEvaluation.class</span>
+                );
+            }
+        } else {
+<span class="nc" id="L130">            state.output.error(&quot;No submap amount entered&quot;, MapElitesDefaults.base().push(P_SUBMAP_SIZE),</span>
+                    null);
+        }
+<span class="nc" id="L133">    }</span>
+
+    public void startFresh() {
+<span class="nc" id="L136">        output.message(&quot;Setting up&quot;);</span>
+<span class="nc" id="L137">        setup(this, null);</span>
+
+        //MAP Initialization
+<span class="nc" id="L140">        output.message(&quot;Initializing Evaluation 0...&quot;);</span>
+<span class="nc" id="L141">        ((DistributedMEStatistics) statistics).preInitializationStatistics(this);</span>
+<span class="nc" id="L142">        this.distributedMap = ((DistributedMEInitializer) initializer).initialMap(this, 0);</span>
+        //Initialize variables
+<span class="nc" id="L144">        whichSubmap = -1;</span>
+<span class="nc" id="L145">        firstTime = true;</span>
+<span class="nc" id="L146">        evaluations = 0;</span>
+        
+        // parseAllNames();
+<span class="nc" id="L149">    }</span>
+
+    /**
+     * Evolution process
+     * 
+     * Sets up the statistics, breeder, and evaluator if its the first evaluation.
+     * Goes through each submap per evaluation.
+     * 
+     */
+    public int evolve() {
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        if (firstTime) {</span>
+<span class="nc" id="L160">            ((DistributedMEStatistics) statistics).postInitializationStatistics(this);</span>
+<span class="nc" id="L161">            ((DistributedMEBreeder) breeder).prepareToBreed(this, 0);</span>
+<span class="nc" id="L162">            ((MapElitesEvaluator) evaluator).prepareToEvaluate(this, 0);</span>
+<span class="nc" id="L163">            firstTime = false;</span>
+        }
+
+        //round robin selection
+<span class="nc" id="L167">        whichSubmap = (whichSubmap + 1) % totalSubmaps;</span>
+
+        // Main Evolution Loop
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        if (((MapElitesEvaluator) evaluator).canEvaluate()) {</span>
+<span class="nc" id="L171">            Elite ind = (Elite) ((DistributedMEBreeder) breeder).breedIndividual(this, whichSubmap, 0).clone();</span>
+<span class="nc" id="L172">            evaluateIndividual(ind, whichSubmap);</span>
+<span class="nc" id="L173">            EliteMap eliteMap = this.distributedMap.getEliteMAP(whichSubmap);</span>
+            
+<span class="nc" id="L175">            eliteMap.newEliteProcess(this, ind);</span>
+        }
+
+        //Exchange operations
+        // PRE-BREEDING EXCHANGING
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (evaluations &gt; 0) {</span>
+<span class="nc" id="L181">            ((DistributedMEExchanger) exchanger).preBreedingExchangeEliteMap(this);</span>
+
+            // POST-BREEDING EXCHANGE
+<span class="nc" id="L184">            ((DistributedMEExchanger) exchanger).postBreedingExchangEliteMap(this);</span>
+        }
+
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        if (evaluations &gt;= numEvaluations) {</span>
+<span class="nc" id="L188">            ((DistributedMEStatistics) statistics).postEvaluationStatistics(this);</span>
+<span class="nc" id="L189">            return R_SUCCESS;</span>
+        }
+
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        if (this.evaluations &gt; 0)</span>
+<span class="nc" id="L193">            ((DistributedMEStatistics)statistics).postEvaluationStatistics(this);</span>
+<span class="nc" id="L194">        this.evaluations ++;</span>
+<span class="nc" id="L195">        return R_NOTDONE;</span>
+    }
+
+    /**
+     * Abstracted out of the evolution loop unlike SteadyState so that the exchanger can use this. Want exchanger to also evaluate
+     * to avoid looping through the entire map and looking for the evaluated flag.
+     * 
+     * @see ec.steadystate.SteadyStateEvolutionState#evolve
+     */
+    protected void ProcessIndividual(Elite e, int submap) {
+<span class="nc" id="L205">        EliteMap eliteMap = this.distributedMap.getEliteMAP(submap);</span>
+        
+<span class="nc" id="L207">        eliteMap.newEliteProcess(this, e);</span>
+<span class="nc" id="L208">    }</span>
+
+    public void evaluateIndividual(Elite e, int submap) {
+<span class="nc" id="L211">        ((MapElitesEvaluator) evaluator).evaluateIndividual(this, e, submap);</span>
+<span class="nc" id="L212">    }</span>
+
+    public void finish(int result) {
+<span class="nc" id="L215">        output.message(&quot;Total Evaluations: &quot; + evaluations);</span>
+<span class="nc" id="L216">        ((DistributedMEBreeder) breeder).finishPipelines(this);</span>
+<span class="nc" id="L217">        ((DistributedMEStatistics) statistics).finalStatistics(this, result);</span>
+        // finisher.finishPopulation(this, result);
+<span class="nc" id="L219">    } // finish</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

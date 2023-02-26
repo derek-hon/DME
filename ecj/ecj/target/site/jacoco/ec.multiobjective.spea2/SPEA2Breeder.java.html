@@ -1,0 +1,353 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SPEA2Breeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.multiobjective.spea2</a> &gt; <span class="el_source">SPEA2Breeder.java</span></div><h1>SPEA2Breeder.java</h1><pre class="source lang-java linenums">/*
+  Portions copyright 2010 by Sean Luke, Robert Hubley, and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.multiobjective.spea2;
+
+import ec.*;
+import ec.util.*;
+import ec.multiobjective.*;
+import ec.simple.*;
+import java.util.*;
+
+/* 
+ * SPEA2Breeder.java
+ * 
+ * Created: Sat Oct 16 11:24:43 EDT 2010
+ * By: Faisal Abidi and Sean Luke
+ * Replaces earlier class by: Robert Hubley, with revisions by Gabriel Balan and Keith Sullivan
+ */
+
+/**
+ * This subclass of SimpleBreeder overrides the loadElites method to build an archive in the top elites[subpopnum]
+ * of each subpopulation.  It computes the sparsity metric, then constructs the archive.
+ */
+
+<span class="pc bpc" id="L28" title="1 of 2 branches missed.">public class SPEA2Breeder extends SimpleBreeder</span>
+    {
+    public final static String P_K = &quot;k&quot;;
+    public final static String P_NORMALIZE = &quot;normalize-fitnesses&quot;;
+    
+    private int k;
+<span class="fc" id="L34">    private static int NOT_SET = -1;</span>
+    
+    /** Indicates whether distance calculations first normalize the objectives to range between zero and one. */
+    private boolean normalize;
+    
+    /** We use a state variable to make sure that the archive isn't built twice in a row.
+     */
+<span class="fc" id="L41">    public enum BreedingState { ARCHIVE_LOADED, BREEDING_COMPLETE };</span>
+    private BreedingState breedingState;
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L46">        super.setup(state, base);</span>
+                        
+<span class="pc bpc" id="L48" title="1 of 2 branches missed.">        if (sequentialBreeding) // uh oh, haven't tested with this</span>
+<span class="nc" id="L49">            state.output.fatal(&quot;SPEA2Breeder does not support sequential evaluation.&quot;,</span>
+<span class="nc" id="L50">                base.push(P_SEQUENTIAL_BREEDING));</span>
+
+<span class="pc bpc" id="L52" title="1 of 2 branches missed.">        if (!clonePipelineAndPopulation)</span>
+<span class="nc" id="L53">            state.output.fatal(&quot;clonePipelineAndPopulation must be true for SPEA2Breeder.&quot;);</span>
+        
+<span class="fc" id="L55">        k = state.parameters.getIntWithDefault(base.push(P_K), null, NOT_SET);</span>
+<span class="fc" id="L56">        normalize = state.parameters.getBoolean(base.push(P_NORMALIZE), null, true);</span>
+<span class="fc" id="L57">        breedingState = BreedingState.BREEDING_COMPLETE;</span>
+<span class="fc" id="L58">        }</span>
+    
+    /** Use super's breeding, but also set our local state to record that breeding is complete. */
+    public Population breedPopulation(EvolutionState state) 
+        {
+<span class="fc" id="L63">        final Population result = super.breedPopulation(state);</span>
+<span class="fc" id="L64">        breedingState = BreedingState.BREEDING_COMPLETE;</span>
+<span class="fc" id="L65">        return result;</span>
+        }
+    
+    /** Return the number of individuals that we aim to see in the elitist 
+     * archive. 
+     *
+     * This can only be called after loadArchive() and before breedPopulation(). */
+    @Override
+    public int numElites(EvolutionState state, int subpopulation)
+        {
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">        if (breedingState != BreedingState.ARCHIVE_LOADED)</span>
+<span class="nc" id="L76">            state.output.fatal(String.format(&quot;%s: Tried to query numElites before loadElites() was called.&quot;, this.getClass().getSimpleName()));</span>
+<span class="fc" id="L77">        return numElites(state, oldPopulation, subpopulation);</span>
+        }
+    
+    /** Return the number of individuals that we aim to see in the elitist 
+     * archive, as a function of the size of an existing population.
+     * 
+     * Right after a breeding cycle, we'll wan to calculate relative to the 
+     * current population.  loadArchive() nukes the current population, though,
+     * in which case we calculate against oldPopulation.
+     */
+    private int numElites(EvolutionState state, final Population referencePop, int subpopulation)
+        {
+<span class="fc bfc" id="L89" title="All 2 branches covered.">        if (elite[subpopulation] != NOT_SET)</span>
+            {
+<span class="pc bpc" id="L91" title="1 of 2 branches missed.">            if (elite[subpopulation] &gt; referencePop.subpops.get(subpopulation).individuals.size())</span>
+<span class="nc" id="L92">            state.output.error(&quot;The number of elites for subpopulation &quot; + subpopulation + &quot; exceeds the actual size of the subpopulation&quot;);</span>
+<span class="fc" id="L93">            return elite[subpopulation];</span>
+            }
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">        else if (eliteFrac[subpopulation] == 0)</span>
+            {
+<span class="nc" id="L97">            return 0; // no elites</span>
+            }
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        else if (eliteFrac[subpopulation] != NOT_SET)</span>
+            {
+<span class="fc" id="L101">            return (int) Math.max(Math.floor(referencePop.subpops.get(subpopulation).individuals.size() * eliteFrac[subpopulation]), 1.0);  // AT LEAST 1 ELITE</span>
+            }
+        else 
+            {
+<span class="nc" id="L105">            state.output.warnOnce(&quot;Elitism error (SPEA2Breeder).  This shouldn't be able to happen.  Please report.&quot;);</span>
+<span class="nc" id="L106">            return 0;  // this shouldn't happen</span>
+            }
+        }
+
+<span class="fc" id="L110">    Population oldPopulation = null;</span>
+    
+    /** Extract the elite individuals from the current population and
+     * &lt;i&gt;both&lt;/i&gt; place in newpop &lt;i&gt;and&lt;/i&gt; replace the current population 
+     * with the archive.
+     *
+     * We place the elites straight into the current population because breeding
+     * is the next thing that happens right after loadElites() is called, and
+     * SPEA breeds children from the elitist archive.
+     */
+    @Override
+    protected void loadElites(EvolutionState state, Population newpop)
+        {
+<span class="pc bpc" id="L123" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L124" title="2 of 4 branches missed.">        assert(newpop != null);</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">        if (breedingState == BreedingState.ARCHIVE_LOADED)</span>
+<span class="nc" id="L126">            state.output.fatal(&quot;Tried to load elites for the next generation before breeding for the current generation was complete.&quot;);</span>
+        
+        // do it
+<span class="fc bfc" id="L129" title="All 2 branches covered.">        for (int sub = 0; sub &lt; state.population.subpops.size(); sub++)</span>
+            {
+<span class="fc" id="L131">            ArrayList&lt;Individual&gt; newInds = newpop.subpops.get(sub).individuals;  // The new population after we are done picking the elites</span>
+<span class="fc" id="L132">            ArrayList&lt;Individual&gt; oldInds = state.population.subpops.get(sub).individuals;   // The old population from which to pick elites</span>
+                        
+<span class="fc" id="L134">            computeAuxiliaryData(state, oldInds);</span>
+<span class="fc" id="L135">            buildArchive(state, oldInds, newInds, numElites(state, state.population, sub));</span>
+            }
+
+
+        // replace old population with archive so new individuals will be bred from the archive members only
+<span class="fc" id="L140">        oldPopulation = state.population;</span>
+<span class="fc" id="L141">        state.population = state.population.emptyClone();</span>
+        
+<span class="fc bfc" id="L143" title="All 2 branches covered.">        for(int i = 0; i &lt; newpop.subpops.size(); i++)</span>
+            {
+<span class="fc" id="L145">            Subpopulation subpop = state.population.subpops.get(i);</span>
+<span class="fc" id="L146">            Subpopulation newsubpop = newpop.subpops.get(i);</span>
+<span class="fc bfc" id="L147" title="All 2 branches covered.">            for(int j = 0; j &lt; newsubpop.individuals.size(); j++)</span>
+<span class="fc" id="L148">                subpop.individuals.add(j, (Individual)(newsubpop.individuals.get(j).clone()));</span>
+            }
+<span class="fc" id="L150">        breedingState = BreedingState.ARCHIVE_LOADED;</span>
+        
+        // optionally force reevaluation
+<span class="fc" id="L153">        unmarkElitesEvaluated(state, newpop);</span>
+<span class="fc" id="L154">        }</span>
+
+    @Override
+    public void postProcess(EvolutionState state)
+        {
+<span class="fc" id="L159">        state.population = oldPopulation;</span>
+<span class="fc" id="L160">        oldPopulation = null;</span>
+<span class="fc" id="L161">        }</span>
+    
+    public double[] calculateDistancesFromIndividual(Individual ind, ArrayList&lt;Individual&gt; inds)
+        {
+<span class="fc" id="L165">        double[] d = new double[inds.size()];</span>
+<span class="fc bfc" id="L166" title="All 2 branches covered.">        for(int i = 0; i &lt; inds.size(); i++)</span>
+<span class="fc" id="L167">            d[i] = ((SPEA2MultiObjectiveFitness)ind.fitness).sumSquaredObjectiveDistance((SPEA2MultiObjectiveFitness)inds.get(i).fitness, normalize);</span>
+        // now sort
+<span class="fc" id="L169">        Arrays.sort(d);</span>
+<span class="fc" id="L170">        return d;</span>
+        }
+
+
+    private void buildArchive(EvolutionState state, ArrayList&lt;Individual&gt; oldInds, ArrayList&lt;Individual&gt; newInds, int archiveSize)
+        {                
+        // step 1: load the archive with the pareto-nondominated front
+<span class="fc" id="L177">        ArrayList&lt;Individual&gt; archive = new ArrayList&lt;Individual&gt;();</span>
+<span class="fc" id="L178">        ArrayList&lt;Individual&gt; nonFront = new ArrayList&lt;Individual&gt;();</span>
+<span class="fc" id="L179">        MultiObjectiveFitness.partitionIntoParetoFront(oldInds, archive, nonFront);</span>
+                
+        // step 2: if the archive isn't full, load the remainder with the fittest individuals (using customFitnessMetric) that aren't in the archive yet
+<span class="fc bfc" id="L182" title="All 2 branches covered.">        if (archive.size() &lt; archiveSize)</span>
+            {
+<span class="fc" id="L184">            Collections.sort(nonFront);  // the fitter individuals will be earlier</span>
+<span class="fc" id="L185">            int len = (archiveSize - archive.size());</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">            for(int i = 0; i &lt; len; i++)</span>
+                {
+<span class="fc" id="L188">                archive.add(nonFront.get(i));</span>
+                }
+            }
+                        
+
+        // step 3: if the archive is OVERFULL, iterively remove the most crowded individuals
+<span class="fc bfc" id="L194" title="All 2 branches covered.">        while(archive.size() &gt; archiveSize)</span>
+            {
+<span class="fc" id="L196">            Individual closest = (Individual)(archive.get(0));</span>
+<span class="fc" id="L197">            int closestIndex = 0;</span>
+<span class="fc" id="L198">            double[] closestD = calculateDistancesFromIndividual(closest, archive);</span>
+                        
+<span class="fc bfc" id="L200" title="All 2 branches covered.">            for(int i = 1; i &lt; archive.size(); i++)</span>
+                {
+<span class="fc" id="L202">                Individual competitor = (Individual)(archive.get(i));</span>
+<span class="fc" id="L203">                double[] competitorD = calculateDistancesFromIndividual(competitor, archive);</span>
+                                
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">                for(int k = 0; k &lt; archive.size(); k++)</span>
+                    {
+<span class="fc bfc" id="L207" title="All 2 branches covered.">                    if (closestD[i] &gt; competitorD[i])</span>
+<span class="fc" id="L208">                        { closest = competitor ; closestD = competitorD;  closestIndex = k; break; }</span>
+<span class="pc bpc" id="L209" title="1 of 2 branches missed.">                    else if (closestD[i] &lt; competitorD[i])</span>
+<span class="fc" id="L210">                        { break; }</span>
+                    }
+                }
+            
+            // remove him destructively -- put the top guy in his place and remove the top guy.  This is O(1)
+<span class="fc" id="L215">            archive.set(closestIndex, archive.get(archive.size()-1));</span>
+<span class="fc" id="L216">            archive.remove(archive.size()-1);</span>
+<span class="fc" id="L217">            }</span>
+                                                
+        // step 4: put archive into the new individuals
+<span class="fc" id="L220">        newInds.addAll(archive);</span>
+<span class="fc" id="L221">        }</span>
+
+
+    /** Computes the strength of individuals, then the raw fitness (wimpiness) and kth-closest sparsity
+        measure.  Finally, computes the final fitness of the individuals.  */
+    private void computeAuxiliaryData(EvolutionState state, ArrayList&lt;Individual&gt; inds)
+        {
+<span class="fc" id="L228">        double[][] distances = calculateDistances(state, inds);</span>
+                        
+        // For each individual calculate the strength
+<span class="fc bfc" id="L231" title="All 2 branches covered.">        for(int y=0;y&lt;inds.size();y++)</span>
+            {
+            // Calculate the node strengths
+<span class="fc" id="L234">            int myStrength = 0;</span>
+<span class="fc bfc" id="L235" title="All 2 branches covered.">            for(int z=0;z&lt;inds.size();z++)</span>
+<span class="fc bfc" id="L236" title="All 2 branches covered.">                if (((SPEA2MultiObjectiveFitness)inds.get(y).fitness).paretoDominates((MultiObjectiveFitness)inds.get(z).fitness)) </span>
+<span class="fc" id="L237">                    myStrength++;</span>
+<span class="fc" id="L238">            ((SPEA2MultiObjectiveFitness)inds.get(y).fitness).strength = myStrength;</span>
+            } //For each individual y calculate the strength
+                
+        // calculate k value
+<span class="fc bfc" id="L242" title="All 2 branches covered.">        final int kTH = (k == NOT_SET) ? (int) Math.sqrt(inds.size()) : k;  // note that the first element is k=1, not k=0 </span>
+        
+        // For each individual calculate the Raw fitness and kth-distance
+<span class="fc bfc" id="L245" title="All 2 branches covered.">        for(int y=0;y&lt;inds.size();y++)</span>
+            {
+<span class="fc" id="L247">            double fitness = 0;</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">            for(int z=0;z&lt;inds.size();z++)</span>
+                {
+                // Raw fitness 
+<span class="fc bfc" id="L251" title="All 2 branches covered.">                if ( ((SPEA2MultiObjectiveFitness)inds.get(z).fitness).paretoDominates((MultiObjectiveFitness)inds.get(y).fitness) )</span>
+                    {
+<span class="fc" id="L253">                    fitness += ((SPEA2MultiObjectiveFitness)inds.get(z).fitness).strength;</span>
+                    }
+                } // For each individual z calculate RAW fitness distances
+            // Set SPEA2 raw fitness value for each individual
+                                    
+<span class="fc" id="L258">            SPEA2MultiObjectiveFitness indYFitness = ((SPEA2MultiObjectiveFitness)inds.get(y).fitness);</span>
+                        
+            // Density component
+                        
+            // calc k-th nearest neighbor distance.
+            // we add 1 to k because the distances[] array includes the distance to self (which we wish to ignore)
+            // distances are squared, so we need to take the square root.
+<span class="fc" id="L265">            double kthDistance = Math.sqrt(orderStatistics(distances[y], kTH + 1, state.random[0]));</span>
+                        
+            // Set SPEA2 k-th NN distance value for each individual
+<span class="fc" id="L268">            indYFitness.kthNNDistance = 1.0 / ( 2 + kthDistance);</span>
+                        
+            // Set SPEA2 fitness value for each individual
+<span class="fc" id="L271">            indYFitness.fitness = fitness + indYFitness.kthNNDistance;</span>
+            }
+<span class="fc" id="L273">        }</span>
+    
+        
+    /** Returns a matrix of sum squared distances from each individual to each other individual. */
+    private double[][] calculateDistances(EvolutionState state, ArrayList&lt;Individual&gt; inds)
+        {
+<span class="fc" id="L279">        double[][] distances = new double[inds.size()][inds.size()];</span>
+<span class="fc bfc" id="L280" title="All 2 branches covered.">        for(int y=0;y&lt;inds.size();y++)</span>
+            {
+<span class="fc" id="L282">            distances[y][y] = 0;</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">            for(int z=y+1;z&lt;inds.size();z++)</span>
+                {
+<span class="fc" id="L285">                distances[z][y] = distances[y][z] =</span>
+<span class="fc" id="L286">                    ((SPEA2MultiObjectiveFitness)inds.get(y).fitness).</span>
+<span class="fc" id="L287">                    sumSquaredObjectiveDistance( (SPEA2MultiObjectiveFitness)inds.get(z).fitness , normalize);</span>
+                }
+            }
+<span class="fc" id="L290">        return distances;</span>
+        }
+
+
+    /** Returns the kth smallest element in the array.  Note that here k=1 means the smallest element in the array (not k=0).
+        Uses a randomized sorting technique, hence the need for the random number generator. */
+    private double orderStatistics(double[] array, int kth, MersenneTwisterFast rng)
+        {
+<span class="fc" id="L298">        return randomizedSelect(array, 0, array.length-1, kth, rng);</span>
+        }
+                
+                
+    /* OrderStatistics [Cormen, p187]:
+     * find the ith smallest element of the array between indices p and r */
+    private double randomizedSelect(double[] array, int p, int r, int i, MersenneTwisterFast rng)
+        {
+<span class="fc bfc" id="L306" title="All 2 branches covered.">        if(p==r) return array[p];</span>
+<span class="fc" id="L307">        int q = randomizedPartition(array, p, r, rng);</span>
+<span class="fc" id="L308">        int k = q-p+1;</span>
+<span class="fc bfc" id="L309" title="All 2 branches covered.">        if(i&lt;=k)</span>
+<span class="fc" id="L310">            return randomizedSelect(array, p, q, i,rng);</span>
+        else
+<span class="fc" id="L312">            return randomizedSelect(array, q+1, r, i-k,rng);</span>
+        }
+                
+                
+    /* [Cormen, p162] */
+    private int randomizedPartition(double[] array, int p, int r, MersenneTwisterFast rng)
+        {
+<span class="fc" id="L319">        int i = rng.nextInt(r-p+1)+p;</span>
+                
+        //exchange array[p]&lt;-&gt;array[i]
+<span class="fc" id="L322">        double tmp = array[i];</span>
+<span class="fc" id="L323">        array[i]=array[p];</span>
+<span class="fc" id="L324">        array[p]=tmp;</span>
+<span class="fc" id="L325">        return partition(array,p,r);</span>
+        }
+                
+                
+    /* [cormen p 154] */
+    private int partition(double[] array, int p, int r)
+        {
+<span class="fc" id="L332">        double x = array[p];</span>
+<span class="fc" id="L333">        int i = p-1;</span>
+<span class="fc" id="L334">        int j = r+1;</span>
+        while(true)
+            {
+<span class="fc bfc" id="L337" title="All 2 branches covered.">            do j--; while(array[j]&gt;x);</span>
+<span class="fc bfc" id="L338" title="All 2 branches covered.">            do i++; while(array[i]&lt;x);</span>
+<span class="fc bfc" id="L339" title="All 2 branches covered.">            if ( i &lt; j )</span>
+                {
+                //exchange array[i]&lt;-&gt;array[j]
+<span class="fc" id="L342">                double tmp = array[i];</span>
+<span class="fc" id="L343">                array[i]=array[j];</span>
+<span class="fc" id="L344">                array[j]=tmp;</span>
+<span class="fc" id="L345">                }</span>
+            else
+<span class="fc" id="L347">                return j;</span>
+            }
+        }
+
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

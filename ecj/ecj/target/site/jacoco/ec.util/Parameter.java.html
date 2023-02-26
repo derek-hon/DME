@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Parameter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">Parameter.java</span></div><h1>Parameter.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+import java.io.Serializable;
+
+/*
+ * Parameter.java
+ * Created: Sat Aug  7 12:06:49 1999
+ */
+
+/**
+ *
+ * &lt;p&gt;A Parameter is an object which the ParameterDatabase class
+ * uses as a key to associate with strings, forming a key-value pair.
+ * Parameters are designed to be hierarchical in nature, consisting
+ * of &quot;path items&quot; separated by a path separator.
+ * Parameters are created either from a single path item, from an array
+ * of path items, or both.  For example, a parameter with the path
+ * foo.bar.baz might be created from 
+ * &lt;tt&gt;new Parameter(new String[] {&quot;foo&quot;,&quot;bar&quot;,&quot;baz&quot;})&lt;/tt&gt;
+ * 
+ * &lt;p&gt;Parameters are not mutable -- but once a parameter is created, path 
+ * items may be pushed an popped from it, forming a new parameter.
+ * For example, if a parameter p consists of the path foo.bar.baz,
+ * p.pop() results in a new parameter whose path is foo.bar
+ * This pushing and popping isn't cheap, so be sparing.
+ *
+ * &lt;p&gt;Because this system internally uses &quot;.&quot; as its path separator, you should
+ * not use that character in parts of the path that you provide; however
+ * if you need some other path separator, you can change the delimiter in
+ * the code trivially.
+ * In fact, you can create a new Parameter with a path foo.bar.baz simply
+ * by calling &lt;tt&gt;new Parameter(&quot;foo.bar.baz&quot;)&lt;/tt&gt; but you'd better know
+ * what you're doing.
+ *
+ * &lt;p&gt;Additionally, parameters must not contain &quot;#&quot;, &quot;=&quot;, non-ascii values,
+ * or whitespace.  Yes, a parameter path item may be empty.
+ *
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+
+public class Parameter implements Serializable
+    {
+    public String param;
+    public static final char delimiter = '.';
+
+    /** Creates a new parameter by joining the path items in s into a single path. */
+    public Parameter(String[] s) throws ec.util.BadParameterException
+<span class="nc" id="L56">        {</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (s.length==0)</span>
+<span class="nc" id="L58">            throw new BadParameterException(&quot;Parameter created with length 0&quot;);</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        for (int x=0;x&lt;s.length;x++)</span>
+            {
+<span class="nc bnc" id="L61" title="All 2 branches missed.">            if (s[x]==null)</span>
+<span class="nc" id="L62">                throw new BadParameterException(&quot;Parameter created with null string&quot;);</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            if ( x == 0) param = s[x];</span>
+<span class="nc" id="L64">            else param += ( delimiter + s[x] );</span>
+            }
+<span class="nc" id="L66">        }</span>
+
+
+    /** Creates a new parameter from the single path item in s. */
+    public Parameter (String s) throws BadParameterException
+<span class="fc" id="L71">        {</span>
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (s==null)</span>
+<span class="nc" id="L73">            throw new BadParameterException(&quot;Parameter created with null string&quot;);</span>
+<span class="fc" id="L74">        param = s;</span>
+<span class="fc" id="L75">        }</span>
+
+
+    /** Creates a new parameter from the path item in s, plus the path items in s2.  s2 may be null or empty, but not s */
+    public Parameter(String s, String[] s2)
+<span class="nc" id="L80">        {</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        if (s==null)</span>
+<span class="nc" id="L82">            throw new BadParameterException(&quot;Parameter created with null string&quot;);</span>
+<span class="nc" id="L83">        param = s;</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        for (int x=0;x&lt;s2.length;x++)</span>
+            {
+<span class="nc bnc" id="L86" title="All 2 branches missed.">            if (s2[x]==null)</span>
+<span class="nc" id="L87">                throw new BadParameterException(&quot;Parameter created with null string&quot;);</span>
+<span class="nc" id="L88">            else param += ( delimiter + s2[x] );</span>
+            }
+<span class="nc" id="L90">        }</span>
+
+
+
+    /** Returns a new parameter with s added to the end of the current path items. 
+        If s is empty, nothing is pushed on (and no delimiter is added to the end). */ 
+    public Parameter push(String s)
+        {
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">        if (s==null)</span>
+<span class="nc" id="L99">            throw new BadParameterException(&quot;Parameter pushed with null string&quot;);</span>
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">        if (s.equals(&quot;&quot;)) return new Parameter(param);</span>
+<span class="fc" id="L101">        return new Parameter ( param + delimiter + s );</span>
+        }
+
+
+    /** Returns a new parameter with the path items in s added to the end of the current path items. */ 
+    public Parameter push(String[] s)
+        {
+<span class="nc" id="L108">        return new Parameter(param,s);</span>
+        }
+
+    /** Returns a new parameter with one path item popped off the end.  If this would result in a parameter with an empty collection of path items, null is returned. */ 
+    public Parameter pop()
+        {
+<span class="nc" id="L114">        int x = param.lastIndexOf(delimiter);</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (x==-1) // there's nothing left.</span>
+<span class="nc" id="L116">            return null;</span>
+<span class="nc" id="L117">        else return new Parameter(param.substring(0,x));</span>
+        }
+
+    /** Returns a new parameter with n path items popped off the end.  If this would result in a parameter with an empty collection of path items, null is returned. */ 
+    public Parameter popn(int n)
+        {
+<span class="nc" id="L123">        String s = param;</span>
+
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        for (int y=0;y&lt;n;y++)</span>
+            {
+<span class="nc" id="L127">            int x = s.lastIndexOf(delimiter);</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            if (x==-1) // there's nothing left</span>
+<span class="nc" id="L129">                return null;</span>
+<span class="nc" id="L130">            else s = param.substring(0,x);</span>
+            }
+<span class="nc" id="L132">        return new Parameter(s);</span>
+        }
+
+
+    /** Returns the path item at the far end of the parameter. */ 
+    public String top ()
+        {
+<span class="nc" id="L139">        int x = param.lastIndexOf(delimiter);</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        if (x==-1) return param;</span>
+<span class="nc" id="L141">        else return param.substring(x+1);</span>
+        }
+    
+    public String toString()
+        {
+<span class="fc" id="L146">        return param;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StatisticsChartPaneTab.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.display.chart</a> &gt; <span class="el_source">StatisticsChartPaneTab.java</span></div><h1>StatisticsChartPaneTab.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+/*
+ * Created on Apr 17, 2005 12:29:01 PM
+ * 
+ * By: spaus
+ */
+package ec.display.chart;
+
+import javax.swing.JPanel;
+
+import java.awt.BorderLayout;
+import java.awt.FileDialog;
+import java.awt.Frame;
+import java.awt.Graphics2D;
+import java.awt.geom.Rectangle2D;
+import java.io.File;
+import java.io.FileOutputStream;
+
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+
+import com.lowagie.text.Document;
+import com.lowagie.text.pdf.DefaultFontMapper;
+import com.lowagie.text.pdf.PdfContentByte;
+import com.lowagie.text.pdf.PdfTemplate;
+import com.lowagie.text.pdf.PdfWriter;
+
+import ec.display.StatisticsChartPane;
+/**
+ * @author spaus
+ */
+public class StatisticsChartPaneTab
+    extends JPanel
+    {
+    
+<span class="nc" id="L46">    private JPanel jPanel = null;</span>
+<span class="nc" id="L47">    private JButton printButton = null;</span>
+<span class="nc" id="L48">    private JButton closeButton = null;</span>
+    private final ChartPanel chartPane;
+    /**
+     * 
+     */
+    public StatisticsChartPaneTab(ChartPanel chartPane)
+        {
+<span class="nc" id="L55">        super();</span>
+<span class="nc" id="L56">        this.chartPane = chartPane;</span>
+<span class="nc" id="L57">        initialize();</span>
+<span class="nc" id="L58">        this.add(chartPane,BorderLayout.CENTER);</span>
+<span class="nc" id="L59">        }</span>
+    
+    /**
+     * @param isDoubleBuffered
+     */
+    public StatisticsChartPaneTab(ChartPanel chartPane, boolean isDoubleBuffered)
+        {
+<span class="nc" id="L66">        super(isDoubleBuffered);</span>
+<span class="nc" id="L67">        this.chartPane = chartPane;</span>
+<span class="nc" id="L68">        initialize();</span>
+<span class="nc" id="L69">        this.add(chartPane,BorderLayout.CENTER);</span>
+<span class="nc" id="L70">        }</span>
+    
+    /**
+     * This method initializes this
+     * 
+     * @return void
+     */
+    private  void initialize()
+        {
+<span class="nc" id="L79">        this.setLayout(new BorderLayout());</span>
+<span class="nc" id="L80">        this.setSize(300,200);</span>
+<span class="nc" id="L81">        this.add(getJPanel(), java.awt.BorderLayout.SOUTH);</span>
+<span class="nc" id="L82">        }</span>
+    
+    /**
+     * This method initializes jPanel   
+     *  
+     * @return javax.swing.JPanel       
+     */    
+    private JPanel getJPanel()
+        {
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if (jPanel == null)</span>
+            {
+<span class="nc" id="L93">            jPanel = new JPanel();</span>
+<span class="nc" id="L94">            jPanel.setLayout(new BoxLayout(jPanel, BoxLayout.X_AXIS));</span>
+<span class="nc" id="L95">            jPanel.add(Box.createHorizontalGlue());</span>
+<span class="nc" id="L96">            jPanel.add(getPrintButton(), null);</span>
+<span class="nc" id="L97">            jPanel.add(getCloseButton(), null);</span>
+            }
+<span class="nc" id="L99">        return jPanel;</span>
+        }
+    
+    /**
+     * This method initializes jButton  
+     *  
+     * @return javax.swing.JButton      
+     */    
+    private JButton getPrintButton()
+        {
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (printButton == null)</span>
+            {
+<span class="nc" id="L111">            printButton = new JButton();</span>
+<span class="nc" id="L112">            printButton.setText(&quot;Export to PDF...&quot;);</span>
+<span class="nc" id="L113">            final JFreeChart chart = chartPane.getChart(); </span>
+<span class="nc" id="L114">            printButton.addActionListener(new java.awt.event.ActionListener()</span>
+<span class="nc" id="L115">                { </span>
+                public void actionPerformed(java.awt.event.ActionEvent e)
+                    {    
+                    try
+                       
+                        {
+<span class="nc" id="L121">                        int width = chartPane.getWidth();</span>
+<span class="nc" id="L122">                        int height = chartPane.getHeight();</span>
+                        
+<span class="nc" id="L124">                        FileDialog fileDialog = new FileDialog(new Frame(),&quot;Export...&quot;,FileDialog.SAVE);</span>
+<span class="nc" id="L125">                        fileDialog.setDirectory(System.getProperty(&quot;user.dir&quot;));</span>
+<span class="nc" id="L126">                        fileDialog.setFile(&quot;*.pdf&quot;);</span>
+<span class="nc" id="L127">                        fileDialog.setVisible(true);</span>
+<span class="nc" id="L128">                        String fileName = fileDialog.getFile();</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">                        if ( fileName != null )</span>
+                           
+                            {
+<span class="nc bnc" id="L132" title="All 2 branches missed.">                            if (!fileName.endsWith(&quot;.pdf&quot;))</span>
+                                {
+<span class="nc" id="L134">                                fileName = fileName+&quot;.pdf&quot;;</span>
+                                }
+<span class="nc" id="L136">                            File f = new File(fileDialog.getDirectory(), fileName);</span>
+<span class="nc" id="L137">                            Document document = new Document(new com.lowagie.text.Rectangle(width,height));</span>
+<span class="nc" id="L138">                            PdfWriter writer = PdfWriter.getInstance(document, new FileOutputStream(f));</span>
+<span class="nc" id="L139">                            document.addAuthor(&quot;ECJ Console&quot;);</span>
+<span class="nc" id="L140">                            document.open();</span>
+<span class="nc" id="L141">                            PdfContentByte cb = writer.getDirectContent();</span>
+<span class="nc" id="L142">                            PdfTemplate tp = cb.createTemplate(width, height);</span>
+<span class="nc" id="L143">                            Graphics2D g2 = tp.createGraphics(width, height, new DefaultFontMapper());</span>
+<span class="nc" id="L144">                            Rectangle2D rectangle2D = new Rectangle2D.Double(0, 0, width, height);</span>
+<span class="nc" id="L145">                            chart.draw(g2, rectangle2D);</span>
+<span class="nc" id="L146">                            g2.dispose();</span>
+<span class="nc" id="L147">                            cb.addTemplate(tp, 0, 0);</span>
+<span class="nc" id="L148">                            document.close();</span>
+                            }
+                        }
+<span class="nc" id="L151">                    catch( Exception ex )</span>
+                       
+                        {
+<span class="nc" id="L154">                        ex.printStackTrace();</span>
+<span class="nc" id="L155">                        }</span>
+<span class="nc" id="L156">                    }</span>
+                });
+            }
+<span class="nc" id="L159">        return printButton;</span>
+        }
+    
+    /**
+     * This method initializes jButton1 
+     *  
+     * @return javax.swing.JButton      
+     */    
+    private JButton getCloseButton()
+        {
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        if (closeButton == null)</span>
+            {
+<span class="nc" id="L171">            closeButton = new JButton();</span>
+<span class="nc" id="L172">            closeButton.setText(&quot;Close&quot;);</span>
+<span class="nc" id="L173">            final StatisticsChartPaneTab pane = this;</span>
+<span class="nc" id="L174">            closeButton.addActionListener(new java.awt.event.ActionListener()</span>
+<span class="nc" id="L175">                { </span>
+                public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+<span class="nc" id="L178">                    StatisticsChartPane parent = (StatisticsChartPane)pane.getParent();</span>
+<span class="nc" id="L179">                    parent.removeTabAt(parent.indexOfComponent(pane));</span>
+<span class="nc" id="L180">                    }</span>
+                });
+            }
+<span class="nc" id="L183">        return closeButton;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

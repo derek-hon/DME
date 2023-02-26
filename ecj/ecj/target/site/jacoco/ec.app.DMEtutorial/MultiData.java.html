@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MultiData.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial</a> &gt; <span class="el_source">MultiData.java</span></div><h1>MultiData.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.WritableRaster;
+
+import ec.gp.*;
+
+@SuppressWarnings(&quot;serial&quot;)
+public class MultiData extends GPData
+{
+<span class="nc" id="L12">    private MultiDataType data_type	   = MultiDataType.Double;</span>
+<span class="nc" id="L13">    private double[]      double_data  = new double[3];</span>
+<span class="nc" id="L14">    private BufferedImage texture_data = null;</span>
+
+<span class="nc" id="L16">    public MultiData(){};</span>
+<span class="nc" id="L17">    public MultiData(double d)        { this.SetTo(d); }</span>
+<span class="nc" id="L18">    public MultiData(boolean b)       { this.SetTo(b); }</span>
+<span class="nc" id="L19">    public MultiData(double[] v)      { this.SetTo(v); }</span>
+<span class="nc" id="L20">    public MultiData(BufferedImage t) { this.SetTo(t); }</span>
+
+<span class="nc" id="L22">    public static enum MultiDataType</span>
+    {
+<span class="nc" id="L24">        Double,</span>
+<span class="nc" id="L25">        Boolean,</span>
+<span class="nc" id="L26">        Vector,</span>
+<span class="nc" id="L27">        Texture</span>
+    }
+
+    @Override
+    public void copyTo(final GPData gpd)
+    {
+<span class="nc" id="L33">        MultiData to = ((MultiData)gpd);</span>
+
+<span class="nc" id="L35">        to.double_data = new double[this.double_data.length];</span>
+<span class="nc" id="L36">        System.arraycopy(this.double_data, 0, to.double_data, 0, to.double_data.length);</span>
+
+<span class="nc" id="L38">        to.texture_data = deepCopy(texture_data);</span>
+<span class="nc" id="L39">    }</span>
+
+    @Override
+    public Object clone()
+    {
+<span class="nc" id="L44">        MultiData other = (MultiData)(super.clone());</span>
+
+<span class="nc" id="L46">        other.double_data  = (double[])(double_data.clone());</span>
+<span class="nc" id="L47">        other.texture_data = deepCopy(texture_data) ;</span>
+
+<span class="nc" id="L49">        return other;</span>
+    }
+
+    @Override
+    public String toString()
+    {
+<span class="nc" id="L55">        String outstr = &quot;&quot;;</span>
+<span class="nc bnc" id="L56" title="All 5 branches missed.">        switch(data_type)</span>
+        {
+<span class="nc" id="L58">            case Double:  outstr = &quot;D:&quot;+String.valueOf(GetD()); break;</span>
+<span class="nc" id="L59">            case Boolean: outstr = &quot;B:&quot;+String.valueOf(GetB()); break;</span>
+<span class="nc" id="L60">            case Vector:  outstr = &quot;S:&quot;+VectorNotation(GetS()); break;</span>
+<span class="nc" id="L61">            case Texture: outstr = &quot;T:TextureData&quot;; break;</span>
+        }
+<span class="nc" id="L63">        return outstr;</span>
+    }
+
+    static BufferedImage deepCopy(BufferedImage bi)
+    {
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if(bi == null) return null;</span>
+<span class="nc" id="L69">        ColorModel cm = bi.getColorModel();</span>
+<span class="nc" id="L70">        boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();</span>
+<span class="nc" id="L71">        WritableRaster raster = bi.copyData(null);</span>
+<span class="nc" id="L72">        return new BufferedImage(cm, raster, isAlphaPremultiplied, null);</span>
+    }
+
+    static String VectorNotation(double[] v)
+    {
+<span class="nc" id="L77">        String s = &quot;[&quot;;</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        for(int i = 0; i &lt; v.length; i++)</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            s += String.valueOf(v[i]) + ( i==v.length-1 ? &quot;]&quot; : &quot;,&quot; );</span>
+<span class="nc" id="L80">        return s;</span>
+    }
+
+<span class="nc" id="L83">    public MultiDataType GetDataType() { return data_type; }</span>
+<span class="nc" id="L84">    public void SetDataType(MultiDataType t){ data_type = t; }</span>
+
+<span class="nc" id="L86">    public BufferedImage GetT() { return texture_data;          }</span>
+<span class="nc" id="L87">    public double        GetD() { return double_data[0];        }</span>
+<span class="nc" id="L88">    public double[]      GetS() { return double_data;           }</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">    public boolean       GetB() { return double_data[0] != 0.0; }</span>
+
+<span class="nc" id="L91">    public void SetTo(BufferedImage v) { data_type=MultiDataType.Texture; texture_data = v;                }</span>
+<span class="nc" id="L92">    public void SetTo(double        v) { data_type=MultiDataType.Double;  double_data[0] = v;              }</span>
+<span class="nc" id="L93">    public void SetTo(double[]      v) { data_type=MultiDataType.Vector;  double_data = v;                 }</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">    public void SetTo(boolean       v) { data_type=MultiDataType.Boolean; double_data[0] = v ? 1.0 : 0.0 ; }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

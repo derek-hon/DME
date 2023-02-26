@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CompetitiveMaxOnes.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.coevolve1</a> &gt; <span class="el_source">CompetitiveMaxOnes.java</span></div><h1>CompetitiveMaxOnes.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.coevolve1;
+
+import ec.simple.SimpleFitness;
+import ec.coevolve.*;
+import ec.*;
+import ec.vector.*;
+import java.util.*;
+
+<span class="nc" id="L16">public class CompetitiveMaxOnes extends Problem implements GroupedProblemForm</span>
+    {
+    public void preprocessPopulation(final EvolutionState state, Population pop, boolean[] updateFitness, boolean countVictoriesOnly)
+        {
+<span class="nc bnc" id="L20" title="All 2 branches missed.">        for(int i = 0; i &lt; pop.subpops.size(); i++ )</span>
+<span class="nc bnc" id="L21" title="All 2 branches missed.">            if (updateFitness[i])</span>
+<span class="nc bnc" id="L22" title="All 2 branches missed.">                for(int j = 0; j &lt; pop.subpops.get(i).individuals.size() ; j++ )</span>
+<span class="nc" id="L23">                    ((SimpleFitness)(pop.subpops.get(i).individuals.get(j).fitness)).trials = new ArrayList();</span>
+<span class="nc" id="L24">        }</span>
+
+    public int postprocessPopulation(final EvolutionState state, Population pop, boolean[] updateFitness, boolean countVictoriesOnly)
+        {
+<span class="nc" id="L28">        int total = 0;</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        for(int i = 0; i &lt; pop.subpops.size(); i++ )</span>
+<span class="nc bnc" id="L30" title="All 2 branches missed.">            if (updateFitness[i])</span>
+<span class="nc bnc" id="L31" title="All 2 branches missed.">                for(int j = 0; j &lt; pop.subpops.get(i).individuals.size() ; j++ )</span>
+                    {
+<span class="nc" id="L33">                    SimpleFitness fit = ((SimpleFitness)(pop.subpops.get(i).individuals.get(j).fitness));</span>
+
+                    // average of the trials we got
+<span class="nc" id="L36">                    int len = fit.trials.size();</span>
+<span class="nc" id="L37">                    double sum = 0;</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">                    for(int l = 0; l &lt; len; l++)</span>
+<span class="nc" id="L39">                        sum += ((Double)(fit.trials.get(l))).doubleValue();</span>
+<span class="nc" id="L40">                    sum /= len;</span>
+                                                                        
+                    // we'll not bother declaring the ideal
+<span class="nc" id="L43">                    fit.setFitness(state, sum, false);</span>
+<span class="nc" id="L44">                    pop.subpops.get(i).individuals.get(j).evaluated = true;</span>
+<span class="nc" id="L45">                    total++;</span>
+                    }
+<span class="nc" id="L47">        return total;</span>
+        }
+
+    public void evaluate(final EvolutionState state,
+        final Individual[] ind,  // the individuals to evaluate together
+        final boolean[] updateFitness,  // should this individuals' fitness be updated?
+        final boolean countVictoriesOnly,
+        int[] subpops,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L57" title="All 4 branches missed.">        if( ind.length != 2 || updateFitness.length != 2 )</span>
+<span class="nc" id="L58">            state.output.fatal( &quot;The InternalSumProblem evaluates only two individuals at a time.&quot; );</span>
+
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if( ! ( ind[0] instanceof BitVectorIndividual ) )</span>
+<span class="nc" id="L61">            state.output.fatal( &quot;The individuals in the InternalSumProblem should be FloatVectorIndividuals.&quot; );</span>
+
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if( ! ( ind[1] instanceof BitVectorIndividual ) )</span>
+<span class="nc" id="L64">            state.output.fatal( &quot;The individuals in the InternalSumProblem should be FloatVectorIndividuals.&quot; );</span>
+        
+<span class="nc" id="L66">        int value1=0;</span>
+<span class="nc" id="L67">        int value2=0;</span>
+
+        BitVectorIndividual temp;
+
+        // calculate the function value for the first individual
+<span class="nc" id="L72">        temp = (BitVectorIndividual)ind[0];</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        for( int i = 0 ; i &lt; temp.genome.length ; i++ )</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">            if( temp.genome[i] ) value1++;</span>
+
+        // calculate the function value for the second individual
+<span class="nc" id="L77">        temp = (BitVectorIndividual)ind[1];</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        for( int i = 0 ; i &lt; temp.genome.length ; i++ )</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            if( temp.genome[i] ) value2++;</span>
+                        
+<span class="nc" id="L81">        double score = value1 - value2;</span>
+
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if( updateFitness[0] )</span>
+            {
+<span class="nc" id="L85">            SimpleFitness fit = ((SimpleFitness)(ind[0].fitness));</span>
+<span class="nc" id="L86">            fit.trials.add(new Double(score));</span>
+                        
+            // set the fitness because if we're doing Single Elimination Tournament, the tournament
+            // needs to know who won this time around.  Don't bother declaring the ideal here.
+<span class="nc" id="L90">            fit.setFitness(state, score, false);</span>
+            }
+
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if( updateFitness[1] )</span>
+            {
+<span class="nc" id="L95">            SimpleFitness fit = ((SimpleFitness)(ind[1].fitness));</span>
+<span class="nc" id="L96">            fit.trials.add(new Double(-score));</span>
+
+            // set the fitness because if we're doing Single Elimination Tournament, the tournament
+            // needs to know who won this time around.
+<span class="nc" id="L100">            fit.setFitness(state, -score, false);</span>
+            }
+<span class="nc" id="L102">        }</span>
+
+    }
+
+
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

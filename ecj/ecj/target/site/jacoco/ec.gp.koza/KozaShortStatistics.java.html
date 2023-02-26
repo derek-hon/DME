@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KozaShortStatistics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.koza</a> &gt; <span class="el_source">KozaShortStatistics.java</span></div><h1>KozaShortStatistics.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.koza;
+import ec.*;
+import ec.gp.*;
+import ec.util.*;
+import ec.simple.*;
+
+/* 
+ * KozaShortStatistics.java
+ * 
+ * Created: Fri Nov  5 16:03:44 1999
+ * By: Sean Luke
+ */
+
+/**
+ * A Koza-style statistics generator, intended to be easily parseable with
+ * awk or other Unix tools.  Prints fitness information,
+ * one generation (or pseudo-generation) per line.
+ * If gather-full is true, then timing information, number of nodes
+ * and depths of trees, etc. are also given.  No final statistics information
+ * is given.
+ *
+ * &lt;p&gt; Each line represents a single generation.  
+ * The first items on a line are always:
+ &lt;ul&gt;
+ &lt;li&gt; The generation number
+ &lt;li&gt; (if do-time) how long initialization took in milliseconds, or how long the previous generation took to breed to form this generation
+ &lt;li&gt; (if do-time) How long evaluation took in milliseconds this generation
+ &lt;/ul&gt;
+
+ &lt;p&gt;Then, (if do-subpops) the following items appear, once per each subpopulation:
+ &lt;ul&gt;
+ &lt;li&gt; (if do-depth) [a b c...], representing the average depth of tree &lt;i&gt;a&lt;/i&gt;, &lt;i&gt;b&lt;/i&gt;, etc. of individuals this generation
+ &lt;li&gt; (if do-size) [a b c...], representing the average number of nodes used in tree &lt;i&gt;a&lt;/i&gt;, &lt;i&gt;b&lt;/i&gt;, etc. of individuals this generation
+ &lt;li&gt; (if do-size) The average size of an individual this generation
+ &lt;li&gt; (if do-size) The average size of an individual so far in the run
+ &lt;li&gt; (if do-size) The size of the best individual this generation
+ &lt;li&gt; (if do-size) The size of the best individual so far in the run
+ &lt;li&gt; The mean standardized fitness of the subpopulation this generation
+ &lt;li&gt; The best standardized fitness of the subpopulation this generation
+ &lt;li&gt; The best standardized fitness of the subpopulation so far in the run
+ &lt;/ul&gt;
+ 
+ &lt;p&gt;Then the following items appear, for the whole population:
+ &lt;ul&gt;
+ &lt;li&gt; (if do-depth) [a b c...], representing the average depth of tree &lt;i&gt;a&lt;/i&gt;, &lt;i&gt;b&lt;/i&gt;, etc. of individuals this generation
+ &lt;li&gt; (if do-size) [a b c...], representing the average number of nodes used in tree &lt;i&gt;a&lt;/i&gt;, &lt;i&gt;b&lt;/i&gt;, etc. of individuals this generation
+ &lt;li&gt; (if do-size) The average size of an individual this generation
+ &lt;li&gt; (if do-size) The average size of an individual so far in the run
+ &lt;li&gt; (if do-size) The size of the best individual this generation
+ &lt;li&gt; (if do-size) The size of the best individual so far in the run
+ &lt;li&gt; The mean standardized fitness of the subpopulation this generation
+ &lt;li&gt; The best standardized fitness of the subpopulation this generation
+ &lt;li&gt; The best standardized fitness of the subpopulation so far in the run
+ &lt;/ul&gt;
+
+ KozaStatistics assumes that every one of the Individuals in your population (and all subpopualtions) are GPIndividuals, 
+ and further that they all have the same number of trees.
+
+ Besides the parameter below, KozaShortStatistics obeys all the SimpleShortStatistics parameters.
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;do-depth&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(print depth information?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L78">public class KozaShortStatistics extends SimpleShortStatistics</span>
+    {
+    public static final String P_DO_DEPTH = &quot;do-depth&quot;;
+
+    public boolean doDepth;
+
+    long totalDepthSoFarTree[][];
+    long totalSizeSoFarTree[][];
+    long[][] totalSizeThisGenTree;                  // per-subpop total size of individuals this generation per tree
+    long[][] totalDepthThisGenTree;                 // per-subpop total size of individuals this generation per tree
+
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L92">        super.setup(state,base);</span>
+<span class="nc" id="L93">        doDepth = state.parameters.getBoolean(base.push(P_DO_DEPTH),null,false);</span>
+<span class="nc" id="L94">        }</span>
+
+    public void postInitializationStatistics(final EvolutionState state)
+        {
+<span class="nc" id="L98">        super.postInitializationStatistics(state);</span>
+                
+<span class="nc" id="L100">        totalDepthSoFarTree = new long[state.population.subpops.size()][];</span>
+<span class="nc" id="L101">        totalSizeSoFarTree = new long[state.population.subpops.size()][];</span>
+
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        for(int x = 0; x &lt; state.population.subpops.size(); x++)</span>
+            {
+            // check to make sure they're the right class
+<span class="nc bnc" id="L106" title="All 2 branches missed.">            if ( !(state.population.subpops.get(x).species instanceof GPSpecies ))</span>
+<span class="nc" id="L107">                state.output.fatal(&quot;Subpopulation &quot; + x +</span>
+                    &quot; is not of the species form GPSpecies.&quot; + 
+                    &quot;  Cannot do timing statistics with KozaShortStatistics.&quot;);
+                
+<span class="nc" id="L111">            GPIndividual i = (GPIndividual)(state.population.subpops.get(x).individuals.get(0));</span>
+<span class="nc" id="L112">            totalDepthSoFarTree[x] = new long[i.trees.length];</span>
+<span class="nc" id="L113">            totalSizeSoFarTree[x] = new long[i.trees.length];</span>
+            }
+<span class="nc" id="L115">        }</span>
+
+
+    protected void prepareStatistics(EvolutionState state)
+        {
+<span class="nc" id="L120">        totalDepthThisGenTree = new long[state.population.subpops.size()][];</span>
+<span class="nc" id="L121">        totalSizeThisGenTree = new long[state.population.subpops.size()][];</span>
+
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        for(int x = 0; x &lt; state.population.subpops.size(); x++)</span>
+            {
+<span class="nc" id="L125">            GPIndividual i = (GPIndividual)(state.population.subpops.get(x).individuals.get(0));</span>
+<span class="nc" id="L126">            totalDepthThisGenTree[x] = new long[i.trees.length];</span>
+<span class="nc" id="L127">            totalSizeThisGenTree[x] = new long[i.trees.length];</span>
+            }
+<span class="nc" id="L129">        }</span>
+
+
+    protected void gatherExtraSubpopStatistics(EvolutionState state, int subpop, int individual)
+        {
+<span class="nc" id="L134">        GPIndividual i = (GPIndividual)(state.population.subpops.get(subpop).individuals.get(individual));</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        for(int z =0; z &lt; i.trees.length; z++)</span>
+            {
+<span class="nc" id="L137">            totalDepthThisGenTree[subpop][z] += i.trees[z].child.depth();</span>
+<span class="nc" id="L138">            totalDepthSoFarTree[subpop][z] += totalDepthThisGenTree[subpop][z];</span>
+<span class="nc" id="L139">            totalSizeThisGenTree[subpop][z] += i.trees[z].child.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc" id="L140">            totalSizeSoFarTree[subpop][z] += totalSizeThisGenTree[subpop][z];</span>
+            }
+<span class="nc" id="L142">        }</span>
+
+    protected void printExtraSubpopStatisticsBefore(EvolutionState state, int subpop)
+        {
+<span class="nc bnc" id="L146" title="All 2 branches missed.">        if (doDepth)</span>
+            {
+<span class="nc" id="L148">            state.output.print(&quot;[ &quot;, statisticslog);</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">            for(int z = 0 ; z &lt; totalDepthThisGenTree[subpop].length; z++)</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                state.output.print(&quot;&quot; + (totalIndsThisGen[subpop] &gt; 0 ? ((double)totalDepthThisGenTree[subpop][z])/totalIndsThisGen[subpop] : 0) + &quot; &quot;,  statisticslog);</span>
+<span class="nc" id="L151">            state.output.print(&quot;] &quot;, statisticslog);</span>
+            }
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        if (doSize)</span>
+            {
+<span class="nc" id="L155">            state.output.print(&quot;[ &quot;, statisticslog);</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            for(int z = 0 ; z &lt; totalSizeThisGenTree[subpop].length; z++)</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                state.output.print(&quot;&quot; + (totalIndsThisGen[subpop] &gt; 0 ? ((double)totalSizeThisGenTree[subpop][z])/totalIndsThisGen[subpop] : 0) + &quot; &quot;,  statisticslog);</span>
+<span class="nc" id="L158">            state.output.print(&quot;] &quot;, statisticslog);</span>
+            }
+<span class="nc" id="L160">        }</span>
+
+    protected void printExtraPopStatisticsBefore(EvolutionState state)
+        {
+<span class="nc" id="L164">        long[] totalDepthThisGenTreePop = new long[totalDepthSoFarTree[0].length];</span>
+<span class="nc" id="L165">        long[] totalSizeThisGenTreePop = new long[totalSizeSoFarTree[0].length];                // will assume each subpop has the same tree size</span>
+<span class="nc" id="L166">        long totalIndsThisGenPop = 0;</span>
+<span class="nc" id="L167">        long totalDepthThisGenPop = 0;</span>
+<span class="nc" id="L168">        long totalDepthSoFarPop = 0;</span>
+
+<span class="nc" id="L170">        int subpops = state.population.subpops.size();</span>
+
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        for(int y = 0; y &lt; subpops; y++)</span>
+            {
+<span class="nc" id="L174">            totalIndsThisGenPop += totalIndsThisGen[y];</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            for(int z =0; z &lt; totalSizeThisGenTreePop.length; z++)</span>
+<span class="nc" id="L176">                totalSizeThisGenTreePop[z] += totalSizeThisGenTree[y][z];</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">            for(int z =0; z &lt; totalDepthThisGenTreePop.length; z++)</span>
+<span class="nc" id="L178">                totalDepthThisGenTreePop[z] += totalDepthThisGenTree[y][z];</span>
+            }
+
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        if (doDepth)</span>
+            {
+<span class="nc" id="L183">            state.output.print(&quot;[ &quot;, statisticslog);</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">            for(int z = 0 ; z &lt; totalDepthThisGenTreePop.length; z++)</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">                state.output.print(&quot;&quot; + (totalIndsThisGenPop &gt; 0 ? ((double)totalDepthThisGenTreePop[z])/totalIndsThisGenPop : 0) + &quot; &quot;,  statisticslog);</span>
+<span class="nc" id="L186">            state.output.print(&quot;] &quot;, statisticslog);</span>
+            }
+<span class="nc bnc" id="L188" title="All 2 branches missed.">        if (doSize)</span>
+            {
+<span class="nc" id="L190">            state.output.print(&quot;[ &quot;, statisticslog);</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">            for(int z = 0 ; z &lt; totalSizeThisGenTreePop.length; z++)</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">                state.output.print(&quot;&quot; + (totalIndsThisGenPop &gt; 0 ? ((double)totalSizeThisGenTreePop[z])/totalIndsThisGenPop : 0) + &quot; &quot;,  statisticslog);</span>
+<span class="nc" id="L193">            state.output.print(&quot;] &quot;, statisticslog);</span>
+            }
+<span class="nc" id="L195">        }</span>
+    }
+        
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

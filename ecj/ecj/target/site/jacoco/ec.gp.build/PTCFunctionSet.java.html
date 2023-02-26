@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PTCFunctionSet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.build</a> &gt; <span class="el_source">PTCFunctionSet.java</span></div><h1>PTCFunctionSet.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.build;
+import ec.*;
+import ec.util.*;
+import ec.gp.*;
+
+/* 
+ * PTCFunctionSet.java
+ * 
+ * Created: Wed Jan 26 21:10:59 2000
+ * By: Sean Luke
+ */
+
+/**
+ * PTCFunctionSet is a GPFunctionSet which adheres to PTCFunctionSetForm, and thus
+ * can be used with the PTC1 and PTC2 methods.  Terminal and nonterminal probabilities
+ * for nodes used in this function set are determined by the &lt;tt&gt;prob&lt;/tt&gt; parameter
+ * for the nodes' GPNodeConstraints object.  That's not the greatest solution,
+ * because it could require making a lot of different GPNodeConstraints, customized for each
+ * node, but it's the best I can do for now.
+ *
+ * The nonterminalSelectionProbabilities() method computes nonterminal selection
+ * probability using the probabilities above, per type, for the size requested.
+ * If the size is small enough (smaller than CACHE_SIZE), then the result is
+ * memoized so it doesn't need to be computed again next time.
+ * 
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L37">public class PTCFunctionSet extends GPFunctionSet implements PTCFunctionSetForm</span>
+    {
+    /** terminal probabilities[type][thenodes], in organized form */
+    public double q_ty[][];
+    /** nonterminal probabilities[type][thenodes], in organized form */
+    public double q_ny[][];
+
+    public static final int CACHE_SIZE = 1024;
+    /** cache of nonterminal selection probabilities -- dense array 
+        [size-1][type].  If any items are null, they're not in the dense cache. */
+    public double p_y[][];
+
+    public double[] terminalProbabilities(final int type)
+<span class="nc" id="L50">        { return q_ty[type]; }</span>
+
+    public double[] nonterminalProbabilities(final int type)
+<span class="nc" id="L53">        { return q_ny[type]; }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L57">        super.setup(state,base);</span>
+
+        // load our probabilities here.
+        
+<span class="nc" id="L61">        q_ny = new double[nonterminals.length][];</span>
+<span class="nc" id="L62">        q_ty = new double[terminals.length][];</span>
+        
+<span class="nc" id="L64">        boolean allOnes = true;</span>
+<span class="nc" id="L65">        boolean noOnes = true;</span>
+<span class="nc" id="L66">        boolean allZeros = true;</span>
+<span class="nc" id="L67">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        for(int type=0;type&lt;nonterminals.length;type++)</span>
+            {
+<span class="nc" id="L71">            q_ny[type] = new double[nonterminals[type].length];</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">            for(int x=0;x&lt;nonterminals[type].length;x++)</span>
+                {
+<span class="nc" id="L74">                q_ny[type][x] = nonterminals[type][x].constraints(initializer).probabilityOfSelection;</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">                if (q_ny[type][x] != 0.0f) allZeros = false;</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                if (q_ny[type][x] == 1.0f) noOnes = false;</span>
+<span class="nc" id="L77">                else allOnes = false;</span>
+                }
+            }
+            
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        if (allZeros)</span>
+<span class="nc" id="L82">            state.output.warning(&quot;In this function set, the probabilities of all nonterminal functions have a 0.0 selection probability -- this will cause them all to be selected uniformly.  That could be an error.&quot;, base);</span>
+<span class="nc" id="L83">        allZeros = false;</span>
+
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        for(int type=0;type&lt;terminals.length;type++)</span>
+            {
+<span class="nc" id="L87">            q_ty[type] = new double[terminals[type].length];</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            for(int x=0;x&lt;terminals[type].length;x++)</span>
+                {
+<span class="nc" id="L90">                q_ty[type][x] = terminals[type][x].constraints(initializer).probabilityOfSelection;</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                if (q_ty[type][x] != 0.0f) allZeros = false;</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">                if (q_ty[type][x] == 1.0f) noOnes = false;</span>
+<span class="nc" id="L93">                else allOnes = false;</span>
+                }
+            }
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (allZeros)</span>
+<span class="nc" id="L98">            state.output.warning(&quot;In this function set, the probabilities of all terminal functions have a 0.0 selection probability -- this will cause them all to be selected uniformly.  That could be an error.&quot;, base);</span>
+
+<span class="nc bnc" id="L100" title="All 4 branches missed.">        if (!allOnes &amp;&amp; !noOnes)</span>
+<span class="nc" id="L101">            state.output.warning(&quot;In this function set, there are some functions with a selection probability of 1.0, but not all of them.  That could be an error.&quot;,base);</span>
+        
+        // set up our node probabilities.  Allow all zeros.
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        for(int x=0;x&lt;q_ty.length;x++)</span>
+            {
+<span class="nc bnc" id="L106" title="All 2 branches missed.">            if (q_ty[x].length == 0) state.output.warning(&quot;Function Set &quot; + name + &quot; has no terminals for type number &quot; + x + &quot;.  This may cause problems for you.&quot;);</span>
+<span class="nc" id="L107">            else RandomChoice.organizeDistribution(q_ty[x], true);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            if (q_ny[x].length == 0) state.output.warning(&quot;Function Set &quot; + name + &quot; has no nonterminals for type number &quot; + x + &quot;.  This may cause problems for you.&quot;);</span>
+<span class="nc" id="L109">            else RandomChoice.organizeDistribution(q_ny[x], true);</span>
+            }
+
+        // set up cache
+<span class="nc" id="L113">        p_y = new double[CACHE_SIZE][];</span>
+<span class="nc" id="L114">        }</span>
+    
+    public double[] nonterminalSelectionProbabilities(final int expectedTreeSize)
+        {
+        // check cache first
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (expectedTreeSize&lt;CACHE_SIZE)</span>
+            {
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            if (p_y[expectedTreeSize-1]!=null) return p_y[expectedTreeSize-1];</span>
+<span class="nc" id="L122">            else return p_y[expectedTreeSize-1] = </span>
+<span class="nc" id="L123">                     computeNonterminalSelectionProbabilities(expectedTreeSize);</span>
+            }
+        else
+            // we'll have to compute it
+<span class="nc" id="L127">            return computeNonterminalSelectionProbabilities(expectedTreeSize);</span>
+        }
+
+    
+    public double[] computeNonterminalSelectionProbabilities(final int expectedTreeSize)
+        {
+<span class="nc" id="L133">        double[] p = new double[q_ny.length];</span>
+
+        // for each type...
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        for(int x=0;x&lt;q_ny.length;x++)</span>
+            {
+<span class="nc" id="L138">            double count=0;</span>
+            // gather branching factor * prob for each nonterminal
+<span class="nc bnc" id="L140" title="All 2 branches missed.">            for(int y=0;y&lt;q_ny[x].length;y++)</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">                count += (y==0 ? q_ny[x][y] : q_ny[x][y]-q_ny[x][y-1]) // it's organized</span>
+                    * nonterminals[x][y].children.length;
+
+<span class="nc" id="L144">            p[x] = (double)((1.0-(1.0/expectedTreeSize))/count);</span>
+            }
+<span class="nc" id="L146">        return p;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

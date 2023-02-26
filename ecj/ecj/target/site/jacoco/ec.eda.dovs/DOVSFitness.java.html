@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DOVSFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.dovs</a> &gt; <span class="el_source">DOVSFitness.java</span></div><h1>DOVSFitness.java</h1><pre class="source lang-java linenums">package ec.eda.dovs;
+
+import ec.*;
+import ec.simple.*;
+import ec.util.*;
+
+/**
+ * DOVSFitness is a subclass of Fitness which implements contains important
+ * statistics about simulation results of the individual. These statistics will
+ * be used to determine the total simulation number that are necessary for a
+ * individual. And we hope after such number of simulations are done, we have
+ * high confidence of the fitness value of the individual.
+ * 
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ * dovs.fitness
+ * 
+ * @author Ermo Wei and David Freelan
+ */
+
+<span class="nc" id="L22">public class DOVSFitness extends SimpleFitness</span>
+    {
+    /** Sum of the all the squared fitness value with all the evaluation. */
+    public double sumSquared;
+
+    /** Sum of the all the fitness value with all the evaluation. */
+    public double sum;
+
+    /** Mean fitness value of the current individual. */
+    public double mean;
+
+    /** Number of evaluation have been performed on this individual. */
+    public int numOfObservations;
+
+    /** Variance of the fitness value of the current individual. */
+    public double variance;
+
+    public void setup(final EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L41">        super.setup(state, base); // unnecessary but what the heck</span>
+
+<span class="nc" id="L43">        sumSquared = 0;</span>
+<span class="nc" id="L44">        sum = 0;</span>
+<span class="nc" id="L45">        mean = 0;</span>
+<span class="nc" id="L46">        numOfObservations = 0;</span>
+<span class="nc" id="L47">        variance = 0;</span>
+<span class="nc" id="L48">        }</span>
+
+    /** Reset the fitness to initial status. */
+    public void reset()
+        {
+<span class="nc" id="L53">        sumSquared = 0;</span>
+<span class="nc" id="L54">        sum = 0;</span>
+<span class="nc" id="L55">        mean = 0;</span>
+<span class="nc" id="L56">        numOfObservations = 0;</span>
+<span class="nc" id="L57">        variance = 0;</span>
+<span class="nc" id="L58">        }</span>
+
+    /** Return the number of simulation have done with current individual. */
+    public int numOfObservations()
+        {
+<span class="nc" id="L63">        return numOfObservations;</span>
+        }
+
+    /**
+     * Record the result of the new simulation. This will update some of the
+     * statistics of the current fitness value.
+     */
+    public double recordObservation(EvolutionState state, double result)
+        {
+
+<span class="nc" id="L73">        sum += result;</span>
+<span class="nc" id="L74">        sumSquared += result * result;</span>
+<span class="nc" id="L75">        numOfObservations++;</span>
+<span class="nc" id="L76">        mean = sum / numOfObservations;</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (numOfObservations == 1)</span>
+            {
+<span class="nc" id="L79">            variance = 0;</span>
+            }
+        else
+            {
+<span class="nc" id="L83">            variance = (sumSquared - numOfObservations * mean * mean) / (numOfObservations - 1);</span>
+            }
+
+<span class="nc" id="L86">        setFitness(state, mean, false);</span>
+
+<span class="nc" id="L88">        return mean;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

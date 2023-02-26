@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MapElitesBreedingPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">MapElitesBreedingPipeline.java</span></div><h1>MapElitesBreedingPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.distributedME;
+
+import ec.EvolutionState;
+import ec.Individual;
+
+import ec.util.Parameter;
+
+
+/**
+ * MapElitesBreedingPipeline.java
+ *
+ * @see ec.BreedingPipeline
+ * Repurposes BreedingPipeline to be compliant with MAP-Elites.
+ * Virtually the same as BreedingPipeline.
+ * 
+ * Created: 25 January, 2022
+ * 
+ * Combines Breeding Pipeline and GPBreedingPipeline
+ * @author Derek Hon
+ * @version 1.0
+ */
+
+<span class="nc" id="L29">public abstract class MapElitesBreedingPipeline extends MapElitesBreedingSource implements MapElitesSourceForm {</span>
+    /** Indicates that a source is the exact same source as the previous source. */
+    public static final String V_SAME = &quot;same&quot;;
+
+    /**
+     * Indicates the probability that the Breeding Pipeline will perform its
+     * mutative action instead of just doing reproduction.
+     */
+    public static final String P_LIKELIHOOD = &quot;likelihood&quot;;
+
+    /**
+     * Indicates that the number of sources is variable and determined by the user
+     * in the parameter file.
+     */
+
+    public static final int DYNAMIC_SOURCES = -1;
+
+    /**
+     * Standard parameter for number of sources (only used if numSources returns
+     * DYNAMIC_SOURCES
+     */
+
+    public static final String P_NUMSOURCES = &quot;num-sources&quot;;
+
+    /**
+     * Standard parameter for individual-selectors associated with a
+     * MapElitesBreedingPipeline
+     */
+    public static final String P_SOURCE = &quot;source&quot;;
+
+    /**
+     * My parameter base -- I keep it around so I can print some messages that are
+     * useful with it (not deep cloned)
+     */
+
+    public Parameter mybase;
+
+    public double likelihood;
+
+    /** Array of sources feeding the pipeline */
+    public MapElitesBreedingSource[] sources;
+
+    /**
+     * Returns the number of sources to this pipeline. Called during
+     * MapElitesBreedingPipeline's setup. Be sure to return a value &gt; 0, or
+     * DYNAMIC_SOURCES which indicates that setup should check the parameter file
+     * for the parameter &quot;num-sources&quot; to make its determination.
+     */
+
+    public abstract int numSources();
+
+    /**
+     * Standard parameter for node-selectors associated with a GPBreedingPipeline
+     */
+    public static final String P_NODESELECTOR = &quot;ns&quot;;
+
+    /** Standard parameter for tree fixing */
+    public static final String P_TREE = &quot;tree&quot;;
+
+    /** Standard value for an unfixed tree */
+    public static final int TREE_UNFIXED = -1;
+
+    /**
+     * Returns the minimum among the typicalIndsProduced() for any children -- a
+     * function that's useful internally, not very useful for you to call
+     * externally.
+     */
+    public int minChildProduction() {
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (sources.length == 0)</span>
+<span class="nc" id="L98">            return 0;</span>
+<span class="nc" id="L99">        int min = sources[0].typicalIndsProduced();</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        for (int x = 1; x &lt; sources.length; x++) {</span>
+<span class="nc" id="L101">            int cur = sources[x].typicalIndsProduced();</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            if (min &gt; cur)</span>
+<span class="nc" id="L103">                min = cur;</span>
+        }
+<span class="nc" id="L105">        return min;</span>
+    }
+
+    /**
+     * Returns the maximum among the typicalIndsProduced() for any children -- a
+     * function that's useful internally, not very useful for you to call
+     * externally.
+     */
+    public int maxChildProduction() {
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (sources.length == 0)</span>
+<span class="nc" id="L115">            return 0;</span>
+<span class="nc" id="L116">        int max = sources[0].typicalIndsProduced();</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        for (int x = 1; x &lt; sources.length; x++) {</span>
+<span class="nc" id="L118">            int cur = sources[x].typicalIndsProduced();</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">            if (max &lt; cur)</span>
+<span class="nc" id="L120">                max = cur;</span>
+        }
+<span class="nc" id="L122">        return max;</span>
+    }
+
+    /**
+     * Returns the &quot;typical&quot; number of individuals produced -- by default this is
+     * the minimum typical number of individuals produced by any children sources of
+     * the pipeline. If you'd prefer something different, override this method.
+     */
+    public int typicalIndsProduced() {
+<span class="nc" id="L131">        return minChildProduction();</span>
+    }
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L135">        super.setup(state, base);</span>
+<span class="nc" id="L136">        mybase = base;</span>
+<span class="nc" id="L137">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L139">        likelihood = state.parameters.getDoubleWithDefault(base.push(P_LIKELIHOOD), def.push(P_LIKELIHOOD), 1.0);</span>
+<span class="nc bnc" id="L140" title="All 4 branches missed.">        if (likelihood &lt; 0.0 || likelihood &gt; 1.0)</span>
+<span class="nc" id="L141">            state.output.fatal(&quot;Breeding Pipeline likelihood must be a value between 0.0 and 1.0 inclusive&quot;,</span>
+<span class="nc" id="L142">                    base.push(P_LIKELIHOOD), def.push(P_LIKELIHOOD));</span>
+
+<span class="nc" id="L144">        int numsources = numSources();</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if (numsources == DYNAMIC_SOURCES) {</span>
+            // figure it from the file
+<span class="nc" id="L147">            numsources = state.parameters.getInt(base.push(P_NUMSOURCES), def.push(P_NUMSOURCES), 0);</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">            if (numsources == -1)</span>
+<span class="nc" id="L149">                state.output.fatal(&quot;Breeding pipeline num-sources value must exist and be &gt;= 0&quot;,</span>
+<span class="nc" id="L150">                        base.push(P_NUMSOURCES), def.push(P_NUMSOURCES));</span>
+        }
+        // it's negative
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        else if (numsources &lt;= DYNAMIC_SOURCES) {</span>
+<span class="nc" id="L154">            throw new RuntimeException(&quot;In &quot; + this + &quot; numSources() returned &lt; DYNAMIC_SOURCES (that is, &lt; -1)&quot;);</span>
+        } else {
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_NUMSOURCES), def.push(P_NUMSOURCES))) // uh oh</span>
+<span class="nc" id="L157">                state.output.warning(</span>
+                        &quot;Breeding pipeline's number of sources is hard-coded to &quot; + numsources
+                                + &quot; yet num-sources was provided: num-sources will be ignored.&quot;,
+<span class="nc" id="L160">                        base.push(P_NUMSOURCES), def.push(P_NUMSOURCES));</span>
+        }
+
+<span class="nc" id="L163">        sources = new MapElitesBreedingSource[numsources];</span>
+
+<span class="nc bnc" id="L165" title="All 2 branches missed.">        for (int x = 0; x &lt; sources.length; x++) {</span>
+<span class="nc" id="L166">            Parameter p = base.push(P_SOURCE).push(&quot;&quot; + x);</span>
+<span class="nc" id="L167">            Parameter d = def.push(P_SOURCE).push(&quot;&quot; + x);</span>
+
+<span class="nc" id="L169">            String s = state.parameters.getString(p, d);</span>
+<span class="nc bnc" id="L170" title="All 4 branches missed.">            if (s != null &amp;&amp; s.equals(V_SAME)) {</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                if (x == 0) // oops</span>
+<span class="nc" id="L172">                    state.output.fatal(&quot;Source #0 cannot be declared with the value \&quot;same\&quot;.&quot;, p, d);</span>
+
+                // else the source is the same source as before
+<span class="nc" id="L175">                sources[x] = sources[x - 1];</span>
+            } // if
+            else {
+<span class="nc" id="L178">                sources[x] = (MapElitesBreedingSource) (state.parameters.getInstanceForParameter(p, d,</span>
+                        MapElitesBreedingSource.class));
+<span class="nc" id="L180">                sources[x].setup(state, p);</span>
+            } // else
+
+        } // for
+<span class="nc" id="L184">        state.output.exitIfErrors();</span>
+<span class="nc" id="L185">    }</span>
+
+    public Object clone() {
+<span class="nc" id="L188">        MapElitesBreedingPipeline c = (MapElitesBreedingPipeline) (super.clone());</span>
+
+        // make a new array
+<span class="nc" id="L191">        c.sources = new MapElitesBreedingSource[sources.length];</span>
+
+        // clone the sources -- we won't go through the hassle of
+        // determining if we have a DAG or not -- we'll just clone
+        // it out to a tree. I doubt it's worth it.
+
+<span class="nc bnc" id="L197" title="All 2 branches missed.">        for (int x = 0; x &lt; sources.length; x++) {</span>
+<span class="nc bnc" id="L198" title="All 4 branches missed.">            if (x == 0 || sources[x] != sources[x - 1])</span>
+<span class="nc" id="L199">                c.sources[x] = (MapElitesBreedingSource) (sources[x].clone());</span>
+            else
+<span class="nc" id="L201">                c.sources[x] = c.sources[x - 1];</span>
+        }
+
+<span class="nc" id="L204">        return c;</span>
+    }
+
+    /** Will not be using reproduce, do not want individuals being copied */
+    public int reproduce(final int n, final int start, final Individual[] inds, final EvolutionState state,
+            final int thread, boolean produceChildrenFromSource) {
+<span class="nc" id="L210">        return 0;</span>
+    }
+
+    public boolean produces(final EvolutionState state, final EliteMap newMap, int thread) {
+
+<span class="nc bnc" id="L215" title="All 2 branches missed.">        for (int x = 0; x &lt; sources.length; x++) {</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">            if (!sources[x].produces(state, newMap, thread))</span>
+<span class="nc" id="L217">                return false;</span>
+        }
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        if (newMap.species instanceof MapElitesGPSpecies)</span>
+<span class="nc" id="L220">            return true;</span>
+<span class="nc" id="L221">        return false;</span>
+    }
+
+    public void prepareToProduce(final EvolutionState state, int submap, final int thread) {
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        for (int x = 0; x &lt; sources.length; x++)</span>
+<span class="nc bnc" id="L226" title="All 4 branches missed.">            if (x == 0 || sources[x] != sources[x - 1])</span>
+<span class="nc" id="L227">                sources[x].prepareToProduce(state, submap, thread);</span>
+<span class="nc" id="L228">    }</span>
+
+    public void finishProducing(final EvolutionState state, final int submap, final int thread) {
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        for (int x = 0; x &lt; sources.length; x++)</span>
+<span class="nc bnc" id="L232" title="All 4 branches missed.">            if (x == 0 || sources[x] != sources[x - 1])</span>
+<span class="nc" id="L233">                sources[x].finishProducing(state, submap, thread);</span>
+<span class="nc" id="L234">    }</span>
+
+    public void sourcesAreProperForm(final EvolutionState state) {
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        for (int x = 0; x &lt; sources.length; x++)</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">            if (!(sources[x] instanceof MapElitesSourceForm)) {</span>
+<span class="nc" id="L239">                state.output.error(&quot;The following breeding source is not of MapElitesSourceForm.&quot;,</span>
+<span class="nc" id="L240">                        mybase.push(P_SOURCE).push(&quot;&quot; + x), defaultBase().push(P_SOURCE).push(&quot;&quot; + x));</span>
+            } else
+<span class="nc" id="L242">                ((MapElitesSourceForm) (sources[x])).sourcesAreProperForm(state);</span>
+<span class="nc" id="L243">    }</span>
+
+    public void individualReplaced(final EvolutionState state, final int submap, final int thread,
+            final int individual) {
+<span class="nc bnc" id="L247" title="All 2 branches missed.">        for (int x = 0; x &lt; sources.length; x++)</span>
+<span class="nc" id="L248">            ((MapElitesSourceForm) (sources[x])).individualReplaced(state, submap, thread, individual);</span>
+<span class="nc" id="L249">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

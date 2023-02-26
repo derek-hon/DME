@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReferencePoint.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.multiobjective.nsga3</a> &gt; <span class="el_source">ReferencePoint.java</span></div><h1>ReferencePoint.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2017 by Antonio J. Nebro and Juan J. Durillo
+  With Modifications by Ben Brumbac, Eric Scott, and Sean Luke
+  Licensed under the MIT License shown here:
+  
+  Permission is hereby granted, free of charge, to any person obtaining a copy of this 
+  software and associated documentation files (the &quot;Software&quot;), to deal in the Software 
+  without restriction, including without limitation the rights to use, copy, modify, 
+  merge, publish, distribute, sublicense, and/or sell copies of the Software, and to 
+  permit persons to whom the Software is furnished to do so, subject to the following 
+  conditions:
+
+  The above copyright notice and this permission notice shall be included in all copies 
+  or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, 
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR 
+  PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE 
+  FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
+  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
+  DEALINGS IN THE SOFTWARE.
+*/
+ 
+package ec.multiobjective.nsga3;
+
+import ec.*;
+import ec.util.*;
+import ec.simple.*;
+import java.util.*;
+import java.util.AbstractMap.SimpleEntry;
+import java.util.Map.Entry;
+import ec.multiobjective.*;
+
+/*
+  The reference point object is used in NSGA-3 as a way of finding the last set of children from front L for the new population.
+  The reference point is used in the SelectorTools class to return what the best individuals for front L would be. For more
+  infromation about how reference points are being used check the read me. 
+
+  The design of this object was taken from the JMetal implementation: 
+  &quot;https://github.com/jMetal/jMetal/blob/master/jmetal-algorithm/src/main/java/org/uma/jmetal/algorithm/multiobjective/nsgaiii/util/ReferencePoint.java&quot;
+*/
+
+public class ReferencePoint 
+    {
+
+    ArrayList&lt;Entry&lt;Double, Individual&gt;&gt; associates;
+    int associations;
+    ArrayList&lt;Double&gt; position;
+        
+    public ReferencePoint(int size) 
+<span class="nc" id="L51">        {</span>
+<span class="nc" id="L52">        position = new ArrayList&lt;Double&gt;(size);</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">        for(int i =0; i &lt; size; i++)</span>
+<span class="nc" id="L54">            position.add(0.0);</span>
+<span class="nc" id="L55">        associations = 0 ;</span>
+<span class="nc" id="L56">        associates = new ArrayList&lt;Entry&lt;Double, Individual&gt;&gt;();</span>
+<span class="nc" id="L57">        }</span>
+        
+    public ReferencePoint(List&lt;Double&gt; point) 
+<span class="nc" id="L60">        {</span>
+<span class="nc" id="L61">        position = new ArrayList&lt;Double&gt;(point.size());</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        for (Double d : point) </span>
+            {
+<span class="nc" id="L64">            position.add(new Double(d));</span>
+<span class="nc" id="L65">            }</span>
+<span class="nc" id="L66">        associations = 0;</span>
+<span class="nc" id="L67">        associates = new ArrayList&lt;Entry&lt;Double, Individual&gt;&gt;();</span>
+<span class="nc" id="L68">        }</span>
+
+<span class="nc" id="L70">    public List&lt;Double&gt; pos()  { return this.position; }</span>
+<span class="nc" id="L71">    public int  numAssociations(){ return associations; }</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">    public boolean hasAssociates() { return associates.size() &gt; 0; }</span>
+<span class="nc" id="L73">    public void clear(){ associations=0; this.associates.clear();}</span>
+<span class="nc" id="L74">    public void addAssociation(){this.associations++;}</span>
+    
+    public void addAssociate(Individual ind, double distance)
+        {
+<span class="nc" id="L78">        this.associates.add(new SimpleEntry&lt;Double, Individual&gt;(distance,ind));</span>
+<span class="nc" id="L79">        }</span>
+
+    public Individual FindClosestAssociate() 
+        {
+<span class="nc" id="L83">        double minDistance = Double.MAX_VALUE;</span>
+<span class="nc" id="L84">        Individual closetAssociate = null;</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        for (Entry&lt;Double, Individual&gt; p : this.associates) </span>
+            {
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (p.getKey() &lt; minDistance) </span>
+                {
+<span class="nc" id="L89">                minDistance = p.getKey();</span>
+<span class="nc" id="L90">                closetAssociate = p.getValue();</span>
+                }
+<span class="nc" id="L92">            }</span>
+<span class="nc" id="L93">        return closetAssociate;</span>
+        }
+
+    public Individual RandomAssociate() 
+        {
+<span class="nc" id="L98">        return associates.get(new Random().nextInt(associates.size())).getValue();</span>
+        }
+  
+    public void RemoveAssociate(Individual ind) 
+        {
+<span class="nc" id="L103">        Iterator&lt;Entry&lt;Double, Individual&gt;&gt; iter = this.associates.iterator();</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        while (iter.hasNext()) </span>
+            {
+<span class="nc bnc" id="L106" title="All 2 branches missed.">            if (iter.next().getValue().equals(ind)) </span>
+                {
+<span class="nc" id="L108">                iter.remove();</span>
+<span class="nc" id="L109">                break;</span>
+                }
+            }
+<span class="nc" id="L112">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EEE.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.majority.func</a> &gt; <span class="el_source">EEE.java</span></div><h1>EEE.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2013 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.app.majority.func;
+import ec.*;
+import ec.app.majority.*;
+import ec.gp.*;
+import ec.util.*;
+
+<span class="nc" id="L13">public class EEE extends GPNode</span>
+    {
+<span class="nc" id="L15">    public String toString() { return &quot;eee&quot;; }</span>
+
+<span class="nc" id="L17">    public int expectedChildren() { return 0; }</span>
+    
+<span class="nc" id="L19">    public static long X0 = 0;</span>
+<span class="nc" id="L20">    public static long X1 = 0;</span>
+    static
+        {
+<span class="nc bnc" id="L23" title="All 2 branches missed.">        for(int i = 0 ; i &lt; 64; i++)</span>
+            {
+<span class="nc" id="L25">            long val = (i &gt;&gt; 0) &amp; 0x1;  // east east east element</span>
+<span class="nc" id="L26">            X0 = X0 | (val &lt;&lt; i);</span>
+            }
+                
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        for(int i = 64 ; i &lt; 128; i++)</span>
+            {
+<span class="nc" id="L31">            long val = (i &gt;&gt; 0) &amp; 0x1;  // east east east element</span>
+<span class="nc" id="L32">            X1 = X1 | (val &lt;&lt; (i - 64));</span>
+            }
+<span class="nc" id="L34">        }</span>
+
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+<span class="nc" id="L43">        MajorityData md = (MajorityData) input;</span>
+<span class="nc" id="L44">        md.data0 = X0;</span>
+<span class="nc" id="L45">        md.data1 = X1;</span>
+<span class="nc" id="L46">        }</span>
+    }
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

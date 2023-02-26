@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DOVSBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.dovs</a> &gt; <span class="el_source">DOVSBreeder.java</span></div><h1>DOVSBreeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.eda.dovs;
+
+import java.util.ArrayList;
+
+import ec.*;
+import ec.util.*;
+
+/**
+ * DOVSBreeder is a Breeder which overrides the breedPopulation method to first
+ * construct hyperbox around current best individual and replace the population
+ * with new individuals sampled from this hyperbox. All the heavy lifting is
+ * done in DOVSSpecies and its descendant, not here.
+ * 
+ * @author Ermo Wei and David Freelan
+ */
+
+<span class="nc" id="L23">public class DOVSBreeder extends Breeder</span>
+    {
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // nothing to setup
+<span class="nc" id="L28">        }</span>
+
+    /**
+     * This method have three major part, first identify the best indiviudal,
+     * and then call updateMostPromisingArea(...) to construct a hyperbox around
+     * this individual. At last, sampled a new population from the hyperbox and
+     * take the none redundant samples and return it.
+     */
+
+    public Population breedPopulation(final EvolutionState state)
+        {
+<span class="nc" id="L39">        Population pop = state.population;</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        for (int i = 0; i &lt; pop.subpops.size(); i++)</span>
+            {
+<span class="nc" id="L42">            Subpopulation subpop = pop.subpops.get(i);</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">            if (!(subpop.species instanceof DOVSSpecies)) // uh oh</span>
+<span class="nc" id="L44">                state.output.fatal(&quot;To use DOVSBreeder, subpopulation &quot; + i</span>
+                    + &quot; must contain a DOVSSpecies.  But it contains a &quot; + subpop.species);
+
+<span class="nc" id="L47">            DOVSSpecies species = (DOVSSpecies) (subpop.species);</span>
+
+            // we assume backTrackingTest is always false.
+            // Thus we combine activeSolution and Sk (individuals) to
+            // identify the optimal
+<span class="nc" id="L52">            species.findBestSample(state, subpop);</span>
+
+            // Right now activeSolutions only has A_{k-1}, need to combine S_k
+<span class="nc bnc" id="L55" title="All 2 branches missed.">            for (int j = 0; j &lt; subpop.individuals.size(); j++)</span>
+<span class="nc" id="L56">                species.activeSolutions.add(subpop.individuals.get(i));</span>
+            // Ak and bk will have all the constraints, including original
+            // problem formulation and MPR
+            // A b are original problem formulation constraints
+            // activeSolutions will then have the indices for those solutions
+            // already visited and define MPR
+            // excluding current best solution
+
+            // update MPA
+<span class="nc" id="L65">            species.updateMostPromisingArea(state);</span>
+
+            // sample from MPA
+<span class="nc" id="L68">            ArrayList&lt;Individual&gt; candidates = species.mostPromisingAreaSamples(state, subpop.initialSize);</span>
+            // get Sk for evaluation
+<span class="nc" id="L70">            ArrayList&lt;Individual&gt; Sk = species.uniqueSamples(state, candidates);</span>
+
+            // update the individuals
+<span class="nc" id="L73">            subpop.individuals = Sk;</span>
+            }
+<span class="nc" id="L75">        return pop;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SAT.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.sat</a> &gt; <span class="el_source">SAT.java</span></div><h1>SAT.java</h1><pre class="source lang-java linenums">package ec.app.sat; 
+
+import ec.*; 
+import ec.simple.*; 
+import ec.vector.*; 
+import ec.util.*; 
+import java.io.*; 
+import java.util.*; 
+
+/**
+   SAT implements the boolean satisfiability problem. 
+  
+   &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+   &lt;table&gt;
+   &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;sat-filename&lt;/tt&gt;&lt;br&gt;
+   &lt;font size=-1&gt;String&lt;/td&gt;
+   &lt;td valign=top&gt;(Filename containing boolean satisfiability formula in Dimacs CNF format)&lt;/td&gt;&lt;/tr&gt;
+   &lt;/table&gt;
+ 
+   @author Keith Sullivan
+   @version 1.0
+*/
+
+<span class="nc" id="L24">public class SAT extends Problem implements SimpleProblemForm </span>
+    { 
+    private static final long serialVersionUID = 1;
+    
+    public static final String P_FILENAME = &quot;sat-filename&quot;; 
+        
+    Clause formula[];
+        
+    public void setup(EvolutionState state, Parameter base) 
+        {
+<span class="nc" id="L34">        super.setup(state, base); </span>
+<span class="nc" id="L35">        File filename = state.parameters.getFile(base.push(P_FILENAME), null); </span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (filename == null)  // uh oh</span>
+<span class="nc" id="L37">            state.output.fatal(&quot;Filename must be provided&quot;, base.push(P_FILENAME));</span>
+                
+        try 
+            { 
+<span class="nc" id="L41">            BufferedReader inFile = new BufferedReader(new FileReader(filename)); </span>
+<span class="nc" id="L42">            String line=&quot;&quot;; </span>
+<span class="nc" id="L43">            int cnt=0;</span>
+<span class="nc" id="L44">            boolean start = false; </span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">            while ((line = inFile.readLine()) != null) </span>
+                { 
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                if (start) </span>
+                    { 
+<span class="nc" id="L49">                    formula[cnt++] = new Clause(line);</span>
+<span class="nc" id="L50">                    continue; </span>
+                    }
+                                
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                if (line.startsWith(&quot;p&quot;)) </span>
+                    { 
+<span class="nc" id="L55">                    start = true;</span>
+<span class="nc" id="L56">                    line = line.trim(); </span>
+<span class="nc" id="L57">                    int index = line.lastIndexOf(&quot; &quot;); </span>
+<span class="nc" id="L58">                    formula = new Clause[Integer.parseInt(line.substring(index+1))]; </span>
+<span class="nc" id="L59">                    }</span>
+                }
+<span class="nc" id="L61">            inFile.close();</span>
+            } 
+<span class="nc" id="L63">        catch (IOException e) </span>
+            { 
+<span class="nc" id="L65">            state.output.fatal(&quot;Error in SAT setup, while loading from file &quot; + filename +</span>
+<span class="nc" id="L66">                &quot;\nFrom parameter &quot; + base.push(P_FILENAME) + &quot;\nError:\n&quot; + e);  </span>
+<span class="nc" id="L67">            }</span>
+<span class="nc" id="L68">        }</span>
+        
+    /** 
+        Evalutes the individual using the MAXSAT fitness function.
+    */
+    public void evaluate(final EvolutionState state, final Individual ind, final int subpopulation, final int threadnum)
+        {
+<span class="nc" id="L75">        BitVectorIndividual ind2 = (BitVectorIndividual) ind; </span>
+<span class="nc" id="L76">        double fitness=0; </span>
+                
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        for (int i=0; i &lt; formula.length; i++)                  </span>
+<span class="nc" id="L79">            fitness += formula[i].eval(ind2); </span>
+                
+<span class="nc" id="L81">        ((SimpleFitness)(ind2.fitness)).setFitness( state, fitness, false);</span>
+<span class="nc" id="L82">        ind2.evaluated = true; </span>
+<span class="nc" id="L83">        }</span>
+        
+        
+    /**
+       Private helper class holding a single clause in the boolean formula. Each clause 
+       is a disjunction of boolean variables (or their negation).
+    */
+    public static class Clause implements java.io.Serializable
+        { 
+        private static final long serialVersionUID = 1;
+                
+        int[] variables; 
+        public Clause(String c) 
+<span class="nc" id="L96">            {</span>
+<span class="nc" id="L97">            StringTokenizer st = new StringTokenizer(c); </span>
+<span class="nc" id="L98">            variables = new int[st.countTokens()-1]; </span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            for (int i=0; i &lt; variables.length; i++) </span>
+                {
+<span class="nc" id="L101">                variables[i] = Integer.parseInt(st.nextToken()); </span>
+                }
+<span class="nc" id="L103">            }</span>
+                
+        /** 
+            Evaluates the individual with the clause.  Returns 1 is clase is satisfiabile, 0 otherwise.
+        */
+        public int eval(BitVectorIndividual ind)
+            {
+            boolean tmp; 
+            int x; 
+<span class="nc bnc" id="L112" title="All 2 branches missed.">            for (int i=0; i &lt; variables.length; i++) </span>
+                {                              
+<span class="nc" id="L114">                x = variables[i]; </span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">                if (x &lt; 0) </span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">                    tmp = !ind.genome[-x-1]; </span>
+                else 
+<span class="nc" id="L118">                    tmp =  ind.genome[x-1]; </span>
+                                
+<span class="nc bnc" id="L120" title="All 2 branches missed.">                if (tmp) return 1; </span>
+                }
+<span class="nc" id="L122">            return 0;</span>
+            }
+        };      
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

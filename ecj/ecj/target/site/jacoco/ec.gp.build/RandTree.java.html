@@ -1,0 +1,423 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RandTree.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.build</a> &gt; <span class="el_source">RandTree.java</span></div><h1>RandTree.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Alexander Chircop
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+/*
+ *  RandTree as described by Hitoshi Iba
+ *  Author: Alexander Chircop
+ *  Date:   28th Nov 2000
+ */
+ 
+package ec.gp.build;
+import ec.gp.*;
+import ec.*;
+import ec.util.*;
+import java.util.*;
+
+<span class="nc" id="L20">public class RandTree extends GPNodeBuilder</span>
+    {
+    public static final String P_RANDOMBRANCH = &quot;randtree&quot;;
+    int[] arities;
+<span class="nc" id="L24">    boolean aritySetupDone=false;</span>
+
+    LinkedList permutations;
+
+    public static class ArityObject extends Object
+        {
+        public int arity;
+<span class="nc" id="L31">        public ArityObject(int a) { arity=a; }</span>
+        }
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L36">        return GPBuildDefaults.base().push(P_RANDOMBRANCH);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L41">        super.setup(state,base);</span>
+
+        // we use size distributions -- did the user specify any?
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (!canPick())</span>
+<span class="nc" id="L45">            state.output.fatal(&quot;RandTree requires some kind of size distribution set, either with &quot; + P_MINSIZE + &quot;/&quot; + P_MAXSIZE + &quot;, or with &quot; + P_NUMSIZES + &quot;.&quot;,</span>
+<span class="nc" id="L46">                base, defaultBase());</span>
+<span class="nc" id="L47">        }</span>
+
+    // Added method to enhance linked list functionality with ArityObject
+    boolean contains(LinkedList initArities,int a)
+        {
+<span class="nc" id="L52">        boolean truth=false;</span>
+<span class="nc" id="L53">        int counter=0;</span>
+        ArityObject b;
+
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (initArities.size()!=0)</span>
+<span class="nc bnc" id="L57" title="All 4 branches missed.">            while ((counter&lt;initArities.size()) &amp;&amp; (!truth))</span>
+                {
+<span class="nc" id="L59">                b=(ArityObject)initArities.get(counter);</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">                if (b.arity==a) {truth=true;}</span>
+<span class="nc" id="L61">                counter++;</span>
+                }
+<span class="nc" id="L63">        return truth;</span>
+        }
+
+    void remove(LinkedList initArities,int a)
+        {
+<span class="nc" id="L68">        int counter=0;</span>
+<span class="nc" id="L69">        boolean removed=false;</span>
+<span class="nc bnc" id="L70" title="All 4 branches missed.">        while((counter&lt;initArities.size()) &amp;&amp; (!removed))</span>
+            {
+<span class="nc" id="L72">            ArityObject b=(ArityObject)initArities.get(counter);</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">            if (b.arity==a)</span>
+                {
+<span class="nc" id="L75">                initArities.remove(counter);</span>
+<span class="nc" id="L76">                removed=true;</span>
+                }
+<span class="nc" id="L78">            counter++;</span>
+<span class="nc" id="L79">            }</span>
+<span class="nc" id="L80">        }</span>
+
+    public void setupArities(final EvolutionState state,final GPFunctionSet set)
+        {
+<span class="nc" id="L84">        int noOfArities=0,current=0,marker=0,counter=0,a;</span>
+<span class="nc" id="L85">        LinkedList initArities=new LinkedList();</span>
+<span class="nc" id="L86">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+        // count available arities and place on linked list
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        while(current&lt;set.nodes[0].length)</span>
+            {
+                {
+<span class="nc" id="L91">                a=set.nodes[0][current].constraints(initializer).childtypes.length;</span>
+<span class="nc bnc" id="L92" title="All 4 branches missed.">                if((!contains(initArities,a)) &amp;&amp; (a!=0))</span>
+                    {
+<span class="nc" id="L94">                    initArities.add(new ArityObject(a));</span>
+<span class="nc" id="L95">                    noOfArities++;</span>
+                    }
+                }
+<span class="nc" id="L98">            current++;</span>
+            }
+
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (initArities.size()==0) {state.output.fatal(&quot;Arity count failed... counted 0.&quot;);}</span>
+
+        // identify different available arities and place on array
+<span class="nc" id="L104">        arities=new int[noOfArities];</span>
+<span class="nc" id="L105">        current=0;</span>
+
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        while(current&lt;noOfArities)</span>
+            {
+            // finds maximum arity on the list
+<span class="nc" id="L110">            marker=0;</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            for (counter=0;counter&lt;initArities.size();counter++)</span>
+                {
+<span class="nc" id="L113">                ArityObject max=(ArityObject) initArities.get(counter);</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">                if (max.arity &gt; marker)</span>
+                    {
+<span class="nc" id="L116">                    marker=max.arity;</span>
+                    }
+                }
+
+            // Place maximum found on the array
+<span class="nc" id="L121">            arities[current]=marker;</span>
+<span class="nc" id="L122">            remove(initArities,marker);</span>
+<span class="nc" id="L123">            current++;</span>
+            }
+
+<span class="nc" id="L126">        aritySetupDone=true;</span>
+<span class="nc" id="L127">        }</span>
+
+    long fact(long num)
+        {
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        if (num==0) { return 1; }</span>
+<span class="nc" id="L132">        else { return num*fact(num-1); }</span>
+        }
+
+    int[] select(LinkedList permutations,int size)
+        {
+<span class="nc" id="L137">        int counter1,counter2,total=0;</span>
+<span class="nc" id="L138">        long residue,denominator=1;</span>
+        int selection;
+        int[] current;
+<span class="nc" id="L141">        int[] quantity=new int[permutations.size()];</span>
+
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        for (counter1=0;counter1&lt;permutations.size();counter1++)</span>
+            {
+<span class="nc" id="L145">            current=(int[])permutations.get(counter1);</span>
+<span class="nc" id="L146">            residue=size;</span>
+            // Quick internal calculations
+<span class="nc bnc" id="L148" title="All 2 branches missed.">            for (counter2=0;counter2&lt;current.length;counter2++)</span>
+                {
+<span class="nc" id="L150">                residue -= current[counter2];</span>
+<span class="nc" id="L151">                denominator *= fact(current[counter2]);</span>
+                }
+<span class="nc" id="L153">            quantity[counter1] = (int) (fact(size-1)/(denominator * fact(residue)));</span>
+<span class="nc" id="L154">            total += quantity[counter1];</span>
+            }
+
+<span class="nc" id="L157">        double[] prob=new double[quantity.length];</span>
+        // quantities found... now build array for probabilities
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        for (counter1=0;counter1&lt;quantity.length;counter1++)</span>
+            {
+<span class="nc" id="L161">            prob[counter1] = (double)quantity[counter1]/(double)total;</span>
+            // I don't think we need to check for negative values here -- Sean
+            }
+<span class="nc" id="L164">        RandomChoice.organizeDistribution(prob);</span>
+<span class="nc" id="L165">        double s=0.0;</span>
+<span class="nc" id="L166">        selection = RandomChoice.pickFromDistribution(prob,s);</span>
+
+<span class="nc" id="L168">        return (int[])permutations.get(selection);</span>
+        }
+
+    public GPNode newRootedTree(final EvolutionState state,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final GPFunctionSet set,
+        final int argposition,
+        final int requestedSize)
+        {
+        int treeSize;
+<span class="nc" id="L180">        boolean valid=false;</span>
+<span class="nc" id="L181">        String word=new String();</span>
+
+<span class="nc" id="L183">        treeSize=pickSize(state,thread);</span>
+
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        if (!aritySetupDone) { setupArities(state,set); }</span>
+
+<span class="nc" id="L187">        int[] temp=new int[arities.length];</span>
+<span class="nc" id="L188">        permutations=new LinkedList();</span>
+<span class="nc" id="L189">        Permute(0,temp,treeSize-1);</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        if (permutations.size()==0) { state.output.fatal(&quot;Not able to build combination of nodes.&quot;); }</span>
+<span class="nc" id="L191">        int[] scheme=select(permutations,treeSize);</span>
+<span class="nc" id="L192">        word=buildDyckWord(treeSize,arities,scheme,state,thread);</span>
+<span class="nc" id="L193">        int cycle=0;</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">        while(!valid)</span>
+            {
+<span class="nc" id="L196">            valid=checkDyckWord(word);</span>
+<span class="nc bnc" id="L197" title="All 2 branches missed.">            if (!valid)</span>
+                {
+<span class="nc" id="L199">                word=word.substring(word.length()-1,word.length()).concat(word.substring(0,word.length()-1));</span>
+<span class="nc" id="L200">                cycle++;</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">                if (cycle&gt;=(treeSize*2)-1) {state.output.fatal(&quot;Not able to find valid permutation for generated Dyck word: &quot;+word);}</span>
+                }
+            }
+<span class="nc" id="L204">        return buildTree(state,thread,parent,argposition,set,word);</span>
+        }
+
+    // recursive function to work out all combinations and push them onto ArrayList
+    void Permute(int current,int[] sol,int size)
+        {
+<span class="nc" id="L210">        int counter=0,result=0;</span>
+        // base case
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        if (current==arities.length-1) /* set last one to maximum allowable */</span>
+            {
+<span class="nc bnc" id="L214" title="All 2 branches missed.">            while(result&lt;=size)</span>
+                {
+<span class="nc" id="L216">                counter++;</span>
+<span class="nc" id="L217">                result=result+arities[current];</span>
+                }
+<span class="nc" id="L219">            result=result-arities[current];</span>
+<span class="nc" id="L220">            counter--;</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">            if (result&lt;0)</span>
+                {
+<span class="nc" id="L223">                result=0;</span>
+<span class="nc" id="L224">                counter=0;</span>
+                }
+<span class="nc" id="L226">            sol[current]=counter;</span>
+
+            //Adding this solution to the list.
+<span class="nc" id="L229">            permutations.add(sol);</span>
+            }
+        // end of base case
+        else
+            {
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            while(result&lt;=size)</span>
+                {
+<span class="nc bnc" id="L236" title="All 2 branches missed.">                if (result&lt;=size)</span>
+                    {
+<span class="nc" id="L238">                    sol[current]=counter;</span>
+<span class="nc" id="L239">                    Permute(current+1,sol,size-result);</span>
+                    }
+<span class="nc" id="L241">                result=result+arities[current];</span>
+<span class="nc" id="L242">                counter++;</span>
+                }
+            }
+<span class="nc" id="L245">        }</span>
+
+    public String buildDyckWord(int requestedSize,int[] arities,int[] s,EvolutionState state,int thread)
+        {
+<span class="nc" id="L249">        int counter,choices,choice,pos,arity=0,checksum=0,size=0;</span>
+<span class="nc" id="L250">        int[] scheme=new int[s.length];</span>
+
+<span class="nc" id="L252">        String dyck=&quot;&quot;;</span>
+<span class="nc" id="L253">        String addStr=&quot;&quot;;</span>
+
+<span class="nc" id="L255">        scheme=s;</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        for(counter=0;counter&lt;scheme.length;counter++)</span>
+            {
+<span class="nc" id="L258">            checksum += scheme[counter]*arities[counter];</span>
+            }
+
+<span class="nc" id="L261">        size=checksum+1;</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        if (size!=requestedSize) { state.output.message(&quot;A tree of the requested size could not be built.  Using smaller size.&quot;);}</span>
+<span class="nc" id="L263">        choices=size;</span>
+
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        for(counter=0;counter&lt;size;counter++)</span>
+            {
+<span class="nc" id="L267">            dyck=dyck.concat(&quot;x*&quot;);</span>
+            }
+
+        // Find a non-0 arity to insert
+<span class="nc" id="L271">        counter=0;</span>
+<span class="nc bnc" id="L272" title="All 4 branches missed.">        while((arity==0) &amp;&amp; (counter&lt;scheme.length))</span>
+            {
+<span class="nc bnc" id="L274" title="All 2 branches missed.">            if (scheme[counter]&gt;0)</span>
+                {
+<span class="nc" id="L276">                arity=arities[counter];</span>
+<span class="nc" id="L277">                scheme[counter]--;</span>
+                }
+<span class="nc" id="L279">            counter++;</span>
+            }
+
+<span class="nc bnc" id="L282" title="All 2 branches missed.">        while(arity!=0)</span>
+            {
+<span class="nc" id="L284">            choice=state.random[thread].nextInt(choices--)+1;</span>
+<span class="nc" id="L285">            pos=-1;</span>
+<span class="nc" id="L286">            counter=0;</span>
+            // find insertion position within the string
+<span class="nc bnc" id="L288" title="All 2 branches missed.">            while(counter!=choice)</span>
+                {
+<span class="nc" id="L290">                pos++;</span>
+<span class="nc bnc" id="L291" title="All 2 branches missed.">                if (dyck.charAt(pos)=='*') { counter++; }</span>
+                }
+            // building no of y's in string
+<span class="nc" id="L294">            addStr=&quot;&quot;;</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">            while (addStr.length()&lt;arity) { addStr=addStr.concat(&quot;y&quot;); }</span>
+
+            // finally put the string together again
+<span class="nc" id="L298">            dyck=dyck.substring(0,pos).concat(addStr).concat(dyck.substring(pos+1,dyck.length()));</span>
+
+            // Find another non-0 arity to insert
+<span class="nc" id="L301">            counter=0;</span>
+<span class="nc" id="L302">            arity=0;</span>
+<span class="nc bnc" id="L303" title="All 4 branches missed.">            while((arity==0) &amp;&amp; (counter&lt;scheme.length))</span>
+                {
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                if (scheme[counter]&gt;0)</span>
+                    {
+<span class="nc" id="L307">                    arity=arities[counter];</span>
+<span class="nc" id="L308">                    scheme[counter]--;</span>
+                    }
+<span class="nc" id="L310">                counter++;</span>
+                }
+            }
+        //Clean up leftover *'s
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        for (counter=0;counter&lt;dyck.length();counter++)</span>
+            {
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            if(dyck.charAt(counter)=='*')</span>
+                {
+<span class="nc" id="L318">                dyck=dyck.substring(0,counter).concat(dyck.substring(counter+1,dyck.length()));</span>
+                }
+            }
+<span class="nc" id="L321">        return dyck;</span>
+        }
+
+    // function to check validity of Dyck word
+    public boolean checkDyckWord(String dyck)
+        {
+<span class="nc" id="L327">        int counter=0;</span>
+<span class="nc" id="L328">        boolean underflow=false;</span>
+<span class="nc" id="L329">        String stack=&quot;&quot;;</span>
+<span class="nc bnc" id="L330" title="All 4 branches missed.">        while ((counter&lt;dyck.length()) &amp;&amp; (!underflow))</span>
+            {
+<span class="nc bnc" id="L332" title="All 3 branches missed.">            switch (dyck.charAt(counter))</span>
+                {
+                case 'x':
+<span class="nc" id="L335">                    stack=stack.concat(&quot;x&quot;);</span>
+<span class="nc" id="L336">                    break;</span>
+                case 'y':
+<span class="nc bnc" id="L338" title="All 2 branches missed.">                    if (stack.length()&lt;=1)</span>
+                        {
+<span class="nc" id="L340">                        underflow=true;</span>
+<span class="nc" id="L341">                        stack=&quot;&quot;;</span>
+                        }
+                    else
+                        {
+<span class="nc" id="L345">                        stack=stack.substring(0,stack.length()-1);</span>
+                        }
+<span class="nc" id="L347">                    break;</span>
+                default:  // cannot happen
+<span class="nc" id="L349">                    throw new RuntimeException(&quot;default case should never be able to occur&quot;);</span>
+                }
+<span class="nc" id="L351">            counter++;</span>
+            }
+<span class="nc bnc" id="L353" title="All 2 branches missed.">        if (stack.length()!=1)</span>
+            {
+<span class="nc" id="L355">            return false;</span>
+            }
+        else
+            {
+<span class="nc" id="L359">            return true;</span>
+            }
+        }
+
+    // This function parses the dyck word and puts random nodes into their slots.
+    GPNode buildTree(final EvolutionState state,
+        final int thread,
+        final GPNodeParent parent,
+        final int argposition,
+        final GPFunctionSet set,
+        final String dyckWord) 
+        {
+<span class="nc" id="L371">        int counter=0;</span>
+<span class="nc" id="L372">        Stack s=new Stack();</span>
+        char nextChar;
+
+        // Parsing dyck word from left to right and building tree
+<span class="nc bnc" id="L376" title="All 2 branches missed.">        for (counter=0;counter&lt;dyckWord.length();counter++)</span>
+            {
+<span class="nc bnc" id="L378" title="All 2 branches missed.">            if (counter&lt;dyckWord.length()-1) { nextChar=dyckWord.charAt(counter+1);} else { nextChar='*'; }</span>
+<span class="nc bnc" id="L379" title="All 4 branches missed.">            if ((nextChar=='x') || (nextChar=='*')) /* terminal node */</span>
+                {
+<span class="nc" id="L381">                GPNode[] nn = set.terminals[0];</span>
+<span class="nc" id="L382">                GPNode n = (GPNode)(nn[state.random[thread].nextInt(nn.length)].lightClone());</span>
+<span class="nc" id="L383">                n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L384">                s.push(n);</span>
+<span class="nc" id="L385">                }</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">            else if (nextChar=='y') /* non-terminal */</span>
+                {
+                // finding arity of connection
+<span class="nc" id="L389">                int Ycount=0; /* arity */</span>
+                boolean nextCharY;
+<span class="nc bnc" id="L391" title="All 2 branches missed.">                nextCharY=(nextChar=='y');</span>
+<span class="nc" id="L392">                counter++;</span>
+<span class="nc bnc" id="L393" title="All 4 branches missed.">                while ((counter&lt;dyckWord.length()) &amp;&amp; (nextCharY))</span>
+                    {
+<span class="nc bnc" id="L395" title="All 2 branches missed.">                    if (dyckWord.charAt(counter)=='y') { Ycount++; }</span>
+<span class="nc bnc" id="L396" title="All 4 branches missed.">                    if (counter&lt;dyckWord.length()-1) { nextCharY=(dyckWord.charAt(counter+1)=='y'); }</span>
+<span class="nc" id="L397">                    counter++;</span>
+                    }
+
+                //Arity found.  Now just choose non terminal at random.
+<span class="nc" id="L401">                GPNode[] nonTerms=set.nodesByArity[0][Ycount];</span>
+<span class="nc" id="L402">                GPNode nT=(GPNode) (nonTerms[state.random[thread].nextInt(nonTerms.length)].lightClone());</span>
+                // Non terminal chosen, now attaching children
+<span class="nc" id="L404">                int childcount=Ycount;</span>
+<span class="nc bnc" id="L405" title="All 2 branches missed.">                while (childcount&gt;0)</span>
+                    {
+<span class="nc" id="L407">                    childcount--;</span>
+<span class="nc bnc" id="L408" title="All 2 branches missed.">                    if (s.size()==0) { state.output.fatal(&quot;Stack underflow when building tree.&quot;); }</span>
+<span class="nc" id="L409">                    GPNode child=(GPNode) s.pop();</span>
+<span class="nc" id="L410">                    child.parent=nT;</span>
+<span class="nc" id="L411">                    child.argposition=(byte)childcount;</span>
+<span class="nc" id="L412">                    nT.children[childcount]=child;</span>
+<span class="nc" id="L413">                    }</span>
+<span class="nc" id="L414">                nT.argposition=0;</span>
+<span class="nc" id="L415">                nT.parent=null;</span>
+<span class="nc" id="L416">                s.push(nT);</span>
+<span class="nc bnc" id="L417" title="All 2 branches missed.">                if (counter!=dyckWord.length()) counter--;</span>
+                }
+            }
+<span class="nc" id="L420">        return (GPNode) s.pop();</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

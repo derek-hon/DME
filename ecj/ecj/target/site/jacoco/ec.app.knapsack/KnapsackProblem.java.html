@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KnapsackProblem.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.knapsack</a> &gt; <span class="el_source">KnapsackProblem.java</span></div><h1>KnapsackProblem.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.app.knapsack;
+
+import ec.EvolutionState;
+import ec.Individual;
+import ec.Problem;
+import ec.co.Component;
+import ec.co.ConstructiveIndividual;
+import ec.co.ConstructiveProblemForm;
+import ec.simple.SimpleFitness;
+import ec.simple.SimpleProblemForm;
+import ec.util.Parameter;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Definition of a basic knapsack problem.
+ *
+ * This problem takes a list of sizes (&lt;code&gt;base.sizes&lt;/code&gt;) and values (&lt;code&gt;base.values&lt;/code&gt;), as well as an
+ * overall knapsack size (&lt;code&gt;base.knapsack-size&lt;/code&gt;).
+ *
+ * @author Eric O. Scott
+ * @see KnapsackComponent
+ * @see ec.co
+ */
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">public class KnapsackProblem extends Problem implements SimpleProblemForm, ConstructiveProblemForm {</span>
+    public final static String P_SIZES = &quot;sizes&quot;;
+    public final static String P_VALUES = &quot;values&quot;;
+    public final static String P_KNAPSACK_SIZE = &quot;knapsack-size&quot;;
+    public final static String P_ALLOW_DUPLICATES = &quot;allow-duplicates&quot;;
+    
+    private List&lt;KnapsackComponent&gt; components;
+    
+    private double knapsackSize;
+    private boolean allowDuplicates;
+    
+    @Override
+    public List&lt;Component&gt; getAllComponents()
+    {
+<span class="nc" id="L44">        return new ArrayList&lt;Component&gt;(components); // Defensive copy</span>
+    }
+    
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+<span class="pc bpc" id="L50" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L51" title="2 of 4 branches missed.">        assert(base != null);</span>
+<span class="fc" id="L52">        knapsackSize = state.parameters.getDouble(base.push(P_KNAPSACK_SIZE), null);</span>
+<span class="fc" id="L53">        allowDuplicates = state.parameters.getBoolean(base.push(P_ALLOW_DUPLICATES), null, false);</span>
+        
+<span class="fc" id="L55">        final double[] sizes = state.parameters.getDoubles(base.push(P_SIZES), null, 0);</span>
+<span class="fc" id="L56">        final double[] values = state.parameters.getDoubles(base.push(P_VALUES), null, 0);</span>
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">        if (sizes.length != values.length)</span>
+<span class="nc" id="L58">            state.output.fatal(String.format(&quot;%s: '%s' has %d elements, but '%s' has %d elements.  Must be the same length.&quot;, this.getClass().getSimpleName(), base.push(P_SIZES), sizes.length, base.push(P_VALUES), values.length));</span>
+<span class="pc bpc" id="L59" title="2 of 4 branches missed.">        assert(sizes.length == values.length);</span>
+<span class="fc" id="L60">        components = new ArrayList&lt;KnapsackComponent&gt;(sizes.length);</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        for (int i = 0; i &lt; sizes.length; i++)</span>
+<span class="fc" id="L62">            components.add(new KnapsackComponent(sizes[i], values[i]));</span>
+<span class="pc bpc" id="L63" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L64">    }</span>
+            
+    @Override
+    public void evaluate(final EvolutionState state, final Individual ind, final int subpopulation, final int threadnum) {
+<span class="nc bnc" id="L68" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if (!(ind instanceof ConstructiveIndividual))</span>
+<span class="nc" id="L70">            state.output.fatal(String.format(&quot;%s requires a %s, but was given a %s.&quot;, this.getClass().getSimpleName(), ConstructiveIndividual.class.getSimpleName(), ind.getClass().getSimpleName()));</span>
+<span class="nc" id="L71">        ((SimpleFitness)ind.fitness).setFitness(state, totalValue((ConstructiveIndividual)ind), false);</span>
+<span class="nc" id="L72">        ind.evaluated = true;</span>
+<span class="nc bnc" id="L73" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L74">    }</span>
+    
+    private double totalValue(final ConstructiveIndividual solution) {
+<span class="nc bnc" id="L77" title="All 4 branches missed.">        assert(solution != null);</span>
+<span class="nc" id="L78">        double value = 0.0;</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        for (final Object c : solution)</span>
+        {
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            if (!(c instanceof KnapsackComponent))</span>
+<span class="nc" id="L82">                throw new IllegalArgumentException(String.format(&quot;%s: found a %s containing a %s, but must contain only %ss.&quot;, this.getClass().getSimpleName(), solution.getClass().getSimpleName(), c.getClass().getSimpleName(), KnapsackComponent.class.getSimpleName()));</span>
+<span class="nc" id="L83">            value += ((KnapsackComponent)c).value();</span>
+<span class="nc" id="L84">        }</span>
+<span class="nc bnc" id="L85" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L86">        return value;</span>
+    }
+    
+    private double totalSize(final ConstructiveIndividual solution) {
+<span class="nc bnc" id="L90" title="All 4 branches missed.">        assert(solution != null);</span>
+<span class="nc" id="L91">        double size = 0.0;</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        for (final Object c : solution)</span>
+        {
+<span class="nc bnc" id="L94" title="All 2 branches missed.">            if (!(c instanceof KnapsackComponent))</span>
+<span class="nc" id="L95">                throw new IllegalArgumentException(String.format(&quot;%s: found a %s containing a %s, but must contain only %ss.&quot;, this.getClass().getSimpleName(), solution.getClass().getSimpleName(), c.getClass().getSimpleName(), KnapsackComponent.class.getSimpleName()));</span>
+<span class="nc" id="L96">            size += ((KnapsackComponent)c).size();</span>
+<span class="nc" id="L97">        }</span>
+<span class="nc bnc" id="L98" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L99">        return size;</span>
+    }
+
+    @Override
+    public boolean isViolated(final ConstructiveIndividual partialSolution, final Component component) {
+<span class="nc bnc" id="L104" title="All 4 branches missed.">        assert(partialSolution != null);</span>
+<span class="nc bnc" id="L105" title="All 4 branches missed.">        assert(component != null);</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (!(component instanceof KnapsackComponent))</span>
+<span class="nc" id="L107">            throw new IllegalArgumentException(String.format(&quot;%s: tried to check constraints on a %s containing a %s, but must be a %s.&quot;, this.getClass().getSimpleName(), partialSolution.getClass().getSimpleName(), component.getClass().getSimpleName(), KnapsackComponent.class.getSimpleName()));</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        return totalSize(partialSolution) + ((KnapsackComponent)component).size() &gt; knapsackSize;</span>
+    }
+
+    @Override
+    public int numComponents() {
+<span class="nc bnc" id="L113" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L114">        return components.size();</span>
+    }
+    
+    public final boolean repOK() {
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">        return P_VALUES != null</span>
+<span class="pc bpc" id="L119" title="2 of 4 branches missed.">                &amp;&amp; !P_VALUES.isEmpty()</span>
+                &amp;&amp; P_SIZES != null
+<span class="pc bpc" id="L121" title="2 of 4 branches missed.">                &amp;&amp; !P_SIZES.isEmpty()</span>
+                &amp;&amp; P_KNAPSACK_SIZE != null
+<span class="pc bpc" id="L123" title="2 of 4 branches missed.">                &amp;&amp; !P_KNAPSACK_SIZE.isEmpty()</span>
+                &amp;&amp; components != null
+<span class="pc bpc" id="L125" title="2 of 4 branches missed.">                &amp;&amp; !components.isEmpty()</span>
+                &amp;&amp; knapsackSize &gt; 0.0
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">                &amp;&amp; !Double.isNaN(knapsackSize);</span>
+    }
+
+    /**
+     * Choose a random component from the full component set.
+     * 
+     * @param state The state.  Its PRNG field (state.random) must exist.
+     * @param thread The thread the caller is operating on.  If the caller is single-threaded, just set this to zero.
+     * @return An component selected at random from all of the non-self-loop edges in the TSP graph.
+     */
+    @Override
+    public KnapsackComponent getArbitraryComponent(final EvolutionState state, final int thread) {
+<span class="pc bpc" id="L139" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L140" title="2 of 4 branches missed.">        assert(thread &gt;= 0);</span>
+<span class="fc" id="L141">        final KnapsackComponent result = components.get(state.random[thread].nextInt(components.size()));</span>
+<span class="pc bpc" id="L142" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L143">        return result;</span>
+    }
+    
+    @Override
+    public List&lt;Component&gt; getAllowedComponents(final ConstructiveIndividual partialSolution) {
+<span class="nc bnc" id="L148" title="All 4 branches missed.">        assert(partialSolution != null);</span>
+        
+<span class="nc" id="L150">        final double partialSolutionSize = totalSize(partialSolution);</span>
+<span class="nc" id="L151">        final List&lt;Component&gt; allowedComponents = new ArrayList&lt;Component&gt;();</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        for (final KnapsackComponent c : components)</span>
+<span class="nc bnc" id="L153" title="All 4 branches missed.">            if (allowDuplicates || !partialSolution.contains(c))</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                if (partialSolutionSize + c.size() &lt;= knapsackSize)</span>
+<span class="nc" id="L155">                    allowedComponents.add(c);</span>
+<span class="nc" id="L156">        return allowedComponents;</span>
+    }
+
+    @Override
+    public boolean isCompleteSolution(final ConstructiveIndividual solution) {
+<span class="nc bnc" id="L161" title="All 4 branches missed.">        assert(solution != null);</span>
+        
+<span class="nc" id="L163">        final double size = totalSize(solution);</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">        for (final KnapsackComponent c : components)</span>
+<span class="nc bnc" id="L165" title="All 4 branches missed.">            if (allowDuplicates || !solution.contains(c))</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                if (size + c.size() &lt;= knapsackSize)</span>
+<span class="nc" id="L167">                    return false;</span>
+<span class="nc" id="L168">        return true;</span>
+    }
+
+    @Override
+    public Component getComponentFromString(final String s)
+    {
+<span class="nc bnc" id="L174" title="All 4 branches missed.">        assert(s != null);</span>
+<span class="nc bnc" id="L175" title="All 4 branches missed.">        assert(!s.isEmpty());</span>
+<span class="nc" id="L176">        final String error = String.format(&quot;%s: failed to decode string representation of %s.  It must have the form '%s[size=M, value=N]' where M, N are floating point numbers, but was '%s'.&quot;, this.getClass().getSimpleName(), KnapsackComponent.class.getSimpleName(), KnapsackComponent.class.getSimpleName(), s);</span>
+        
+<span class="nc" id="L178">        String[] splits = s.split(&quot;\\[&quot;); // &quot;KnapsackComponent&quot; &quot;size=M, value=N]&quot;</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        if (splits.length != 2)</span>
+<span class="nc" id="L180">            throw new IllegalArgumentException(error);</span>
+<span class="nc" id="L181">        final String name = splits[0].trim();</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        if (!name.equals(KnapsackComponent.class.getSimpleName()))</span>
+<span class="nc" id="L183">            throw new IllegalArgumentException(error);</span>
+        
+<span class="nc" id="L185">        splits = splits[1].split(&quot;,&quot;); // &quot;size=M&quot; &quot;value=N]&quot;</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        if (splits.length != 2)</span>
+<span class="nc" id="L187">            throw new IllegalArgumentException(error);</span>
+<span class="nc" id="L188">        final String sizeStr = splits[0]; // &quot;size=M&quot;</span>
+<span class="nc" id="L189">        final String valueStr = splits[1].substring(0, splits[1].length() - 1); // &quot;value=N&quot;</span>
+        
+<span class="nc" id="L191">        splits = sizeStr.split(&quot;=&quot;); // &quot;from&quot; &quot;M&quot;</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        if (!splits[0].trim().equals(&quot;size&quot;))</span>
+<span class="nc" id="L193">            throw new IllegalArgumentException(error);</span>
+        final double size;
+        try {
+<span class="nc" id="L196">            size = Double.parseDouble(splits[1]);</span>
+        }
+<span class="nc" id="L198">        catch (final NumberFormatException e)</span>
+        {
+<span class="nc" id="L200">            throw new IllegalArgumentException(error);</span>
+<span class="nc" id="L201">        }</span>
+        
+<span class="nc" id="L203">        splits = valueStr.split(&quot;=&quot;); // &quot;from&quot; &quot;M&quot;</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        if (!splits[0].trim().equals(&quot;value&quot;))</span>
+<span class="nc" id="L205">            throw new IllegalArgumentException(error);</span>
+        final double value;
+        try {
+<span class="nc" id="L208">            value = Double.parseDouble(splits[1]);</span>
+        }
+<span class="nc" id="L210">        catch (final NumberFormatException e)</span>
+        {
+<span class="nc" id="L212">            throw new IllegalArgumentException(error);</span>
+<span class="nc" id="L213">        }</span>
+        
+<span class="nc bnc" id="L215" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L216">        return new KnapsackComponent(size, value);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

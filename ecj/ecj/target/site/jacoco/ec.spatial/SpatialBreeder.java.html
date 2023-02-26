@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SpatialBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.spatial</a> &gt; <span class="el_source">SpatialBreeder.java</span></div><h1>SpatialBreeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.spatial;
+
+import ec.Individual;
+import ec.*;
+import ec.simple.*;
+import ec.EvolutionState;
+import ec.Population;
+import ec.util.Parameter;
+import java.util.*;
+
+/* 
+ * SpatialBreeder.java
+ * 
+ * By: Liviu Panait
+ */
+
+/**
+ * A slight modification of the simple breeder for spatially-embedded EAs.
+ 
+ * Breeds each subpopulation separately, with no inter-population exchange,
+ * and using a generational approach.  A SpatialBreeder may have multiple
+ * threads; it divvys up a subpopulation into chunks and hands one chunk
+ * to each thread to populate.  One array of BreedingSources is obtained
+ * from a population's Species for each operating breeding thread.
+ *
+ *
+ *
+ *
+ * @author Liviu Panait
+ * @version 1.0 
+ */
+
+<span class="nc" id="L39">public class SpatialBreeder extends SimpleBreeder</span>
+    {
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L43">        super.setup(state, base);</span>
+                
+        // check for elitism and warn about it
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        for(int i = 0 ; i &lt; elite.length; i++)   // we use elite.length here instead of pop.subpops.length because the population hasn't been made yet.</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">            if (usingElitism(i))</span>
+                {
+<span class="nc" id="L49">                state.output.warning(&quot;You're using elitism with SpatialBreeder.  This is unwise as elitism is done by moving individuals around in the population, thus messing up the spatial nature of breeding.&quot;,</span>
+<span class="nc" id="L50">                    base.push(P_ELITE).push(&quot;&quot;+i));</span>
+<span class="nc" id="L51">                break;</span>
+                }
+
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (sequentialBreeding) // uh oh, untested</span>
+<span class="nc" id="L55">            state.output.warning(&quot;SpationBreeder hasn't been well tested with sequential evaluation, though it should probably work fine.  You're on your own.&quot;,</span>
+<span class="nc" id="L56">                base.push(P_SEQUENTIAL_BREEDING));</span>
+
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        if (!clonePipelineAndPopulation)</span>
+<span class="nc" id="L59">            state.output.fatal(&quot;clonePipelineAndPopulation must be true for SpatialBreeder.&quot;);</span>
+<span class="nc" id="L60">        }</span>
+                
+    protected void breedPopChunk(Population newpop, EvolutionState state, int[] numinds, int[] from, int threadnum) 
+        {
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        for(int subpop = 0; subpop&lt; newpop.subpops.size(); subpop++)</span>
+            {
+<span class="nc" id="L66">            ArrayList&lt;Individual&gt; putHere = (ArrayList&lt;Individual&gt;)newIndividuals[subpop][threadnum];</span>
+
+            // do regular breeding of this subpopulation
+<span class="nc" id="L69">            BreedingSource bp = null;</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            if (clonePipelineAndPopulation)</span>
+<span class="nc" id="L71">                bp = (BreedingSource) newpop.subpops.get(subpop).species.pipe_prototype.clone();</span>
+            else
+<span class="nc" id="L73">                bp = (BreedingSource) newpop.subpops.get(subpop).species.pipe_prototype;</span>
+<span class="nc" id="L74">            bp.fillStubs(state, null);</span>
+                                                                        
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            if (!(state.population.subpops.get(subpop) instanceof Space))</span>
+<span class="nc" id="L77">                state.output.fatal(&quot;Subpopulation &quot; + subpop + &quot; does not implement the Space interface.&quot;);</span>
+<span class="nc" id="L78">            Space space = (Space)(state.population.subpops.get(subpop));</span>
+                                                                                                        
+            // check to make sure that the breeding pipeline produces
+            // the right kind of individuals.  Don't want a mistake there! :-)
+<span class="nc bnc" id="L82" title="All 2 branches missed.">            if (!bp.produces(state,newpop,subpop,threadnum))</span>
+<span class="nc" id="L83">                state.output.fatal(&quot;The Breeding Source of subpopulation &quot; + subpop + &quot; does not produce individuals of the expected species &quot; + newpop.subpops.get(subpop).species.getClass().getName() + &quot; or fitness &quot; + newpop.subpops.get(subpop).species.f_prototype );</span>
+<span class="nc" id="L84">            bp.prepareToProduce(state,subpop,threadnum);</span>
+                                                                        
+            // start breedin'!
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            for(int x = from[subpop]; x &lt; from[subpop] + numinds[subpop]; x++)</span>
+                {
+<span class="nc" id="L89">                space.setIndex(threadnum, x);</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">                if (bp.produce(1, 1, subpop, putHere, state, threadnum, newpop.subpops.get(subpop).species.buildMisc(state, subpop, threadnum)) != 1)</span>
+<span class="nc" id="L91">                    state.output.fatal( &quot;The sources should produce one individual at a time!&quot; );</span>
+                }
+                                                                                                                                        
+<span class="nc" id="L94">            bp.finishProducing(state,subpop,threadnum);</span>
+            }
+<span class="nc" id="L96">        }</span>
+
+    }
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

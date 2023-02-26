@@ -1,0 +1,844 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>QuickSort.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">QuickSort.java</span></div><h1>QuickSort.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+
+/* 
+ * QuickSort.java
+ * 
+ * Created: Wed Nov  3 14:54:24 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Implementations of various center-pivot QuickSort routines in Java,
+ * and (if you really want 'em) Insertion Sort routines as well.  This code
+ * is derived from the QuickSort example in the &lt;a href=&quot;ftp://ftp.prenhall.com/pub/esm/computer_science.s-041/shaffer/ds/code/JAVA/code/javacode.zip&quot;&gt;
+ * source code &lt;/a&gt; accompanying &lt;i&gt;A Practical Introduction to Data Structures 
+ * and Algorithm Analysis, Java Edition&lt;/i&gt;, by Clifford Shaffer.
+ * Here's the original header:
+ *
+ * &lt;p&gt;
+ * Source code example for &quot;A Practical Introduction
+ * to Data Structures and Algorithm Analysis&quot;
+ * by Clifford A. Shaffer, Prentice Hall, 1998.
+ * Copyright 1998 by Clifford A. Shaffer
+ *
+ * &lt;p&gt;Sorting main function for testing correctness of sort algorithm.
+ * To use: &lt;sortname&gt; [+/-] &lt;size_of_array&gt; &lt;threshold&gt;
+ *  + means increasing values, - means decreasing value and no
+ *    parameter means random values;
+ * where &lt;size_of_array&gt; controls the number of objects to be sorted;
+ * and &lt;threshold&gt; controls the threshold parameter for certain sorts, e.g.,
+ *   cutoff point for quicksort sublists.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+
+
+
+
+<span class="nc" id="L47">public class QuickSort </span>
+    {
+    static final int THRESHOLD = 0;  // might want to tweak this
+    static final int MAXSTACKSIZE = 1000;
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(byte[] array) 
+        {
+<span class="nc" id="L55">        qsort_h(array, 0, array.length-1);</span>
+<span class="nc" id="L56">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(byte[] array) 
+        {
+        byte tmp;
+
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="nc bnc" id="L66" title="All 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (array[j]&lt;array[j-1]); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L68">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="nc" id="L69">        }</span>
+    
+    static private void qsort_h(byte[] array, int oi, int oj) 
+        {
+<span class="nc" id="L73">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+<span class="nc" id="L74">        int top = -1;</span>
+        byte pivot;
+        int pivotindex, l, r;
+        byte tmp;
+
+<span class="nc" id="L79">        stack[++top] = oi;  // Initialize stack</span>
+<span class="nc" id="L80">        stack[++top] = oj;</span>
+
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="nc" id="L85">            int j = stack[top--];</span>
+<span class="nc" id="L86">            int i = stack[top--];</span>
+      
+            // Findpivot
+<span class="nc" id="L89">            pivotindex = (i+j)/2;</span>
+<span class="nc" id="L90">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="nc" id="L92">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="nc" id="L94">            l = i-1;</span>
+<span class="nc" id="L95">            r = j;</span>
+            do 
+                {
+<span class="nc bnc" id="L98" title="All 2 branches missed.">                while (array[++l] &lt; pivot);</span>
+<span class="nc bnc" id="L99" title="All 4 branches missed.">                while ((r!=0) &amp;&amp; (array[--r] &gt; pivot));</span>
+                //DSutil.swap(array, l, r);
+<span class="nc" id="L101">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="nc" id="L104">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="nc" id="L106">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="nc bnc" id="L109" title="All 2 branches missed.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="nc" id="L111">                stack[++top] = i;</span>
+<span class="nc" id="L112">                stack[++top] = l-1;</span>
+                }
+<span class="nc bnc" id="L114" title="All 2 branches missed.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="nc" id="L116">                stack[++top] = l+1;</span>
+<span class="nc" id="L117">                stack[++top] = j;</span>
+                }
+<span class="nc" id="L119">            }</span>
+<span class="nc" id="L120">        inssort(array);             // Final Insertion Sort</span>
+<span class="nc" id="L121">        }</span>
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(short[] array) 
+        {
+<span class="nc" id="L126">        qsort_h(array, 0, array.length-1);</span>
+<span class="nc" id="L127">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(short[] array) 
+        {
+        short tmp;
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="nc bnc" id="L137" title="All 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (array[j]&lt;array[j-1]); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L139">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="nc" id="L140">        }</span>
+    
+    static private void qsort_h(short[] array, int oi, int oj) 
+        {
+<span class="nc" id="L144">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+<span class="nc" id="L145">        int top = -1;</span>
+        short pivot;
+        int pivotindex, l, r;
+        short tmp;
+
+<span class="nc" id="L150">        stack[++top] = oi;  // Initialize stack</span>
+<span class="nc" id="L151">        stack[++top] = oj;</span>
+
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="nc" id="L156">            int j = stack[top--];</span>
+<span class="nc" id="L157">            int i = stack[top--];</span>
+      
+            // Findpivot
+<span class="nc" id="L160">            pivotindex = (i+j)/2;</span>
+<span class="nc" id="L161">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="nc" id="L163">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="nc" id="L165">            l = i-1;</span>
+<span class="nc" id="L166">            r = j;</span>
+            do 
+                {
+<span class="nc bnc" id="L169" title="All 2 branches missed.">                while (array[++l] &lt; pivot);</span>
+<span class="nc bnc" id="L170" title="All 4 branches missed.">                while ((r!=0) &amp;&amp; (array[--r] &gt; pivot));</span>
+                //DSutil.swap(array, l, r);
+<span class="nc" id="L172">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="nc" id="L175">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="nc" id="L177">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="nc bnc" id="L180" title="All 2 branches missed.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="nc" id="L182">                stack[++top] = i;</span>
+<span class="nc" id="L183">                stack[++top] = l-1;</span>
+                }
+<span class="nc bnc" id="L185" title="All 2 branches missed.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="nc" id="L187">                stack[++top] = l+1;</span>
+<span class="nc" id="L188">                stack[++top] = j;</span>
+                }
+<span class="nc" id="L190">            }</span>
+<span class="nc" id="L191">        inssort(array);             // Final Insertion Sort</span>
+<span class="nc" id="L192">        }</span>
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(char[] array) 
+        {
+<span class="nc" id="L197">        qsort_h(array, 0, array.length-1);</span>
+<span class="nc" id="L198">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(char[] array) 
+        {
+        char tmp;
+
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="nc bnc" id="L208" title="All 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (array[j]&lt;array[j-1]); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L210">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="nc" id="L211">        }</span>
+    
+    static private void qsort_h(char[] array, int oi, int oj) 
+        {
+<span class="nc" id="L215">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+
+<span class="nc" id="L217">        int top = -1;</span>
+        char pivot;
+        int pivotindex, l, r;
+        char tmp;
+
+<span class="nc" id="L222">        stack[++top] = oi;  // Initialize stack</span>
+<span class="nc" id="L223">        stack[++top] = oj;</span>
+
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="nc" id="L228">            int j = stack[top--];</span>
+<span class="nc" id="L229">            int i = stack[top--];</span>
+      
+            // Findpivot
+<span class="nc" id="L232">            pivotindex = (i+j)/2;</span>
+<span class="nc" id="L233">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="nc" id="L235">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="nc" id="L237">            l = i-1;</span>
+<span class="nc" id="L238">            r = j;</span>
+            do 
+                {
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                while (array[++l] &lt; pivot);</span>
+<span class="nc bnc" id="L242" title="All 4 branches missed.">                while ((r!=0) &amp;&amp; (array[--r] &gt; pivot));</span>
+                //DSutil.swap(array, l, r);
+<span class="nc" id="L244">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="nc" id="L247">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="nc" id="L249">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="nc bnc" id="L252" title="All 2 branches missed.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="nc" id="L254">                stack[++top] = i;</span>
+<span class="nc" id="L255">                stack[++top] = l-1;</span>
+                }
+<span class="nc bnc" id="L257" title="All 2 branches missed.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="nc" id="L259">                stack[++top] = l+1;</span>
+<span class="nc" id="L260">                stack[++top] = j;</span>
+                }
+<span class="nc" id="L262">            }</span>
+<span class="nc" id="L263">        inssort(array);             // Final Insertion Sort</span>
+<span class="nc" id="L264">        }</span>
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(int[] array) 
+        {
+<span class="fc" id="L269">        qsort_h(array, 0, array.length-1);</span>
+<span class="fc" id="L270">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(int[] array) 
+        {
+        int tmp;
+
+<span class="fc bfc" id="L279" title="All 2 branches covered.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="pc bpc" id="L280" title="2 of 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (array[j]&lt;array[j-1]); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L282">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="fc" id="L283">        }</span>
+    
+    static private void qsort_h(int[] array, int oi, int oj) 
+        {
+<span class="fc" id="L287">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+<span class="fc" id="L288">        int top = -1;</span>
+        int pivot;
+        int pivotindex, l, r;
+        int tmp;
+
+<span class="fc" id="L293">        stack[++top] = oi;  // Initialize stack</span>
+<span class="fc" id="L294">        stack[++top] = oj;</span>
+
+<span class="fc bfc" id="L296" title="All 2 branches covered.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="fc" id="L299">            int j = stack[top--];</span>
+<span class="fc" id="L300">            int i = stack[top--];</span>
+      
+            // Findpivot
+<span class="fc" id="L303">            pivotindex = (i+j)/2;</span>
+<span class="fc" id="L304">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="fc" id="L306">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="fc" id="L308">            l = i-1;</span>
+<span class="fc" id="L309">            r = j;</span>
+            do 
+                {
+<span class="fc bfc" id="L312" title="All 2 branches covered.">                while (array[++l] &lt; pivot);</span>
+<span class="fc bfc" id="L313" title="All 4 branches covered.">                while ((r!=0) &amp;&amp; (array[--r] &gt; pivot));</span>
+                //DSutil.swap(array, l, r);
+<span class="fc" id="L315">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="fc bfc" id="L316" title="All 2 branches covered.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="fc" id="L318">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="fc" id="L320">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="fc bfc" id="L323" title="All 2 branches covered.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="fc" id="L325">                stack[++top] = i;</span>
+<span class="fc" id="L326">                stack[++top] = l-1;</span>
+                }
+<span class="fc bfc" id="L328" title="All 2 branches covered.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="fc" id="L330">                stack[++top] = l+1;</span>
+<span class="fc" id="L331">                stack[++top] = j;</span>
+                }
+<span class="fc" id="L333">            }</span>
+<span class="fc" id="L334">        inssort(array);             // Final Insertion Sort</span>
+<span class="fc" id="L335">        }</span>
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(long[] array) 
+        {
+<span class="nc" id="L340">        qsort_h(array, 0, array.length-1);</span>
+<span class="nc" id="L341">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(long[] array) 
+        {
+        long tmp;
+
+<span class="nc bnc" id="L350" title="All 2 branches missed.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="nc bnc" id="L351" title="All 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (array[j]&lt;array[j-1]); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L353">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="nc" id="L354">        }</span>
+    
+    static private void qsort_h(long[] array, int oi, int oj) 
+        {
+<span class="nc" id="L358">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+
+<span class="nc" id="L360">        int top = -1;</span>
+        long pivot;
+        int pivotindex, l, r;
+        long tmp;
+
+<span class="nc" id="L365">        stack[++top] = oi;  // Initialize stack</span>
+<span class="nc" id="L366">        stack[++top] = oj;</span>
+
+<span class="nc bnc" id="L368" title="All 2 branches missed.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="nc" id="L371">            int j = stack[top--];</span>
+<span class="nc" id="L372">            int i = stack[top--];</span>
+      
+            // Findpivot
+<span class="nc" id="L375">            pivotindex = (i+j)/2;</span>
+<span class="nc" id="L376">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="nc" id="L378">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="nc" id="L380">            l = i-1;</span>
+<span class="nc" id="L381">            r = j;</span>
+            do 
+                {
+<span class="nc bnc" id="L384" title="All 2 branches missed.">                while (array[++l] &lt; pivot);</span>
+<span class="nc bnc" id="L385" title="All 4 branches missed.">                while ((r!=0) &amp;&amp; (array[--r] &gt; pivot));</span>
+                //DSutil.swap(array, l, r);
+<span class="nc" id="L387">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="nc bnc" id="L388" title="All 2 branches missed.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="nc" id="L390">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="nc" id="L392">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="nc bnc" id="L395" title="All 2 branches missed.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="nc" id="L397">                stack[++top] = i;</span>
+<span class="nc" id="L398">                stack[++top] = l-1;</span>
+                }
+<span class="nc bnc" id="L400" title="All 2 branches missed.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="nc" id="L402">                stack[++top] = l+1;</span>
+<span class="nc" id="L403">                stack[++top] = j;</span>
+                }
+<span class="nc" id="L405">            }</span>
+<span class="nc" id="L406">        inssort(array);             // Final Insertion Sort</span>
+<span class="nc" id="L407">        }</span>
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(float[] array) 
+        {
+<span class="nc" id="L412">        qsort_h(array, 0, array.length-1);</span>
+<span class="nc" id="L413">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(float[] array) 
+        {
+        float tmp;
+
+<span class="nc bnc" id="L422" title="All 2 branches missed.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="nc bnc" id="L423" title="All 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (array[j]&lt;array[j-1]); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L425">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="nc" id="L426">        }</span>
+    
+    static private void qsort_h(float[] array, int oi, int oj) 
+        {
+<span class="nc" id="L430">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+
+<span class="nc" id="L432">        int top = -1;</span>
+        float pivot;
+        int pivotindex, l, r;
+        float tmp;
+
+<span class="nc" id="L437">        stack[++top] = oi;  // Initialize stack</span>
+<span class="nc" id="L438">        stack[++top] = oj;</span>
+
+<span class="nc bnc" id="L440" title="All 2 branches missed.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="nc" id="L443">            int j = stack[top--];</span>
+<span class="nc" id="L444">            int i = stack[top--];</span>
+      
+            // Findpivot
+<span class="nc" id="L447">            pivotindex = (i+j)/2;</span>
+<span class="nc" id="L448">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="nc" id="L450">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="nc" id="L452">            l = i-1;</span>
+<span class="nc" id="L453">            r = j;</span>
+            do 
+                {
+<span class="nc bnc" id="L456" title="All 2 branches missed.">                while (array[++l] &lt; pivot);</span>
+<span class="nc bnc" id="L457" title="All 4 branches missed.">                while ((r!=0) &amp;&amp; (array[--r] &gt; pivot));</span>
+                //DSutil.swap(array, l, r);
+<span class="nc" id="L459">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="nc" id="L462">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="nc" id="L464">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="nc bnc" id="L467" title="All 2 branches missed.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="nc" id="L469">                stack[++top] = i;</span>
+<span class="nc" id="L470">                stack[++top] = l-1;</span>
+                }
+<span class="nc bnc" id="L472" title="All 2 branches missed.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="nc" id="L474">                stack[++top] = l+1;</span>
+<span class="nc" id="L475">                stack[++top] = j;</span>
+                }
+<span class="nc" id="L477">            }</span>
+<span class="nc" id="L478">        inssort(array);             // Final Insertion Sort</span>
+<span class="nc" id="L479">        }</span>
+
+
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(double[] array) 
+        {
+<span class="nc" id="L486">        qsort_h(array, 0, array.length-1);</span>
+<span class="nc" id="L487">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(double[] array) 
+        {
+        double tmp;
+
+<span class="nc bnc" id="L496" title="All 2 branches missed.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="nc bnc" id="L497" title="All 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (array[j]&lt;array[j-1]); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L499">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="nc" id="L500">        }</span>
+    
+    static private void qsort_h(double[] array, int oi, int oj) 
+        {
+<span class="nc" id="L504">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+<span class="nc" id="L505">        int top = -1;</span>
+        double pivot;
+        int pivotindex, l, r;
+        double tmp;
+
+<span class="nc" id="L510">        stack[++top] = oi;  // Initialize stack</span>
+<span class="nc" id="L511">        stack[++top] = oj;</span>
+
+<span class="nc bnc" id="L513" title="All 2 branches missed.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="nc" id="L516">            int j = stack[top--];</span>
+<span class="nc" id="L517">            int i = stack[top--];</span>
+      
+            // Findpivot
+<span class="nc" id="L520">            pivotindex = (i+j)/2;</span>
+<span class="nc" id="L521">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="nc" id="L523">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="nc" id="L525">            l = i-1;</span>
+<span class="nc" id="L526">            r = j;</span>
+            do 
+                {
+<span class="nc bnc" id="L529" title="All 2 branches missed.">                while (array[++l] &lt; pivot);</span>
+<span class="nc bnc" id="L530" title="All 4 branches missed.">                while ((r!=0) &amp;&amp; (array[--r] &gt; pivot));</span>
+                //DSutil.swap(array, l, r);
+<span class="nc" id="L532">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="nc bnc" id="L533" title="All 2 branches missed.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="nc" id="L535">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="nc" id="L537">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="nc bnc" id="L540" title="All 2 branches missed.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="nc" id="L542">                stack[++top] = i;</span>
+<span class="nc" id="L543">                stack[++top] = l-1;</span>
+                }
+<span class="nc bnc" id="L545" title="All 2 branches missed.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="nc" id="L547">                stack[++top] = l+1;</span>
+<span class="nc" id="L548">                stack[++top] = j;</span>
+                }
+<span class="nc" id="L550">            }</span>
+<span class="nc" id="L551">        inssort(array);             // Final Insertion Sort</span>
+<span class="nc" id="L552">        }</span>
+
+
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(Object[] array, SortComparator comp) 
+        {
+<span class="fc" id="L559">        qsort_h(array, 0, array.length-1, comp);</span>
+<span class="fc" id="L560">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(Object[] array, SortComparator comp) 
+        {
+        Object tmp;
+
+<span class="fc bfc" id="L569" title="All 2 branches covered.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="pc bpc" id="L570" title="2 of 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (comp.lt(array[j],array[j-1])); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L572">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="fc" id="L573">        }</span>
+    
+    static private void qsort_h(Object[] array, int oi, int oj, SortComparator comp) 
+        {
+<span class="fc" id="L577">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+<span class="fc" id="L578">        int top = -1;</span>
+        Object pivot;
+        int pivotindex, l, r;
+        Object tmp;
+        
+<span class="fc" id="L583">        stack[++top] = oi;  // Initialize stack</span>
+<span class="fc" id="L584">        stack[++top] = oj;</span>
+        
+<span class="fc bfc" id="L586" title="All 2 branches covered.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="fc" id="L589">            int j = stack[top--];</span>
+<span class="fc" id="L590">            int i = stack[top--];</span>
+            
+            // Findpivot
+<span class="fc" id="L593">            pivotindex = (i+j)/2;</span>
+<span class="fc" id="L594">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="fc" id="L596">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="fc" id="L598">            l = i-1;</span>
+<span class="fc" id="L599">            r = j;</span>
+            do 
+                {
+<span class="fc bfc" id="L602" title="All 2 branches covered.">                while (comp.lt(array[++l],pivot));</span>
+<span class="fc bfc" id="L603" title="All 4 branches covered.">                while ((r!=0) &amp;&amp; (comp.gt(array[--r],pivot)));</span>
+                //DSutil.swap(array, l, r);
+<span class="fc" id="L605">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="fc bfc" id="L606" title="All 2 branches covered.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="fc" id="L608">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="fc" id="L610">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="fc bfc" id="L613" title="All 2 branches covered.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="fc" id="L615">                stack[++top] = i;</span>
+<span class="fc" id="L616">                stack[++top] = l-1;</span>
+                }
+<span class="fc bfc" id="L618" title="All 2 branches covered.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="fc" id="L620">                stack[++top] = l+1;</span>
+<span class="fc" id="L621">                stack[++top] = j;</span>
+                }
+<span class="fc" id="L623">            }</span>
+<span class="fc" id="L624">        inssort(array,comp);             // Final Insertion Sort</span>
+<span class="fc" id="L625">        }</span>
+
+
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(long[] array, SortComparatorL comp) 
+        {
+<span class="nc" id="L632">        qsort_h(array, 0, array.length-1, comp);</span>
+<span class="nc" id="L633">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(long[] array, SortComparatorL comp) 
+        {
+        long tmp;
+
+<span class="nc bnc" id="L642" title="All 2 branches missed.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="nc bnc" id="L643" title="All 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (comp.lt(array[j],array[j-1])); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L645">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="nc" id="L646">        }</span>
+    
+    static private void qsort_h(long[] array, int oi, int oj, SortComparatorL comp) 
+        {
+<span class="nc" id="L650">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+<span class="nc" id="L651">        int top = -1;</span>
+        long pivot;
+        int pivotindex, l, r;
+        long tmp;
+        
+<span class="nc" id="L656">        stack[++top] = oi;  // Initialize stack</span>
+<span class="nc" id="L657">        stack[++top] = oj;</span>
+        
+<span class="nc bnc" id="L659" title="All 2 branches missed.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="nc" id="L662">            int j = stack[top--];</span>
+<span class="nc" id="L663">            int i = stack[top--];</span>
+            
+            // Findpivot
+<span class="nc" id="L666">            pivotindex = (i+j)/2;</span>
+<span class="nc" id="L667">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="nc" id="L669">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="nc" id="L671">            l = i-1;</span>
+<span class="nc" id="L672">            r = j;</span>
+            do 
+                {
+<span class="nc bnc" id="L675" title="All 2 branches missed.">                while (comp.lt(array[++l],pivot));</span>
+<span class="nc bnc" id="L676" title="All 4 branches missed.">                while ((r!=0) &amp;&amp; (comp.gt(array[--r],pivot)));</span>
+                //DSutil.swap(array, l, r);
+<span class="nc" id="L678">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="nc bnc" id="L679" title="All 2 branches missed.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="nc" id="L681">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="nc" id="L683">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="nc bnc" id="L686" title="All 2 branches missed.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="nc" id="L688">                stack[++top] = i;</span>
+<span class="nc" id="L689">                stack[++top] = l-1;</span>
+                }
+<span class="nc bnc" id="L691" title="All 2 branches missed.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="nc" id="L693">                stack[++top] = l+1;</span>
+<span class="nc" id="L694">                stack[++top] = j;</span>
+                }
+<span class="nc" id="L696">            }</span>
+<span class="nc" id="L697">        inssort(array,comp);             // Final Insertion Sort</span>
+<span class="nc" id="L698">        }</span>
+
+
+    /** Non-Recursive QuickSort */
+    static public void qsort(int[] array, SortComparatorL comp) 
+        {
+<span class="nc" id="L704">        qsort_h(array, 0, array.length-1, comp);</span>
+<span class="nc" id="L705">        }</span>
+    
+    
+    
+    /** Insertion Sort */
+    static public void inssort(int[] array, SortComparatorL comp)
+        {
+        int tmp;
+
+<span class="nc bnc" id="L714" title="All 2 branches missed.">        for (int i=1; i&lt;array.length; i++) // Insert i'th record</span>
+<span class="nc bnc" id="L715" title="All 4 branches missed.">            for (int j=i; (j&gt;0) &amp;&amp; (comp.lt(array[j],array[j-1])); j--)</span>
+                //DSutil.swap(array, j, j-1);
+<span class="nc" id="L717">                { tmp = array[j]; array[j] = array[j-1]; array[j-1] = tmp; }</span>
+<span class="nc" id="L718">        }</span>
+    
+    static private void qsort_h(int[] array, int oi, int oj, SortComparatorL comp) 
+        {
+<span class="nc" id="L722">        int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds</span>
+<span class="nc" id="L723">        int top = -1;</span>
+        int pivot;
+        int pivotindex, l, r;
+        int tmp;
+        
+<span class="nc" id="L728">        stack[++top] = oi;  // Initialize stack</span>
+<span class="nc" id="L729">        stack[++top] = oj;</span>
+        
+<span class="nc bnc" id="L731" title="All 2 branches missed.">        while (top &gt; 0)    // While there are unprocessed subarrays</span>
+            {
+            // Pop stack
+<span class="nc" id="L734">            int j = stack[top--];</span>
+<span class="nc" id="L735">            int i = stack[top--];</span>
+            
+            // Findpivot
+<span class="nc" id="L738">            pivotindex = (i+j)/2;</span>
+<span class="nc" id="L739">            pivot = array[pivotindex];</span>
+            //DSutil.swap(array, pivotindex, j); // Stick pivot at end
+<span class="nc" id="L741">            tmp = array[pivotindex]; array[pivotindex] = array[j]; array[j] = tmp; </span>
+            // Partition
+<span class="nc" id="L743">            l = i-1;</span>
+<span class="nc" id="L744">            r = j;</span>
+            do 
+                {
+<span class="nc bnc" id="L747" title="All 2 branches missed.">                while (comp.lt(array[++l],pivot));</span>
+<span class="nc bnc" id="L748" title="All 4 branches missed.">                while ((r!=0) &amp;&amp; (comp.gt(array[--r],pivot)));</span>
+                //DSutil.swap(array, l, r);
+<span class="nc" id="L750">                tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+<span class="nc bnc" id="L751" title="All 2 branches missed.">                } while (l &lt; r);</span>
+            //DSutil.swap(array, l, r);  // Undo final swap
+<span class="nc" id="L753">            tmp = array[l]; array[l] = array[r]; array[r] = tmp;</span>
+            //DSutil.swap(array, l, j);  // Put pivot value in place
+<span class="nc" id="L755">            tmp = array[l]; array[l] = array[j]; array[j] = tmp;</span>
+            
+            // Put new subarrays onto stack if they are small
+<span class="nc bnc" id="L758" title="All 2 branches missed.">            if ((l-i) &gt; THRESHOLD)   // Left partition</span>
+                { 
+<span class="nc" id="L760">                stack[++top] = i;</span>
+<span class="nc" id="L761">                stack[++top] = l-1;</span>
+                }
+<span class="nc bnc" id="L763" title="All 2 branches missed.">            if ((j-l) &gt; THRESHOLD) // Right partition </span>
+                {   
+<span class="nc" id="L765">                stack[++top] = l+1;</span>
+<span class="nc" id="L766">                stack[++top] = j;</span>
+                }
+<span class="nc" id="L768">            }</span>
+<span class="nc" id="L769">        inssort(array,comp);             // Final Insertion Sort</span>
+<span class="nc" id="L770">        }</span>
+    }
+    
+
+
+/* The original code
+   
+// Non-Recursive QuickSort
+static public void qsort(Elem[] array) 
+{
+qsort(array, 0, array.length-1);
+}
+   
+static public int MAXSTACKSIZE = 1000;
+   
+// Insertion Sort
+static void inssort(Elem[] array) 
+{
+Elem tmp;
+   
+for (int i=1; i&lt;array.length; i++) // Insert i'th record
+for (int j=i; (j&gt;0) &amp;&amp; (array[j].key()&lt;array[j-1].key()); j--)
+DSUtil.swap(array, j, j-1);
+}
+   
+static private void qsort_h(Elem[] array, int oi, int oj) 
+{
+int[] stack = new int[MAXSTACKSIZE]; // Stack for array bounds
+int listsize = oj-oi+1;
+int top = -1;
+int pivot;
+int pivotindex, l, r;
+Elem tmp;
+   
+stack[++top] = oi;  // Initialize stack
+stack[++top] = oj;
+   
+while (top &gt; 0)    // While there are unprocessed subarrays
+{
+// Pop stack
+int j = stack[top--];
+int i = stack[top--];
+   
+// Findpivot
+pivotindex = (i+j)/2;
+pivot = array[pivotindex].key();
+DSUtil.swap(array, pivotindex, j); // Stick pivot at end
+// Partition
+l = i-1;
+r = j;
+do 
+{
+while (array[++l].key() &lt; pivot);
+while ((r!=0) &amp;&amp; (array[--r].key() &gt; pivot));
+DSutil.swap(array, l, r);
+} while (l &lt; r);
+DSUtil.swap(array, l, r);  // Undo final swap
+DSUtil.swap(array, l, j);  // Put pivot value in place
+   
+// Put new subarrays onto stack if they are small
+if ((l-i) &gt; THRESHOLD)   // Left partition
+{ 
+stack[++top] = i;
+stack[++top] = l-1;
+}
+if ((j-l) &gt; THRESHOLD) // Right partition 
+{   
+stack[++top] = l+1;
+stack[++top] = j;
+}
+}
+inssort(array);             // Final Insertion Sort
+}
+*/
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

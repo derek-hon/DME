@@ -1,0 +1,1999 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BBOBenchmarks.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.bbob</a> &gt; <span class="el_source">BBOBenchmarks.java</span></div><h1>BBOBenchmarks.java</h1><pre class="source lang-java linenums">package ec.app.bbob;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+
+import ec.*;
+import ec.gp.koza.HalfBuilder;
+import ec.simple.SimpleFitness;
+import ec.simple.SimpleProblemForm;
+import ec.util.MersenneTwisterFast;
+import ec.util.Parameter;
+import ec.util.QuickSort;
+import ec.vector.DoubleVectorIndividual;
+import ec.util.ParameterDatabase;
+import ec.util.MersenneTwisterFast;
+
+/* 
+ * BBOBenchmarks.java
+ * 
+ * Created: Fri Apr 2 09:00:00 2010
+ * By: Faisal Abidi
+ */
+
+/**
+ * The Black Box Optimization workshop (BBOB) has an annual competition for doing real-valued parameter optimization.
+ * The examples shown here are more or less faithful reproductions of the BBOB 2010 C code, only using Mersenne Twister
+ * instead of BBOB's random number generator.  Unfortunately, the original BBOB code has various magic numbers, unexplained
+ * variables, and unfortunate algorithmic decisions.  We've reproduced them exactly rather than attempt to convert to a 
+ * standard ECJ template, and simply apologize beforehand.
+ *
+ * &lt;p&gt;
+ * &lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;type&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt; String = &lt;tt&gt;none &lt;/tt&gt;(default)
+ * &lt;tt&gt;, sphere, ellipsoidal, rastrigin, buch-rastrigin, linear-slope, attractive-sector, step-elipsoidal, rosenbrock, rosenbrock-rotated, ellipsoidal-2, discus, bent-cigar, sharp-ridge, different-powers, rastrigin-2,
+ * weierstrass, schaffers-f7, schaffers-f7-2, griewak-rosenbrock, schwefel, gallagher-gaussian-101me, gallagher-gaussian-21hi, katsuura, lunacek&lt;/tt&gt;
+ * &lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(The particular function)
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;noise&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt; String = &lt;tt&gt;none &lt;/tt&gt;(default)
+ * &lt;tt&gt;, gauss, uniform, cauchy, gauss-moderate, uniform-moderate, cauchy-moderate&lt;/tt&gt;
+ * &lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(what type of noise (if any) to add to the function value)
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;reevaluate-noisy-problems&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt; boolean = &lt;tt&gt;true&lt;/tt&gt;(default)
+ * &lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(whether to reevaluate noisy problems)
+ * &lt;/table&gt;
+ * 
+ * 
+ * @author Faisal Abidi
+ * @version 1.0
+ */
+
+<span class="fc" id="L61">public class BBOBenchmarks extends Problem implements SimpleProblemForm {</span>
+    public static final String P_GENOME_SIZE = &quot;genome-size&quot;;
+    public static final String P_WHICH_PROBLEM = &quot;type&quot;;
+    public static final String P_NOISE = &quot;noise&quot;;
+    public static final String P_REEVALUATE_NOISY_PROBLEMS = &quot;reevaluate-noisy-problems&quot;;
+    public static final String P_ZERO_IS_BEST = &quot;zeroIsBest&quot;;
+    public static final String P_XOPT = &quot;xopt&quot;;
+
+<span class="fc" id="L69">    final public String[] problemTypes =</span>
+            {&quot;sphere&quot;, &quot;ellipsoidal&quot;, &quot;rastrigin&quot;, &quot;buche-rastrigin&quot;, &quot;linear-slope&quot;, &quot;attractive-sector&quot;, &quot;step-ellipsoidal&quot;, &quot;rosenbrock&quot;, &quot;rosenbrock-rotated&quot;, &quot;ellipsoidal-2&quot;, &quot;discus&quot;, &quot;bent-cigar&quot;, &quot;sharp-ridge&quot;, &quot;different-powers&quot;, &quot;rastrigin-2&quot;,
+                    &quot;weierstrass&quot;, &quot;schaffers-f7&quot;, &quot;schaffers-f7-2&quot;, &quot;griewank-rosenbrock&quot;, &quot;schwefel&quot;, &quot;gallagher-gaussian-101me&quot;, &quot;gallagher-gaussian-21hi&quot;, &quot;katsuura&quot;, &quot;lunacek&quot;};
+
+    final static public int SPHERE = 0;
+    final static public int ELLIPSOIDAL = 1;
+    final static public int RASTRIGIN = 2;
+    final static public int BUCHE_RASTRIGIN = 3;
+    final static public int LINEAR_SLOPE = 4;
+    final static public int ATTRACTIVE_SECTOR = 5;
+    final static public int STEP_ELLIPSOIDAL = 6;
+    final static public int ROSENBROCK = 7;
+    final static public int ROSENBROCK_ROTATED = 8;
+    final static public int ELLIPSOIDAL_2 = 9;
+    final static public int DISCUS = 10;
+    final static public int BENT_CIGAR = 11;
+    final static public int SHARP_RIDGE = 12;
+    final static public int DIFFERENT_POWERS = 13;
+    final static public int RASTRIGIN_2 = 14;
+    final static public int WEIERSTRASS = 15;
+    final static public int SCHAFFERS_F7 = 16;
+    final static public int SCHAFFERS_F7_2 = 17;
+    final static public int GRIEWANK_ROSENBROCK = 18;
+    final static public int SCHWEFEL = 19;
+    final static public int GALLAGHER_GAUSSIAN_101ME = 20;
+    final static public int GALLAGHER_GAUSSIAN_21HI = 21;
+    final static public int KATSUURA = 22;
+    final static public int LUNACEK = 23;
+
+    // Noise types
+<span class="fc" id="L99">    final public String[] noiseTypes =</span>
+            {&quot;none&quot;, &quot;gauss&quot;, &quot;uniform&quot;, &quot;cauchy&quot;, &quot;gauss-moderate&quot;, &quot;uniform-moderate&quot;, &quot;cauchy-moderate&quot;};
+
+    final static public int NONE = 0;
+    final static public int GAUSSIAN = 1;
+    final static public int UNIFORM = 2;
+    final static public int CAUCHY = 3;
+    final static public int GAUSSIAN_MODERATE = 4;
+    final static public int UNIFORM_MODERATE = 5;
+    final static public int CAUCHY_MODERATE = 6;
+
+<span class="fc" id="L110">    public int problemType = 0; // defaults on SPHERE</span>
+
+<span class="fc" id="L112">    public int noise = NONE; // defaults to NONE</span>
+
+    public boolean reevaluateNoisyProblems;
+    public boolean zeroIsBest;
+
+    public static final int NHIGHPEAKS21 = 101;
+    public static final int NHIGHPEAKS22 = 21;
+
+    // DO NOT MODIFY THESE VARIABLES except in the setup method: global
+    // variables are not threadsafe.
+    double fOpt;
+    double[] xOpt;
+    double fAdd_Init;
+
+    double f0;
+    double[][] rotation;
+    double[][] rot2;
+    double[][] linearTF;
+    double[] peaks21;
+    double[] peaks22;
+    int[] rperm;
+    int[] rperm21;
+    int[] rperm22;
+    double[][] xLocal;
+    double[][] xLocal21;
+    double[][] xLocal22;
+    double[][] arrScales;
+    double[][] arrScales21;
+    double[][] arrScales22;
+    double[] aK;
+    double[] bK;
+    double[] peakvalues;
+    double scales;
+
+    public static void main(String[] args) {
+        //csv will have x, y and eval columns
+<span class="nc" id="L148">        final Parameter BASE = new Parameter(&quot;base&quot;);</span>
+        ParameterDatabase params;
+<span class="nc" id="L150">        params = new ParameterDatabase();</span>
+        EvolutionState state;
+
+<span class="nc" id="L153">        params.set(new Parameter(Initializer.P_POP).push(Population.P_SUBPOP).push(&quot;0&quot;).push(Subpopulation.P_SPECIES).push(BBOBenchmarks.P_GENOME_SIZE), &quot;2&quot;);</span>
+<span class="nc" id="L154">        params.set(BASE.push(BBOBenchmarks.P_WHICH_PROBLEM), args[0]);</span>
+<span class="nc" id="L155">        params.set(BASE.push(BBOBenchmarks.P_NOISE), &quot;none&quot;);</span>
+<span class="nc" id="L156">        params.set(BASE.push(BBOBenchmarks.P_REEVALUATE_NOISY_PROBLEMS), &quot;true&quot;);</span>
+
+<span class="nc" id="L158">        state = new EvolutionState();</span>
+<span class="nc" id="L159">        state.parameters = params;</span>
+<span class="nc" id="L160">        state.output = Evolve.buildOutput();</span>
+<span class="nc" id="L161">        state.output.setThrowsErrors(true);</span>
+<span class="nc" id="L162">        state.random = new MersenneTwisterFast[] { new MersenneTwisterFast() };</span>
+
+<span class="nc" id="L164">        BBOBenchmarks instance = new BBOBenchmarks();</span>
+<span class="nc" id="L165">        instance.setup(state, BASE);</span>
+
+<span class="nc" id="L167">        int whichLog = state.output.numLogs() - 1;</span>
+<span class="nc" id="L168">        File f = new File(&quot;bbob.csv&quot;);</span>
+        try {
+<span class="nc" id="L170">           whichLog = state.output.addLog(f, false);</span>
+<span class="nc" id="L171">        } catch (IOException io) {</span>
+<span class="nc" id="L172">            state.output.fatal(&quot;An IOException occurred while trying to create bbob.csv&quot;);</span>
+<span class="nc" id="L173">        }</span>
+
+<span class="nc" id="L175">        double granularity = Double.parseDouble(args[1]);</span>
+<span class="nc" id="L176">        ArrayList&lt;Double&gt; possibleVals = new ArrayList&lt;Double&gt;();</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        for(double i =-10;i&lt;10;i+=granularity){</span>
+<span class="nc" id="L178">            possibleVals.add(i);</span>
+        }
+<span class="nc" id="L180">        int valsLength = possibleVals.size();</span>
+<span class="nc" id="L181">        ArrayList&lt;Double[]&gt; XYPair = new ArrayList&lt;Double[]&gt;();</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        for(int i=0;i&lt;valsLength;i++){</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">            for(int j=0;j&lt;valsLength;j++){</span>
+<span class="nc" id="L184">                Double[] temp = new Double[]{possibleVals.get(i),possibleVals.get(j)};</span>
+<span class="nc" id="L185">                XYPair.add(temp);</span>
+            }
+        }
+<span class="nc" id="L188">        int pairNumber = XYPair.size();</span>
+<span class="nc" id="L189">        DoubleVectorIndividual[] inds = new DoubleVectorIndividual[pairNumber];</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        for(int i=0;i&lt;pairNumber;i++){</span>
+<span class="nc" id="L191">            Double[] pair = XYPair.get(i);</span>
+<span class="nc" id="L192">            inds[i] = new DoubleVectorIndividual();</span>
+<span class="nc" id="L193">            inds[i].setGenome(new double[]{pair[0],pair[1]});</span>
+<span class="nc" id="L194">            inds[i].fitness = new SimpleFitness();</span>
+<span class="nc" id="L195">            instance.evaluate(state,inds[i],0,0);</span>
+<span class="nc" id="L196">            state.output.println(pair[0]+&quot;, &quot;+pair[1] +&quot;, &quot;+inds[i].fitness.fitnessToStringForHumans().split(&quot; &quot;)[1],whichLog);</span>
+        }
+<span class="nc" id="L198">    }                                                                                                                                                            </span>
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="fc" id="L201">        super.setup(state, base);</span>
+<span class="fc" id="L202">        String wp = state.parameters.getStringWithDefault(base.push(P_WHICH_PROBLEM), null, &quot;&quot;);</span>
+        int i, j, k;
+<span class="fc" id="L204">        Parameter p = new Parameter(Initializer.P_POP);</span>
+<span class="fc" id="L205">        int genomeSize = state.parameters.getInt(p.push(Population.P_SUBPOP).push(&quot;0&quot;).push(Subpopulation.P_SPECIES).push(P_GENOME_SIZE), null, 1);</span>
+<span class="fc" id="L206">        String noiseStr = state.parameters.getString(base.push(P_NOISE), null);</span>
+<span class="fc bfc" id="L207" title="All 2 branches covered.">        for (i = 0; i &lt; noiseTypes.length; i++)</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">            if (noiseStr.equals(noiseTypes[i]))</span>
+<span class="fc" id="L209">                noise = i;</span>
+
+<span class="fc" id="L211">        reevaluateNoisyProblems = state.parameters.getBoolean(base.push(P_REEVALUATE_NOISY_PROBLEMS), null, true);</span>
+<span class="fc" id="L212">        zeroIsBest = state.parameters.getBoolean(base.push(P_ZERO_IS_BEST), null, false);</span>
+
+<span class="fc" id="L214">        double condition = 10.0;</span>
+<span class="fc" id="L215">        double alpha = 100.0;</span>
+        double tmp, tmp2, maxCondition;
+<span class="fc" id="L217">        double[] fitValues = {1.1, 9.1};</span>
+
+        double[] arrCondition, peaks, tmpvect;
+
+<span class="fc bfc" id="L221" title="All 2 branches covered.">        for (i = 0; i &lt; problemTypes.length; i++)</span>
+<span class="fc bfc" id="L222" title="All 2 branches covered.">            if (wp.equals(problemTypes[i]))</span>
+<span class="fc" id="L223">                problemType = i;</span>
+
+        // common Initialization
+<span class="fc" id="L226">        double compF = computeFopt(state.random[0]);</span>
+<span class="fc bfc" id="L227" title="All 2 branches covered.">        fOpt = zeroIsBest ? 0.0 : compF;</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">        if(!state.parameters.exists(base.push(P_XOPT),null)){</span>
+<span class="fc" id="L229">            xOpt = new double[genomeSize];</span>
+<span class="fc" id="L230">            computeXopt(xOpt, state.random[0]);</span>
+        }else{
+<span class="fc" id="L232">            xOpt = state.parameters.getDoublesWithMax(base.push(P_XOPT),null,-5,5,genomeSize);</span>
+        }
+<span class="fc" id="L234">        rotation = new double[genomeSize][genomeSize];</span>
+<span class="fc" id="L235">        rot2 = new double[genomeSize][genomeSize];</span>
+<span class="fc" id="L236">        linearTF = new double[genomeSize][genomeSize];</span>
+<span class="fc" id="L237">        computeRotation(rotation, state.random[0], genomeSize);</span>
+<span class="fc" id="L238">        computeRotation(rot2, state.random[0], genomeSize);</span>
+<span class="fc" id="L239">        scales = Math.max(1.0, Math.sqrt(genomeSize) / 8.);</span>
+
+<span class="pc bpc" id="L241" title="1 of 25 branches missed.">        switch (problemType) {</span>
+            case SPHERE:
+                /* INITIALIZATION */
+<span class="fc" id="L244">                break;</span>
+
+            case ELLIPSOIDAL: // f2
+<span class="pc bpc" id="L247" title="1 of 2 branches missed.">                if (noise != NONE) {</span>
+<span class="nc" id="L248">                    rot2 = new double[genomeSize][genomeSize];</span>
+<span class="nc" id="L249">                    computeRotation(rot2, state.random[0], genomeSize);</span>
+                }
+                break;
+
+            case RASTRIGIN:
+<span class="fc" id="L254">                break;</span>
+
+            case BUCHE_RASTRIGIN:
+<span class="fc bfc" id="L257" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i += 2)</span>
+<span class="fc" id="L258">                    xOpt[i] = Math.abs(xOpt[i]); /* Skew */</span>
+                break;
+
+            case LINEAR_SLOPE:
+<span class="fc bfc" id="L262" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L263">                    tmp = Math.pow(Math.sqrt(alpha), ((double) i) / ((double) (genomeSize - 1)));</span>
+<span class="pc bpc" id="L264" title="1 of 2 branches missed.">                    if (xOpt[i] &gt; 0) {</span>
+<span class="fc" id="L265">                        xOpt[i] = 5.;</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                    } else if (xOpt[i] &lt;= 0) {</span>
+<span class="nc" id="L267">                        xOpt[i] = -5.;</span>
+                    }
+<span class="fc" id="L269">                    fAdd_Init += 5. * tmp;</span>
+                }
+                break;
+
+            case ATTRACTIVE_SECTOR:
+                /* decouple scaling from function definition */
+<span class="fc bfc" id="L275" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L276" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L277">                        linearTF[i][j] = 0.0;</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">                        for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L279">                            linearTF[i][j] += rotation[i][k] * Math.pow(Math.sqrt(condition), ((double) k) / ((double) (genomeSize - 1))) * rot2[k][j];</span>
+                        }
+                    }
+                }
+                break;
+
+            case STEP_ELLIPSOIDAL:
+<span class="fc" id="L286">                break;</span>
+
+            case ROSENBROCK:
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">                if (noise == NONE)</span>
+<span class="fc bfc" id="L290" title="All 2 branches covered.">                    for (i = 0; i &lt; genomeSize; i++)</span>
+<span class="fc" id="L291">                        xOpt[i] *= 0.75;</span>
+                break;
+
+            case ROSENBROCK_ROTATED:
+                /* INITIALIZATION */
+                /* computeXopt(state.random[0], genomeSize); */
+<span class="fc bfc" id="L297" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L298" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++)</span>
+<span class="fc" id="L299">                        linearTF[i][j] = scales * rotation[i][j];</span>
+                }
+                break;
+
+            case ELLIPSOIDAL_2:
+                ;
+<span class="fc" id="L305">                break;</span>
+
+            case DISCUS:
+<span class="fc" id="L308">                break;</span>
+
+            case BENT_CIGAR:
+<span class="fc" id="L311">                break;</span>
+
+            case SHARP_RIDGE:
+<span class="fc bfc" id="L314" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L315" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L316">                        linearTF[i][j] = 0.0;</span>
+<span class="fc bfc" id="L317" title="All 2 branches covered.">                        for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L318">                            linearTF[i][j] += rotation[i][k] * Math.pow(Math.sqrt(condition), ((double) k) / ((double) (genomeSize - 1))) * rot2[k][j];</span>
+                        }
+                    }
+                }
+                break;
+
+            case DIFFERENT_POWERS:
+<span class="fc" id="L325">                break;</span>
+
+            case RASTRIGIN_2:
+<span class="fc bfc" id="L328" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L329" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L330">                        linearTF[i][j] = 0.0;</span>
+<span class="fc bfc" id="L331" title="All 2 branches covered.">                        for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L332">                            linearTF[i][j] += rotation[i][k] * Math.pow(Math.sqrt(condition), ((double) k) / ((double) (genomeSize - 1))) * rot2[k][j];</span>
+                        }
+                    }
+                }
+                break;
+
+            case WEIERSTRASS:
+<span class="fc" id="L339">                aK = new double[12];</span>
+<span class="fc" id="L340">                bK = new double[12];</span>
+
+<span class="fc bfc" id="L342" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L343" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L344">                        linearTF[i][j] = 0.0;</span>
+<span class="fc bfc" id="L345" title="All 2 branches covered.">                        for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L346">                            linearTF[i][j] += rotation[i][k] * Math.pow(1.0 / Math.sqrt(condition), ((double) k) / ((double) (genomeSize - 1))) * rot2[k][j];</span>
+                        }
+                    }
+                }
+
+<span class="fc" id="L351">                f0 = 0.0;</span>
+<span class="fc bfc" id="L352" title="All 2 branches covered.">                for (i = 0; i &lt; 12; i++) /*</span>
+                 * number of summands, 20 in CEC2005, 10/12
+                 * saves 30% of time
+                 */ {
+<span class="fc" id="L356">                    aK[i] = Math.pow(0.5, (double) i);</span>
+<span class="fc" id="L357">                    bK[i] = Math.pow(3., (double) i);</span>
+<span class="fc" id="L358">                    f0 += aK[i] * Math.cos(2 * Math.PI * bK[i] * 0.5);</span>
+                }
+                break;
+
+            case SCHAFFERS_F7:
+<span class="fc" id="L363">                break;</span>
+
+            case SCHAFFERS_F7_2:
+<span class="fc" id="L366">                break;</span>
+
+            case GRIEWANK_ROSENBROCK:
+<span class="pc bpc" id="L369" title="1 of 2 branches missed.">                if (noise == NONE) {</span>
+<span class="fc" id="L370">                    rot2 = new double[genomeSize][genomeSize];</span>
+<span class="fc" id="L371">                    linearTF = new double[genomeSize][genomeSize];</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">                    for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L373" title="All 2 branches covered.">                        for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L374">                            linearTF[i][j] = scales * rotation[i][j];</span>
+                        }
+                    }
+<span class="fc bfc" id="L377" title="All 2 branches covered.">                    for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L378">                        xOpt[i] = 0.0;</span>
+<span class="fc bfc" id="L379" title="All 2 branches covered.">                        for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L380">                            xOpt[i] += linearTF[j][i] * 0.5 / scales / scales;</span>
+                        }
+                    }
+                } else {
+                    // TODO
+                }
+                break;
+
+            case SCHWEFEL:
+                /* INITIALIZATION */
+<span class="fc" id="L390">                tmpvect = new double[genomeSize];</span>
+
+<span class="fc bfc" id="L392" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++)</span>
+<span class="fc" id="L393">                    tmpvect[i] = nextDoubleClosedInterval(state.random[0]);</span>
+<span class="fc bfc" id="L394" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L395">                    xOpt[i] = 0.5 * 4.2096874633;</span>
+<span class="fc bfc" id="L396" title="All 2 branches covered.">                    if (tmpvect[i] - 0.5 &lt; 0)</span>
+<span class="fc" id="L397">                        xOpt[i] *= -1.;</span>
+                }
+                break;
+
+            case GALLAGHER_GAUSSIAN_101ME:
+<span class="fc" id="L402">                maxCondition = 1000.0;</span>
+<span class="fc" id="L403">                arrCondition = new double[NHIGHPEAKS21];</span>
+<span class="fc" id="L404">                peaks21 = new double[genomeSize * NHIGHPEAKS21];</span>
+<span class="fc" id="L405">                rperm21 = new int[Math.max(genomeSize, NHIGHPEAKS21)];</span>
+<span class="fc" id="L406">                peaks = peaks21;</span>
+<span class="fc" id="L407">                peakvalues = new double[NHIGHPEAKS21];</span>
+<span class="fc" id="L408">                arrScales21 = new double[NHIGHPEAKS21][genomeSize];</span>
+<span class="fc" id="L409">                xLocal21 = new double[genomeSize][NHIGHPEAKS21];</span>
+
+<span class="fc bfc" id="L411" title="All 2 branches covered.">                for (i = 0; i &lt; NHIGHPEAKS21 - 1; i++)</span>
+<span class="fc" id="L412">                    peaks[i] = nextDoubleClosedInterval(state.random[0]);</span>
+<span class="fc" id="L413">                rperm = rperm21;</span>
+<span class="fc bfc" id="L414" title="All 2 branches covered.">                for (i = 0; i &lt; NHIGHPEAKS21 - 1; i++)</span>
+<span class="fc" id="L415">                    rperm[i] = i;</span>
+<span class="fc" id="L416">                QuickSort.qsort(rperm);</span>
+
+                /* Random permutation */
+
+<span class="fc" id="L420">                arrCondition[0] = Math.sqrt(maxCondition);</span>
+<span class="fc" id="L421">                peakvalues[0] = 10;</span>
+<span class="fc bfc" id="L422" title="All 2 branches covered.">                for (i = 1; i &lt; NHIGHPEAKS21; i++) {</span>
+<span class="fc" id="L423">                    arrCondition[i] = Math.pow(maxCondition, (double) (rperm[i - 1]) / ((double) (NHIGHPEAKS21 - 2)));</span>
+<span class="fc" id="L424">                    peakvalues[i] = (double) (i - 1) / (double) (NHIGHPEAKS21 - 2) * (fitValues[1] - fitValues[0]) + fitValues[0];</span>
+                }
+<span class="fc" id="L426">                arrScales = arrScales21;</span>
+<span class="fc bfc" id="L427" title="All 2 branches covered.">                for (i = 0; i &lt; NHIGHPEAKS21; i++) {</span>
+<span class="fc bfc" id="L428" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++)</span>
+<span class="fc" id="L429">                        peaks[j] = nextDoubleClosedInterval(state.random[0]);</span>
+<span class="fc bfc" id="L430" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++)</span>
+<span class="fc" id="L431">                        rperm[j] = j;</span>
+                    // qsort(rperm, genomeSize, sizeof(int), compare_doubles);
+<span class="fc" id="L433">                    QuickSort.qsort(rperm);</span>
+<span class="fc bfc" id="L434" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L435">                        arrScales[i][j] = Math.pow(arrCondition[i], ((double) rperm[j]) / ((double) (genomeSize - 1)) - 0.5);</span>
+                    }
+                }
+
+<span class="fc bfc" id="L439" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize * NHIGHPEAKS21; i++)</span>
+<span class="fc" id="L440">                    peaks[i] = nextDoubleClosedInterval(state.random[0]);</span>
+<span class="fc" id="L441">                xLocal = xLocal21;</span>
+<span class="fc bfc" id="L442" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L443">                    xOpt[i] = 0.8 * (10. * peaks[i] - 5.);</span>
+<span class="fc bfc" id="L444" title="All 2 branches covered.">                    for (j = 0; j &lt; NHIGHPEAKS21; j++) {</span>
+<span class="fc" id="L445">                        xLocal[i][j] = 0.0;</span>
+<span class="fc bfc" id="L446" title="All 2 branches covered.">                        for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L447">                            xLocal[i][j] += rotation[i][k] * (10. * peaks[j * genomeSize + k] - 5.);</span>
+                        }
+<span class="fc bfc" id="L449" title="All 2 branches covered.">                        if (j == 0)</span>
+<span class="fc" id="L450">                            xLocal[i][j] *= 0.8;</span>
+                    }
+                }
+                break;
+
+            case GALLAGHER_GAUSSIAN_21HI:
+<span class="fc" id="L456">                maxCondition = 1000.0;</span>
+<span class="fc" id="L457">                arrCondition = new double[NHIGHPEAKS22];</span>
+<span class="fc" id="L458">                peaks22 = new double[genomeSize * NHIGHPEAKS22];</span>
+<span class="fc" id="L459">                rperm22 = new int[Math.max(genomeSize, NHIGHPEAKS22)];</span>
+<span class="fc" id="L460">                arrScales22 = new double[NHIGHPEAKS22][genomeSize];</span>
+<span class="fc" id="L461">                xLocal22 = new double[genomeSize][NHIGHPEAKS22];</span>
+<span class="fc" id="L462">                peaks = peaks22;</span>
+<span class="fc" id="L463">                peakvalues = new double[NHIGHPEAKS22];</span>
+<span class="fc" id="L464">                peaks = peaks22;</span>
+<span class="fc bfc" id="L465" title="All 2 branches covered.">                for (i = 0; i &lt; NHIGHPEAKS22 - 1; i++)</span>
+<span class="fc" id="L466">                    peaks[i] = nextDoubleClosedInterval(state.random[0]);</span>
+<span class="fc" id="L467">                rperm = rperm22;</span>
+<span class="fc bfc" id="L468" title="All 2 branches covered.">                for (i = 0; i &lt; NHIGHPEAKS22 - 1; i++)</span>
+<span class="fc" id="L469">                    rperm[i] = i;</span>
+                // NOTE: confirm if this is a valid java conversion.
+<span class="fc" id="L471">                QuickSort.qsort(rperm);</span>
+                /* Random permutation */
+<span class="fc" id="L473">                arrCondition[0] = maxCondition;</span>
+<span class="fc" id="L474">                peakvalues[0] = 10;</span>
+<span class="fc bfc" id="L475" title="All 2 branches covered.">                for (i = 1; i &lt; NHIGHPEAKS22; i++) {</span>
+<span class="fc" id="L476">                    arrCondition[i] = Math.pow(maxCondition, (double) (rperm[i - 1]) / ((double) (NHIGHPEAKS22 - 2)));</span>
+<span class="fc" id="L477">                    peakvalues[i] = (double) (i - 1) / (double) (NHIGHPEAKS22 - 2) * (fitValues[1] - fitValues[0]) + fitValues[0];</span>
+                }
+<span class="fc" id="L479">                arrScales = arrScales22;</span>
+<span class="fc bfc" id="L480" title="All 2 branches covered.">                for (i = 0; i &lt; NHIGHPEAKS22; i++) {</span>
+<span class="fc bfc" id="L481" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++)</span>
+<span class="fc" id="L482">                        peaks[j] = nextDoubleClosedInterval(state.random[0]);</span>
+<span class="fc bfc" id="L483" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++)</span>
+<span class="fc" id="L484">                        rperm[j] = j;</span>
+                    // qsort(rperm, genomeSize, sizeof(int), compare_doubles);
+                    // NOTE: confirm if converted correctly
+<span class="fc" id="L487">                    QuickSort.qsort(rperm);</span>
+<span class="fc bfc" id="L488" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L489">                        arrScales[i][j] = Math.pow(arrCondition[i], ((double) rperm[j]) / ((double) (genomeSize - 1)) - 0.5);</span>
+                    }
+                }
+
+<span class="fc bfc" id="L493" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize * NHIGHPEAKS22; i++)</span>
+<span class="fc" id="L494">                    peaks[i] = nextDoubleClosedInterval(state.random[0]);</span>
+<span class="fc" id="L495">                xLocal = xLocal22;</span>
+<span class="fc bfc" id="L496" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L497">                    xOpt[i] = 0.8 * (9.8 * peaks[i] - 4.9);</span>
+<span class="fc bfc" id="L498" title="All 2 branches covered.">                    for (j = 0; j &lt; NHIGHPEAKS22; j++) {</span>
+<span class="fc" id="L499">                        xLocal[i][j] = 0.0;</span>
+<span class="fc bfc" id="L500" title="All 2 branches covered.">                        for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L501">                            xLocal[i][j] += rotation[i][k] * (9.8 * peaks[j * genomeSize + k] - 4.9);</span>
+                        }
+<span class="fc bfc" id="L503" title="All 2 branches covered.">                        if (j == 0)</span>
+<span class="fc" id="L504">                            xLocal[i][j] *= 0.8;</span>
+                    }
+                }
+                break;
+
+            case KATSUURA:
+<span class="fc bfc" id="L510" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L511" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L512">                        linearTF[i][j] = 0.0;</span>
+<span class="fc bfc" id="L513" title="All 2 branches covered.">                        for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L514">                            linearTF[i][j] += rotation[i][k] * Math.pow(Math.sqrt(condition), ((double) k) / (double) (genomeSize - 1)) * rot2[k][j];</span>
+                        }
+                    }
+                }
+                break;
+
+            case LUNACEK:
+<span class="fc" id="L521">                tmpvect = new double[genomeSize];</span>
+<span class="fc" id="L522">                double mu1 = 2.5;</span>
+<span class="fc" id="L523">                gauss(tmpvect, state.random[0]);</span>
+<span class="fc bfc" id="L524" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L525">                    xOpt[i] = 0.5 * mu1;</span>
+<span class="fc bfc" id="L526" title="All 2 branches covered.">                    if (tmpvect[i] &lt; 0.)</span>
+<span class="fc" id="L527">                        xOpt[i] *= -1.;</span>
+                }
+
+<span class="fc bfc" id="L530" title="All 2 branches covered.">                for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L531" title="All 2 branches covered.">                    for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L532">                        linearTF[i][j] = 0.0;</span>
+<span class="fc bfc" id="L533" title="All 2 branches covered.">                        for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L534">                            linearTF[i][j] += rotation[i][k] * Math.pow(Math.sqrt(condition), ((double) k) / ((double) (genomeSize - 1))) * rot2[k][j];</span>
+                        }
+                    }
+                }
+                break;
+
+            default:
+<span class="nc" id="L541">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L542" title="All 2 branches missed.">                for (i = 0; i &lt; problemTypes.length; i++)</span>
+<span class="nc" id="L543">                    outputStr += problemTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L544">                state.output.fatal(outputStr, base.push(P_WHICH_PROBLEM));</span>
+        }
+
+<span class="fc" id="L547">    }</span>
+
+    public void evaluate(EvolutionState state, Individual ind, int subpopulation, int threadnum) {
+<span class="pc bpc" id="L550" title="1 of 2 branches missed.">        if (noise != NONE) {</span>
+<span class="nc bnc" id="L551" title="All 4 branches missed.">            if (!reevaluateNoisyProblems &amp;&amp; ind.evaluated) // don't bother reevaluating</span>
+<span class="nc" id="L552">                return;</span>
+<span class="pc bpc" id="L553" title="1 of 2 branches missed.">        } else if (ind.evaluated)  // don't bother reevaluating</span>
+<span class="nc" id="L554">            return;</span>
+
+<span class="pc bpc" id="L556" title="1 of 2 branches missed.">        if (!(ind instanceof DoubleVectorIndividual))</span>
+<span class="nc" id="L557">            state.output.fatal(&quot;The individuals for this problem should be DoubleVectorIndividuals.&quot;);</span>
+<span class="fc" id="L558">        DoubleVectorIndividual temp = (DoubleVectorIndividual) ind;</span>
+<span class="fc" id="L559">        double[] genome = temp.genome;</span>
+<span class="fc" id="L560">        int genomeSize = genome.length;</span>
+<span class="fc" id="L561">        double value = 0;</span>
+<span class="fc" id="L562">        double fit = 0;</span>
+        int i, j;
+<span class="fc" id="L564">        double condition = 0.0, alpha, beta, tmp = 0.0, tmp2 = 0.0, fAdd = 0, fPen = 0.0, x1 = 0.0, fac, a, f = 0.0, f2 = 0.0;</span>
+<span class="fc" id="L565">        double[] tmx = new double[genomeSize];</span>
+<span class="fc" id="L566">        double[] tmpvect = new double[genomeSize];</span>
+
+<span class="pc bpc" id="L568" title="1 of 25 branches missed.">        switch (problemType) {</span>
+            case SPHERE:// f1
+                /* Sphere function */
+<span class="fc" id="L571">                sphere(fAdd, genomeSize, genome, tmp, fPen, value, fit, ind, state, threadnum);</span>
+
+<span class="fc" id="L573">                break;</span>
+
+            case ELLIPSOIDAL:// f2
+                /*
+                 * separable ellipsoid with monotone transformation with noiseless
+                 * condition 1e6 and noisy condition 1e4
+                 */
+<span class="fc" id="L580">                ellipsoidal(fAdd, condition, tmx, genomeSize, genome, tmp, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L581">                break;</span>
+
+            case RASTRIGIN:// f3
+                /* Rastrigin with monotone transformation separable &quot;condition&quot; 10 */
+<span class="fc" id="L585">                rastrigin(fAdd, genomeSize, genome, tmp, tmp2, tmx, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L586">                break;</span>
+
+            case BUCHE_RASTRIGIN:// f4
+                /* skew Rastrigin-Bueche, condition 10, skew-&quot;condition&quot; 100 */
+<span class="fc" id="L590">                buche_rastrigin(fAdd, genomeSize, genome, tmp, tmp2, tmx, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L591">                break;</span>
+
+            case LINEAR_SLOPE:// f5
+                /* linear slope */
+<span class="fc" id="L595">                linear_slope(fAdd, genomeSize, genome, tmx, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L596">                break;</span>
+
+            case ATTRACTIVE_SECTOR:// f6
+                /* attractive sector function */
+<span class="fc" id="L600">                attractive_sector(fAdd, genomeSize, genome, tmx, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L601">                break;</span>
+
+            case STEP_ELLIPSOIDAL:// f7
+                /* step-ellipsoid, condition 100 */
+<span class="fc" id="L605">                step_ellipsoidal(fAdd, genomeSize, genome, tmp, tmx, tmpvect, x1, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L606">                break;</span>
+
+            case ROSENBROCK:// f8
+                /* Rosenbrock, non-rotated */
+<span class="fc" id="L610">                rosenbrock(fAdd, genomeSize, genome, tmp, tmx, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L611">                break;</span>
+
+            case ROSENBROCK_ROTATED:// f9
+                /* Rosenbrock, rotated */
+<span class="fc" id="L615">                rosenbrock_rotated(fAdd, genomeSize, genome, tmp, tmx, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L616">                break;</span>
+
+            case ELLIPSOIDAL_2:// f10
+                /* ellipsoid with monotone transformation, condition 1e6 */
+<span class="fc" id="L620">                ellipsoidal_2(fAdd, genomeSize, genome, tmp, tmx, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L621">                break;</span>
+
+            case DISCUS:// f11
+                /* DISCUS (tablet) with monotone transformation, condition 1e6 */
+<span class="fc" id="L625">                discus(fAdd, genomeSize, genome, tmx, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L626">                break;</span>
+
+            case BENT_CIGAR:// f12
+                /* bent cigar with asymmetric space distortion, condition 1e6 */
+<span class="fc" id="L630">                bent_cigar(fAdd, genomeSize, genome, tmx, tmpvect, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L631">                break;</span>
+
+            case SHARP_RIDGE:// f13
+                /* sharp ridge */
+<span class="fc" id="L635">                sharp_ridge(fAdd, genomeSize, genome, tmx, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L636">                break;</span>
+
+
+            case DIFFERENT_POWERS:// f14
+                /* sum of different powers, between x^2 and x^6 */
+<span class="fc" id="L641">                different_powers(fAdd, genomeSize, genome, tmp, tmx, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L642">                break;</span>
+
+            case RASTRIGIN_2:// f15
+                /* Rastrigin with asymmetric non-linear distortion, &quot;condition&quot; 10 */
+<span class="fc" id="L646">                rastrigin_2(fAdd, genomeSize, genome, tmp, tmp2, tmx, tmpvect, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L647">                break;</span>
+
+            case WEIERSTRASS:// f16
+                /* Weierstrass, condition 100 */
+<span class="fc" id="L651">                weierstrass(fAdd, genomeSize, genome, tmp, tmx, tmpvect, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L652">                break;</span>
+
+            case SCHAFFERS_F7:// f17
+                /*
+                 * Schaffers F7 with asymmetric non-linear transformation, condition
+                 * 10
+                 */
+<span class="fc" id="L659">                schaffersF7(fAdd, genomeSize, genome, tmp, tmx, tmpvect, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L660">                break;</span>
+
+            case SCHAFFERS_F7_2:// f18
+                /*
+                 * Schaffers F7 with asymmetric non-linear transformation, condition
+                 * 1000
+                 */
+<span class="fc" id="L667">                schaffersF72(fAdd, genomeSize, genome, tmp, tmx, tmpvect, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L668">                break;</span>
+
+            case GRIEWANK_ROSENBROCK:// f19
+                /* F8f2 sum of Griewank-Rosenbrock 2-D blocks */
+<span class="fc" id="L672">                griewank_rosenbrock(fAdd, genomeSize, genome, tmp, tmx, tmp2, f2, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L673">                break;</span>
+
+
+            case SCHWEFEL:// f20
+                /* Schwefel with tridiagonal variable transformation */
+<span class="fc" id="L678">                schwefel(fAdd, genomeSize, genome, tmp, tmx, tmpvect, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L679">                break;</span>
+
+            case GALLAGHER_GAUSSIAN_101ME:// f21
+                /*
+                 * Gallagher with 101 Gaussian peaks, condition up to 1000, one
+                 * global rotation
+                 */
+<span class="fc" id="L686">                gallagher_gaussian_101me(fAdd, genomeSize, genome, tmp, tmx, tmp2, f, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L687">                break;</span>
+
+            case GALLAGHER_GAUSSIAN_21HI:// f22
+                /*
+                 * Gallagher with 21 Gaussian peaks, condition up to 1000, one
+                 * global rotation
+                 */
+<span class="fc" id="L694">                gallagher_gaussian_21hi(fAdd, genomeSize, genome, tmp, tmx, tmp2, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L695">                break;</span>
+
+            case KATSUURA:// f23
+<span class="fc" id="L698">                katsuura(fAdd, genomeSize, genome, tmp, tmp2, tmx, tmpvect, fPen, value, fit, ind, state, threadnum);</span>
+                /* Katsuura function */
+<span class="fc" id="L700">                break;</span>
+
+            case LUNACEK:// f24
+<span class="fc" id="L703">                lunacek(fAdd, genomeSize, genome, tmp, tmp2, condition, tmx, fPen, value, fit, ind, state, threadnum);</span>
+<span class="fc" id="L704">                break;</span>
+            default:
+                break;
+        }
+
+<span class="fc" id="L709">        ind.evaluated = true;</span>
+<span class="fc" id="L710">    }</span>
+
+    void sphere(double fAdd, int genomeSize, double[] genome, double tmp, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+<span class="fc" id="L713">        fAdd = fOpt;</span>
+        int i, j;
+<span class="pc bpc" id="L715" title="1 of 2 branches missed.">        if (noise != NONE) {</span>
+<span class="nc bnc" id="L716" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="nc" id="L717">                tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="nc bnc" id="L718" title="All 2 branches missed.">                if (tmp &gt; 0.0) {</span>
+<span class="nc" id="L719">                    fPen += tmp * tmp;</span>
+                }
+            }
+<span class="nc" id="L722">            fAdd += 100. * fPen;</span>
+        }
+        /* COMPUTATION core */
+<span class="fc bfc" id="L725" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L726">            tmp = genome[i] - xOpt[i];</span>
+<span class="fc" id="L727">            value += tmp * tmp;</span>
+        }
+<span class="pc bpc" id="L729" title="7 of 8 branches missed.">        switch (noise) {</span>
+            case NONE:
+<span class="fc" id="L731">                break;</span>
+            case GAUSSIAN:
+<span class="nc" id="L733">                value = fGauss(value, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L734">                break;</span>
+            case UNIFORM:
+<span class="nc" id="L736">                value = fUniform(value, 0.49 + 1.0 / genomeSize, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L737">                break;</span>
+            case CAUCHY:
+<span class="nc" id="L739">                value = fCauchy(value, 1.0, 0.2, state.random[threadnum]);</span>
+<span class="nc" id="L740">                break;</span>
+            case GAUSSIAN_MODERATE:
+<span class="nc" id="L742">                value = fGauss(value, 0.01, state.random[threadnum]);</span>
+<span class="nc" id="L743">                break;</span>
+            case UNIFORM_MODERATE:
+<span class="nc" id="L745">                value = fUniform(value, 0.01 * (0.49 + 1. / genomeSize), 0.01, state.random[threadnum]);</span>
+<span class="nc" id="L746">                break;</span>
+            case CAUCHY_MODERATE:
+<span class="nc" id="L748">                value = fCauchy(value, 0.01, 0.05, state.random[threadnum]);</span>
+<span class="nc" id="L749">                break;</span>
+            default:
+<span class="nc" id="L751">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L752" title="All 2 branches missed.">                for (i = 0; i &lt; noiseTypes.length; i++)</span>
+<span class="nc" id="L753">                    outputStr += noiseTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L754">                state.output.fatal(outputStr, new Parameter(P_NOISE));</span>
+                break;
+        }
+<span class="fc" id="L757">        value += fAdd;</span>
+<span class="fc" id="L758">        fit = (-value);</span>
+<span class="pc bpc" id="L759" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L760">    }</span>
+
+    void ellipsoidal(double fAdd, double condition, double[] tmx, int genomeSize, double[] genome, double tmp, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L764">        fAdd = fOpt;</span>
+<span class="pc bpc" id="L765" title="1 of 2 branches missed.">        if (noise == NONE) {</span>
+<span class="fc" id="L766">            condition = 1e6;</span>
+<span class="fc bfc" id="L767" title="All 2 branches covered.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L768">                tmx[i] = genome[i] - xOpt[i];</span>
+            }
+        } else {
+<span class="nc" id="L771">            condition = 1e4;</span>
+<span class="nc" id="L772">            fAdd = fOpt;</span>
+
+            /* BOUNDARY HANDLING */
+<span class="nc bnc" id="L775" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="nc" id="L776">                tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="nc bnc" id="L777" title="All 2 branches missed.">                if (tmp &gt; 0.) {</span>
+<span class="nc" id="L778">                    fPen += tmp * tmp;</span>
+                }
+            }
+<span class="nc" id="L781">            fAdd += 100. * fPen;</span>
+
+            /* TRANSFORMATION IN SEARCH SPACE */
+<span class="nc bnc" id="L784" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="nc" id="L785">                tmx[i] = 0.;</span>
+<span class="nc bnc" id="L786" title="All 2 branches missed.">                for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="nc" id="L787">                    tmx[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+                }
+            }
+        }
+
+<span class="fc" id="L792">        monotoneTFosc(tmx);</span>
+        /* COMPUTATION core */
+<span class="fc bfc" id="L794" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L795">            value += Math.pow(condition, ((double) i) / ((double) (genomeSize - 1))) * tmx[i] * tmx[i];</span>
+        }
+
+<span class="pc bpc" id="L798" title="4 of 5 branches missed.">        switch (noise) {</span>
+            case NONE:
+<span class="fc" id="L800">                break;</span>
+            case GAUSSIAN:
+<span class="nc" id="L802">                value = fGauss(value, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L803">                break;</span>
+            case UNIFORM:
+<span class="nc" id="L805">                value = fUniform(value, 0.49 + 1.0 / genomeSize, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L806">                break;</span>
+            case CAUCHY:
+<span class="nc" id="L808">                value = fCauchy(value, 1.0, 0.2, state.random[threadnum]);</span>
+<span class="nc" id="L809">                break;</span>
+            default:
+<span class="nc" id="L811">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L812" title="All 2 branches missed.">                for (i = 0; i &lt; 4; i++)</span>
+<span class="nc" id="L813">                    outputStr += noiseTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L814">                state.output.fatal(outputStr, new Parameter(P_NOISE));</span>
+                break;
+        }
+<span class="fc" id="L817">        value += fAdd;</span>
+<span class="fc" id="L818">        fit = (-value);</span>
+<span class="pc bpc" id="L819" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L820">    }</span>
+
+    void rastrigin(double fAdd, int genomeSize, double[] genome, double tmp, double tmp2, double[] tmx, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i;
+<span class="fc" id="L824">        int condition = 10;</span>
+<span class="fc" id="L825">        double beta = 0.2;</span>
+<span class="fc" id="L826">        fAdd = fOpt;</span>
+<span class="fc bfc" id="L827" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L828">            tmx[i] = genome[i] - xOpt[i];</span>
+        }
+<span class="fc" id="L830">        monotoneTFosc(tmx);</span>
+<span class="fc bfc" id="L831" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L832">            tmp = ((double) i) / ((double) (genomeSize - 1));</span>
+<span class="fc bfc" id="L833" title="All 2 branches covered.">            if (tmx[i] &gt; 0)</span>
+<span class="fc" id="L834">                tmx[i] = Math.pow(tmx[i], 1 + beta * tmp * Math.sqrt(tmx[i]));</span>
+<span class="fc" id="L835">            tmx[i] = Math.pow(Math.sqrt(condition), tmp) * tmx[i];</span>
+        }
+        /* COMPUTATION core */
+<span class="fc" id="L838">        tmp = 0;</span>
+<span class="fc" id="L839">        tmp2 = 0;</span>
+<span class="fc bfc" id="L840" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L841">            tmp += Math.cos(2 * Math.PI * tmx[i]);</span>
+<span class="fc" id="L842">            tmp2 += tmx[i] * tmx[i];</span>
+        }
+<span class="fc" id="L844">        value = 10 * (genomeSize - tmp) + tmp2;</span>
+<span class="fc" id="L845">        value += fAdd;</span>
+
+<span class="fc" id="L847">        fit = (-value);</span>
+<span class="pc bpc" id="L848" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L849">    }</span>
+
+    void buche_rastrigin(double fAdd, int genomeSize, double[] genome, double tmp, double tmp2, double[] tmx, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i;
+<span class="fc" id="L853">        double condition = 10.0;</span>
+<span class="fc" id="L854">        int alpha = 100;</span>
+<span class="fc" id="L855">        fAdd = fOpt;</span>
+<span class="fc" id="L856">        double fPen = 0.0;</span>
+<span class="fc bfc" id="L857" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L858">            tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="pc bpc" id="L859" title="1 of 2 branches missed.">            if (tmp &gt; 0.)</span>
+<span class="nc" id="L860">                fPen += tmp * tmp;</span>
+        }
+<span class="fc" id="L862">        fPen *= 1e2;</span>
+<span class="fc" id="L863">        fAdd += fPen;</span>
+
+<span class="fc bfc" id="L865" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L866">            tmx[i] = genome[i] - xOpt[i];</span>
+        }
+
+<span class="fc" id="L869">        monotoneTFosc(tmx);</span>
+<span class="fc bfc" id="L870" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L871" title="All 4 branches covered.">            if (i % 2 == 0 &amp;&amp; tmx[i] &gt; 0)</span>
+<span class="fc" id="L872">                tmx[i] = Math.sqrt(alpha) * tmx[i];</span>
+<span class="fc" id="L873">            tmx[i] = Math.pow(Math.sqrt(condition), ((double) i) / ((double) (genomeSize - 1))) * tmx[i];</span>
+        }
+        /* COMPUTATION core */
+<span class="fc" id="L876">        tmp = 0.0;</span>
+<span class="fc" id="L877">        tmp2 = 0.0;</span>
+<span class="fc bfc" id="L878" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L879">            tmp += Math.cos(2 * Math.PI * tmx[i]);</span>
+<span class="fc" id="L880">            tmp2 += tmx[i] * tmx[i];</span>
+        }
+<span class="fc" id="L882">        value = 10 * (genomeSize - tmp) + tmp2;</span>
+<span class="fc" id="L883">        value += fAdd;</span>
+
+<span class="fc" id="L885">        fit = (-value);</span>
+<span class="pc bpc" id="L886" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L887">    }</span>
+
+    void linear_slope(double fAdd, int genomeSize, double[] genome, double[] tmx, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i;
+<span class="fc" id="L891">        int alpha = 100;</span>
+<span class="fc" id="L892">        fAdd = fOpt;</span>
+        /* BOUNDARY HANDLING */
+        /* move &quot;too&quot; good coordinates back into domain */
+<span class="fc bfc" id="L895" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="pc bpc" id="L896" title="2 of 4 branches missed.">            if ((xOpt[i] == 5.) &amp;&amp; (genome[i] &gt; 5))</span>
+<span class="nc" id="L897">                tmx[i] = 5.;</span>
+<span class="pc bpc" id="L898" title="3 of 4 branches missed.">            else if ((xOpt[i] == -5.) &amp;&amp; (genome[i] &lt; -5))</span>
+<span class="nc" id="L899">                tmx[i] = -5.;</span>
+            else
+<span class="fc" id="L901">                tmx[i] = genome[i];</span>
+        }
+
+        /* COMPUTATION core */
+<span class="fc" id="L905">        double base = Math.sqrt(alpha);</span>
+<span class="fc" id="L906">        double exponent = ((double) i) / ((double) (genomeSize - 1));</span>
+<span class="fc bfc" id="L907" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="pc bpc" id="L908" title="1 of 2 branches missed.">            if (xOpt[i] &gt; 0) {</span>
+<span class="fc" id="L909">                value -= Math.pow(base, exponent) * tmx[i];</span>
+            } else {
+<span class="nc" id="L911">                value += Math.pow(base, exponent) * tmx[i];</span>
+            }
+        }
+<span class="fc" id="L914">        value += fAdd;</span>
+
+<span class="fc" id="L916">        fit = (-value);</span>
+<span class="pc bpc" id="L917" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L918">    }</span>
+
+    void attractive_sector(double fAdd, int genomeSize, double[] genome, double[] tmx, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L922">        double alpha = 100.0;</span>
+<span class="fc" id="L923">        fAdd = fOpt;</span>
+
+        /* BOUNDARY HANDLING */
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L927" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+
+<span class="fc" id="L929">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L930" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L931">                tmx[i] += linearTF[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L936" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L937" title="All 2 branches covered.">            if (tmx[i] * xOpt[i] &gt; 0)</span>
+<span class="fc" id="L938">                tmx[i] *= alpha;</span>
+<span class="fc" id="L939">            value += tmx[i] * tmx[i];</span>
+        }
+
+        /* monotoneTFosc... */
+<span class="pc bpc" id="L943" title="1 of 2 branches missed.">        if (value &gt; 0) {</span>
+<span class="fc" id="L944">            value = Math.pow(Math.exp(Math.log(value) / 0.1 + 0.49 * (Math.sin(Math.log(value) / 0.1) + Math.sin(0.79 * Math.log(value) / 0.1))), 0.1);</span>
+<span class="nc bnc" id="L945" title="All 2 branches missed.">        } else if (value &lt; 0) {</span>
+<span class="nc" id="L946">            value = -Math.pow(Math.exp(Math.log(-value) / 0.1 + 0.49 * (Math.sin(0.55 * Math.log(-value) / 0.1) + Math.sin(0.31 * Math.log(-value) / 0.1))), 0.1);</span>
+        }
+<span class="fc" id="L948">        value = Math.pow(value, 0.9);</span>
+<span class="fc" id="L949">        value += fAdd;</span>
+<span class="fc" id="L950">        fit = (-value);</span>
+<span class="pc bpc" id="L951" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L952">    }</span>
+
+    void step_ellipsoidal(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double[] tmpvect, double x1, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L956">        double condition = 100.0;</span>
+<span class="fc" id="L957">        double alpha = 10.0;</span>
+<span class="fc" id="L958">        fAdd = fOpt;</span>
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L960" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L961">            tmp = Math.abs(genome[i]) - 5.0;</span>
+<span class="pc bpc" id="L962" title="1 of 2 branches missed.">            if (tmp &gt; 0.0) {</span>
+<span class="nc" id="L963">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="pc bpc" id="L966" title="1 of 2 branches missed.">        if (noise == NONE)</span>
+<span class="fc" id="L967">            fAdd += fPen;</span>
+        else
+<span class="nc" id="L969">            fAdd += 100. * fPen;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L972" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+
+<span class="fc" id="L974">            tmpvect[i] = 0.0;</span>
+<span class="fc" id="L975">            tmp = Math.sqrt(Math.pow(condition / 10., ((double) i) / ((double) (genomeSize - 1))));</span>
+<span class="fc bfc" id="L976" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L977">                tmpvect[i] += tmp * rot2[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+
+        }
+<span class="fc" id="L981">        x1 = tmpvect[0];</span>
+
+<span class="fc bfc" id="L983" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L984" title="All 2 branches covered.">            if (Math.abs(tmpvect[i]) &gt; 0.5)</span>
+<span class="fc" id="L985">                tmpvect[i] = Math.round(tmpvect[i]);</span>
+            else
+<span class="fc" id="L987">                tmpvect[i] = Math.round(alpha * tmpvect[i]) / alpha;</span>
+        }
+
+<span class="fc bfc" id="L990" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L991">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L992" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L993">                tmx[i] += rotation[i][j] * tmpvect[j];</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L998" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L999">            value += Math.pow(condition, ((double) i) / ((double) (genomeSize - 1))) * tmx[i] * tmx[i];</span>
+        }
+<span class="fc" id="L1001">        value = 0.1 * Math.max(1e-4 * Math.abs(x1), value);</span>
+<span class="pc bpc" id="L1002" title="4 of 5 branches missed.">        switch (noise) {</span>
+            case NONE:
+<span class="fc" id="L1004">                break;</span>
+            case GAUSSIAN:
+<span class="nc" id="L1006">                value = fGauss(value, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1007">                break;</span>
+            case UNIFORM:
+<span class="nc" id="L1009">                value = fUniform(value, 0.49 + 1.0 / genomeSize, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1010">                break;</span>
+            case CAUCHY:
+<span class="nc" id="L1012">                value = fCauchy(value, 1.0, 0.2, state.random[threadnum]);</span>
+<span class="nc" id="L1013">                break;</span>
+            default:
+<span class="nc" id="L1015">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L1016" title="All 2 branches missed.">                for (i = 0; i &lt; 4; i++)</span>
+<span class="nc" id="L1017">                    outputStr += noiseTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L1018">                state.output.fatal(outputStr, new Parameter(P_NOISE));</span>
+                break;
+        }
+<span class="fc" id="L1021">        value += fAdd;</span>
+<span class="fc" id="L1022">        fit = (-value);</span>
+<span class="pc bpc" id="L1023" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1024">    }</span>
+
+    void rosenbrock(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i;
+<span class="fc" id="L1028">        fAdd = fOpt;</span>
+<span class="pc bpc" id="L1029" title="1 of 2 branches missed.">        if (noise == NONE) {</span>
+            /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1031" title="All 2 branches covered.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1032">                tmx[i] = scales * (genome[i] - xOpt[i]) + 1;</span>
+            }
+        } else {
+            /* BOUNDARY HANDLING */
+<span class="nc bnc" id="L1036" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="nc" id="L1037">                tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="nc bnc" id="L1038" title="All 2 branches missed.">                if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1039">                    fPen += tmp * tmp;</span>
+                }
+            }
+<span class="nc" id="L1042">            fAdd += 100.0 * fPen;</span>
+            /* TRANSFORMATION IN SEARCH SPACE */
+<span class="nc bnc" id="L1044" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="nc" id="L1045">                tmx[i] = scales * (genome[i] - 0.75 * xOpt[i]) + 1;</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1050" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize - 1; i++) {</span>
+<span class="fc" id="L1051">            tmp = (tmx[i] * tmx[i] - tmx[i + 1]);</span>
+<span class="fc" id="L1052">            value += tmp * tmp;</span>
+        }
+<span class="fc" id="L1054">        value *= 1e2;</span>
+<span class="fc bfc" id="L1055" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize - 1; i++) {</span>
+<span class="fc" id="L1056">            tmp = (tmx[i] - 1.);</span>
+<span class="fc" id="L1057">            value += tmp * tmp;</span>
+        }
+
+<span class="pc bpc" id="L1060" title="7 of 8 branches missed.">        switch (noise) {</span>
+            case NONE:
+<span class="fc" id="L1062">                break;</span>
+            case GAUSSIAN:
+<span class="nc" id="L1064">                value = fGauss(value, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1065">                break;</span>
+            case UNIFORM:
+<span class="nc" id="L1067">                value = fUniform(value, 0.49 + 1.0 / genomeSize, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1068">                break;</span>
+            case CAUCHY:
+<span class="nc" id="L1070">                value = fCauchy(value, 1.0, 0.2, state.random[threadnum]);</span>
+<span class="nc" id="L1071">                break;</span>
+            case GAUSSIAN_MODERATE:
+<span class="nc" id="L1073">                value = fGauss(value, 0.01, state.random[threadnum]);</span>
+<span class="nc" id="L1074">                break;</span>
+            case UNIFORM_MODERATE:
+<span class="nc" id="L1076">                value = fUniform(value, 0.01 * (0.49 + 1. / genomeSize), 0.01, state.random[threadnum]);</span>
+<span class="nc" id="L1077">                break;</span>
+            case CAUCHY_MODERATE:
+<span class="nc" id="L1079">                value = fCauchy(value, 0.01, 0.05, state.random[threadnum]);</span>
+<span class="nc" id="L1080">                break;</span>
+            default:
+<span class="nc" id="L1082">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L1083" title="All 2 branches missed.">                for (i = 0; i &lt; noiseTypes.length; i++)</span>
+<span class="nc" id="L1084">                    outputStr += noiseTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L1085">                state.output.fatal(outputStr, new Parameter(P_NOISE));</span>
+                break;
+        }
+
+<span class="fc" id="L1089">        value += fAdd;</span>
+
+<span class="fc" id="L1091">        fit = (-value);</span>
+<span class="pc bpc" id="L1092" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1093">    }</span>
+
+    void rosenbrock_rotated(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1097">        fAdd = fOpt;</span>
+
+        /* BOUNDARY HANDLING */
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1102" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1103">            tmx[i] = 0.5;</span>
+<span class="fc bfc" id="L1104" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1105">                tmx[i] += linearTF[i][j] * genome[j];</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1110" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize - 1; i++) {</span>
+<span class="fc" id="L1111">            tmp = (tmx[i] * tmx[i] - tmx[i + 1]);</span>
+<span class="fc" id="L1112">            value += tmp * tmp;</span>
+        }
+<span class="fc" id="L1114">        value *= 1e2;</span>
+<span class="fc bfc" id="L1115" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize - 1; i++) {</span>
+<span class="fc" id="L1116">            tmp = (tmx[i] - 1.);</span>
+<span class="fc" id="L1117">            value += tmp * tmp;</span>
+        }
+
+<span class="fc" id="L1120">        value += fAdd;</span>
+<span class="fc" id="L1121">        fit = (-value);</span>
+<span class="pc bpc" id="L1122" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1123">    }</span>
+
+    void schaffersF7(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double[] tmpvect, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1127">        double condition = 10.0;</span>
+<span class="fc" id="L1128">        double beta = 0.5;</span>
+<span class="fc" id="L1129">        fAdd = fOpt;</span>
+
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L1132" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1133">            tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="pc bpc" id="L1134" title="1 of 2 branches missed.">            if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1135">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="fc" id="L1138">        fAdd += 10. * fPen;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1141" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1142">            tmpvect[i] = 0.0;</span>
+<span class="fc bfc" id="L1143" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1144">                tmpvect[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+<span class="fc bfc" id="L1146" title="All 2 branches covered.">            if (tmpvect[i] &gt; 0)</span>
+<span class="fc" id="L1147">                tmpvect[i] = Math.pow(tmpvect[i], 1 + beta * ((double) i) / ((double) (genomeSize - 1)) * Math.sqrt(tmpvect[i]));</span>
+        }
+
+<span class="fc bfc" id="L1150" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1151">            tmx[i] = 0.0;</span>
+<span class="fc" id="L1152">            tmp = Math.pow(Math.sqrt(condition), ((double) i) / ((double) (genomeSize - 1)));</span>
+<span class="fc bfc" id="L1153" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1154">                tmx[i] += tmp * rot2[i][j] * tmpvect[j];</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1159" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize - 1; i++) {</span>
+<span class="fc" id="L1160">            tmp = tmx[i] * tmx[i] + tmx[i + 1] * tmx[i + 1];</span>
+<span class="fc" id="L1161">            value += Math.pow(tmp, 0.25) * (Math.pow(Math.sin(50 * Math.pow(tmp, 0.1)), 2.0) + 1.0);</span>
+        }
+<span class="fc" id="L1163">        value = Math.pow(value / (double) (genomeSize - 1), 2.);</span>
+<span class="pc bpc" id="L1164" title="4 of 5 branches missed.">        switch (noise) {</span>
+            case NONE:
+<span class="fc" id="L1166">                break;</span>
+            case GAUSSIAN:
+<span class="nc" id="L1168">                value = fGauss(value, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1169">                break;</span>
+            case UNIFORM:
+<span class="nc" id="L1171">                value = fUniform(value, 0.49 + 1.0 / genomeSize, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1172">                break;</span>
+            case CAUCHY:
+<span class="nc" id="L1174">                value = fCauchy(value, 1.0, 0.2, state.random[threadnum]);</span>
+<span class="nc" id="L1175">                break;</span>
+            default:
+<span class="nc" id="L1177">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L1178" title="All 2 branches missed.">                for (i = 0; i &lt; 4; i++)</span>
+<span class="nc" id="L1179">                    outputStr += noiseTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L1180">                state.output.fatal(outputStr, new Parameter(P_NOISE));</span>
+                break;
+        }
+<span class="fc" id="L1183">        value += fAdd;</span>
+<span class="fc" id="L1184">        fit = (-value);</span>
+<span class="pc bpc" id="L1185" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1186">    }</span>
+
+    void schaffersF72(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double[] tmpvect, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1190">        double condition = 1e3;</span>
+<span class="fc" id="L1191">        double beta = 0.5;</span>
+<span class="fc" id="L1192">        fPen = 0.0;</span>
+<span class="fc" id="L1193">        fAdd = fOpt;</span>
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L1195" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1196">            tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="pc bpc" id="L1197" title="1 of 2 branches missed.">            if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1198">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="fc" id="L1201">        fAdd += 10. * fPen;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1204" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1205">            tmpvect[i] = 0.0;</span>
+<span class="fc bfc" id="L1206" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1207">                tmpvect[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+<span class="fc bfc" id="L1209" title="All 2 branches covered.">            if (tmpvect[i] &gt; 0)</span>
+<span class="fc" id="L1210">                tmpvect[i] = Math.pow(tmpvect[i], 1. + beta * ((double) i) / ((double) (genomeSize - 1)) * Math.sqrt(tmpvect[i]));</span>
+        }
+
+<span class="fc bfc" id="L1213" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1214">            tmx[i] = 0.0;</span>
+<span class="fc" id="L1215">            tmp = Math.pow(Math.sqrt(condition), ((double) i) / ((double) (genomeSize - 1)));</span>
+<span class="fc bfc" id="L1216" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1217">                tmx[i] += tmp * rot2[i][j] * tmpvect[j];</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1222" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize - 1; i++) {</span>
+<span class="fc" id="L1223">            tmp = tmx[i] * tmx[i] + tmx[i + 1] * tmx[i + 1];</span>
+<span class="fc" id="L1224">            value += Math.pow(tmp, 0.25) * (Math.pow(Math.sin(50. * Math.pow(tmp, 0.1)), 2.) + 1.);</span>
+        }
+<span class="fc" id="L1226">        value = Math.pow(value / (double) (genomeSize - 1), 2.);</span>
+<span class="fc" id="L1227">        value += fAdd;</span>
+<span class="fc" id="L1228">        fit = (-value);</span>
+<span class="pc bpc" id="L1229" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1230">    }</span>
+
+    void griewank_rosenbrock(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double tmp2, double f2, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1234">        fAdd = fOpt;</span>
+<span class="pc bpc" id="L1235" title="1 of 2 branches missed.">        if (noise == NONE) {</span>
+            /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1237" title="All 2 branches covered.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1238">                tmx[i] = 0.5;</span>
+<span class="fc bfc" id="L1239" title="All 2 branches covered.">                for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1240">                    tmx[i] += linearTF[i][j] * genome[j];</span>
+                }
+            }
+            /* COMPUTATION core */
+<span class="fc bfc" id="L1244" title="All 2 branches covered.">            for (i = 0; i &lt; genomeSize - 1; i++) {</span>
+<span class="fc" id="L1245">                tmp2 = tmx[i] * tmx[i] - tmx[i + 1];</span>
+<span class="fc" id="L1246">                f2 = 100. * tmp2 * tmp2;</span>
+<span class="fc" id="L1247">                tmp2 = 1 - tmx[i];</span>
+<span class="fc" id="L1248">                f2 += tmp2 * tmp2;</span>
+<span class="fc" id="L1249">                tmp += f2 / 4000. - Math.cos(f2);</span>
+            }
+<span class="fc" id="L1251">            value = 10. + 10. * tmp / (double) (genomeSize - 1);</span>
+        } else {
+            /* BOUNDARY HANDLING */
+<span class="nc bnc" id="L1254" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="nc" id="L1255">                tmp = Math.abs(genome[i]) - 5.0;</span>
+<span class="nc bnc" id="L1256" title="All 2 branches missed.">                if (tmp &gt; 0.0) {</span>
+<span class="nc" id="L1257">                    fPen += tmp * tmp;</span>
+                }
+            }
+<span class="nc" id="L1260">            fAdd += 100.0 * fPen;</span>
+
+            /* TRANSFORMATION IN SEARCH SPACE */
+<span class="nc bnc" id="L1263" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="nc" id="L1264">                tmx[i] = 0.5;</span>
+<span class="nc bnc" id="L1265" title="All 2 branches missed.">                for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="nc" id="L1266">                    tmx[i] += scales * rotation[i][j] * genome[j];</span>
+                }
+            }
+            /* COMPUTATION core */
+<span class="nc" id="L1270">            tmp = 0.;</span>
+<span class="nc bnc" id="L1271" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize - 1; i++) {</span>
+<span class="nc" id="L1272">                f2 = 100. * (tmx[i] * tmx[i] - tmx[i + 1]) * (tmx[i] * tmx[i] - tmx[i + 1]) + (1 - tmx[i]) * (1 - tmx[i]);</span>
+<span class="nc" id="L1273">                tmp += f2 / 4000. - Math.cos(f2);</span>
+            }
+<span class="nc" id="L1275">            value = 1. + 1. * tmp / (double) (genomeSize - 1);</span>
+        }
+<span class="pc bpc" id="L1277" title="4 of 5 branches missed.">        switch (noise) {</span>
+            case NONE:
+<span class="fc" id="L1279">                break;</span>
+            case GAUSSIAN:
+<span class="nc" id="L1281">                value = fGauss(value, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1282">                break;</span>
+            case UNIFORM:
+<span class="nc" id="L1284">                value = fUniform(value, 0.49 + 1.0 / genomeSize, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1285">                break;</span>
+            case CAUCHY:
+<span class="nc" id="L1287">                value = fCauchy(value, 1.0, 0.2, state.random[threadnum]);</span>
+<span class="nc" id="L1288">                break;</span>
+            default:
+<span class="nc" id="L1290">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L1291" title="All 2 branches missed.">                for (i = 0; i &lt; 4; i++)</span>
+<span class="nc" id="L1292">                    outputStr += noiseTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L1293">                state.output.fatal(outputStr, new Parameter(P_NOISE));</span>
+                break;
+        }
+<span class="fc" id="L1296">        value += fAdd;</span>
+<span class="fc" id="L1297">        fit = (-value);</span>
+<span class="pc bpc" id="L1298" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1299">    }</span>
+
+    void ellipsoidal_2(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1303">        double condition = 1e6;</span>
+
+<span class="fc" id="L1305">        fAdd = fOpt;</span>
+        /* BOUNDARY HANDLING */
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1309" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1310">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1311" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1312">                tmx[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+        }
+
+<span class="fc" id="L1316">        monotoneTFosc(tmx);</span>
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1318" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1319">            fAdd += Math.pow(condition, ((double) i) / ((double) (genomeSize - 1))) * tmx[i] * tmx[i];</span>
+        }
+<span class="fc" id="L1321">        value = fAdd;</span>
+<span class="fc" id="L1322">        fit = (-value);</span>
+<span class="pc bpc" id="L1323" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1324">    }</span>
+
+    void rastrigin_2(double fAdd, int genomeSize, double[] genome, double tmp, double tmp2, double[] tmx, double[] tmpvect, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1328">        double condition = 10.0;</span>
+<span class="fc" id="L1329">        double beta = 0.2;</span>
+<span class="fc" id="L1330">        tmp = tmp2 = 0;</span>
+
+<span class="fc" id="L1332">        fAdd = fOpt;</span>
+        /* BOUNDARY HANDLING */
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1336" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1337">            tmpvect[i] = 0.0;</span>
+<span class="fc bfc" id="L1338" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1339">                tmpvect[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+        }
+
+<span class="fc" id="L1343">        monotoneTFosc(tmpvect);</span>
+<span class="fc bfc" id="L1344" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L1345" title="All 2 branches covered.">            if (tmpvect[i] &gt; 0)</span>
+<span class="fc" id="L1346">                tmpvect[i] = Math.pow(tmpvect[i], 1 + beta * ((double) i) / ((double) (genomeSize - 1)) * Math.sqrt(tmpvect[i]));</span>
+        }
+<span class="fc bfc" id="L1348" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1349">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1350" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1351">                tmx[i] += linearTF[i][j] * tmpvect[j];</span>
+            }
+        }
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1355" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1356">            tmp += Math.cos(2. * Math.PI * tmx[i]);</span>
+<span class="fc" id="L1357">            tmp2 += tmx[i] * tmx[i];</span>
+        }
+<span class="fc" id="L1359">        value = 10. * ((double) genomeSize - tmp) + tmp2;</span>
+<span class="fc" id="L1360">        value += fAdd;</span>
+<span class="fc" id="L1361">        fit = (-value);</span>
+<span class="pc bpc" id="L1362" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1363">    }</span>
+
+    void discus(double fAdd, int genomeSize, double[] genome, double[] tmx, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1367">        double condition = 1e6;</span>
+<span class="fc" id="L1368">        fAdd = fOpt;</span>
+        /* BOUNDARY HANDLING */
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1372" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1373">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1374" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1375">                tmx[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+        }
+
+<span class="fc" id="L1379">        monotoneTFosc(tmx);</span>
+
+        /* COMPUTATION core */
+<span class="fc" id="L1382">        value = condition * tmx[0] * tmx[0];</span>
+<span class="fc bfc" id="L1383" title="All 2 branches covered.">        for (i = 1; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1384">            value += tmx[i] * tmx[i];</span>
+        }
+<span class="fc" id="L1386">        value += fAdd; /* without noise */</span>
+<span class="fc" id="L1387">        fit = (-value);</span>
+<span class="pc bpc" id="L1388" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1389">    }</span>
+
+    void bent_cigar(double fAdd, int genomeSize, double[] genome, double[] tmx, double[] tmpvect, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1393">        double condition = 1e6;</span>
+<span class="fc" id="L1394">        double beta = 0.5;</span>
+<span class="fc" id="L1395">        fAdd = fOpt;</span>
+        /* BOUNDARY HANDLING */
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1399" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1400">            tmpvect[i] = 0.0;</span>
+<span class="fc bfc" id="L1401" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1402">                tmpvect[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+<span class="fc bfc" id="L1404" title="All 2 branches covered.">            if (tmpvect[i] &gt; 0) {</span>
+<span class="fc" id="L1405">                tmpvect[i] = Math.pow(tmpvect[i], 1 + beta * ((double) i) / ((double) (genomeSize - 1)) * Math.sqrt(tmpvect[i]));</span>
+            }
+        }
+
+<span class="fc bfc" id="L1409" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1410">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1411" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1412">                tmx[i] += rotation[i][j] * tmpvect[j];</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc" id="L1417">        value = tmx[0] * tmx[0];</span>
+<span class="fc bfc" id="L1418" title="All 2 branches covered.">        for (i = 1; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1419">            value += condition * tmx[i] * tmx[i];</span>
+        }
+<span class="fc" id="L1421">        value += fAdd;</span>
+<span class="fc" id="L1422">        fit = (-value);</span>
+<span class="pc bpc" id="L1423" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1424">    }</span>
+
+    void sharp_ridge(double fAdd, int genomeSize, double[] genome, double[] tmx, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1428">        double condition = 10.0;</span>
+<span class="fc" id="L1429">        double alpha = 100.0;</span>
+
+<span class="fc" id="L1431">        fAdd = fOpt;</span>
+        /* BOUNDARY HANDLING */
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1435" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1436">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1437" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1438">                tmx[i] += linearTF[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1443" title="All 2 branches covered.">        for (i = 1; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1444">            value += tmx[i] * tmx[i];</span>
+        }
+<span class="fc" id="L1446">        value = alpha * Math.sqrt(value);</span>
+<span class="fc" id="L1447">        value += tmx[0] * tmx[0];</span>
+<span class="fc" id="L1448">        value += fAdd;</span>
+<span class="fc" id="L1449">        fit = (-value);</span>
+<span class="pc bpc" id="L1450" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1451">    }</span>
+
+    void different_powers(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1455">        double alpha = 4.0;</span>
+<span class="fc" id="L1456">        fAdd = fOpt;</span>
+<span class="pc bpc" id="L1457" title="1 of 2 branches missed.">        if (noise != NONE) {</span>
+            /* BOUNDARY HANDLING */
+<span class="nc bnc" id="L1459" title="All 2 branches missed.">            for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="nc" id="L1460">                tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="nc bnc" id="L1461" title="All 2 branches missed.">                if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1462">                    fPen += tmp * tmp;</span>
+                }
+            }
+<span class="nc" id="L1465">            fAdd += 100. * fPen;</span>
+        }
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1469" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1470">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1471" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1472">                tmx[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1477" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1478">            value += Math.pow(Math.abs(tmx[i]), 2. + alpha * ((double) i) / ((double) (genomeSize - 1)));</span>
+        }
+<span class="fc" id="L1480">        value = Math.sqrt(value);</span>
+<span class="pc bpc" id="L1481" title="4 of 5 branches missed.">        switch (noise) {</span>
+            case NONE:
+<span class="fc" id="L1483">                break;</span>
+            case GAUSSIAN:
+<span class="nc" id="L1485">                value = fGauss(value, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1486">                break;</span>
+            case UNIFORM:
+<span class="nc" id="L1488">                value = fUniform(value, 0.49 + 1.0 / genomeSize, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1489">                break;</span>
+            case CAUCHY:
+<span class="nc" id="L1491">                value = fCauchy(value, 1.0, 0.2, state.random[threadnum]);</span>
+<span class="nc" id="L1492">                break;</span>
+            default:
+<span class="nc" id="L1494">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L1495" title="All 2 branches missed.">                for (i = 0; i &lt; 4; i++)</span>
+<span class="nc" id="L1496">                    outputStr += noiseTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L1497">                state.output.fatal(outputStr, new Parameter(P_NOISE));</span>
+                break;
+        }
+<span class="fc" id="L1500">        value += fAdd;</span>
+<span class="fc" id="L1501">        fit = (-value);</span>
+<span class="pc bpc" id="L1502" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1503">    }</span>
+
+    void weierstrass(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double[] tmpvect, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1507">        double condition = 100.0;</span>
+<span class="fc" id="L1508">        fPen = 0;</span>
+
+<span class="fc" id="L1510">        fAdd = fOpt;</span>
+
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L1513" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1514">            tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="pc bpc" id="L1515" title="1 of 2 branches missed.">            if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1516">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="fc" id="L1519">        fAdd += 10. / (double) genomeSize * fPen;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1522" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1523">            tmpvect[i] = 0.0;</span>
+<span class="fc bfc" id="L1524" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1525">                tmpvect[i] += rotation[i][j] * (genome[j] - xOpt[j]);</span>
+            }
+        }
+
+<span class="fc" id="L1529">        monotoneTFosc(tmpvect);</span>
+<span class="fc bfc" id="L1530" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1531">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1532" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1533">                tmx[i] += linearTF[i][j] * tmpvect[j];</span>
+            }
+        }
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1537" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1538">            tmp = 0.0;</span>
+<span class="fc bfc" id="L1539" title="All 2 branches covered.">            for (j = 0; j &lt; 12; j++) {</span>
+<span class="fc" id="L1540">                tmp += Math.cos(2 * Math.PI * (tmx[i] + 0.5) * bK[j]) * aK[j];</span>
+            }
+<span class="fc" id="L1542">            value += tmp;</span>
+        }
+<span class="fc" id="L1544">        value = 10. * Math.pow(value / (double) genomeSize - f0, 3.);</span>
+<span class="fc" id="L1545">        value += fAdd;</span>
+        ;
+
+<span class="fc" id="L1548">        fit = (-value);</span>
+<span class="pc bpc" id="L1549" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1550">    }</span>
+
+    void schwefel(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double[] tmpvect, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1554">        double condition = 10.0;</span>
+<span class="fc" id="L1555">        fPen = 0.0;</span>
+<span class="fc" id="L1556">        fAdd = fOpt;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1559" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1560">            tmpvect[i] = 2. * genome[i];</span>
+<span class="fc bfc" id="L1561" title="All 2 branches covered.">            if (xOpt[i] &lt; 0.)</span>
+<span class="fc" id="L1562">                tmpvect[i] *= -1.;</span>
+        }
+
+<span class="fc" id="L1565">        tmx[0] = tmpvect[0];</span>
+<span class="fc bfc" id="L1566" title="All 2 branches covered.">        for (i = 1; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1567">            tmx[i] = tmpvect[i] + 0.25 * (tmpvect[i - 1] - 2. * Math.abs(xOpt[i - 1]));</span>
+        }
+
+<span class="fc bfc" id="L1570" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1571">            tmx[i] -= 2 * Math.abs(xOpt[i]);</span>
+<span class="fc" id="L1572">            tmx[i] *= Math.pow(Math.sqrt(condition), ((double) i) / ((double) (genomeSize - 1)));</span>
+<span class="fc" id="L1573">            tmx[i] = 100. * (tmx[i] + 2 * Math.abs(xOpt[i]));</span>
+        }
+
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L1577" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1578">            tmp = Math.abs(tmx[i]) - 500.0;</span>
+<span class="fc bfc" id="L1579" title="All 2 branches covered.">            if (tmp &gt; 0.) {</span>
+<span class="fc" id="L1580">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="fc" id="L1583">        fAdd += 0.01 * fPen;</span>
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1586" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1587">            value += tmx[i] * Math.sin(Math.sqrt(Math.abs(tmx[i])));</span>
+        }
+<span class="fc" id="L1589">        value = 0.01 * ((418.9828872724339) - value / (double) genomeSize);</span>
+<span class="fc" id="L1590">        value += fAdd;/* without noise */</span>
+<span class="fc" id="L1591">        fit = (-value);</span>
+<span class="pc bpc" id="L1592" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1593">    }</span>
+
+    void gallagher_gaussian_101me(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double tmp2, double f, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1597">        double a = 0.1;</span>
+<span class="fc" id="L1598">        double fac = -0.5 / (double) genomeSize;</span>
+<span class="fc" id="L1599">        fAdd = fOpt;</span>
+
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L1602" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1603">            tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="pc bpc" id="L1604" title="1 of 2 branches missed.">            if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1605">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="pc bpc" id="L1608" title="1 of 2 branches missed.">        if (noise == NONE)</span>
+<span class="fc" id="L1609">            fAdd += fPen;</span>
+        else
+<span class="nc" id="L1611">            fAdd += 100. * fPen;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1614" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1615">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1616" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1617">                tmx[i] += rotation[i][j] * genome[j];</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="pc bpc" id="L1622" title="1 of 2 branches missed.">        if (noise == NONE)</span>
+<span class="fc bfc" id="L1623" title="All 2 branches covered.">            for (i = 0; i &lt; NHIGHPEAKS21; i++) {</span>
+<span class="fc" id="L1624">                tmp2 = 0.0;</span>
+<span class="fc bfc" id="L1625" title="All 2 branches covered.">                for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1626">                    tmp = (tmx[j] - xLocal[j][i]);</span>
+<span class="fc" id="L1627">                    tmp2 += arrScales[i][j] * tmp * tmp;</span>
+                }
+<span class="fc" id="L1629">                tmp2 = peakvalues[i] * Math.exp(fac * tmp2);</span>
+<span class="fc" id="L1630">                f = Math.max(f, tmp2);</span>
+            }
+        else
+            /* COMPUTATION core */
+<span class="nc bnc" id="L1634" title="All 2 branches missed.">            for (i = 0; i &lt; NHIGHPEAKS21; i++) {</span>
+<span class="nc" id="L1635">                tmp2 = 0.;</span>
+<span class="nc bnc" id="L1636" title="All 2 branches missed.">                for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="nc" id="L1637">                    tmp2 += arrScales[i][j] * (tmx[j] - xLocal[j][i]) * (tmx[j] - xLocal[j][i]);</span>
+                }
+<span class="nc" id="L1639">                tmp2 = peakvalues[i] * Math.exp(fac * tmp2);</span>
+<span class="nc" id="L1640">                f = Math.max(f, tmp2);</span>
+            }
+
+<span class="fc" id="L1643">        f = 10.0 - f;</span>
+        /* monotoneTFosc */
+<span class="pc bpc" id="L1645" title="1 of 2 branches missed.">        if (f &gt; 0) {</span>
+<span class="fc" id="L1646">            value = Math.log(f) / a;</span>
+<span class="fc" id="L1647">            value = Math.pow(Math.exp(value + 0.49 * (Math.sin(value) + Math.sin(0.79 * value))), a);</span>
+<span class="nc bnc" id="L1648" title="All 2 branches missed.">        } else if (f &lt; 0) {</span>
+<span class="nc" id="L1649">            value = Math.log(-f) / a;</span>
+<span class="nc" id="L1650">            value = -Math.pow(Math.exp(value + 0.49 * (Math.sin(0.55 * value) + Math.sin(0.31 * value))), a);</span>
+        } else
+<span class="nc" id="L1652">            value = f;</span>
+
+<span class="fc" id="L1654">        value *= value;</span>
+<span class="pc bpc" id="L1655" title="4 of 5 branches missed.">        switch (noise) {</span>
+            case NONE:
+<span class="fc" id="L1657">                break;</span>
+            case GAUSSIAN:
+<span class="nc" id="L1659">                value = fGauss(value, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1660">                break;</span>
+            case UNIFORM:
+<span class="nc" id="L1662">                value = fUniform(value, 0.49 + 1.0 / genomeSize, 1.0, state.random[threadnum]);</span>
+<span class="nc" id="L1663">                break;</span>
+            case CAUCHY:
+<span class="nc" id="L1665">                value = fCauchy(value, 1.0, 0.2, state.random[threadnum]);</span>
+<span class="nc" id="L1666">                break;</span>
+            default:
+<span class="nc" id="L1668">                String outputStr = &quot;Invalid value for parameter, or parameter not found.\n&quot; + &quot;Acceptable values are:\n&quot;;</span>
+<span class="nc bnc" id="L1669" title="All 2 branches missed.">                for (i = 0; i &lt; 4; i++)</span>
+<span class="nc" id="L1670">                    outputStr += noiseTypes[i] + &quot;\n&quot;;</span>
+<span class="nc" id="L1671">                state.output.fatal(outputStr, new Parameter(P_NOISE));</span>
+                break;
+        }
+<span class="fc" id="L1674">        value += fAdd;</span>
+        ; /* without noise */
+
+<span class="fc" id="L1677">        fit = (-value);</span>
+<span class="pc bpc" id="L1678" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1679">    }</span>
+
+    void gallagher_gaussian_21hi(double fAdd, int genomeSize, double[] genome, double tmp, double[] tmx, double tmp2, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1683">        double a = 0.1;</span>
+<span class="fc" id="L1684">        double f = 0;</span>
+<span class="fc" id="L1685">        double fac = -0.5 / (double) genomeSize;</span>
+<span class="fc" id="L1686">        fPen = 0.0;</span>
+
+<span class="fc" id="L1688">        fAdd = fOpt;</span>
+
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L1691" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1692">            tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="pc bpc" id="L1693" title="1 of 2 branches missed.">            if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1694">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="fc" id="L1697">        fAdd += fPen;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1700" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1701">            tmx[i] = 0.0;</span>
+<span class="fc bfc" id="L1702" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1703">                tmx[i] += rotation[i][j] * genome[j];</span>
+            }
+        }
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1708" title="All 2 branches covered.">        for (i = 0; i &lt; NHIGHPEAKS22; i++) {</span>
+<span class="fc" id="L1709">            tmp2 = 0.0;</span>
+<span class="fc bfc" id="L1710" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1711">                tmp = (tmx[j] - xLocal[j][i]);</span>
+<span class="fc" id="L1712">                tmp2 += arrScales[i][j] * tmp * tmp;</span>
+            }
+<span class="fc" id="L1714">            tmp2 = peakvalues[i] * Math.exp(fac * tmp2);</span>
+<span class="fc" id="L1715">            f = Math.max(f, tmp2);</span>
+        }
+
+<span class="fc" id="L1718">        f = 10. - f;</span>
+<span class="pc bpc" id="L1719" title="1 of 2 branches missed.">        if (f &gt; 0) {</span>
+<span class="fc" id="L1720">            value = Math.log(f) / a;</span>
+<span class="fc" id="L1721">            value = Math.pow(Math.exp(value + 0.49 * (Math.sin(value) + Math.sin(0.79 * value))), a);</span>
+<span class="nc bnc" id="L1722" title="All 2 branches missed.">        } else if (f &lt; 0) {</span>
+<span class="nc" id="L1723">            value = Math.log(-f) / a;</span>
+<span class="nc" id="L1724">            value = -Math.pow(Math.exp(value + 0.49 * (Math.sin(0.55 * value) + Math.sin(0.31 * value))), a);</span>
+        } else
+<span class="nc" id="L1726">            value = f;</span>
+
+<span class="fc" id="L1728">        value *= value;</span>
+<span class="fc" id="L1729">        value += fAdd;</span>
+        ; /* without noise */
+
+<span class="fc" id="L1732">        fit = (-value);</span>
+<span class="pc bpc" id="L1733" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1734">    }</span>
+
+    void katsuura(double fAdd, int genomeSize, double[] genome, double tmp, double tmp2, double[] tmx, double[] tmpvect, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+<span class="fc" id="L1738">        double condition = 100.0;</span>
+<span class="fc" id="L1739">        fAdd = 0;</span>
+<span class="fc" id="L1740">        fPen = 0;</span>
+        double arr;
+<span class="fc" id="L1742">        double prod = 1.0;</span>
+        double[] ptmx,
+                plinTF,
+                ptmp;
+
+<span class="fc" id="L1747">        fAdd = fOpt;</span>
+
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L1750" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1751">            tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="pc bpc" id="L1752" title="1 of 2 branches missed.">            if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1753">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="fc" id="L1756">        fAdd += fPen;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+        /* write rotated difference vector into tmx */
+<span class="fc bfc" id="L1760" title="All 2 branches covered.">        for (j = 0; j &lt; genomeSize; j++)</span>
+            /* store difference vector */
+<span class="fc" id="L1762">            tmpvect[j] = genome[j] - xOpt[j];</span>
+<span class="fc bfc" id="L1763" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1764">            tmx[i] = 0.0;</span>
+<span class="fc" id="L1765">            ptmx = tmx;</span>
+<span class="fc" id="L1766">            plinTF = linearTF[i];</span>
+<span class="fc" id="L1767">            ptmp = tmpvect;</span>
+<span class="fc bfc" id="L1768" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+                // *ptmx += *plinTF++ * *ptmp++;
+<span class="fc" id="L1770">                ptmx[j] += plinTF[j] * ptmp[j];</span>
+            }
+        }
+
+        /*
+         * for (i = 0; i &lt; genomeSize; i++) { tmx[i] = 0.0; for (j = 0; j &lt;
+         * genomeSize; j++) { tmx[i] += linearTF[i][j] * (genome[j] -
+         * xOpt[j]); } }
+         */
+
+        /* COMPUTATION core */
+<span class="fc bfc" id="L1781" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1782">            tmp = 0.0;</span>
+<span class="fc bfc" id="L1783" title="All 2 branches covered.">            for (j = 1; j &lt; 33; j++) {</span>
+<span class="fc" id="L1784">                tmp2 = Math.pow(2., (double) j);</span>
+<span class="fc" id="L1785">                arr = tmx[i] * tmp2;</span>
+<span class="fc" id="L1786">                tmp += Math.abs(arr - Math.round(arr)) / tmp2;</span>
+            }
+<span class="fc" id="L1788">            tmp = 1. + tmp * (double) (i + 1);</span>
+<span class="fc" id="L1789">            prod *= tmp;</span>
+        }
+<span class="fc" id="L1791">        value = 10. / (double) genomeSize / (double) genomeSize * (-1. + Math.pow(prod, 10. / Math.pow((double) genomeSize, 1.2)));</span>
+<span class="fc" id="L1792">        value += fAdd;</span>
+<span class="fc" id="L1793">        fit = (-value);</span>
+<span class="pc bpc" id="L1794" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1795">    }</span>
+
+    void lunacek(double fAdd, int genomeSize, double[] genome, double tmp, double tmp2, double condition, double[] tmx, double fPen, double value, double fit, Individual ind, EvolutionState state, int threadnum) {
+        int i, j;
+        /* Lunacek bi-Rastrigin, condition 100 */
+        /* in PPSN 2008, Rastrigin part rotated and scaled */
+<span class="fc" id="L1801">        condition = 100.0;</span>
+<span class="fc" id="L1802">        double mu1 = 2.5;</span>
+        double tmp3,
+                tmp4;
+<span class="fc" id="L1805">        fPen = tmp2 = tmp3 = tmp4 = 0.0;</span>
+<span class="fc" id="L1806">        double s = 1. - 0.5 / (Math.sqrt((double) (genomeSize + 20)) - 4.1);</span>
+<span class="fc" id="L1807">        double d = 1.;</span>
+<span class="fc" id="L1808">        double mu2 = -Math.sqrt((mu1 * mu1 - d) / s);</span>
+
+<span class="fc" id="L1810">        fAdd = fOpt;</span>
+
+        /* BOUNDARY HANDLING */
+<span class="fc bfc" id="L1813" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1814">            tmp = Math.abs(genome[i]) - 5.;</span>
+<span class="pc bpc" id="L1815" title="1 of 2 branches missed.">            if (tmp &gt; 0.) {</span>
+<span class="nc" id="L1816">                fPen += tmp * tmp;</span>
+            }
+        }
+<span class="fc" id="L1819">        fAdd += 1e4 * fPen;</span>
+
+        /* TRANSFORMATION IN SEARCH SPACE */
+<span class="fc bfc" id="L1822" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1823">            tmx[i] = 2. * genome[i];</span>
+<span class="fc bfc" id="L1824" title="All 2 branches covered.">            if (xOpt[i] &lt; 0.)</span>
+<span class="fc" id="L1825">                tmx[i] *= -1.;</span>
+        }
+
+        /* COMPUTATION core */
+<span class="fc" id="L1829">        tmp = 0.0;</span>
+<span class="fc bfc" id="L1830" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc" id="L1831">            tmp2 += (tmx[i] - mu1) * (tmx[i] - mu1);</span>
+<span class="fc" id="L1832">            tmp3 += (tmx[i] - mu2) * (tmx[i] - mu2);</span>
+<span class="fc" id="L1833">            tmp4 = 0.0;</span>
+<span class="fc bfc" id="L1834" title="All 2 branches covered.">            for (j = 0; j &lt; genomeSize; j++) {</span>
+<span class="fc" id="L1835">                tmp4 += linearTF[i][j] * (tmx[j] - mu1);</span>
+            }
+<span class="fc" id="L1837">            tmp += Math.cos(2 * Math.PI * tmp4);</span>
+        }
+<span class="fc" id="L1839">        value = Math.min(tmp2, d * (double) genomeSize + s * tmp3) + 10. * ((double) genomeSize - tmp);</span>
+<span class="fc" id="L1840">        value += fAdd;</span>
+<span class="fc" id="L1841">        fit = (-value);</span>
+<span class="pc bpc" id="L1842" title="1 of 2 branches missed.">        ((SimpleFitness) (ind.fitness)).setFitness(state, fit, fit == 0.0);</span>
+<span class="fc" id="L1843">    }</span>
+
+
+    final static public double TOL = 1e-8;
+
+    void gauss(double[] g, MersenneTwisterFast random) {
+        /*
+         * samples N standard normally distributed numbers being the same for a
+         * given seed.
+         */
+<span class="fc" id="L1853">        double[] uniftmp = new double[2 * g.length];</span>
+        int i;
+<span class="fc bfc" id="L1855" title="All 2 branches covered.">        for (i = 0; i &lt; uniftmp.length; i++)</span>
+<span class="fc" id="L1856">            uniftmp[i] = nextDoubleClosedInterval(random);</span>
+<span class="fc bfc" id="L1857" title="All 2 branches covered.">        for (i = 0; i &lt; g.length; i++) {</span>
+
+<span class="fc" id="L1859">            g[i] = Math.sqrt(-2 * Math.log(uniftmp[i])) * Math.cos(2 * Math.PI * uniftmp[g.length + i]);</span>
+<span class="pc bpc" id="L1860" title="1 of 2 branches missed.">            if (g[i] == 0.0)</span>
+<span class="nc" id="L1861">                g[i] = 1e-99;</span>
+        }
+<span class="fc" id="L1863">        return;</span>
+    }
+
+    void gauss(double[] g, MersenneTwisterFast random, int n) {
+        /*
+         * samples N standard normally distributed numbers being the same for a
+         * given seed.
+         */
+<span class="fc" id="L1871">        double[] uniftmp = new double[2 * g.length];</span>
+        int i;
+<span class="fc bfc" id="L1873" title="All 2 branches covered.">        for (i = 0; i &lt; uniftmp.length; i++)</span>
+<span class="fc" id="L1874">            uniftmp[i] = nextDoubleClosedInterval(random);</span>
+<span class="fc bfc" id="L1875" title="All 2 branches covered.">        for (i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L1876">            g[i] = Math.sqrt(-2 * Math.log(uniftmp[i])) * Math.cos(2 * Math.PI * uniftmp[n + i]);</span>
+<span class="pc bpc" id="L1877" title="1 of 2 branches missed.">            if (g[i] == 0.0)</span>
+<span class="nc" id="L1878">                g[i] = 1e-99;</span>
+        }
+<span class="fc" id="L1880">        return;</span>
+    }
+
+    void computeXopt(double[] xOpt, MersenneTwisterFast random) {
+        int i;
+<span class="fc" id="L1885">        int n = xOpt.length;</span>
+<span class="fc bfc" id="L1886" title="All 2 branches covered.">        for (i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L1887">            xOpt[i] = 8 * (int) Math.floor(1e4 * nextDoubleClosedInterval(random)) / 1e4 - 4;</span>
+<span class="fc bfc" id="L1888" title="All 2 branches covered.">            if (xOpt[i] == 0.0)</span>
+<span class="fc" id="L1889">                xOpt[i] = -1e-5;</span>
+        }
+<span class="fc" id="L1891">    }</span>
+
+    void monotoneTFosc(double[] f) {
+<span class="fc" id="L1894">        double a = 0.1;</span>
+        int i;
+<span class="fc" id="L1896">        int n = f.length;</span>
+<span class="fc bfc" id="L1897" title="All 2 branches covered.">        for (i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L1898" title="All 2 branches covered.">            if (f[i] &gt; 0) {</span>
+<span class="fc" id="L1899">                f[i] = Math.log(f[i]) / a;</span>
+<span class="fc" id="L1900">                f[i] = Math.pow(Math.exp(f[i] + 0.49 * (Math.sin(f[i]) + Math.sin(0.79 * f[i]))), a);</span>
+<span class="fc bfc" id="L1901" title="All 2 branches covered.">            } else if (f[i] &lt; 0) {</span>
+<span class="fc" id="L1902">                f[i] = Math.log(-f[i]) / a;</span>
+<span class="fc" id="L1903">                f[i] = -Math.pow(Math.exp(f[i] + 0.49 * (Math.sin(0.55 * f[i]) + Math.sin(0.31 * f[i]))), a);</span>
+            }
+        }
+<span class="fc" id="L1906">    }</span>
+
+    double[][] reshape(double[][] b, double[] vector, int m, int n) {
+        int i, j;
+<span class="fc bfc" id="L1910" title="All 2 branches covered.">        for (i = 0; i &lt; m; i++) {</span>
+<span class="fc bfc" id="L1911" title="All 2 branches covered.">            for (j = 0; j &lt; n; j++) {</span>
+<span class="fc" id="L1912">                b[i][j] = vector[j * m + i];</span>
+            }
+        }
+<span class="fc" id="L1915">        return b;</span>
+    }
+
+    void computeRotation(double[][] b, MersenneTwisterFast random, int genomeSize) {
+<span class="fc" id="L1919">        double[] gvect = new double[genomeSize * genomeSize];</span>
+        double prod;
+        int i, j, k; /* Loop over pairs of column vectors */
+
+<span class="fc" id="L1923">        gauss(gvect, random);</span>
+<span class="fc" id="L1924">        reshape(b, gvect, genomeSize, genomeSize);</span>
+        /* 1st coordinate is row, 2nd is column. */
+
+<span class="fc bfc" id="L1927" title="All 2 branches covered.">        for (i = 0; i &lt; genomeSize; i++) {</span>
+<span class="fc bfc" id="L1928" title="All 2 branches covered.">            for (j = 0; j &lt; i; j++) {</span>
+<span class="fc" id="L1929">                prod = 0;</span>
+<span class="fc bfc" id="L1930" title="All 2 branches covered.">                for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L1931">                    prod += b[k][i] * b[k][j];</span>
+                }
+<span class="fc bfc" id="L1933" title="All 2 branches covered.">                for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L1934">                    b[k][i] -= prod * b[k][j];</span>
+                }
+            }
+<span class="fc" id="L1937">            prod = 0;</span>
+<span class="fc bfc" id="L1938" title="All 2 branches covered.">            for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L1939">                prod += b[k][i] * b[k][i];</span>
+            }
+<span class="fc bfc" id="L1941" title="All 2 branches covered.">            for (k = 0; k &lt; genomeSize; k++) {</span>
+<span class="fc" id="L1942">                b[k][i] /= Math.sqrt(prod);</span>
+            }
+        }
+<span class="fc" id="L1945">    }</span>
+
+    double fGauss(double fTrue, double beta, MersenneTwisterFast random) {
+<span class="nc" id="L1948">        double fVal = fTrue * Math.exp(beta * nextDoubleClosedInterval(random));</span>
+<span class="nc" id="L1949">        fVal += 1.01 * TOL;</span>
+<span class="nc bnc" id="L1950" title="All 2 branches missed.">        if (fTrue &lt; TOL) {</span>
+<span class="nc" id="L1951">            fVal = fTrue;</span>
+        }
+<span class="nc" id="L1953">        return fVal;</span>
+    }
+
+    double fUniform(double fTrue, double alpha, double beta, MersenneTwisterFast random) {
+<span class="nc" id="L1957">        double fVal = Math.pow(nextDoubleClosedInterval(random), beta) * fTrue * Math.max(1.0, Math.pow(1e9 / (fTrue + 1e-99), alpha * nextDoubleClosedInterval(random)));</span>
+<span class="nc" id="L1958">        fVal += 1.01 * TOL;</span>
+<span class="nc bnc" id="L1959" title="All 2 branches missed.">        if (fTrue &lt; TOL) {</span>
+<span class="nc" id="L1960">            fVal = fTrue;</span>
+        }
+<span class="nc" id="L1962">        return fVal;</span>
+    }
+
+    double fCauchy(double fTrue, double alpha, double p, MersenneTwisterFast random) {
+        double fVal;
+<span class="nc" id="L1967">        double tmp = nextDoubleClosedInterval(random) / Math.abs(nextDoubleClosedInterval(random) + 1e-199);</span>
+        /*
+         * tmp is so as to actually do the calls to randn in order for the
+         * number of calls to be the same as in the Matlab code.
+         */
+<span class="nc bnc" id="L1972" title="All 2 branches missed.">        if (nextDoubleClosedInterval(random) &lt; p)</span>
+<span class="nc" id="L1973">            fVal = fTrue + alpha * Math.max(0., 1e3 + tmp);</span>
+        else
+<span class="nc" id="L1975">            fVal = fTrue + alpha * 1e3;</span>
+
+<span class="nc" id="L1977">        fVal += 1.01 * TOL;</span>
+<span class="nc bnc" id="L1978" title="All 2 branches missed.">        if (fTrue &lt; TOL) {</span>
+<span class="nc" id="L1979">            fVal = fTrue;</span>
+        }
+<span class="nc" id="L1981">        return fVal;</span>
+    }
+
+    double computeFopt(MersenneTwisterFast random) {
+<span class="fc" id="L1985">        double[] gval = new double[1];</span>
+<span class="fc" id="L1986">        double[] gval2 = new double[1];</span>
+<span class="fc" id="L1987">        gauss(gval, random, 1);</span>
+<span class="fc" id="L1988">        gauss(gval2, random, 1);</span>
+<span class="fc" id="L1989">        return Math.min(1000.0, Math.max(-1000.0, (Math.round(100.0 * 100.0 * gval[0] / gval2[0]) / 100.0)));</span>
+    }
+
+    double nextDoubleClosedInterval(MersenneTwisterFast random) {
+<span class="fc" id="L1993">        double tmp = random.nextDouble() * 2.0;</span>
+<span class="fc bfc" id="L1994" title="All 2 branches covered.">        while (tmp &gt; 1.0)</span>
+<span class="fc" id="L1995">            tmp = random.nextDouble() * 2.0;</span>
+<span class="fc" id="L1996">        return tmp;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

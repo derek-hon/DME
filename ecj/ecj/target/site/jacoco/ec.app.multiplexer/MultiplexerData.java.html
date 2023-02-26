@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MultiplexerData.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.multiplexer</a> &gt; <span class="el_source">MultiplexerData.java</span></div><h1>MultiplexerData.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.multiplexer;
+import java.util.*;
+import ec.gp.*;
+
+/* 
+ * MultiplexerData.java
+ * 
+ * Created: Wed Nov  3 18:32:13 1999
+ * By: Sean Luke
+ */
+
+/**
+ * This is ugly and complicated because it needs to hold a variety
+ * of different-length bitstrings, including temporary ones held
+ * while computing subtrees.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+public class MultiplexerData extends GPData
+    {
+    /** A stack of available long arrays for popDat11/pushDat11 */
+    public Stack tmp;
+
+    /** The number of Dn in Multiplexer-3 */
+    public static final byte STATUS_3 = 1;
+    /** The number of Dn in Multiplexer-6 */
+    public static final byte STATUS_6 = 2;
+    /** The number of Dn in Multiplexer-11 */
+    public static final byte STATUS_11 = 3;
+    /** The length of an atomic data element in Multiplexer-3 (a byte) */
+    public static final int MULTI_3_BITLENGTH = 8;
+    /** The length of an atomic data element in Multiplexer-6 (a long) */
+    public static final int MULTI_6_BITLENGTH = 64;
+    /** The length of an atomic data element in Multiplexer-11 (a long) */
+    public static final int MULTI_11_BITLENGTH = 64;
+    /** The number of atomic elements in Multiplexer-11 comprising one string (32) */
+    public static final int MULTI_11_NUM_BITSTRINGS = 32;
+
+    /** An array of 32 longs for Multiplexer-11 data */
+    public long[] dat_11;
+    /** A long for Multiplexer-6 data */
+    public long dat_6;
+    /** A byte for Multiplexer-3 data */
+    public byte dat_3;
+    /** A byte indicating the number of Dn in this problem */
+    public byte status;
+
+    /** Pops a dat_11 off of the stack; if the stack is empty, creates a new dat_11 and returns that. */
+    public long[] popDat11()
+        {
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (tmp.empty())</span>
+<span class="nc" id="L61">            return new long[MULTI_11_NUM_BITSTRINGS];</span>
+<span class="nc" id="L62">        else return (long[])(tmp.pop());</span>
+        }
+
+    /** Pushes a dat_11 onto the stack */
+    public void pushDat11(long[] l)
+        {
+<span class="nc" id="L68">        tmp.push(l);</span>
+<span class="nc" id="L69">        }</span>
+
+    public MultiplexerData() 
+<span class="nc" id="L72">        { </span>
+<span class="nc" id="L73">        dat_11 = new long[MULTI_11_NUM_BITSTRINGS]; </span>
+<span class="nc" id="L74">        tmp = new Stack();</span>
+<span class="nc" id="L75">        }</span>
+
+    public Object clone()
+        {
+<span class="nc" id="L79">        MultiplexerData dat = (MultiplexerData)(super.clone());</span>
+<span class="nc" id="L80">        dat.dat_11 = new long[MULTI_11_NUM_BITSTRINGS];</span>
+<span class="nc" id="L81">        System.arraycopy(dat_11,0,dat.dat_11,0,MULTI_11_NUM_BITSTRINGS);</span>
+<span class="nc" id="L82">        dat.tmp = new Stack();</span>
+<span class="nc" id="L83">        return dat;</span>
+        }
+
+    public void copyTo(final GPData gpd)
+        { 
+<span class="nc" id="L88">        MultiplexerData md = ((MultiplexerData)gpd);</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        for(int x=0;x&lt;MULTI_11_NUM_BITSTRINGS;x++)</span>
+<span class="nc" id="L90">            md.dat_11[x] = dat_11[x];</span>
+<span class="nc" id="L91">        md.dat_6 = dat_6;</span>
+<span class="nc" id="L92">        md.status = status;</span>
+<span class="nc" id="L93">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HighDimension.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.highdimension</a> &gt; <span class="el_source">HighDimension.java</span></div><h1>HighDimension.java</h1><pre class="source lang-java linenums">package ec.app.highdimension;
+
+import ec.*;
+import ec.eda.dovs.*;
+import ec.simple.*;
+import ec.util.*;
+import ec.vector.*;
+
+<span class="nc" id="L9">public class HighDimension extends Problem implements SimpleProblemForm</span>
+    {
+    public static final String P_HIGHDIMENSION = &quot;high-dimension&quot;;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L15">        return super.defaultBase().push(P_HIGHDIMENSION);</span>
+        }
+
+    public void evaluate(final EvolutionState state, final Individual ind, final int subpopulation, final int threadnum)
+        {
+
+<span class="nc bnc" id="L21" title="All 2 branches missed.">        if (!(ind instanceof IntegerVectorIndividual))</span>
+            // TODO : the output text may need to change
+<span class="nc" id="L23">            state.output.fatal(&quot;Whoa!  It's not an IntegerVectorIndividual!!!&quot;, null);</span>
+
+<span class="nc" id="L25">        int[] genome = ((IntegerVectorIndividual) ind).genome;</span>
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        if (genome.length != 5)</span>
+            // TODO : the output text may need to change
+<span class="nc" id="L28">            state.output.fatal(&quot;Whoa! The size of the genome is not right!!!&quot;, null);</span>
+        
+<span class="nc" id="L30">        double gamma = 1e-3;</span>
+<span class="nc" id="L31">        long xi= 0;</span>
+<span class="nc" id="L32">        double beta = 1e4;</span>
+<span class="nc" id="L33">        double g = 0;</span>
+
+<span class="nc" id="L35">        double sum = 0;</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        for(int j = 0;j&lt;genome.length;++j)</span>
+            {
+<span class="nc" id="L38">            sum += (genome[j] - xi) * (genome[j] - xi) * gamma;</span>
+            }
+        
+<span class="nc" id="L41">        g = beta * Math.exp(-sum);</span>
+        
+<span class="nc" id="L43">        double variance = g * 0.09;</span>
+        // TODO: how should we use noise?
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        double noise = (variance &lt; 1e-30) ? 0:state.random[0].nextGaussian()*variance;</span>
+        
+        // We return g as the fitness, as opposed in original code, where -g is returned.
+        // Since we are try to maximize our fitness value, not find a min -g solution
+<span class="nc" id="L49">        ((DOVSFitness) ind.fitness).recordObservation(state, g);</span>
+<span class="nc" id="L50">        ind.evaluated = true;</span>
+<span class="nc" id="L51">        }</span>
+
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

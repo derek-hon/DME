@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProceduralTextureFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.SSIMExperiment.Vanilla</a> &gt; <span class="el_source">ProceduralTextureFitness.java</span></div><h1>ProceduralTextureFitness.java</h1><pre class="source lang-java linenums">package ec.app.experiments.SSIMExperiment.Vanilla;
+
+import ec.util.Parameter;
+import java.awt.image.BufferedImage;
+// import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import ec.Individual;
+
+import ec.gp.koza.*;
+import ec.distributedME.*;
+import ec.EvolutionState;
+import ec.app.experiments.Vanilla.ImageLoad;
+import ec.app.experiments.GeneralandFitness.PSDExtensions;
+import ec.app.experiments.GeneralandFitness.TextureIndividual;
+import ec.app.experiments.GeneralandFitness.jssim.*;
+
+/**
+ * ProceduralTextureFitness.java Created: 05/05/2020 By: Derek Hon
+ **/
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L23">public class ProceduralTextureFitness extends ImageLoad {</span>
+
+    double[] TargetSample;
+<span class="nc" id="L26">    int width = 0, height = 0;</span>
+    // SSIM TargetSSIM = null;
+<span class="nc" id="L28">    SsimCalculator TargetSSIMCalculator = null;</span>
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L32">        super.setup(state, base);</span>
+
+        // Load targets from existing image
+
+<span class="nc" id="L36">        width = TargetImage.getWidth();</span>
+<span class="nc" id="L37">        height = TargetImage.getHeight();</span>
+<span class="nc" id="L38">        int rgb = 0;</span>
+        
+        // TargetSample = new double[width * height];
+
+        // this.TargetSSIM = new SSIM(state, targetFile, TargetImage);
+        try {
+<span class="nc" id="L44">            TargetSSIMCalculator = new SsimCalculator(TargetImage);</span>
+<span class="nc" id="L45">        } catch (SsimException | IOException e) {</span>
+<span class="nc" id="L46">            state.output.fatal(e.toString());</span>
+<span class="nc" id="L47">        }</span>
+<span class="nc" id="L48">    }</span>
+
+    @Override
+    public void evaluate(EvolutionState state, Individual ind, int submap, int threadnum) {
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (!ind.evaluated) {</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            if (!(ind instanceof Individual))</span>
+<span class="nc" id="L54">                state.output.fatal(&quot;&quot; + this.getClass() + &quot; expects individuals of type Elite.&quot;);</span>
+
+            // int[] luminance = new int[width * height];
+<span class="nc" id="L57">            super.evaluate(state, ind, submap, threadnum);</span>
+<span class="nc" id="L58">            double fitness = 0;</span>
+<span class="nc" id="L59">            TextureIndividual textInd = (TextureIndividual) ind;</span>
+            // this.TargetSSIM.calculateSSIM(img)
+            // this.TargetSSIM.calculateWindows(PSDExtensions.ImageToDouble2D(img, null));
+            // fitness = this.TargetSSIM.calculateSSIM(img);
+            try {
+                // fitness = this.TargetSSIM.calculateSSIM(img);
+<span class="nc" id="L65">                fitness = TargetSSIMCalculator.comparePixel(textInd.pixels);</span>
+<span class="nc" id="L66">            } catch (SsimException | IOException e) {</span>
+<span class="nc" id="L67">                state.output.fatal(e.toString());</span>
+<span class="nc" id="L68">            }</span>
+<span class="nc" id="L69">            KozaFitness f = ((KozaFitness) ind.fitness);</span>
+<span class="nc" id="L70">            f.setStandardizedFitness(state, fitness);</span>
+            
+<span class="nc" id="L72">            ind.evaluated = true;</span>
+        } // if
+<span class="nc" id="L74">    } // evaluate</span>
+
+    @Override
+    public void describe(final EvolutionState state, final Individual ind, final int submap, final int threadnum, final int log) {
+<span class="nc" id="L78">        super.describe(state, ind, submap, threadnum, log);</span>
+<span class="nc" id="L79">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

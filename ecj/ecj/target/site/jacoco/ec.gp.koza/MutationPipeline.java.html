@@ -1,0 +1,332 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MutationPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.koza</a> &gt; <span class="el_source">MutationPipeline.java</span></div><h1>MutationPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.koza;
+import ec.*;
+import ec.util.*;
+import ec.gp.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * MutationPipeline.java
+ * 
+ * Created: Tue Oct 12 18:50:56 1999
+ * By: Sean Luke
+ */
+
+/**
+ * MutationPipeline is a GPBreedingPipeline which 
+ * implements a strongly-typed version of the 
+ * &quot;Point Mutation&quot; operator as described in Koza I.
+ * Actually, that's not quite true.  Koza doesn't have any tree depth restrictions
+ * on his mutation operator.  This one does -- if the tree gets deeper than
+ * the maximum tree depth, then the new subtree is rejected and another one is
+ * tried.  Similar to how the Crosssover operator is implemented.
+ *
+ * &lt;p&gt;Mutated trees are restricted to being &lt;tt&gt;maxdepth&lt;/tt&gt; depth at
+ * most and at most &lt;tt&gt;maxsize&lt;/tt&gt; number of nodes.  If in
+ * &lt;tt&gt;tries&lt;/tt&gt; attemptes, the pipeline cannot come up with a
+ * mutated tree within the depth limit, then it simply copies the
+ * original individual wholesale with no mutation.
+ *
+ * &lt;p&gt;One additional feature: if &lt;tt&gt;equal&lt;/tt&gt; is true, then MutationPipeline
+ * will attempt to replace the subtree with a tree of approximately equal size.
+ * How this is done exactly, and how close it is, is entirely up to the pipeline's
+ * tree builder -- for example, Grow/Full/HalfBuilder don't support this at all, while
+ * RandomBranch will replace it with a tree of the same size or &quot;slightly smaller&quot;
+ * as described in the algorithm.
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ ...as many as the child produces
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tries&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of times to try finding valid pairs of nodes)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;maxdepth&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(maximum valid depth of a crossed-over subtree)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;maxsize&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(maximum valid size, in nodes, of a crossed-over subtree)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ns&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != GPNodeSelector&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(GPNodeSelector for tree)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;build&lt;/tt&gt;.0&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != GPNodeBuilder&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(GPNodeBuilder for new subtree)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;equal&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/td&gt;
+ &lt;td valign=top&gt;(do we attempt to replace the subtree with a new one of roughly the same size?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.0&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; int &amp;lt; (num trees in individuals), if exists&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(tree chosen for mutation; if parameter doesn't exist, tree is picked at random)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.koza.mutate
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ns&lt;/tt&gt;&lt;br&gt;
+ &lt;td&gt;nodeselect&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;build&lt;/tt&gt;&lt;br&gt;
+ &lt;td&gt;builder&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L103">public class MutationPipeline extends GPBreedingPipeline</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_NUM_TRIES = &quot;tries&quot;;
+    public static final String P_MAXDEPTH = &quot;maxdepth&quot;;
+    public static final String P_MAXSIZE = &quot;maxsize&quot;;        
+    public static final String P_MUTATION = &quot;mutate&quot;;
+    public static final String P_BUILDER = &quot;build&quot;;
+    public static final String P_EQUALSIZE = &quot;equal&quot;;
+    public static final int INDS_PRODUCED = 1;
+    public static final int NUM_SOURCES = 1;
+    public static final int NO_SIZE_LIMIT = -1;
+
+    /** How the pipeline chooses a subtree to mutate */
+    public GPNodeSelector nodeselect;
+
+    /** How the pipeline builds a new subtree */
+    public GPNodeBuilder builder;
+
+    /** The number of times the pipeline tries to build a valid mutated
+        tree before it gives up and just passes on the original */
+    int numTries;
+    
+    /** The maximum depth of a mutated tree */
+    int maxDepth;
+
+    /** The largest tree (measured as a nodecount) the pipeline is allowed to form. */
+    public int maxSize;
+
+    /** Do we try to replace the subtree with another of the same size? */
+    boolean equalSize;
+
+    /** Is our tree fixed?  If not, this is -1 */
+    int tree;
+
+<span class="nc" id="L139">    public Parameter defaultBase() { return GPKozaDefaults.base().push(P_MUTATION); }</span>
+
+<span class="nc" id="L141">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public Object clone()
+        {
+<span class="nc" id="L145">        MutationPipeline c = (MutationPipeline)(super.clone());</span>
+
+        // deep-cloned stuff
+<span class="nc" id="L148">        c.nodeselect = (GPNodeSelector)(nodeselect.clone());</span>
+
+<span class="nc" id="L150">        return c;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L155">        super.setup(state,base);</span>
+        
+<span class="nc" id="L157">        Parameter def = defaultBase();</span>
+<span class="nc" id="L158">        Parameter p = base.push(P_NODESELECTOR).push(&quot;&quot;+0);</span>
+<span class="nc" id="L159">        Parameter d = def.push(P_NODESELECTOR).push(&quot;&quot;+0);</span>
+
+<span class="nc" id="L161">        nodeselect = (GPNodeSelector)</span>
+<span class="nc" id="L162">            (state.parameters.getInstanceForParameter(</span>
+                p,d, GPNodeSelector.class));
+<span class="nc" id="L164">        nodeselect.setup(state,p);</span>
+
+<span class="nc" id="L166">        p = base.push(P_BUILDER).push(&quot;&quot;+0);</span>
+<span class="nc" id="L167">        d = def.push(P_BUILDER).push(&quot;&quot;+0);</span>
+
+<span class="nc" id="L169">        builder = (GPNodeBuilder)</span>
+<span class="nc" id="L170">            (state.parameters.getInstanceForParameter(</span>
+                p,d, GPNodeBuilder.class));
+<span class="nc" id="L172">        builder.setup(state,p);</span>
+
+<span class="nc" id="L174">        numTries = state.parameters.getInt(</span>
+<span class="nc" id="L175">            base.push(P_NUM_TRIES),def.push(P_NUM_TRIES),1);</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">        if (numTries ==0)</span>
+<span class="nc" id="L177">            state.output.fatal(&quot;Mutation Pipeline has an invalid number of tries (it must be &gt;= 1).&quot;,base.push(P_NUM_TRIES),def.push(P_NUM_TRIES));</span>
+
+<span class="nc" id="L179">        maxDepth = state.parameters.getInt(</span>
+<span class="nc" id="L180">            base.push(P_MAXDEPTH),def.push(P_MAXDEPTH),1);</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        if (maxDepth==0)</span>
+<span class="nc" id="L182">            state.output.fatal(&quot;The Mutation Pipeline &quot; + base + &quot;has an invalid maximum depth (it must be &gt;= 1).&quot;,base.push(P_MAXDEPTH),def.push(P_MAXDEPTH));</span>
+
+<span class="nc" id="L184">        maxSize = NO_SIZE_LIMIT;</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_MAXSIZE), def.push(P_MAXSIZE)))</span>
+            {
+<span class="nc" id="L187">            maxSize = state.parameters.getInt(base.push(P_MAXSIZE), def.push(P_MAXSIZE), 1);</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">            if (maxSize &lt; 1)</span>
+<span class="nc" id="L189">                state.output.fatal(&quot;Maximum tree size, if defined, must be &gt;= 1&quot;);</span>
+            }
+        
+<span class="nc" id="L192">        equalSize = state.parameters.getBoolean(</span>
+<span class="nc" id="L193">            base.push(P_EQUALSIZE),def.push(P_EQUALSIZE),false);</span>
+
+<span class="nc" id="L195">        tree = TREE_UNFIXED;</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L197">                def.push(P_TREE).push(&quot;&quot;+0)))</span>
+            {
+<span class="nc" id="L199">            tree = state.parameters.getInt(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L200">                def.push(P_TREE).push(&quot;&quot;+0),0);</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            if (tree==-1)</span>
+<span class="nc" id="L202">                state.output.fatal(&quot;Tree fixed value, if defined, must be &gt;= 0&quot;);</span>
+            }
+<span class="nc" id="L204">        }</span>
+
+
+    /** Returns true if inner1 can feasibly be swapped into inner2's position */
+
+    public boolean verifyPoints(GPNode inner1, GPNode inner2)
+        {
+        // We know they're swap-compatible since we generated inner1
+        // to be exactly that.  So don't bother.
+
+        // next check to see if inner1 can fit in inner2's spot
+<span class="nc bnc" id="L215" title="All 2 branches missed.">        if (inner1.depth()+inner2.atDepth() &gt; maxDepth) return false;</span>
+
+        // check for size
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        if (maxSize != NO_SIZE_LIMIT)</span>
+            {
+            // first easy check
+<span class="nc" id="L221">            int inner1size = inner1.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc" id="L222">            int inner2size = inner2.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">            if (inner1size &gt; inner2size)  // need to test further</span>
+                {
+                // let's keep on going for the more complex test
+<span class="nc" id="L226">                GPNode root2 = ((GPTree)(inner2.rootParent())).child;</span>
+<span class="nc" id="L227">                int root2size = root2.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">                if (root2size - inner2size + inner1size &gt; maxSize)  // take root2, remove inner2 and swap in inner1.  Is it still small enough?</span>
+<span class="nc" id="L229">                    return false;</span>
+                }
+            }
+
+        // checks done!
+<span class="nc" id="L234">        return true;</span>
+        }
+
+
+
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+        {
+<span class="nc" id="L247">        int start = inds.size();</span>
+                
+        // grab individuals from our source and stick 'em right into inds.
+        // we'll modify them from there
+<span class="nc" id="L251">        int n = sources[0].produce(min,max,subpopulation,inds, state,thread, misc);</span>
+
+        // should we bother?
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+<span class="nc" id="L256">            return n;</span>
+            }
+
+<span class="nc" id="L259">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+
+        // now let's mutate 'em
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        for(int q=start; q &lt; n+start; q++)</span>
+            {
+<span class="nc" id="L264">            GPIndividual i = (GPIndividual)inds.get(q);</span>
+
+<span class="nc bnc" id="L266" title="All 6 branches missed.">            if (tree!=TREE_UNFIXED &amp;&amp; (tree&lt;0 || tree &gt;= i.trees.length))</span>
+                // uh oh
+<span class="nc" id="L268">                state.output.fatal(&quot;GP Mutation Pipeline attempted to fix tree.0 to a value which was out of bounds of the array of the individual's trees.  Check the pipeline's fixed tree values -- they may be negative or greater than the number of trees in an individual&quot;); </span>
+                
+
+            int t;
+            // pick random tree
+<span class="nc bnc" id="L273" title="All 2 branches missed.">            if (tree==TREE_UNFIXED)</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">                if (i.trees.length&gt;1) t = state.random[thread].nextInt(i.trees.length);</span>
+<span class="nc" id="L275">                else t = 0;</span>
+<span class="nc" id="L276">            else t = tree;</span>
+
+            // validity result...
+<span class="nc" id="L279">            boolean res = false;</span>
+            
+            // prepare the nodeselector
+<span class="nc" id="L282">            nodeselect.reset();</span>
+            
+            // pick a node
+            
+<span class="nc" id="L286">            GPNode p1=null;  // the node we pick</span>
+<span class="nc" id="L287">            GPNode p2=null;</span>
+            
+<span class="nc bnc" id="L289" title="All 2 branches missed.">            for(int x=0;x&lt;numTries;x++)</span>
+                {
+                // pick a node in individual 1
+<span class="nc" id="L292">                p1 = nodeselect.pickNode(state,subpopulation,thread,i,i.trees[t]);</span>
+                
+                // generate a tree swap-compatible with p1's position
+                
+                
+<span class="nc" id="L297">                int size = GPNodeBuilder.NOSIZEGIVEN;</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                if (equalSize) size = p1.numNodes(GPNode.NODESEARCH_ALL);</span>
+
+<span class="nc" id="L300">                p2 = builder.newRootedTree(state,</span>
+<span class="nc" id="L301">                    p1.parentType(initializer),</span>
+                    thread,
+                    p1.parent,
+<span class="nc" id="L304">                    i.trees[t].constraints(initializer).functionset,</span>
+                    p1.argposition,
+                    size);
+                
+                // check for depth and swap-compatibility limits
+<span class="nc" id="L309">                res = verifyPoints(p2,p1);  // p2 can fit in p1's spot  -- the order is important!</span>
+                
+                // did we get something that had both nodes verified?
+<span class="nc bnc" id="L312" title="All 2 branches missed.">                if (res) break;</span>
+                }
+            
+<span class="nc bnc" id="L315" title="All 2 branches missed.">            if (res)  // we're in business</span>
+                {
+<span class="nc" id="L317">                p2.parent = p1.parent;</span>
+<span class="nc" id="L318">                p2.argposition = p1.argposition;</span>
+<span class="nc bnc" id="L319" title="All 2 branches missed.">                if (p2.parent instanceof GPNode)</span>
+<span class="nc" id="L320">                    ((GPNode)(p2.parent)).children[p2.argposition] = p2;</span>
+<span class="nc" id="L321">                else ((GPTree)(p2.parent)).child = p2;</span>
+<span class="nc" id="L322">                i.evaluated = false;  // we've modified it</span>
+                }
+            
+            // add the new individual, replacing its previous source
+<span class="nc" id="L326">            inds.set(q, i);</span>
+             
+            }
+<span class="nc" id="L329">        return n;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

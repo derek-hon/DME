@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MajorityGA.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.majority</a> &gt; <span class="el_source">MajorityGA.java</span></div><h1>MajorityGA.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2013 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.app.majority;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.simple.*;
+import ec.vector.*;
+
+/**
+   MajorityGA.java
+        
+   Implements a GA-style vector rule for the one-dimensional Majority-Ones cellular automaton problem.
+   This code is in the spirit of Das, Crutchfield, Mitchel, and Hanson, &quot;Evolving Globally Synchronized Cellular Automata&quot;,
+   http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.55.7754&amp;rep=rep1&amp;type=pdf
+   
+   The primary difference is in the trials mechanism, in which we're using 25/25/50 rather than 50/50/0.
+   
+   If you run java ec.app.majority.MajorityGA, it'll test using the ABK rule instead (0.8342 using 10000 tests, 
+   0.82528 if you use 100000 tests, 0.823961 if you use 1000000 tests)
+*/
+
+
+
+
+<span class="nc" id="L30">public class MajorityGA extends Problem implements SimpleProblemForm</span>
+    {
+<span class="nc" id="L32">    CA ca = null;</span>
+
+    // How many trials in our training set
+    public static final int NUM_TRIALS = 128;
+
+    // CA description
+    public static final int CA_WIDTH = 149;
+    public static final int NEIGHBORHOOD = 7;
+    
+    // How long can I run the CA if it's not converging?
+    public static final int STEPS = 200;
+
+<span class="nc" id="L44">    int[][] trials = new int[NUM_TRIALS][CA_WIDTH];</span>
+<span class="nc" id="L45">    int[] majorities = new int[NUM_TRIALS];</span>
+    
+
+    // kinds of trial types
+    static final int MAJORITY_ZERO = 0;
+    static final int MAJORITY_ONE = 1;
+    static final int RANDOM = -1;
+    
+    boolean makeTrial(EvolutionState state, int thread, int[] trial, int trialType)
+        {
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (trialType == RANDOM)</span>
+            {
+<span class="nc" id="L57">            int count = 0;</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            for(int i = 0; i &lt; CA_WIDTH; i++)</span>
+                {
+<span class="nc" id="L60">                trial[i] = state.random[thread].nextInt(2);</span>
+<span class="nc" id="L61">                count += trial[i];</span>
+                }  
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            return (count &gt; CA_WIDTH / 2.0);  // &gt; 74</span>
+            }
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        else if (trialType == MAJORITY_ONE)</span>
+            {
+<span class="nc bnc" id="L67" title="All 2 branches missed.">            while(!makeTrial(state, thread, trial, RANDOM));</span>
+<span class="nc" id="L68">            return true;</span>
+            }               
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        else if (trialType == MAJORITY_ZERO) // uniform selection</span>
+            {
+<span class="nc bnc" id="L72" title="All 2 branches missed.">            while(makeTrial(state, thread, trial, RANDOM));</span>
+<span class="nc" id="L73">            return false;</span>
+            }
+        else
+            {
+<span class="nc" id="L77">            state.output.fatal(&quot;This should never happen&quot;);</span>
+<span class="nc" id="L78">            return false;</span>
+            }
+        }
+        
+
+    public void generateTrials(EvolutionState state, int thread)
+        {
+        // the trials strategy here is: 25% ones, 25% zeros, and 50% random choice
+        
+        //MersenneTwisterFast mtf = state.random[thread];
+        
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        for(int i = 0; i &lt; NUM_TRIALS / 4; i++)</span>
+            {
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            majorities[i] = makeTrial(state, thread, trials[i], MAJORITY_ZERO) ? 1 : 0;</span>
+            }
+        
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        for(int i = NUM_TRIALS / 4; i &lt; NUM_TRIALS / 2; i++)</span>
+            {
+<span class="nc bnc" id="L96" title="All 2 branches missed.">            majorities[i] = makeTrial(state, thread, trials[i], MAJORITY_ONE) ? 1 : 0;</span>
+            }
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        for(int i = NUM_TRIALS / 2; i &lt; NUM_TRIALS; i++)</span>
+            {
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            majorities[i] = makeTrial(state, thread, trials[i], RANDOM) ? 1 : 0;</span>
+            }
+        
+<span class="nc" id="L103">        }</span>
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L108">        super.setup(state,base);</span>
+<span class="nc" id="L109">        generateTrials(state, 0);</span>
+<span class="nc" id="L110">        }</span>
+
+
+
+    // the purpose of this code is to guarantee that I regenerate trials each generation
+    // and make sure that nobody is using them at the moment.
+
+<span class="nc" id="L117">    int lockCount = 0;</span>
+<span class="nc" id="L118">    private Object[] lock = new Object[0];</span>
+        
+    public void prepareToEvaluate(final EvolutionState state, final int threadnum)
+        {
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (threadnum != 0) </span>
+<span class="nc" id="L123">            synchronized(lock) { lockCount++ ; }</span>
+<span class="nc" id="L124">        }</span>
+
+    public void finishEvaluating(final EvolutionState state, final int threadnum)
+        {
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (threadnum != 0)</span>
+            {
+<span class="nc" id="L130">            synchronized(lock) { lockCount--; lock.notifyAll(); }</span>
+            }
+        else  // I'm thread 0
+            {
+<span class="nc" id="L134">            synchronized(lock) </span>
+                { 
+<span class="nc bnc" id="L136" title="All 2 branches missed.">                while(lockCount &gt; 0)</span>
+<span class="nc" id="L137">                    try { lock.wait(); }</span>
+<span class="nc" id="L138">                    catch (InterruptedException e) { }</span>
+<span class="nc" id="L139">                }</span>
+                                
+            // at this point I'm all alone!
+<span class="nc" id="L142">            generateTrials(state, threadnum);</span>
+            }
+<span class="nc" id="L144">        }</span>
+
+
+    public static boolean all(int[] vals, int val)
+        {
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        for(int i = 0; i &lt; vals.length; i++)</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">            if (vals[i] != val) return false;</span>
+<span class="nc" id="L151">        return true;</span>
+        }
+
+
+    public void evaluate(final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        if (ca == null)</span>
+<span class="nc" id="L161">            ca = new CA(CA_WIDTH, NEIGHBORHOOD);</span>
+
+        // we always reevaluate         
+        //if (!ind.evaluated)  // don't bother reevaluating
+            {
+<span class="nc" id="L166">            int sum = 0;</span>
+            
+<span class="nc" id="L168">            boolean[] genome = ((BitVectorIndividual)ind).genome;</span>
+            
+            // extract the rule
+<span class="nc" id="L171">            int[] rule = ca.getRule();</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">            for(int i = 0; i &lt; 128; i++)</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                rule[i] = (genome[i] ? 1 : 0);</span>
+<span class="nc" id="L174">            ca.setRule(rule);  // for good measure though it doesn't matter</span>
+                        
+<span class="nc bnc" id="L176" title="All 2 branches missed.">            for(int i = 0; i &lt; NUM_TRIALS; i++)</span>
+                {
+                // set up and run the CA
+<span class="nc" id="L179">                ca.setVals(trials[i]);</span>
+<span class="nc" id="L180">                ca.step(STEPS, true);</span>
+                
+                // extract the fitness
+<span class="nc bnc" id="L183" title="All 2 branches missed.">                if (all(ca.getVals(), majorities[i]))</span>
+<span class="nc" id="L184">                    sum ++;</span>
+                }
+<span class="nc" id="L186">            SimpleFitness f = ((SimpleFitness)ind.fitness);</span>
+<span class="nc" id="L187">            f.setFitness(state, sum / (double)NUM_TRIALS, false);</span>
+<span class="nc" id="L188">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L190">        }</span>
+      
+    
+    
+    public static final int NUM_TESTS = 10000;
+
+<span class="nc" id="L196">    double density = 0.0;</span>
+    public void describe(
+        final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum,
+        final int log)
+        {
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        if (ca == null)</span>
+<span class="nc" id="L205">            ca = new CA(CA_WIDTH, NEIGHBORHOOD);</span>
+
+<span class="nc" id="L207">        int[] trial = new int[CA_WIDTH];</span>
+                
+<span class="nc" id="L209">        boolean[] genome = ((BitVectorIndividual)ind).genome;</span>
+                
+        // extract the rule
+<span class="nc" id="L212">        int[] rule = ca.getRule();</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        for(int i = 0; i &lt; 128; i++)</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">            rule[i] = (genome[i] ? 1 : 0);</span>
+<span class="nc" id="L215">        ca.setRule(rule);  // for good measure though it doesn't matter</span>
+                
+<span class="nc" id="L217">        double sum = 0;</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        for(int i = 0; i &lt; NUM_TESTS; i++)</span>
+            {
+            // set up and run the CA
+<span class="nc bnc" id="L221" title="All 2 branches missed.">            int result = makeTrial(state, threadnum, trial, RANDOM) ? 1 : 0;</span>
+<span class="nc" id="L222">            ca.setVals(trial);</span>
+<span class="nc" id="L223">            ca.step(STEPS, true);</span>
+                        
+            // extract the fitness
+<span class="nc bnc" id="L226" title="All 2 branches missed.">            if (all(ca.getVals(), result)) sum++;</span>
+            }
+                
+<span class="nc" id="L229">        density = (sum / NUM_TESTS);</span>
+        
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        if (state.output == null)  // can happen if we call from main() below</span>
+<span class="nc" id="L232">            System.err.println(&quot;Generalization Accuracy: &quot; + density);</span>
+        else
+            {
+<span class="nc" id="L235">            state.output.println(&quot;Generalization Accuracy: &quot; + density, 1);  // stderr</span>
+<span class="nc" id="L236">            state.output.println(&quot;Generalization Accuracy: &quot; + density, log);</span>
+            }
+<span class="nc" id="L238">        }</span>
+
+
+    public static void main(String[] args)
+        {
+        // tests the ABK rule 
+        
+<span class="nc" id="L245">        int[] ABK = new int[] {</span>
+            0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0,1,0,0,0,0,0,0,0,0,0,1,0,1,0,1,0,1,0,0,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1,0,1,0,1,0,1,1,1,1,1,1,1,1,1
+            };
+<span class="nc" id="L248">        EvolutionState state = new EvolutionState();</span>
+<span class="nc" id="L249">        state.random = new MersenneTwisterFast[] { new MersenneTwisterFast(500) };</span>
+<span class="nc" id="L250">        MajorityGA ga = new MajorityGA();</span>
+<span class="nc" id="L251">        ga.setup(state, new Parameter(&quot;&quot;));</span>
+<span class="nc" id="L252">        BitVectorIndividual bvi = new BitVectorIndividual();</span>
+<span class="nc" id="L253">        bvi.fitness = new ec.simple.SimpleFitness();</span>
+<span class="nc" id="L254">        bvi.genome = new boolean[128];</span>
+<span class="nc bnc" id="L255" title="All 2 branches missed.">        for(int i = 0; i &lt; 128; i++)</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            bvi.genome[i] = (ABK[i] == 0 ? false : true);</span>
+<span class="nc" id="L257">        ga.evaluate(state, bvi, 0, 0);</span>
+<span class="nc" id="L258">        System.err.println(&quot;ABK Rule&quot;);</span>
+<span class="nc" id="L259">        ga.describe(state, bvi, 0, 0, 1);</span>
+<span class="nc" id="L260">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

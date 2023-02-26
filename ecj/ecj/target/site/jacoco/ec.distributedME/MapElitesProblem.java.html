@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MapElitesProblem.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">MapElitesProblem.java</span></div><h1>MapElitesProblem.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.distributedME;
+
+import ec.Problem;
+import ec.EvolutionState;
+
+import ec.util.Parameter;
+
+import ec.gp.GPData;
+import ec.gp.GPDefaults;
+import ec.gp.ADFStack;
+/**
+ * MapElitesProblem.java
+ * 
+ * @see  ec.gp.GPProblem
+ * 
+ * Created: 25 January, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+
+<span class="nc" id="L27">public abstract class MapElitesProblem extends Problem implements MapElitesProblemForm {</span>
+    public final static String P_GPPROBLEM = &quot;problem&quot;;
+    public final static String P_STACK = &quot;stack&quot;;
+    public final static String P_DATA = &quot;data&quot;;
+
+    /** The GPProblem's stack */
+    public ADFStack stack;
+
+    /** The GPProblem's GPData */
+    public GPData input;
+
+    /**
+     * GPProblem defines a default base so your subclass doesn't
+     * absolutely have to.
+     */
+    public Parameter defaultBase() {
+<span class="nc" id="L43">        return GPDefaults.base().push(P_GPPROBLEM);</span>
+    }
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L47">        Parameter p = base.push(P_STACK);</span>
+<span class="nc" id="L48">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L50">        stack = (ADFStack) (state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L51">                p, def.push(P_STACK), ADFStack.class));</span>
+<span class="nc" id="L52">        stack.setup(state, p);</span>
+
+<span class="nc" id="L54">        p = base.push(P_DATA);</span>
+<span class="nc" id="L55">        input = (GPData) (state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L56">                p, def.push(P_DATA), GPData.class));</span>
+<span class="nc" id="L57">        input.setup(state, p);</span>
+<span class="nc" id="L58">    }</span>
+
+    public Object clone() {
+<span class="nc" id="L61">        MapElitesProblem prob = (MapElitesProblem) (super.clone());</span>
+
+        // deep-clone the stack; it's not shared
+<span class="nc" id="L64">        prob.stack = (ADFStack) (stack.clone());</span>
+
+        // deep-clone the data
+<span class="nc" id="L67">        prob.input = (GPData) (input.clone());</span>
+
+<span class="nc" id="L69">        return prob;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

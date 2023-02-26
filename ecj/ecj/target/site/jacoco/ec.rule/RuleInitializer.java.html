@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RuleInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.rule</a> &gt; <span class="el_source">RuleInitializer.java</span></div><h1>RuleInitializer.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.rule;
+
+import java.util.Enumeration;
+import java.util.Hashtable;
+
+import ec.simple.SimpleInitializer;
+import ec.util.Parameter;
+import ec.EvolutionState;
+
+/* 
+ * RuleInitializer.java
+ * 
+ * Created: Fri Sep 14 14:00:02 2001
+ * By: Liviu Panait
+ *
+ */
+ 
+/** A SimpleInitializer subclass designed to be used with rules.  Basically,
+    the RuleInitializer sets up the RuleConstraints and RuleSetConstraints cliques
+    at setup() time, and does nothing else different from SimpleInitializer. 
+    The RuleInitializer also specifies the parameter bases for the RuleSetConstraints
+    and RuleConstraints objects.  
+ 
+    &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+    &lt;table&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;rule.rsc&lt;/tt&gt;&lt;/td&gt;
+    &lt;td&gt;RuleSetConstraints&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;rule.rc&lt;/tt&gt;&lt;/td&gt;
+    &lt;td&gt;RuleConstraints&lt;/td&gt;&lt;/tr&gt;
+    &lt;/table&gt;
+*/
+
+<span class="nc" id="L40">public class RuleInitializer extends SimpleInitializer</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    // used just here, so far as I know :-)
+    public static final int SIZE_OF_BYTE = 256;
+    public final static String P_RULESETCONSTRAINTS = &quot;rsc&quot;;
+    public final static String P_RULECONSTRAINTS = &quot;rc&quot;;
+    public final static String P_SIZE = &quot;size&quot;;
+
+    public Hashtable ruleConstraintRepository;
+    public RuleConstraints[] ruleConstraints;
+    public byte numRuleConstraints;
+    
+    public Hashtable ruleSetConstraintRepository;
+    public RuleSetConstraints[] ruleSetConstraints;
+    public byte numRuleSetConstraints;
+    
+    /** Sets up the RuleConstraints and RuleSetConstraints cliques. */
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L61">        super.setup(state,base);</span>
+
+<span class="nc" id="L63">        ruleConstraintRepository = new Hashtable();</span>
+<span class="nc" id="L64">        ruleConstraints = new RuleConstraints[SIZE_OF_BYTE];</span>
+<span class="nc" id="L65">        numRuleConstraints = 0;</span>
+        
+<span class="nc" id="L67">        ruleSetConstraintRepository = new Hashtable();</span>
+<span class="nc" id="L68">        ruleSetConstraints = new RuleSetConstraints[SIZE_OF_BYTE];</span>
+<span class="nc" id="L69">        numRuleSetConstraints = 0;</span>
+        
+        // Now let's load our constraints and function sets also.
+        // This is done in a very specific order, don't change it or things
+        // will break.
+<span class="nc" id="L74">        setupConstraints(</span>
+<span class="nc" id="L75">            state, RuleDefaults.base().push( P_RULECONSTRAINTS ) );</span>
+<span class="nc" id="L76">        setupRuleSetConstraints(</span>
+<span class="nc" id="L77">            state, RuleDefaults.base().push( P_RULESETCONSTRAINTS ) );</span>
+<span class="nc" id="L78">        }</span>
+
+    /** Sets up all the RuleConstraints, loading them from the parameter
+        file.  This must be called before anything is called which refers
+        to a type by name. */
+    
+    public void setupConstraints(final EvolutionState state,
+        final Parameter base)
+        {
+<span class="nc" id="L87">        state.output.message(&quot;Processing Rule Constraints&quot;);</span>
+        
+        // How many RuleConstraints do we have?
+<span class="nc" id="L90">        int x = state.parameters.getInt(base.push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if (x&lt;=0) </span>
+<span class="nc" id="L92">            state.output.fatal(&quot;The number of rule constraints must be at least 1.&quot;,base.push(P_SIZE));</span>
+        
+        // Load our constraints
+<span class="nc bnc" id="L95" title="All 2 branches missed.">        for (int y=0;y&lt;x;y++)</span>
+            {
+            RuleConstraints c;
+            // Figure the constraints class
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            if (state.parameters.exists(base.push(&quot;&quot;+y), null))</span>
+<span class="nc" id="L100">                c = (RuleConstraints)(state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L101">                        base.push(&quot;&quot;+y),null,RuleConstraints.class));</span>
+            else
+                {
+<span class="nc" id="L104">                state.output.message(&quot;No Rule Constraints specified, assuming the default class: ec.rule.RuleConstraints for &quot; + base.push(&quot;&quot;+y));</span>
+<span class="nc" id="L105">                c = new RuleConstraints();</span>
+                }
+<span class="nc" id="L107">            c.setup(state,base.push(&quot;&quot;+y));</span>
+            }
+        
+        // set our constraints array up
+<span class="nc" id="L111">        Enumeration e = ruleConstraintRepository.elements();</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L114">            RuleConstraints c = (RuleConstraints)(e.nextElement());</span>
+<span class="nc" id="L115">            c.constraintNumber = numRuleConstraints;</span>
+<span class="nc" id="L116">            ruleConstraints[numRuleConstraints] = c;</span>
+<span class="nc" id="L117">            numRuleConstraints++;</span>
+<span class="nc" id="L118">            }</span>
+<span class="nc" id="L119">        }</span>
+    
+    public void setupRuleSetConstraints(final EvolutionState state,
+        final Parameter base)
+        {
+<span class="nc" id="L124">        state.output.message(&quot;Processing Ruleset Constraints&quot;);</span>
+        // How many RuleSetConstraints do we have?
+<span class="nc" id="L126">        int x = state.parameters.getInt(base.push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (x&lt;=0) </span>
+<span class="nc" id="L128">            state.output.fatal(&quot;The number of RuleSetConstraints must be at least 1.&quot;,base.push(P_SIZE));</span>
+        
+        // Load our RuleSetConstraints
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        for (int y=0;y&lt;x;y++)</span>
+            {
+            RuleSetConstraints c;
+            // Figure the RuleSetConstraints class
+<span class="nc bnc" id="L135" title="All 2 branches missed.">            if (state.parameters.exists(base.push(&quot;&quot;+y), null))</span>
+<span class="nc" id="L136">                c = (RuleSetConstraints)(state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L137">                        base.push(&quot;&quot;+y),null,RuleSetConstraints.class));</span>
+            else
+                {
+<span class="nc" id="L140">                state.output.message(&quot;No RuleSetConstraints specified, assuming the default class: ec.gp.RuleSetConstraints for &quot; + base.push(&quot;&quot;+y));</span>
+<span class="nc" id="L141">                c = new RuleSetConstraints();</span>
+                }
+<span class="nc" id="L143">            c.setup(state,base.push(&quot;&quot;+y));</span>
+            }
+
+        // set our constraints array up
+<span class="nc" id="L147">        Enumeration e = ruleSetConstraintRepository.elements();</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L150">            RuleSetConstraints c = (RuleSetConstraints)(e.nextElement());</span>
+<span class="nc" id="L151">            c.constraintNumber = numRuleSetConstraints;</span>
+<span class="nc" id="L152">            ruleSetConstraints[numRuleSetConstraints] = c;</span>
+<span class="nc" id="L153">            numRuleSetConstraints++;</span>
+<span class="nc" id="L154">            }            </span>
+<span class="nc" id="L155">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

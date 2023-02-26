@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BBud.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.edge.func</a> &gt; <span class="el_source">BBud.java</span></div><h1>BBud.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.edge.func;
+import ec.*;
+import ec.app.edge.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * BBud.java
+ * 
+ * Created: Wed Nov  3 18:26:37 1999
+ * By: Sean Luke
+ */
+
+/**
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L26">public class BBud extends GPNode</span>
+    {
+<span class="nc" id="L28">    public String toString() { return &quot;bud2&quot;; }</span>
+
+    /*
+      public void checkConstraints(final EvolutionState state,
+      final int tree,
+      final GPIndividual typicalIndividual,
+      final Parameter individualBase)
+      {
+      super.checkConstraints(state,tree,typicalIndividual,individualBase);
+      if (children.length!=2)
+      state.output.error(&quot;Incorrect number of children for node &quot; + 
+      toStringForError() + &quot; at &quot; +
+      individualBase);
+      }
+    */
+<span class="nc" id="L43">    public int expectedChildren() { return 2; }</span>
+
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+<span class="nc" id="L52">        int edge = ((EdgeData)(input)).edge;</span>
+<span class="nc" id="L53">        Edge prob = (Edge)problem;</span>
+
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (prob.from.length==prob.numEdges)  // we're full, need to expand</span>
+            {
+<span class="nc" id="L57">            int[] from_ = new int[prob.numEdges*2];</span>
+<span class="nc" id="L58">            int[] to_ = new int[prob.numEdges*2];</span>
+<span class="nc" id="L59">            int[] reading_ = new int[prob.numEdges*2];</span>
+<span class="nc" id="L60">            System.arraycopy(prob.from,0,from_,0,prob.from.length);</span>
+<span class="nc" id="L61">            System.arraycopy(prob.to,0,to_,0,prob.to.length);</span>
+<span class="nc" id="L62">            System.arraycopy(prob.reading,0,reading_,0,prob.reading.length);</span>
+<span class="nc" id="L63">            prob.from = from_;</span>
+<span class="nc" id="L64">            prob.to = to_;</span>
+<span class="nc" id="L65">            prob.reading = reading_;</span>
+            }
+
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (prob.start.length==prob.numNodes)  // we're full, need to expand</span>
+            {
+<span class="nc" id="L70">            boolean[] start_ = new boolean[prob.numNodes*2];</span>
+<span class="nc" id="L71">            boolean[] accept_ = new boolean[prob.numNodes*2];</span>
+<span class="nc" id="L72">            System.arraycopy(prob.start,0,start_,0,prob.start.length);</span>
+<span class="nc" id="L73">            System.arraycopy(prob.accept,0,accept_,0,prob.accept.length);</span>
+<span class="nc" id="L74">            prob.start = start_;</span>
+<span class="nc" id="L75">            prob.accept = accept_;</span>
+            }
+
+<span class="nc" id="L78">        int newedge = prob.numEdges;</span>
+<span class="nc" id="L79">        prob.numEdges++;</span>
+<span class="nc" id="L80">        int newnode = prob.numNodes;</span>
+<span class="nc" id="L81">        prob.numNodes++;</span>
+
+        // set up new node
+<span class="nc" id="L84">        prob.accept[newnode] = false;</span>
+<span class="nc" id="L85">        prob.start[newnode] = false;</span>
+
+        // set up new edge
+<span class="nc" id="L88">        prob.from[newedge] = prob.from[edge];</span>
+<span class="nc" id="L89">        prob.to[newedge] = newnode;</span>
+<span class="nc" id="L90">        prob.reading[newedge] = prob.reading[edge];</span>
+
+        // pass the original edge down the left child
+
+<span class="nc" id="L94">        children[0].eval(state,thread,input,stack,individual,problem);</span>
+
+        // reset input for right child
+<span class="nc" id="L97">        ((EdgeData)(input)).edge = newedge;</span>
+
+        // pass the new edge down the right child
+        
+<span class="nc" id="L101">        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L102">        }</span>
+    }
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

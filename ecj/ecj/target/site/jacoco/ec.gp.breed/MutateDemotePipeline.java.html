@@ -1,0 +1,486 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MutateDemotePipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.breed</a> &gt; <span class="el_source">MutateDemotePipeline.java</span></div><h1>MutateDemotePipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.breed;
+import ec.*;
+import ec.util.*;
+import ec.gp.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * MutateDemotePipeline.java
+ * 
+ * Created: Wed Dec 15 21:41:30 1999
+ * By: Sean Luke
+ */
+
+/**
+ * MutateDemotePipeline works very similarly to the DemoteNode algorithm
+ * described in  Kumar Chellapilla,
+ * &quot;A Preliminary Investigation into Evolving Modular Programs without Subtree
+ * Crossover&quot;, GP98, and is also similar to the &quot;insertion&quot; operator found in
+ * Una-May O'Reilly's thesis,
+ * &lt;a href=&quot;http://www.ai.mit.edu/people/unamay/thesis.html&quot;&gt;
+ * &quot;An Analysis of Genetic Programming&quot;&lt;/a&gt;.
+ *
+ * &lt;p&gt;MutateDemotePipeline tries picks a random tree, then picks
+ * randomly from all the demotable nodes in the tree, and demotes one.  
+ * If its chosen tree has no demotable nodes, or demoting
+ * its chosen demotable node would make the tree too deep, it repeats
+ * the choose-tree-then-choose-node process.  If after &lt;i&gt;tries&lt;/i&gt; times
+ * it has failed to find a valid tree and demotable node, it gives up and simply
+ * copies the individual.
+ *
+ * &lt;p&gt;&quot;Demotion&quot; means to take a node &lt;i&gt;n&lt;/i&gt; and insert a new node &lt;i&gt;m&lt;/i&gt;
+ * between &lt;i&gt;n&lt;/i&gt; and &lt;i&gt;n&lt;/i&gt;'s parent.  &lt;i&gt;n&lt;/i&gt; becomes a child of
+ * &lt;i&gt;m&lt;/i&gt;; the place where it becomes a child is determined at random
+ * from all the type-compatible slots of &lt;i&gt;m&lt;/i&gt;.  The other child slots
+ * of &lt;i&gt;m&lt;/i&gt; are filled with randomly-generated terminals.  
+ * Chellapilla's version of the algorithm always
+ * places &lt;i&gt;n&lt;/i&gt; in child slot 0 of &lt;i&gt;m&lt;/i&gt;.  Because this would be
+ * unneccessarily restrictive on strong typing, MutateDemotePipeline instead
+ * picks the slot at random from all available valid choices.
+ *
+ * &lt;p&gt;A &quot;Demotable&quot; node means a node which is capable of demotion
+ * given the existing function set.  In general to demote a node &lt;i&gt;foo&lt;/i&gt;,
+ * there must exist in the function set a nonterminal whose return type
+ * is type-compatible with the child slot &lt;i&gt;foo&lt;/i&gt; holds in its parent;
+ * this nonterminal must also have a child slot which is type-compatible
+ * with &lt;i&gt;foo&lt;/i&gt;'s return type.
+ *
+ * &lt;p&gt;This method is very expensive in searching nodes for
+ * &quot;demotability&quot;.  However, if the number of types is 1 (the
+ * GP run is typeless) then the type-constraint-checking
+ * code is bypassed and the method runs a little faster.
+ *
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ ...as many as the source produces
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tries&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of times to try finding valid pairs of nodes)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;maxdepth&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(maximum valid depth of a mutated tree)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.0&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; int &amp;lt; (num trees in individuals), if exists&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(tree chosen for mutation; if parameter doesn't exist, tree is picked at random)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.breed.mutate-demote
+
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L93">public class MutateDemotePipeline extends GPBreedingPipeline</span>
+    {
+    public static final String P_MUTATEDEMOTE = &quot;mutate-demote&quot;;
+    public static final String P_NUM_TRIES = &quot;tries&quot;;
+    public static final String P_MAXDEPTH = &quot;maxdepth&quot;;
+    public static final int NUM_SOURCES = 1;
+    
+    /** The number of times the pipeline tries to build a valid mutated
+        tree before it gives up and just passes on the original */
+    int numTries;
+
+    /** The maximum depth of a mutated tree */
+    int maxDepth;
+
+    /** Is our tree fixed?  If not, this is -1 */
+    int tree;
+
+<span class="nc" id="L110">    public Parameter defaultBase() { return GPBreedDefaults.base().push(P_MUTATEDEMOTE); }</span>
+
+<span class="nc" id="L112">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L116">        super.setup(state,base);</span>
+        
+<span class="nc" id="L118">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L120">        numTries = state.parameters.getInt(base.push(P_NUM_TRIES),</span>
+<span class="nc" id="L121">            def.push(P_NUM_TRIES),1);</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (numTries == 0)</span>
+<span class="nc" id="L123">            state.output.fatal(&quot;MutateDemotePipeline has an invalid number of tries (it must be &gt;= 1).&quot;,base.push(P_NUM_TRIES),def.push(P_NUM_TRIES));</span>
+    
+<span class="nc" id="L125">        maxDepth = state.parameters.getInt(base.push(P_MAXDEPTH),</span>
+<span class="nc" id="L126">            def.push(P_MAXDEPTH),1);</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (maxDepth==0)</span>
+<span class="nc" id="L128">            state.output.fatal(&quot;The MutateDemotePipeline &quot; + base + &quot;has an invalid maximum depth (it must be &gt;= 1).&quot;,base.push(P_MAXDEPTH),def.push(P_MAXDEPTH));</span>
+
+<span class="nc" id="L130">        tree = TREE_UNFIXED;</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L132">                def.push(P_TREE).push(&quot;&quot;+0)))</span>
+            {
+<span class="nc" id="L134">            tree = state.parameters.getInt(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L135">                def.push(P_TREE).push(&quot;&quot;+0),0);</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            if (tree==-1)</span>
+<span class="nc" id="L137">                state.output.fatal(&quot;Tree fixed value, if defined, must be &gt;= 0&quot;);</span>
+            }
+<span class="nc" id="L139">        }</span>
+
+    private boolean demotable(final GPInitializer initializer,
+        final GPNode node, final GPFunctionSet set)
+        {
+        GPType t;
+
+<span class="nc bnc" id="L146" title="All 2 branches missed.">        if (node.parent instanceof GPNode)  // ugh, expensive</span>
+<span class="nc" id="L147">            t = ((GPNode)(node.parent)).constraints(initializer).childtypes[node.argposition];</span>
+        else 
+<span class="nc" id="L149">            t = ((GPTree)(node.parent)).constraints(initializer).treetype;</span>
+
+        // Now, out of the nonterminals compatible with that return type,
+        // do any also have a child compatible with that return type?  This
+        // will be VERY expensive
+
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        for(int x=0;x&lt;set.nonterminals[t.type].length;x++)</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            for(int y=0;y&lt;set.nonterminals[t.type][x].constraints(initializer).</span>
+<span class="nc" id="L157">                    childtypes.length;y++)</span>
+<span class="nc" id="L158">                if (set.nonterminals[t.type][x].constraints(initializer).childtypes[y].</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">                    compatibleWith(initializer,node.constraints(initializer).returntype))</span>
+<span class="nc" id="L160">                    return true;</span>
+<span class="nc" id="L161">        return false;</span>
+        }
+    
+
+    private void demoteSomething(final GPNode node, final EvolutionState state, final int thread, final GPFunctionSet set) 
+        {
+        // if I have just one type, do it the easy way
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (((GPInitializer)state.initializer).numAtomicTypes + </span>
+            ((GPInitializer)state.initializer).numSetTypes == 1)
+<span class="nc" id="L170">            _demoteSomethingTypeless(node,state,thread,set);</span>
+        // otherwise, I gotta do the dirty work
+<span class="nc" id="L172">        else _demoteSomething(node,state,thread,set);</span>
+<span class="nc" id="L173">        }</span>
+
+
+    private void _demoteSomething(final GPNode node, final EvolutionState state, final int thread, final GPFunctionSet set) 
+        {
+<span class="nc" id="L178">        int numDemotable = 0;</span>
+
+        GPType t;
+<span class="nc" id="L181">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+        
+<span class="nc bnc" id="L183" title="All 2 branches missed.">        if (node.parent instanceof GPNode)  // ugh, expensive</span>
+<span class="nc" id="L184">            t = ((GPNode)(node.parent)).constraints(initializer).childtypes[node.argposition];</span>
+        else 
+<span class="nc" id="L186">            t = ((GPTree)(node.parent)).constraints(initializer).treetype;</span>
+
+        // Now, determine how many nodes we can demote this under --
+        // note this doesn't select based on the total population
+        // of &quot;available child positions&quot;, but on the total population
+        // of *nodes* regardless of if they have more than one possible
+        // valid &quot;child position&quot;.
+
+<span class="nc bnc" id="L194" title="All 2 branches missed.">        for(int x=0;x&lt;set.nonterminals[t.type].length;x++)</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">            for(int y=0;y&lt;set.nonterminals[t.type][x].constraints(initializer).</span>
+<span class="nc" id="L196">                    childtypes.length;y++)</span>
+<span class="nc" id="L197">                if (set.nonterminals[t.type][x].constraints(initializer).childtypes[y].</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">                    compatibleWith(initializer,node.constraints(initializer).returntype))</span>
+                    {
+<span class="nc" id="L200">                    numDemotable++; break; // breaks out to enclosing for</span>
+                    }
+
+        // pick a random item to demote -- numDemotable is assumed to be &gt; 0
+<span class="nc" id="L204">        int demoteItem = state.random[thread].nextInt(numDemotable);</span>
+
+<span class="nc" id="L206">        numDemotable=0;</span>
+        // find it
+
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        for(int x=0;x&lt;set.nonterminals[t.type].length;x++)</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">            for(int y=0;y&lt;set.nonterminals[t.type][x].constraints(initializer).</span>
+<span class="nc" id="L211">                    childtypes.length;y++)</span>
+<span class="nc" id="L212">                if (set.nonterminals[t.type][x].constraints(initializer).childtypes[y].</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">                    compatibleWith(initializer,node.constraints(initializer).returntype))</span>
+                    {
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                    if (numDemotable==demoteItem)</span>
+                        {
+                        // clone the node
+<span class="nc" id="L218">                        GPNode cnode = (GPNode)(set.nonterminals[t.type][x].lightClone());</span>
+
+                        // choose a spot to hang the old parent under
+<span class="nc" id="L221">                        int numSpots=0;</span>
+<span class="nc" id="L222">                        GPType retyp = node.constraints(initializer).returntype;</span>
+<span class="nc" id="L223">                        GPType[] chityp = cnode.constraints(initializer).childtypes;</span>
+
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                        for(int z=0;z&lt;cnode.children.length;z++)</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                            if (chityp[z].compatibleWith(initializer,retyp))</span>
+<span class="nc" id="L227">                                numSpots++;</span>
+<span class="nc" id="L228">                        int choice = state.random[thread].nextInt(numSpots);</span>
+
+<span class="nc" id="L230">                        numSpots=0;</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                        for(int z=0;z&lt;cnode.children.length;z++)</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">                            if (chityp[z].compatibleWith(initializer,retyp))</span>
+                                {
+<span class="nc bnc" id="L234" title="All 2 branches missed.">                                if (numSpots==choice)</span>
+                                    {
+                                    // demote the parent, inserting cnode
+<span class="nc" id="L237">                                    cnode.parent = node.parent;</span>
+<span class="nc" id="L238">                                    cnode.argposition = node.argposition;</span>
+<span class="nc" id="L239">                                    cnode.children[z] = node;</span>
+<span class="nc" id="L240">                                    node.parent = cnode;</span>
+<span class="nc" id="L241">                                    node.argposition = (byte)z;</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">                                    if (cnode.parent instanceof GPNode)</span>
+<span class="nc" id="L243">                                        ((GPNode)(cnode.parent)).</span>
+                                            children[cnode.argposition] = cnode;
+<span class="nc" id="L245">                                    else ((GPTree)(cnode.parent)).child = cnode;</span>
+
+                                    // this is important to ensure that the
+                                    // demotion only happens once!  Otherwise
+                                    // you'll get really nasty bugs
+<span class="nc" id="L250">                                    numSpots++;  // notice no break</span>
+                                    }
+                                else 
+                                    {
+                                    // hang a randomly-generated terminal off of cnode
+<span class="nc" id="L255">                                    GPNode term = (GPNode)(set.terminals[chityp[z].type][</span>
+<span class="nc" id="L256">                                            state.random[thread].nextInt(</span>
+<span class="nc" id="L257">                                                set.terminals[chityp[z].type].length)].lightClone());</span>
+<span class="nc" id="L258">                                    cnode.children[z] = term;</span>
+<span class="nc" id="L259">                                    term.parent = cnode; // just in case</span>
+<span class="nc" id="L260">                                    term.argposition = (byte)z;  // just in case</span>
+<span class="nc" id="L261">                                    term.resetNode(state,thread);  // let it randomize itself if necessary</span>
+
+                                    // increase numSpots
+<span class="nc" id="L264">                                    numSpots++;  // notice no break</span>
+<span class="nc" id="L265">                                    }</span>
+                                }
+                            else
+                                {
+                                // hang a randomly-generated terminal off of cnode
+<span class="nc" id="L270">                                GPNode term = (GPNode)(set.terminals[chityp[z].type][</span>
+<span class="nc" id="L271">                                        state.random[thread].nextInt(</span>
+<span class="nc" id="L272">                                            set.terminals[chityp[z].type].length)].lightClone());</span>
+<span class="nc" id="L273">                                cnode.children[z] = term;</span>
+<span class="nc" id="L274">                                term.parent = cnode; // just in case</span>
+<span class="nc" id="L275">                                term.argposition = (byte)z;  // just in case</span>
+<span class="nc" id="L276">                                term.resetNode(state,thread);  // let it randomize itself if necessary</span>
+                                }
+<span class="nc" id="L278">                        return;</span>
+                        }
+                    else 
+                        {
+<span class="nc" id="L282">                        numDemotable++; break; // breaks out to enclosing for</span>
+                        }
+                    }
+        // should never reach here
+<span class="nc" id="L286">        throw new InternalError(&quot;Bug in demoteSomething -- should never be able to reach the end of the function&quot;);</span>
+        }
+
+
+
+    private void _demoteSomethingTypeless(final GPNode node, final EvolutionState state, final int thread, final GPFunctionSet set) 
+        {
+<span class="nc" id="L293">        int numDemotable = 0;</span>
+
+        // since we're typeless, we can demote under any nonterminal
+<span class="nc" id="L296">        numDemotable = set.nonterminals[0].length;</span>
+
+        // pick a random item to demote -- numDemotable is assumed to be &gt; 0
+<span class="nc" id="L299">        int demoteItem = state.random[thread].nextInt(numDemotable);</span>
+
+<span class="nc" id="L301">        numDemotable=0;</span>
+        // find it
+
+        // clone the node
+<span class="nc" id="L305">        GPNode cnode = (GPNode)(set.nonterminals[0][demoteItem].lightClone());</span>
+        
+<span class="nc" id="L307">        GPType[] chityp = cnode.constraints(((GPInitializer)state.initializer)).childtypes;</span>
+
+        // choose a spot to hang the old parent under
+<span class="nc" id="L310">        int choice = state.random[thread].nextInt(cnode.children.length);</span>
+        
+<span class="nc bnc" id="L312" title="All 2 branches missed.">        for(int z=0;z&lt;cnode.children.length;z++)</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">            if (z==choice)</span>
+                {
+                // demote the parent, inserting cnode
+<span class="nc" id="L316">                cnode.parent = node.parent;</span>
+<span class="nc" id="L317">                cnode.argposition = node.argposition;</span>
+<span class="nc" id="L318">                cnode.children[z] = node;</span>
+<span class="nc" id="L319">                node.parent = cnode;</span>
+<span class="nc" id="L320">                node.argposition = (byte)z;</span>
+<span class="nc bnc" id="L321" title="All 2 branches missed.">                if (cnode.parent instanceof GPNode)</span>
+<span class="nc" id="L322">                    ((GPNode)(cnode.parent)).</span>
+                        children[cnode.argposition] = cnode;
+<span class="nc" id="L324">                else ((GPTree)(cnode.parent)).child = cnode;</span>
+                }
+            else 
+                {
+                // hang a randomly-generated terminal off of cnode
+<span class="nc" id="L329">                GPNode term = (GPNode)(</span>
+                    set.terminals[chityp[z].type][
+<span class="nc" id="L331">                        state.random[thread].nextInt(</span>
+<span class="nc" id="L332">                            set.terminals[chityp[z].type].length)].lightClone());</span>
+<span class="nc" id="L333">                cnode.children[z] = term;</span>
+<span class="nc" id="L334">                term.parent = cnode; // just in case</span>
+<span class="nc" id="L335">                term.argposition = (byte)z;  // just in case</span>
+<span class="nc" id="L336">                term.resetNode(state,thread);  // let it randomize itself if necessary</span>
+                }
+<span class="nc" id="L338">        }</span>
+
+
+
+
+    private int numDemotableNodes(final GPInitializer initializer,
+        final GPNode root, int soFar, final GPFunctionSet set)
+        {
+        // if I have just one type, skip this and just return
+        // the number of nonterminals in the tree
+<span class="nc bnc" id="L348" title="All 2 branches missed.">        if (initializer.numAtomicTypes + </span>
+            initializer.numSetTypes == 1)
+<span class="nc" id="L350">            return root.numNodes(GPNode.NODESEARCH_ALL);</span>
+        // otherwise, I gotta do the dirty work
+<span class="nc" id="L352">        else return _numDemotableNodes(initializer,root,soFar,set);</span>
+        }
+
+
+    private int _numDemotableNodes(final GPInitializer initializer,
+        final GPNode root, int soFar, final GPFunctionSet set)
+        {
+<span class="nc bnc" id="L359" title="All 2 branches missed.">        if (demotable(initializer,root, set)) soFar++;</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">        for(int x=0;x&lt;root.children.length;x++) </span>
+<span class="nc" id="L361">            soFar = _numDemotableNodes(initializer,root.children[x],soFar, set);</span>
+<span class="nc" id="L362">        return soFar;</span>
+        }
+
+
+    private GPNode demotableNode;
+
+
+    private int pickDemotableNode(final GPInitializer initializer,
+        final GPNode root, int num, final GPFunctionSet set)
+        {
+        // if I have just one type, skip this and just 
+        // the num-th nonterminal
+<span class="nc bnc" id="L374" title="All 2 branches missed.">        if (initializer.numAtomicTypes + </span>
+            initializer.numSetTypes == 1)
+            {
+<span class="nc" id="L377">            demotableNode = root.nodeInPosition(num,GPNode.NODESEARCH_ALL);</span>
+<span class="nc" id="L378">            return -1; // what _pickDemotableNode() returns...</span>
+            }
+        // otherwise, I gotta do the dirty work
+<span class="nc" id="L381">        else return _pickDemotableNode(initializer,root,num,set);</span>
+        }
+    
+
+    // sticks the node in 
+    private int _pickDemotableNode(final GPInitializer initializer,
+        final GPNode root, int num, final GPFunctionSet set)
+        {
+<span class="nc bnc" id="L389" title="All 2 branches missed.">        if (demotable(initializer,root, set))</span>
+            {
+<span class="nc" id="L391">            num--;</span>
+<span class="nc bnc" id="L392" title="All 2 branches missed.">            if (num==-1)  // found it</span>
+                {
+<span class="nc" id="L394">                demotableNode = root;</span>
+<span class="nc" id="L395">                return num;</span>
+                }
+            }
+<span class="nc bnc" id="L398" title="All 2 branches missed.">        for(int x=0;x&lt;root.children.length;x++)</span>
+            {
+<span class="nc" id="L400">            num = _pickDemotableNode(initializer, root.children[x],num,set);</span>
+<span class="nc bnc" id="L401" title="All 2 branches missed.">            if (num==-1) break;  // someone found it</span>
+            }
+<span class="nc" id="L403">        return num;     </span>
+        }
+    
+
+    /** Returns true if inner1's depth + atdepth +1 is within the depth bounds */
+
+    private boolean verifyPoint(GPNode inner1)
+        {
+        // We know they're swap-compatible since we generated inner1
+        // to be exactly that.  So don't bother.
+
+        // next check to see if inner1 can be demoted
+<span class="nc bnc" id="L415" title="All 2 branches missed.">        if (inner1.depth()+inner1.atDepth()+1 &gt; maxDepth) return false;</span>
+
+        // checks done!
+<span class="nc" id="L418">        return true;</span>
+        }
+
+
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+        {
+<span class="nc" id="L430">        int start = inds.size();</span>
+                
+        // grab n individuals from our source and stick 'em right into inds.
+        // we'll modify them from there
+<span class="nc" id="L434">        int n = sources[0].produce(min,max,subpopulation,inds, state,thread, misc);</span>
+
+        // should we bother?
+<span class="nc bnc" id="L437" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+<span class="nc" id="L439">            return n;</span>
+            }
+
+
+<span class="nc" id="L443">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+
+        // now let's mutate 'em
+<span class="nc bnc" id="L446" title="All 2 branches missed.">        for(int q=start; q &lt; n+start; q++)</span>
+            {
+<span class="nc" id="L448">            GPIndividual i = (GPIndividual)inds.get(q);</span>
+            
+<span class="nc bnc" id="L450" title="All 6 branches missed.">            if (tree!=TREE_UNFIXED &amp;&amp; (tree&lt;0 || tree &gt;= i.trees.length))</span>
+                // uh oh
+<span class="nc" id="L452">                state.output.fatal(&quot;MutateDemotePipeline attempted to fix tree.0 to a value which was out of bounds of the array of the individual's trees.  Check the pipeline's fixed tree values -- they may be negative or greater than the number of trees in an individual&quot;); </span>
+            
+<span class="nc bnc" id="L454" title="All 2 branches missed.">            for (int x=0;x&lt;numTries;x++)</span>
+                {
+                int t;
+                // pick random tree
+<span class="nc bnc" id="L458" title="All 2 branches missed.">                if (tree==TREE_UNFIXED)</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">                    if (i.trees.length&gt;1) t = state.random[thread].nextInt(i.trees.length);</span>
+<span class="nc" id="L460">                    else t = 0;</span>
+<span class="nc" id="L461">                else t = tree;</span>
+                
+                // is the tree demotable?
+<span class="nc" id="L464">                int numdemote = numDemotableNodes(initializer, i.trees[t].child,0,i.trees[t].constraints(initializer).functionset);</span>
+<span class="nc bnc" id="L465" title="All 2 branches missed.">                if (numdemote==0) continue; // uh oh, try again</span>
+                
+                // demote the node, or if we're unsuccessful, just leave it alone
+<span class="nc" id="L468">                pickDemotableNode(initializer, i.trees[t].child,state.random[thread].nextInt(numdemote),i.trees[t].constraints(initializer).functionset);</span>
+                
+                // does this node exceed the maximum depth limits?
+<span class="nc bnc" id="L471" title="All 2 branches missed.">                if (!verifyPoint(demotableNode)) continue; // uh oh, try again</span>
+                
+                // demote it
+<span class="nc" id="L474">                demoteSomething(demotableNode,state,thread,i.trees[t].constraints(initializer).functionset);</span>
+<span class="nc" id="L475">                i.evaluated = false;</span>
+<span class="nc" id="L476">                break;</span>
+                }
+
+            // add the new individual, replacing its previous source
+<span class="nc" id="L480">            inds.set(q,i);</span>
+            
+            }
+<span class="nc" id="L483">        return n;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

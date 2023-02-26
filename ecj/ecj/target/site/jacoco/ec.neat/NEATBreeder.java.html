@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NEATBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.neat</a> &gt; <span class="el_source">NEATBreeder.java</span></div><h1>NEATBreeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.neat;
+
+import ec.*;
+import ec.util.*;
+
+/**
+ * NEATBreeder is a Breeder which overrides the breedPopulation method to first
+ * mark the individuals in each subspecies that are allow to reproduce, and
+ * replace the population with new individuals in each subspecies. All the heavy
+ * lifting is done in NEATSpecies and NEATSubspecies, not here.
+ * 
+ * @author Ermo Wei and David Freelan
+ */
+
+<span class="nc" id="L20">public class NEATBreeder extends Breeder</span>
+    {
+
+    public void setup(EvolutionState state, Parameter base)
+        {
+        // nothing to setup here
+<span class="nc" id="L26">        }</span>
+
+    /**
+     * This method simply call breedNewPopulation method in NEATSpecies，where
+     * all the critical work in done.
+     */
+    public Population breedPopulation(EvolutionState state)
+        {
+       
+<span class="nc" id="L35">        Population pop = state.population;</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        for (int i = 0; i &lt; pop.subpops.size(); i++)</span>
+            {
+<span class="nc" id="L38">            Subpopulation subpop = pop.subpops.get(i);</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">            if (!(subpop.species instanceof NEATSpecies))  // uh oh</span>
+<span class="nc" id="L40">                state.output.fatal(&quot;To use NEATSpecies, subpopulation &quot; + i</span>
+                    + &quot; must contain a NEATSpecies.  But it contains a &quot; + subpop.species);
+
+<span class="nc" id="L43">            NEATSpecies species = (NEATSpecies) (subpop.species);</span>
+
+         
+
+         
+<span class="nc" id="L48">            species.breedNewPopulation(state, i, 0);</span>
+
+          
+            }
+
+<span class="nc" id="L53">        return pop;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

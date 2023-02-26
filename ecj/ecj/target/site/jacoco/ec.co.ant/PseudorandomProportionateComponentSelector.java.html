@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PseudorandomProportionateComponentSelector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co.ant</a> &gt; <span class="el_source">PseudorandomProportionateComponentSelector.java</span></div><h1>PseudorandomProportionateComponentSelector.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2019 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co.ant;
+
+import ec.EvolutionState;
+import ec.Setup;
+import ec.co.Component;
+import ec.util.Misc;
+import ec.util.Parameter;
+import java.util.List;
+
+/**
+ * The classic ant transition rule used by Ant Colony System.
+ *
+ * A coin is flipped with probability &lt;code&gt;base.prob-best&lt;/code&gt;.  If it's heads, the next &lt;code&gt;Component&lt;/code&gt; is
+ * chosen greedily to have the highest heuristic value in the neighborhood.  If it's tails,
+ * &lt;code&gt;ProportionateComponentSelect&lt;/code&gt; is used instead.
+ *
+ * @author Eric O. Scott
+ */
+<span class="nc bnc" id="L24" title="All 2 branches missed.">public class PseudorandomProportionateComponentSelector implements ComponentSelector, Setup {</span>
+    public final static String P_PROB_BEST = &quot;prob-best&quot;;
+    
+    private double probBest;
+    private ProportionateComponentSelector proportionateSelector;
+    
+    public double getProbBest() {
+<span class="nc" id="L31">        return probBest;</span>
+    }
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc bnc" id="L36" title="All 4 branches missed.">        assert(base != null);</span>
+<span class="nc" id="L37">        probBest = state.parameters.getDouble(base.push(P_PROB_BEST), null, 0);</span>
+<span class="nc" id="L38">        proportionateSelector = new ProportionateComponentSelector();</span>
+<span class="nc" id="L39">        proportionateSelector.setup(state, base);</span>
+<span class="nc bnc" id="L40" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L41">    }</span>
+    
+    @Override
+    public Component choose(final EvolutionState state, final List&lt;Component&gt; components, final PheromoneTable pheromones, final int thread)
+    {
+<span class="nc bnc" id="L46" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L47" title="All 4 branches missed.">        assert(components != null);</span>
+<span class="nc bnc" id="L48" title="All 4 branches missed.">        assert(pheromones != null);</span>
+<span class="nc bnc" id="L49" title="All 4 branches missed.">        assert(thread &gt;= 0);</span>
+<span class="nc bnc" id="L50" title="All 4 branches missed.">        assert(thread &lt; state.random.length);</span>
+        
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (state.random[thread].nextDouble() &lt;= probBest)</span>
+        {
+<span class="nc" id="L54">            Component best = null;</span>
+<span class="nc" id="L55">            double best_score = Double.NEGATIVE_INFINITY;</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">            for (final Component c : components)</span>
+            {
+<span class="nc" id="L58">                final double score = c.desirability()*pheromones.get(state, c, thread);</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">                if (score &gt; best_score)</span>
+                {
+<span class="nc" id="L61">                    best = c;</span>
+<span class="nc" id="L62">                    best_score = score;</span>
+                }
+<span class="nc" id="L64">            }</span>
+<span class="nc bnc" id="L65" title="All 4 branches missed.">            assert(repOK());</span>
+<span class="nc" id="L66">            return best;</span>
+        }
+        else
+        {
+<span class="nc bnc" id="L70" title="All 4 branches missed.">            assert(repOK());</span>
+<span class="nc" id="L71">            return proportionateSelector.choose(state, components, pheromones, thread);</span>
+        }
+    }
+    
+    @Override
+    public boolean equals(final Object o)
+    {
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        if (o == this)</span>
+<span class="nc" id="L79">            return true;</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (!(o instanceof PseudorandomProportionateComponentSelector))</span>
+<span class="nc" id="L81">            return false;</span>
+<span class="nc" id="L82">        final PseudorandomProportionateComponentSelector ref = (PseudorandomProportionateComponentSelector)o;</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        return Misc.doubleEquals(probBest, ref.probBest, 0.000001)</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">                &amp;&amp; proportionateSelector.equals(ref.proportionateSelector);</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L89">        int hash = 7;</span>
+<span class="nc" id="L90">        hash = 89 * hash + (int) (Double.doubleToLongBits(this.probBest) ^ (Double.doubleToLongBits(this.probBest) &gt;&gt;&gt; 32));</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        hash = 89 * hash + (this.proportionateSelector != null ? this.proportionateSelector.hashCode() : 0);</span>
+<span class="nc" id="L92">        return hash;</span>
+    }
+    
+    public final boolean repOK()
+    {
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        return P_PROB_BEST != null</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">                &amp;&amp; !P_PROB_BEST.isEmpty()</span>
+<span class="nc bnc" id="L99" title="All 8 branches missed.">                &amp;&amp; Double.isFinite(probBest)</span>
+                &amp;&amp; probBest &gt;= 0.0
+                &amp;&amp; probBest &lt;= 1.0
+                &amp;&amp; proportionateSelector != null;
+    }
+    
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

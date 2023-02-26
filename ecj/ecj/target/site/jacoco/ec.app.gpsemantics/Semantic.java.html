@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Semantic.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.gpsemantics</a> &gt; <span class="el_source">Semantic.java</span></div><h1>Semantic.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2012 by James McDermott
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+
+*/
+
+
+package ec.app.gpsemantics;
+import ec.app.gpsemantics.func.*;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+
+import java.util.ArrayList;
+
+/*
+ * Semantic.java
+ *
+ */
+
+/**
+ * Implements Goldberg and O'Reilly's semantic Order and Majority
+ * problems. See the README.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.gp.gpdata&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * Class representing Semantic Order and Majority problems. This
+ * problem has a size: typical size is 16, which means the terminals
+ * are [X0, N0, ... X16, N16]. For Order, fitness is 1 for every time
+ * when Xi occurs before Ni, in an inorder traversal. For Majority,
+ * fitness is 1 for every time when Xi occurs more often than Ni.
+ *
+ * @author James McDermott
+ * @version 1.0
+ */
+
+<span class="nc" id="L51">public class Semantic extends GPProblem implements SimpleProblemForm</span>
+    {
+
+    final static String P_PROBLEM_NAME = &quot;problem_name&quot;;
+    final static String P_SIZE = &quot;size&quot;;
+    final static String P_ORDER = &quot;Order&quot;;
+    final static String P_MAJORITY = &quot;Majority&quot;;
+
+    String problemName;
+    int problemSize;
+    
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L66">        super.setup(state,base);</span>
+<span class="nc" id="L67">        Parameter fsSize = new Parameter(GPDefaults.P_GP).push(GPInitializer.P_FUNCTIONSETS).push(&quot;&quot; + 0).push(GPFunctionSet.P_SIZE);</span>
+<span class="nc" id="L68">        int numFuncs = state.parameters.getInt(fsSize,null,1);</span>
+<span class="nc" id="L69">        problemSize = (numFuncs - 1) / 2;</span>
+<span class="nc" id="L70">        problemName = state.parameters.getString(base.push(P_PROBLEM_NAME), base.push(P_ORDER));</span>
+<span class="nc bnc" id="L71" title="All 4 branches missed.">        if (!problemName.equals(P_ORDER) &amp;&amp; !problemName.equals(P_MAJORITY))</span>
+<span class="nc" id="L72">            state.output.error(&quot;The problem name is unrecognized&quot;,</span>
+<span class="nc" id="L73">                base.push(P_PROBLEM_NAME));</span>
+
+<span class="nc" id="L75">        state.output.message(&quot;Problem name &quot; + problemName);</span>
+<span class="nc" id="L76">        state.output.message(&quot;Problem size &quot; + problemSize);</span>
+<span class="nc" id="L77">        state.output.exitIfErrors();</span>
+<span class="nc" id="L78">        }</span>
+
+    public void evaluate(final EvolutionState state,
+        final Individual ind,
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+            // trees[0].child is the root
+                
+<span class="nc" id="L89">            ArrayList output = getSemanticOutput(((GPIndividual) ind).trees[0]);</span>
+                
+<span class="nc" id="L91">            double score = 0.0;</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">            for (int i = 0; i &lt; output.size(); i++)</span>
+                {
+<span class="nc" id="L94">                SemanticNode n = (SemanticNode) output.get(i);</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">                if (n.value() == 'X')</span>
+                    {
+<span class="nc" id="L97">                    score += 1;</span>
+                    }
+                }
+
+<span class="nc" id="L101">            SimpleFitness f = ((SimpleFitness) ind.fitness);</span>
+<span class="nc" id="L102">            f.setFitness(state, score, false);</span>
+<span class="nc" id="L103">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L105">        }</span>
+
+    /**
+     * @param t Tree to be &quot;executed&quot;
+     * @return expressed output
+     */
+    ArrayList getSemanticOutput(GPTree t)
+        {
+<span class="nc" id="L113">        ArrayList p = new ArrayList();</span>
+<span class="nc" id="L114">        ArrayList nodes = new ArrayList();</span>
+        
+        // Is there a better way to get all the nodes in a depth-first
+        // traversal? Note that the paper specifies inorder traversal,
+        // but since we're only getting the terminals, preorder,
+        // inorder, and postorder are equivalent.
+<span class="nc" id="L120">        int nterminals = t.child.numNodes(GPNode.NODESEARCH_TERMINALS);</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        for (int i = 0; i &lt; nterminals; i++)</span>
+            {
+<span class="nc" id="L123">            nodes.add(t.child.nodeInPosition(i, GPNode.NODESEARCH_TERMINALS));</span>
+            }
+
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (problemName.equals(P_ORDER))</span>
+            {
+            // Order: first occurence counts
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            for (int i = 0; i &lt; nodes.size(); i++)</span>
+                {
+<span class="nc" id="L131">                SemanticNode node = (SemanticNode) nodes.get(i);</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">                if (!nodeSameIndexExists(p, node.index()))</span>
+                    {
+<span class="nc" id="L134">                    p.add(node);</span>
+                    }
+                }
+            }
+        else
+            {
+            // Majority: most common counts
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            for (int n = 0; n &lt; problemSize; n++)</span>
+                {
+<span class="nc" id="L143">                int xCount = 0;</span>
+<span class="nc" id="L144">                int nCount = 0;</span>
+<span class="nc" id="L145">                int lastXNode = -1;</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">                for (int i = 0; i &lt; nodes.size(); i++)</span>
+                    {
+<span class="nc" id="L148">                    SemanticNode node = (SemanticNode) nodes.get(i);</span>
+<span class="nc bnc" id="L149" title="All 4 branches missed.">                    if (node.value() == 'X' &amp;&amp; node.index() == n)</span>
+                        {
+<span class="nc" id="L151">                        xCount += 1;</span>
+<span class="nc" id="L152">                        lastXNode = i;</span>
+                        }
+<span class="nc bnc" id="L154" title="All 4 branches missed.">                    else if (node.value() == 'N' &amp;&amp; node.index() == n)</span>
+                        {
+<span class="nc" id="L156">                        nCount += 1;</span>
+                        }
+                    }
+<span class="nc bnc" id="L159" title="All 4 branches missed.">                if (xCount &gt;= nCount &amp;&amp; xCount &gt; 0)</span>
+                    {
+<span class="nc" id="L161">                    p.add((SemanticNode) nodes.get(lastXNode));</span>
+                    }
+                }
+            }
+<span class="nc" id="L165">        return p;</span>
+        }
+
+    
+    /**
+     * Given a list and an index, check whether a node of that index
+     * exists in the list.
+     *
+     * @param p List of nodes
+     * @param n index
+     * @return whether node of index n exists in p.
+     */
+    boolean nodeSameIndexExists(ArrayList p, int n)
+        {
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        for (int i = 0; i &lt; p.size(); i++)</span>
+            {
+<span class="nc bnc" id="L181" title="All 2 branches missed.">            if (((SemanticNode) p.get(i)).index() == n)</span>
+                {
+<span class="nc" id="L183">                return true;</span>
+                }
+            }
+<span class="nc" id="L186">        return false;</span>
+        }
+
+    String phenotypeToString(ArrayList p)
+        {
+<span class="nc" id="L191">        String retval = &quot;&quot;;</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        for (int i = 0; i &lt; p.size(); i++) {</span>
+<span class="nc" id="L193">            retval += p.get(i).toString() + &quot; &quot;;</span>
+            }
+<span class="nc" id="L195">        return retval;</span>
+        }
+
+    // In one paper, there is a parameter for scaling, ie the fitness
+    // contribution of each Xi can be uniform, or linearly or
+    // exponentially scaled. We don't do that in this version.
+    
+    public void describe(
+        final EvolutionState state,
+        final Individual ind,
+        final int subpopulation,
+        final int threadnum,
+        final int log)
+        {
+<span class="nc" id="L209">        state.output.println(&quot;\n\nBest Individual: output = &quot; + phenotypeToString(getSemanticOutput(((GPIndividual) ind).trees[0])), log);</span>
+<span class="nc" id="L210">        }</span>
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

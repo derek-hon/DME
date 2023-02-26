@@ -1,0 +1,784 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Slave.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eval</a> &gt; <span class="el_source">Slave.java</span></div><h1>Slave.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Paus, Sean Luke, and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+/*
+ * Created on Oct 8, 2004
+ */
+package ec.eval;
+
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.ConnectException;
+import java.net.Socket;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+
+import ec.*;
+import ec.coevolve.GroupedProblemForm;
+import ec.simple.SimpleProblemForm;
+import ec.util.*;
+
+/**
+ * Slave.java
+ *
+ 
+ &lt;p&gt;Slave is the main entry point for a slave evaluation process.  The slave works with a master process,
+ receiving individuals from the master, evaluating them, and reporting the results back to the master, thus
+ enabling distributed evolution.  
+ 
+ &lt;p&gt;Slave replicates most of the functionality of
+ the ec.Evolve class, for example in terms of parameters and checkpointing.  This is mostly because it needs
+ to bootstrap and set up the EvolutionState in much the same way that ec.Evolve does.  Additionally, depending
+ on settings below, the Slave may act like a mini-evolver on the individuals it receives from the master.
+ 
+ &lt;p&gt;Like ec.Evolve, Slave is run with like this:
+ 
+ &lt;p&gt;&lt;tt&gt;java ec.eval.Slave -file &lt;/tt&gt;&lt;i&gt;parameter_file [&lt;/i&gt;&lt;tt&gt;-p &lt;/tt&gt;&lt;i&gt;parameter=value]*&lt;/i&gt;
+ 
+ &lt;p&gt;This starts a new slave, using the parameter file &lt;i&gt;parameter_file&lt;/i&gt;.
+ The user can provide optional overriding parameters on the command-line with the &lt;tt&gt;-p&lt;/tt&gt; option.
+ 
+ &lt;p&gt;Slaves need to know some things in order to run: the master's IP address and socket port number,
+ whether to do compression, and whether or not to return individuals or just fitnesses.  Unfortunately, 
+ Sun's CompressedInputStream/CompressedOutputStream is broken (it doesn't allow partial flushes, which
+ is critical for doing compressed network streams).  In order to do compression, you need to download the
+ JZLIB library from the ECJ website or from http://www.jcraft.com/jzlib/  .  ECJ will detect and use it
+ automatically.
+ 
+ &lt;p&gt;Slaves presently always run in single-threaded mode and receive their random number generator seed
+ from the master.  Thus they ignore any seed parameters given to them.
+ 
+ &lt;p&gt;Slaves run in one of three modes:
+ 
+ &lt;ul&gt;
+ &lt;p&gt;&lt;li&gt;&quot;Regular&quot; mode, which does a loop where it receives N individuals, evaluates them, and
+ returns either the individuals or their new fitnesses.
+ &lt;p&gt;&lt;li&gt;&quot;Regular Coevolutionary&quot; mode, which does a loop where it receives N individuals to assess together in
+ a single coevolutionary evaluation, evaluates them, and returns either the individuals or their new fitnesses
+ (or only some fitnesses if only some are requested).
+ &lt;p&gt;&lt;li&gt;&quot;Evolve&quot; mode, which does a loop where it receives
+ N individuals, evaluates them, and if there's some more time left, does a little evolution on those individuals as
+ if they were a population, then when the time is up, the current individuals in the population are returned in lieu
+ of the original individuals.  In this second form, individuals MUST be returned, not fitnesses.  This mode is not
+ available if you're doing coevolution.
+ &lt;/ul&gt;
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ 
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval.slave-name&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; String &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the slave's name, only for debugging purposes.  If not specified, the slave makes one up.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval.master.host&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; String &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the IP Address of the master.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval.master.port&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; integer &amp;gt;= 1024 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the socket port number of the master.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval.compression&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default) &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we use compressed streams in communicating with the master?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval.run-evolve&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default) &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we immediately evaluate the individuals and return them (or their fitnesses), or if we have extra time (defined by eval.runtime),
+ should we do a little evolution on our individuals first?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval.runtime&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; integer &amp;gt; 0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(if eval.run-evolve is true, how long (in milliseconds wall-clock time) should we allow the individuals to evolve?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval.return-inds&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default) &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we return whole individuals or (if false) just the fitnesses of the individuals?  This must be TRUE if eval.run-evolve is true.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval.one-shot&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; (default) or &lt;tt&gt;false&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(Should the slave quit when the master quits, or loop continuously in the background processing new masters?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ 
+ * 
+ * @author Liviu Panait, Sean Paus, Keith Sullivan, and Sean Luke
+ */
+ 
+ 
+ 
+<span class="nc" id="L118">public class Slave </span>
+    {
+    public final static String P_EVALSLAVENAME = &quot;eval.slave.name&quot;;
+        
+    public final static String P_EVALMASTERHOST = &quot;eval.master.host&quot;;
+        
+    public final static String P_EVALMASTERPORT = &quot;eval.master.port&quot;;
+        
+    public final static String P_EVALCOMPRESSION = &quot;eval.compression&quot;;
+    
+    public final static String P_RETURNINDIVIDUALS = &quot;eval.return-inds&quot;;
+
+    public final static String P_SILENT = &quot;eval.slave.silent&quot;;
+    public final static String P_MUZZLE = &quot;eval.slave.muzzle&quot;;
+            
+    public static final byte V_NOTHING = 0;
+    public static final byte V_INDIVIDUAL = 1;
+    public static final byte V_FITNESS = 2;
+        
+    public static final byte V_SHUTDOWN = 0;
+    public static final byte V_EVALUATESIMPLE = 1;
+    public static final byte V_EVALUATEGROUPED = 2;
+
+    /** The argument indicating that we're starting fresh from a parameter file stored in a jar file or as some resource. */
+    public static final String A_FROM = &quot;-from&quot;;
+
+    /** The argument indicating the class where the resource is relative to. */
+    public static final String A_AT = &quot;-at&quot;;
+
+    /** The argument indicating that we're starting fresh from a new parameter file. */
+    public static final String A_FILE = &quot;-file&quot;;
+        
+    /** Time to run evolution on the slaves in seconds */ 
+    public static final String P_RUNTIME = &quot;eval.slave.runtime&quot;; 
+<span class="nc" id="L152">    public static int runTime=0; </span>
+        
+    /** Should slave run its own evolutionary process? */ 
+    public static final String P_RUNEVOLVE = &quot;eval.slave.run-evolve&quot;; 
+<span class="nc" id="L156">    public static boolean runEvolve=false; </span>
+        
+    /** Should slave go into an infinite loop looking for new masters after the master has quit, or not? */
+    public static final String P_ONESHOT = &quot;eval.slave.one-shot&quot;; 
+<span class="nc" id="L160">    public static boolean oneShot=false; </span>
+        
+    /** How long we sleep in between attempts to connect to the master (in milliseconds). */
+    public static final int SLEEP_TIME = 100;
+        
+<span class="nc" id="L165">    public static final ThreadPool pool = new ThreadPool();</span>
+    
+    /** My unique slave number. At present this is just used to define a unique name. */
+<span class="nc" id="L168">    public static int slaveNum = -1;</span>
+
+    public static void main(String[] args)
+        {
+<span class="nc" id="L172">        EvolutionState state = null;</span>
+<span class="nc" id="L173">        ParameterDatabase parameters = null;</span>
+<span class="nc" id="L174">        Output output = null;</span>
+        
+        boolean store;
+                
+        // 0. find the parameter database
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        for (int x = 0; x &lt; args.length - 1; x++)</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">            if (args[x].equals(A_FILE))</span>
+                try
+                    {
+<span class="nc" id="L183">                    parameters = new ParameterDatabase(</span>
+<span class="nc" id="L184">                        new File(new File(args[x + 1]).getAbsolutePath()),</span>
+                        args);
+                                                
+                    // add the fact that I am a slave:      eval.i-am-slave = true
+                    // this is used only by the Evaluator to determine whether to use the MasterProblem
+<span class="nc" id="L189">                    parameters.set(new Parameter(ec.EvolutionState.P_EVALUATOR).push(ec.Evaluator.P_IAMSLAVE), &quot;true&quot;);</span>
+<span class="nc" id="L190">                    break;</span>
+                    }
+<span class="nc" id="L192">                catch(Exception e)</span>
+                    {
+<span class="nc" id="L194">                    e.printStackTrace();</span>
+<span class="nc" id="L195">                    Output.initialError(&quot;An exception was generated upon reading the parameter file \&quot;&quot; + args[x+1] + &quot;\&quot;.\nHere it is:\n&quot; + e); </span>
+                    }
+        
+        // search for a resource class (we may or may not use this)
+<span class="nc" id="L199">        Class cls = null;</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        for(int x=0;x&lt;args.length-1;x++)</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            if (args[x].equals(A_AT))</span>
+                try
+                    {
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                    if (parameters != null)  // uh oh</span>
+<span class="nc" id="L205">                        Output.initialError(&quot;Both -from and -at arguments provided.  This is not permitted.\nFor help, try:  java ec.Evolve -help&quot;);</span>
+                    else 
+<span class="nc" id="L207">                        cls = Class.forName(args[x+1]);</span>
+<span class="nc" id="L208">                    break;</span>
+                    }
+<span class="nc" id="L210">                catch (Exception e)</span>
+                    {
+<span class="nc" id="L212">                    e.printStackTrace();</span>
+<span class="nc" id="L213">                    Output.initialError(</span>
+                        &quot;An exception was generated upon extracting the class to load the parameter file relative to: &quot; + args[x+1] + 
+                        &quot;\nFor help, try:  java ec.Evolve -help\n\n&quot; + e);
+                    }
+                    
+        // search for a resource (we may or may not use this)
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        for(int x=0;x&lt;args.length-1;x++)</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">            if (args[x].equals(A_FROM))</span>
+                try
+                    {
+<span class="nc bnc" id="L223" title="All 2 branches missed.">                    if (parameters != null)  // uh oh</span>
+<span class="nc" id="L224">                        Output.initialError(&quot;Both -file and -from arguments provided.  This is not permitted.\nFor help, try:  java ec.Evolve -help&quot;);</span>
+                    else 
+                        {
+<span class="nc bnc" id="L227" title="All 2 branches missed.">                        if (cls == null)  // no -at</span>
+<span class="nc" id="L228">                            cls = Evolve.class;</span>
+<span class="nc" id="L229">                        parameters = new ParameterDatabase(args[x+1], cls, args);</span>
+<span class="nc" id="L230">                        Output.initialMessage(&quot;Using database resource location &quot; + parameters.getLabel());</span>
+                        }
+                        
+                    // add the fact that I am a slave:      eval.i-am-slave = true
+                    // this is used only by the Evaluator to determine whether to use the MasterProblem
+<span class="nc" id="L235">                    parameters.set(new Parameter(ec.EvolutionState.P_EVALUATOR).push(ec.Evaluator.P_IAMSLAVE), &quot;true&quot;);</span>
+<span class="nc" id="L236">                    break;</span>
+                    }
+<span class="nc" id="L238">                catch (Exception e)</span>
+                    {
+<span class="nc" id="L240">                    e.printStackTrace();</span>
+<span class="nc" id="L241">                    Output.initialError(</span>
+                        &quot;The parameter file is missing at the resource location: &quot; + args[x+1] + &quot; relative to the class: &quot; + cls + &quot;\n\nFor help, try:  java ec.Evolve -help&quot;);
+                    }
+
+        
+        
+<span class="nc bnc" id="L247" title="All 2 branches missed.">        if (parameters == null)</span>
+<span class="nc" id="L248">            Output.initialError(&quot;No parameter file was specified.&quot; ); </span>
+                
+        // 5. Determine whether or not to return entire Individuals or just Fitnesses
+        //    (plus whether or not the Individual has been evaluated).
+        
+<span class="nc" id="L253">        boolean returnIndividuals = parameters.getBoolean(new Parameter(P_RETURNINDIVIDUALS),null,false);</span>
+                
+        // 5.5 should we silence the whole thing?
+
+<span class="nc" id="L257">        boolean silent = parameters.getBoolean(new Parameter(P_SILENT), null, false);</span>
+
+<span class="nc bnc" id="L259" title="All 2 branches missed.">        if (parameters.exists(new Parameter(P_MUZZLE), null))</span>
+<span class="nc" id="L260">            Output.initialWarning(&quot;&quot; + new Parameter(P_MUZZLE) + &quot; has been deprecated.  We suggest you use &quot; + </span>
+                new Parameter(P_SILENT) + &quot; or similar newer options.&quot;);
+<span class="nc bnc" id="L262" title="All 4 branches missed.">        silent = silent || parameters.getBoolean(new Parameter(P_MUZZLE), null, false);</span>
+
+                
+        // 6. Open a server socket and listen for requests
+<span class="nc" id="L266">        String slaveName = parameters.getString(</span>
+            new Parameter(P_EVALSLAVENAME),null);
+                
+<span class="nc" id="L269">        String masterHost = parameters.getString(</span>
+            new Parameter(P_EVALMASTERHOST),null );
+<span class="nc bnc" id="L271" title="All 2 branches missed.">        if (masterHost == null)</span>
+<span class="nc" id="L272">            Output.initialError(&quot;Master Host missing&quot;, new Parameter(P_EVALMASTERHOST));</span>
+<span class="nc" id="L273">        int masterPort = parameters.getInt(</span>
+            new Parameter(P_EVALMASTERPORT),null, 0);
+<span class="nc bnc" id="L275" title="All 2 branches missed.">        if (masterPort == -1)</span>
+<span class="nc" id="L276">            Output.initialError(&quot;Master Port missing&quot;, new Parameter(P_EVALMASTERPORT));</span>
+<span class="nc" id="L277">        boolean useCompression = parameters.getBoolean(new Parameter(P_EVALCOMPRESSION),null,false);</span>
+                
+<span class="nc" id="L279">        runTime = parameters.getInt(new Parameter(P_RUNTIME), null, 0); </span>
+                
+<span class="nc" id="L281">        runEvolve = parameters.getBoolean(new Parameter(P_RUNEVOLVE),null,false); </span>
+
+<span class="nc" id="L283">        oneShot = parameters.getBoolean(new Parameter(P_ONESHOT),null,true); </span>
+        
+<span class="nc bnc" id="L285" title="All 4 branches missed.">        if (runEvolve &amp;&amp; !returnIndividuals)</span>
+            {
+<span class="nc" id="L287">            Output.initialError(&quot;You have the slave running in 'evolve' mode, but it's only returning fitnesses to the master, not whole individuals.  This is almost certainly wrong.&quot;,</span>
+                new Parameter(P_RUNEVOLVE), new Parameter(P_RETURNINDIVIDUALS));
+            }
+        
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        if (!silent) </span>
+            {
+<span class="nc" id="L293">            Output.initialMessage(&quot;ECJ Slave&quot;);</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">            if (runEvolve) Output.initialMessage(&quot;Running in Evolve mode, evolve time is &quot; + runTime + &quot; milliseconds&quot;);</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">            if (returnIndividuals) Output.initialMessage(&quot;Whole individuals will be returned&quot;);</span>
+<span class="nc" id="L296">            else Output.initialMessage(&quot;Only fitnesses will be returned&quot;);</span>
+            }
+        
+        // Continue to serve new masters until killed.
+<span class="nc" id="L300">        Socket socket = null;</span>
+        while (true)
+            {
+            try
+                {
+                try
+                    {
+<span class="nc" id="L307">                    long connectAttemptCount = 0;</span>
+<span class="nc bnc" id="L308" title="All 2 branches missed.">                    if (!silent) Output.initialMessage(&quot;Connecting to master at &quot;+masterHost+&quot;:&quot;+masterPort);</span>
+                    while (true)
+                        {
+                        try
+                            {
+<span class="nc" id="L313">                            socket = new Socket(masterHost, masterPort);</span>
+<span class="nc" id="L314">                            break;</span>
+                            }
+<span class="nc" id="L316">                        catch (ConnectException e)   // it's not up yet...</span>
+                            {
+<span class="nc" id="L318">                            connectAttemptCount++;</span>
+                            try
+                                {
+<span class="nc" id="L321">                                Thread.sleep(SLEEP_TIME);</span>
+                                }
+<span class="nc" id="L323">                            catch( InterruptedException f )</span>
+                                {
+<span class="nc" id="L325">                                }</span>
+<span class="nc" id="L326">                            }</span>
+                        }
+<span class="nc bnc" id="L328" title="All 2 branches missed.">                    if (!silent) Output.initialMessage(&quot;Connected to master after &quot; + (connectAttemptCount * SLEEP_TIME) + &quot; ms&quot;);</span>
+                    
+<span class="nc" id="L330">                    DataInputStream dataIn = null;</span>
+<span class="nc" id="L331">                    DataOutputStream dataOut = null;</span>
+
+                    try
+                        {
+<span class="nc" id="L335">                        InputStream tmpIn = socket.getInputStream();</span>
+<span class="nc" id="L336">                        OutputStream tmpOut = socket.getOutputStream();</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                        if (useCompression)</span>
+                            {
+<span class="nc" id="L339">                            tmpIn = Output.makeCompressingInputStream(tmpIn);</span>
+<span class="nc" id="L340">                            tmpOut = Output.makeCompressingOutputStream(tmpOut);</span>
+<span class="nc bnc" id="L341" title="All 4 branches missed.">                            if (tmpIn == null || tmpOut == null)</span>
+                                {
+<span class="nc" id="L343">                                String err = &quot;You do not appear to have JZLib installed on your system, and so must set eval.compression=false.  &quot; +</span>
+                                    &quot;To get JZLib, download from the ECJ website or from http://www.jcraft.com/jzlib/&quot;;
+<span class="nc bnc" id="L345" title="All 2 branches missed.">                                if (!silent) Output.initialMessage(err);</span>
+<span class="nc" id="L346">                                throw new Output.OutputExitException(err);</span>
+                                }
+                            }
+                                                
+<span class="nc" id="L350">                        dataIn = new DataInputStream(tmpIn);</span>
+<span class="nc" id="L351">                        dataOut = new DataOutputStream(tmpOut);</span>
+                        }
+<span class="nc" id="L353">                    catch (IOException e)</span>
+                        {
+<span class="nc" id="L355">                        String err = &quot;Unable to open input stream from socket:\n&quot;+e;</span>
+<span class="nc bnc" id="L356" title="All 2 branches missed.">                        if (!silent) Output.initialMessage(err);</span>
+<span class="nc" id="L357">                        throw new Output.OutputExitException(err);</span>
+<span class="nc" id="L358">                        }</span>
+                        
+                    // read the unique number assigned to me
+<span class="nc" id="L361">                    slaveNum = dataIn.readInt();</span>
+                                
+                    // specify the slaveName
+<span class="nc bnc" id="L364" title="All 2 branches missed.">                    if (slaveName==null)</span>
+                        {                    
+<span class="nc" id="L366">                        slaveName = socket.getLocalAddress().toString() + &quot;/&quot; + slaveNum;</span>
+<span class="nc bnc" id="L367" title="All 2 branches missed.">                        if (!silent) Output.initialMessage(&quot;No slave name specified.  Using: &quot; + slaveName);</span>
+                        }
+                                
+<span class="nc" id="L370">                    dataOut.writeUTF(slaveName);</span>
+<span class="nc" id="L371">                    dataOut.flush();</span>
+
+                    // 1. create the output
+                    // store = parameters.getBoolean(new Parameter(P_STORE), null, false);
+                
+<span class="nc bnc" id="L376" title="All 2 branches missed.">                    if (output != null) output.close();</span>
+<span class="nc" id="L377">                    output = new Output(false);              // do not store messages, just print them</span>
+<span class="nc" id="L378">                    output.setThrowsErrors(true);  // don't do System.exit(1);</span>
+                
+                    // stdout is always log #0. stderr is always log #1.
+                    // stderr accepts announcements, and both are fully verbose
+                    // by default.
+<span class="nc" id="L383">                    output.addLog(ec.util.Log.D_STDOUT, false);</span>
+<span class="nc" id="L384">                    output.addLog(ec.util.Log.D_STDERR, true);</span>
+
+<span class="nc bnc" id="L386" title="All 2 branches missed.">                    if (silent)</span>
+                        {
+<span class="nc" id="L388">                        output.getLog(0).silent = true;</span>
+<span class="nc" id="L389">                        output.getLog(1).silent = true;</span>
+                        }
+
+<span class="nc bnc" id="L392" title="All 2 branches missed.">                    if (!silent) output.systemMessage(Version.message());</span>
+
+
+                    // 2. set up thread values
+<span class="nc" id="L396">                    int breedthreads = Evolve.determineThreads(output, parameters, new Parameter(Evolve.P_BREEDTHREADS));</span>
+<span class="nc" id="L397">                    int evalthreads = Evolve.determineThreads(output, parameters, new Parameter(Evolve.P_EVALTHREADS));</span>
+
+                    // Note that either breedthreads or evalthreads (or both) may be 'auto'.  We don't warn about this because
+                    // the user isn't providing the thread seeds.
+                
+
+                    // 3. create the Mersenne Twister random number generators,
+                    // one per thread
+
+<span class="nc bnc" id="L406" title="All 2 branches missed.">                    MersenneTwisterFast[] random = new MersenneTwisterFast[breedthreads &gt; evalthreads ? </span>
+<span class="nc" id="L407">                        breedthreads : evalthreads];</span>
+        
+<span class="nc" id="L409">                    int seed = dataIn.readInt();</span>
+<span class="nc bnc" id="L410" title="All 2 branches missed.">                    for(int i = 0; i &lt; random.length; i++)</span>
+<span class="nc" id="L411">                        random[i] = Evolve.primeGenerator(new MersenneTwisterFast(seed++));  // we prime the generator to be more sure of randomness.</span>
+
+                    // 4. Set up the evolution state
+                
+                    // what evolution state to use?
+<span class="nc" id="L416">                    state = (EvolutionState)</span>
+<span class="nc" id="L417">                        parameters.getInstanceForParameter(new Parameter(ec.Evolve.P_STATE),null,</span>
+                            EvolutionState.class);
+<span class="nc" id="L419">                    state.parameters = new ParameterDatabase();</span>
+<span class="nc" id="L420">                    state.parameters.addParent(parameters);</span>
+<span class="nc" id="L421">                    state.random = random;</span>
+<span class="nc" id="L422">                    state.output = output;</span>
+<span class="nc" id="L423">                    state.evalthreads = evalthreads;</span>
+<span class="nc" id="L424">                    state.breedthreads = breedthreads;</span>
+        
+<span class="nc" id="L426">                    state.setup(state, null);</span>
+<span class="nc" id="L427">                    state.population = state.initializer.setupPopulation(state, 0);</span>
+                
+                    // 5. Optionally do further loading
+<span class="nc" id="L430">                    final MasterProblem storage = state.evaluator.masterproblem;</span>
+<span class="nc" id="L431">                    storage.receiveAdditionalData(state, dataIn);</span>
+<span class="nc" id="L432">                    storage.transferAdditionalData(state);</span>
+                                
+                    try
+                        {
+                        while (true)
+                            {
+<span class="nc" id="L438">                            EvolutionState newState = state;</span>
+                        
+<span class="nc bnc" id="L440" title="All 2 branches missed.">                            if (runEvolve) </span>
+                                {
+                                // Construct and use a new EvolutionState.  This will be inefficient the first time around
+                                // as we've set up TWO EvolutionStates in a row with no good reason.
+<span class="nc" id="L444">                                ParameterDatabase coverDatabase = new ParameterDatabase();  // protect the underlying one</span>
+<span class="nc" id="L445">                                coverDatabase.addParent(state.parameters);</span>
+<span class="nc" id="L446">                                newState = (EvolutionState) Evolve.initialize(coverDatabase, 0);</span>
+<span class="nc" id="L447">                                newState.startFresh();</span>
+<span class="nc" id="L448">                                newState.output.message(&quot;Replacing random number generators, ignore above seed message&quot;);</span>
+<span class="nc" id="L449">                                newState.random = state.random;  // continue with RNG</span>
+<span class="nc" id="L450">                                storage.transferAdditionalData(newState);  // load the arbitrary data again</span>
+                                }
+                        
+                            // 0 means to shut down
+<span class="nc" id="L454">                            int problemType = dataIn.readByte();</span>
+<span class="nc bnc" id="L455" title="All 4 branches missed.">                            switch (problemType)</span>
+                                {
+                                case V_SHUTDOWN:
+                                    {
+<span class="nc" id="L459">                                    socket.close();</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">                                    if (oneShot)</span>
+<span class="nc" id="L461">                                        return;  // we're outa here</span>
+                                    else
+<span class="nc" id="L463">                                        throw new Output.OutputExitException(&quot;SHUTDOWN&quot;);</span>
+                                    }
+                                case V_EVALUATESIMPLE:
+<span class="nc" id="L466">                                    evaluateSimpleProblemForm(newState, returnIndividuals, dataIn, dataOut, args);</span>
+<span class="nc" id="L467">                                    break;</span>
+                                case V_EVALUATEGROUPED:
+<span class="nc" id="L469">                                    evaluateGroupedProblemForm(newState, returnIndividuals, dataIn, dataOut);</span>
+<span class="nc" id="L470">                                    break;</span>
+                                default:
+<span class="nc" id="L472">                                    state.output.fatal(&quot;Unknown problem form specified: &quot;+problemType);</span>
+                                }
+<span class="nc" id="L474">                            }</span>
+
+                        } 
+<span class="nc" id="L477">                    catch (Exception e)    </span>
+                        {
+                        // Since an IOException can happen here if the peer closes the socket
+                        // on it's end, we don't necessarily have to exit.  Maybe we don't
+                        // even need to print a warning, but we'll do so just to indicate
+                        // something happened.
+<span class="nc" id="L483">                        state.output.fatal(&quot;Unable to read type of evaluation from master.  Maybe the master closed its socket and exited?:\n&quot; + e);</span>
+                        }
+                    } 
+<span class="nc" id="L486">                catch (UnknownHostException e)</span>
+                    {
+<span class="nc bnc" id="L488" title="All 2 branches missed.">                    if (state != null)</span>
+<span class="nc" id="L489">                        state.output.fatal(e.getMessage());</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">                    else if (!silent) Output.initialError(&quot;FATAL ERROR (EvolutionState not created yet): &quot; + e.getMessage());</span>
+                    }
+<span class="nc" id="L492">                catch (IOException e)</span>
+                    {
+<span class="nc bnc" id="L494" title="All 2 branches missed.">                    if (state != null)</span>
+<span class="nc" id="L495">                        state.output.fatal(&quot;Unable to connect to master:\n&quot; + e);</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">                    else if (!silent) Output.initialError(&quot;FATAL ERROR (EvolutionState not created yet): &quot; + e);</span>
+<span class="nc" id="L497">                    }</span>
+                }
+<span class="nc" id="L499">            catch (Output.OutputExitException e)</span>
+                {
+                // here we restart if necessary
+<span class="nc" id="L502">                try { socket.close(); } catch (Exception e2) { }</span>
+<span class="nc bnc" id="L503" title="All 2 branches missed.">                if (oneShot) System.exit(0);</span>
+                }
+<span class="nc" id="L505">            catch (OutOfMemoryError e)</span>
+                {
+                // Let's try fixing things
+<span class="nc" id="L508">                state = null;</span>
+<span class="nc" id="L509">                System.gc();</span>
+<span class="nc" id="L510">                try { socket.close(); } catch (Exception e2) { }</span>
+<span class="nc" id="L511">                socket = null;</span>
+<span class="nc" id="L512">                System.gc();</span>
+<span class="nc" id="L513">                System.err.println(e);</span>
+<span class="nc bnc" id="L514" title="All 2 branches missed.">                if (oneShot) System.exit(0);</span>
+<span class="nc" id="L515">                }</span>
+<span class="nc bnc" id="L516" title="All 2 branches missed.">            if (!silent) Output.initialMessage(&quot;\n\nResetting Slave&quot;);</span>
+            }
+        }
+                            
+    public static void evaluateSimpleProblemForm( final EvolutionState state, boolean returnIndividuals,
+        DataInputStream dataIn, DataOutputStream dataOut, String[] args )
+        {
+<span class="nc" id="L523">        ParameterDatabase params=null; </span>
+        
+        // first load the individuals
+<span class="nc" id="L526">        int numInds=1; </span>
+        try
+            {
+<span class="nc" id="L529">            numInds = dataIn.readInt();</span>
+            }
+<span class="nc" id="L531">        catch (Exception e)</span>
+            {
+<span class="nc" id="L533">            state.output.fatal(&quot;Unable to read the number of individuals from the master:\n&quot;+e);</span>
+<span class="nc" id="L534">            }</span>
+        
+        // load the subpops 
+<span class="nc" id="L537">        final int[] subpops = new int[numInds];  // subpops desired by each ind</span>
+<span class="nc" id="L538">        int[] indsPerSubpop = new int[state.population.subpops.size()];  // num inds for each subpop</span>
+<span class="nc bnc" id="L539" title="All 2 branches missed.">        for(int i = 0; i &lt; numInds; i++)</span>
+            {
+            try
+                {
+<span class="nc" id="L543">                subpops[i] = dataIn.readInt();</span>
+<span class="nc bnc" id="L544" title="All 4 branches missed.">                if (subpops[i] &lt; 0 || subpops[i] &gt;= state.population.subpops.size())</span>
+<span class="nc" id="L545">                    state.output.fatal(&quot;Bad subpop number for individual #&quot; + i + &quot;: &quot; + subpops[i]);</span>
+<span class="nc" id="L546">                indsPerSubpop[subpops[i]]++;</span>
+                }
+<span class="nc" id="L548">            catch (Exception e)</span>
+                {
+<span class="nc" id="L550">                state.output.fatal(&quot;Unable to read the subpop number from the master:\n&quot;+e);</span>
+<span class="nc" id="L551">                }</span>
+            }
+        
+                
+        // Read the individual(s) from the stream and evaluate 
+        
+<span class="nc" id="L557">        boolean[] updateFitness = new boolean[numInds];</span>
+<span class="nc" id="L558">        final Individual[] inds = new Individual[numInds];</span>
+        
+                        
+                        
+        // Either evaluate all the individuals once and return them immediately
+        // (we'll do so in a steady-state-ish fashion, firing off threads as soon as we read in individuals,
+        // and returning them as soon as they come in, albeit in the proper order)
+<span class="nc bnc" id="L565" title="All 2 branches missed.">        if (!runEvolve)</span>
+            {
+<span class="nc" id="L567">            ThreadPool.Worker[] threads = new ThreadPool.Worker[state.evalthreads];</span>
+<span class="nc" id="L568">            final SimpleProblemForm[] problems = new SimpleProblemForm[state.evalthreads];</span>
+<span class="nc" id="L569">            int[] indForThread = new int[state.evalthreads];</span>
+                        
+            try
+                {
+<span class="nc" id="L573">                int t = 0;              // thread index</span>
+                        
+                // start up all the threads
+<span class="nc bnc" id="L576" title="All 2 branches missed.">                for(int i = 0 ; i &lt; numInds; i++)</span>
+                    {
+                    // load individual
+<span class="nc" id="L579">                    inds[i] = state.population.subpops.get(subpops[i]).species.newIndividual(state, dataIn);</span>
+<span class="nc" id="L580">                    updateFitness[i] = dataIn.readBoolean(); </span>
+
+                    // fire up evaluation thread on individual
+<span class="nc bnc" id="L583" title="All 2 branches missed.">                    if (t &gt;= state.evalthreads) t = 0;       // we can only be here if evalthreads &gt; numInds</span>
+<span class="nc bnc" id="L584" title="All 2 branches missed.">                    if (threads[t] != null)</span>
+                        {
+<span class="nc" id="L586">                        pool.join(threads[t]);  // ran out of threads, wait for new ones</span>
+<span class="nc" id="L587">                        returnIndividualsToMaster(state, inds, updateFitness, dataOut, returnIndividuals, indForThread[t]);  // return just that individual</span>
+                        }
+<span class="nc bnc" id="L589" title="All 2 branches missed.">                    if (problems[t] == null) problems[t] = ((SimpleProblemForm)(state.evaluator.p_problem.clone()));</span>
+
+<span class="nc" id="L591">                    final int j = i;</span>
+<span class="nc" id="L592">                    final int s = t;</span>
+<span class="nc" id="L593">                    indForThread[t] = i;</span>
+<span class="nc" id="L594">                    threads[t] = pool.start(new Runnable()</span>
+<span class="nc" id="L595">                        {</span>
+<span class="nc" id="L596">                        public void run() { problems[s].evaluate( state, inds[j], subpops[j], 0 ); }</span>
+                        }, &quot;Evaluation of individual &quot; + i);
+<span class="nc" id="L598">                    t++;</span>
+                    }
+                                
+                // gather everyone
+<span class="nc bnc" id="L602" title="All 2 branches missed.">                for(t = 0; t &lt; state.evalthreads; t++)</span>
+                    {
+<span class="nc bnc" id="L604" title="All 2 branches missed.">                    if (threads[t] != null)</span>
+                        {
+<span class="nc" id="L606">                        pool.join(threads[t]);</span>
+<span class="nc" id="L607">                        returnIndividualsToMaster(state, inds, updateFitness, dataOut, returnIndividuals, indForThread[t]);   // return just that individual</span>
+                        }
+                    }
+                }
+<span class="nc" id="L611">            catch (Exception e)</span>
+                {
+<span class="nc" id="L613">                state.output.fatal(&quot;Unable to read individual from master:\n&quot; + e);</span>
+<span class="nc" id="L614">                }</span>
+            try
+                {
+<span class="nc" id="L617">                dataOut.flush();</span>
+                } 
+<span class="nc" id="L619">            catch( IOException e ) { state.output.fatal(&quot;Caught fatal IOException:\n&quot;+e ); }</span>
+<span class="nc" id="L620">            }</span>
+                        
+                        
+                        
+                
+        // OR we will do some evolution.  Here we'll read in ALL the individuals, do some evolution, then
+        // write them ALL out, very slightly less efficient
+        else // (runEvolve) 
+            {
+            try             // load up all the individuals
+                {
+<span class="nc bnc" id="L631" title="All 2 branches missed.">                for (int i=0; i &lt; numInds; i++) </span>
+                    { 
+<span class="nc" id="L633">                    inds[i] = state.population.subpops.get(subpops[i]).species.newIndividual(state, dataIn);</span>
+<span class="nc" id="L634">                    updateFitness[i] = dataIn.readBoolean(); </span>
+                    }
+                }
+<span class="nc" id="L637">            catch (Exception e)</span>
+                {
+<span class="nc" id="L639">                state.output.fatal(&quot;Unable to read individual from master:\n&quot; + e);</span>
+<span class="nc" id="L640">                }</span>
+                        
+                        
+<span class="nc" id="L643">            long startTime = System.currentTimeMillis(); </span>
+<span class="nc" id="L644">            long endTime=0; </span>
+
+            // Now we need to reset the subpopulations.  They were already set up with the right
+            // classes, Species, etc. in state.setup(), so all we need to do is modify the number
+            // of individuals in each subpopulation.
+        
+<span class="nc bnc" id="L650" title="All 2 branches missed.">            for(int subpop = 0; subpop &lt; state.population.subpops.size(); subpop++)</span>
+                {
+<span class="nc bnc" id="L652" title="All 2 branches missed.">                if (state.population.subpops.get(subpop).individuals.size() != indsPerSubpop[subpop])</span>
+<span class="nc" id="L653">                    state.population.subpops.get(subpop).individuals = new ArrayList&lt;Individual&gt;(indsPerSubpop[subpop]);</span>
+                }
+            
+            // Disperse into the population
+<span class="nc" id="L657">            int[] counts = new int[state.population.subpops.size()];</span>
+<span class="nc bnc" id="L658" title="All 2 branches missed.">            for(int i =0; i &lt; numInds; i++)</span>
+<span class="nc" id="L659">                state.population.subpops.get(subpops[i]).individuals.set(counts[subpops[i]]++,inds[i]);</span>
+            
+            // Evaluate the population until time is up, or the evolution stops
+<span class="nc" id="L662">            int result = state.R_NOTDONE; </span>
+<span class="nc bnc" id="L663" title="All 2 branches missed.">            while (result == state.R_NOTDONE) </span>
+                { 
+<span class="nc" id="L665">                result = state.evolve(); </span>
+<span class="nc" id="L666">                endTime = System.currentTimeMillis(); </span>
+<span class="nc bnc" id="L667" title="All 2 branches missed.">                if ((endTime - startTime) &gt; runTime) </span>
+<span class="nc" id="L668">                    break;</span>
+                }
+                
+            // re-gather from population in the same order
+<span class="nc" id="L672">            counts = new int[state.population.subpops.size()];</span>
+<span class="nc bnc" id="L673" title="All 2 branches missed.">            for(int i =0; i &lt; numInds; i++)</span>
+<span class="nc" id="L674">                inds[i] = state.population.subpops.get(subpops[i]).individuals.get(counts[subpops[i]]++);</span>
+<span class="nc" id="L675">            state.finish(result);</span>
+<span class="nc" id="L676">            Evolve.cleanup(state);</span>
+
+            // Return the evaluated individual to the master
+            try 
+                { 
+<span class="nc" id="L681">                returnIndividualsToMaster(state, inds, updateFitness, dataOut, returnIndividuals, -1);  // -1 == write all individuals</span>
+<span class="nc" id="L682">                dataOut.flush();</span>
+                } 
+<span class="nc" id="L684">            catch( IOException e ) { state.output.fatal(&quot;Caught fatal IOException\n&quot;+e ); }</span>
+            }
+<span class="nc" id="L686">        }</span>
+    
+        
+        
+        
+        
+        
+        
+        
+    public static void evaluateGroupedProblemForm( EvolutionState state, boolean returnIndividuals,
+        DataInputStream dataIn, DataOutputStream dataOut )
+        {
+<span class="nc" id="L698">        boolean countVictoriesOnly = false;</span>
+
+        // first load the individuals
+<span class="nc" id="L701">        int numInds = 1;</span>
+        try
+            {
+<span class="nc" id="L704">            countVictoriesOnly = dataIn.readBoolean();</span>
+<span class="nc" id="L705">            numInds = dataIn.readInt();</span>
+            }
+<span class="nc" id="L707">        catch (Exception e)</span>
+            {
+<span class="nc" id="L709">            state.output.fatal(&quot;Unable to read the number of individuals from the master:\n&quot;+e);</span>
+<span class="nc" id="L710">            }</span>
+
+        // load the subpops 
+<span class="nc" id="L713">        int[] subpops = new int[numInds];  // subpops desired by each ind</span>
+<span class="nc" id="L714">        int[] indsPerSubpop = new int[state.population.subpops.size()];  // num inds for each subpop</span>
+<span class="nc bnc" id="L715" title="All 2 branches missed.">        for(int i = 0; i &lt; numInds; i++)</span>
+            {
+            try
+                {
+<span class="nc" id="L719">                subpops[i] = dataIn.readInt();</span>
+<span class="nc bnc" id="L720" title="All 4 branches missed.">                if (subpops[i] &lt; 0 || subpops[i] &gt;= state.population.subpops.size())</span>
+<span class="nc" id="L721">                    state.output.fatal(&quot;Bad subpop number for individual #&quot; + i + &quot;: &quot; + subpops[i]);</span>
+<span class="nc" id="L722">                indsPerSubpop[subpops[i]]++;</span>
+                }
+<span class="nc" id="L724">            catch (Exception e)</span>
+                {
+<span class="nc" id="L726">                state.output.fatal(&quot;Unable to read the subpop number from the master:\n&quot;+e);</span>
+<span class="nc" id="L727">                }</span>
+            }
+
+        // Read the individuals from the stream
+<span class="nc" id="L731">        Individual inds[] = new Individual[numInds];</span>
+<span class="nc" id="L732">        boolean updateFitness[] = new boolean[numInds];</span>
+        try
+            {
+<span class="nc bnc" id="L735" title="All 2 branches missed.">            for(int i=0;i&lt;inds.length;++i)</span>
+                {
+<span class="nc" id="L737">                inds[i] = state.population.subpops.get(subpops[i]).species.newIndividual( state, dataIn );</span>
+<span class="nc" id="L738">                updateFitness[i] = dataIn.readBoolean();</span>
+                }
+            }
+<span class="nc" id="L741">        catch (Exception e)</span>
+            {
+<span class="nc" id="L743">            state.output.fatal(&quot;Unable to read individual from master:\n&quot; + e);</span>
+<span class="nc" id="L744">            }</span>
+                
+        // Evaluate the individuals together
+<span class="nc" id="L747">        ((GroupedProblemForm)(state.evaluator.p_problem)).evaluate( state, inds, updateFitness, countVictoriesOnly, subpops, 0 );</span>
+                                
+        try 
+            {
+<span class="nc" id="L751">            returnIndividualsToMaster(state, inds, updateFitness, dataOut, returnIndividuals, -1);      // -1 == write all individuals</span>
+<span class="nc" id="L752">            dataOut.flush();</span>
+            } 
+<span class="nc" id="L754">        catch( IOException e ) { state.output.fatal(&quot;Caught fatal IOException\n&quot;+e ); }</span>
+<span class="nc" id="L755">        }</span>
+        
+        
+        
+        
+        
+    // if individualInQuestion is -1, all individuals are returned
+    static void returnIndividualsToMaster(EvolutionState state, Individual []inds, boolean[] updateFitness,
+        DataOutputStream dataOut, boolean returnIndividuals, int individualInQuestion) throws IOException 
+        {
+        // Return the evaluated individual to the master
+        // just write evaluated and fitness
+<span class="nc bnc" id="L767" title="All 2 branches missed.">        int startInd = (individualInQuestion == -1 ? 0 : individualInQuestion);</span>
+<span class="nc bnc" id="L768" title="All 2 branches missed.">        int endInd = (individualInQuestion == -1 ? inds.length : individualInQuestion + 1);</span>
+<span class="nc bnc" id="L769" title="All 2 branches missed.">        for(int i = startInd; i&lt;endInd;i++)</span>
+            {
+<span class="nc bnc" id="L771" title="All 4 branches missed.">            dataOut.writeByte(returnIndividuals ? V_INDIVIDUAL : (updateFitness[i] ? V_FITNESS : V_NOTHING));</span>
+<span class="nc bnc" id="L772" title="All 2 branches missed.">            if (returnIndividuals)</span>
+                {
+<span class="nc" id="L774">                inds[i].writeIndividual(state, dataOut);</span>
+                }
+<span class="nc bnc" id="L776" title="All 2 branches missed.">            else if (updateFitness[i])</span>
+                {
+<span class="nc" id="L778">                dataOut.writeBoolean(inds[i].evaluated);</span>
+<span class="nc" id="L779">                inds[i].fitness.writeFitness(state,dataOut);</span>
+                }
+            }
+<span class="nc" id="L782">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

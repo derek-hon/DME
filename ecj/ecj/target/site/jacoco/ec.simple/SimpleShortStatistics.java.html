@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SimpleShortStatistics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.simple</a> &gt; <span class="el_source">SimpleShortStatistics.java</span></div><h1>SimpleShortStatistics.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.simple;
+import ec.*;
+import java.io.*;
+import ec.util.*;
+
+/* 
+ * SimpleShortStatistics.java
+ * 
+ * Created: Tue Jun 19 15:08:29 EDT 2001
+ * By: Sean Luke
+ */
+
+/**
+ * A Simple-style statistics generator, intended to be easily parseable with
+ * awk or other Unix tools.  Prints fitness information,
+ * one generation (or pseudo-generation) per line.
+ * If do-time is true, then timing information is also given.  If do-size is true, then size information is also given.
+ * No final statistics information is provided.  You can also set SimpleShortStatistics to only output every *modulus* generations
+ * to keep the tally shorter.  And you can gzip the statistics file.
+ *
+ * &lt;p&gt; Each line represents a single generation.  
+ * The first items on a line are always:
+ &lt;ul&gt;
+ &lt;li&gt; The generation number
+ &lt;li&gt; (if do-time) how long initialization took in milliseconds, or how long the previous generation took to breed to form this generation
+ &lt;li&gt; (if do-time) How long evaluation took in milliseconds this generation
+ &lt;/ul&gt;
+
+ &lt;p&gt;Then, (if do-subpops) the following items appear, once per each subpopulation:
+ &lt;ul&gt;
+ &lt;li&gt; (if do-size) The average size of an individual this generation
+ &lt;li&gt; (if do-size) The average size of an individual so far in the run
+ &lt;li&gt; (if do-size) The size of the best individual this generation
+ &lt;li&gt; (if do-size) The size of the best individual so far in the run
+ &lt;li&gt; The mean fitness of the subpopulation this generation
+ &lt;li&gt; The best fitness of the subpopulation this generation
+ &lt;li&gt; The best fitness of the subpopulation so far in the run
+ &lt;/ul&gt;
+ 
+ &lt;p&gt;Then the following items appear, for the whole population:
+ &lt;ul&gt;
+ &lt;li&gt; (if do-size) The average size of an individual this generation
+ &lt;li&gt; (if do-size) The average size of an individual so far in the run
+ &lt;li&gt; (if do-size) The size of the best individual this generation
+ &lt;li&gt; (if do-size) The size of the best individual so far in the run
+ &lt;li&gt; The mean fitness this generation
+ &lt;li&gt; The best fitness this generation
+ &lt;li&gt; The best fitness so far in the run
+ &lt;/ul&gt;
+
+
+ Compressed files will be overridden on restart from checkpoint; uncompressed files will be 
+ appended on restart.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;file&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String (a filename), or nonexistant (signifies stdout)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the log for statistics)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;gzip&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;boolean&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(whether or not to compress the file (.gz suffix added)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;modulus&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;integer &gt;= 1 (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(How often (in generations) should we print a statistics line?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;do-time&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(print timing information?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;do-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(print sizing information?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;do-subpops&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(print information on a per-subpop basis as well as per-population?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ * @author Sean Luke
+ * @version 2.0 
+ */
+
+<span class="fc" id="L87">public class SimpleShortStatistics extends Statistics</span>
+    {
+    public static final String P_STATISTICS_MODULUS = &quot;modulus&quot;;
+    public static final String P_DELIMITER = &quot;delimiter&quot;;
+    public static final String P_COMPRESS = &quot;gzip&quot;;
+    public static final String P_FULL = &quot;gather-full&quot;;
+    public static final String P_DO_SIZE = &quot;do-size&quot;;
+    public static final String P_DO_TIME = &quot;do-time&quot;;
+    public static final String P_DO_SUBPOPS = &quot;do-subpops&quot;;
+    public static final String P_DO_HEADER = &quot;do-header&quot;;
+    public static final String P_STATISTICS_FILE = &quot;file&quot;;
+    
+        
+<span class="fc" id="L100">    public int statisticslog = 0;  // stdout by default</span>
+    public int modulus;
+<span class="fc" id="L102">    public String delimiter = &quot; &quot;;</span>
+    public boolean doSize;
+    public boolean doTime;
+    public boolean doSubpops;
+    public boolean doHeader;
+
+    public Individual[] bestSoFar;
+    public long[] totalSizeSoFar;
+    public long[] totalIndsSoFar;
+    public long[] totalIndsThisGen;                         // total assessed individuals
+    public long[] totalSizeThisGen;                         // per-subpop total size of individuals this generation
+    public double[] totalFitnessThisGen;                    // per-subpop mean fitness this generation
+    public Individual[] bestOfGeneration;   // per-subpop best individual this generation
+        
+    // timings
+    public long lastTime;
+        
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L121">        super.setup(state,base);</span>
+<span class="fc" id="L122">        File statisticsFile = state.parameters.getFile(</span>
+<span class="fc" id="L123">            base.push(P_STATISTICS_FILE),null);</span>
+
+<span class="fc" id="L125">        modulus = state.parameters.getIntWithDefault(base.push(P_STATISTICS_MODULUS), null, 1);</span>
+
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">        if (silentFile)</span>
+            {
+<span class="nc" id="L129">            statisticslog = Output.NO_LOGS;</span>
+            }
+<span class="pc bpc" id="L131" title="1 of 2 branches missed.">        else if (statisticsFile!=null) </span>
+            {
+            try
+                {
+<span class="fc" id="L135">                statisticslog = state.output.addLog(statisticsFile,</span>
+<span class="pc bpc" id="L136" title="1 of 2 branches missed.">                    !state.parameters.getBoolean(base.push(P_COMPRESS),null,false),</span>
+<span class="fc" id="L137">                    state.parameters.getBoolean(base.push(P_COMPRESS),null,false));</span>
+                }
+<span class="nc" id="L139">            catch (IOException i)</span>
+                {
+<span class="nc" id="L141">                state.output.fatal(&quot;An IOException occurred while trying to create the log &quot; + statisticsFile + &quot;:\n&quot; + i);</span>
+<span class="pc" id="L142">                }</span>
+            }
+<span class="nc" id="L144">        else state.output.warning(&quot;No statistics file specified, printing to stdout at end.&quot;, base.push(P_STATISTICS_FILE));</span>
+
+<span class="fc" id="L146">        doSize = state.parameters.getBoolean(base.push(P_DO_SIZE),null,false);</span>
+<span class="fc" id="L147">        doTime = state.parameters.getBoolean(base.push(P_DO_TIME),null,false);</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">        if (state.parameters.exists(base.push(P_FULL), null))</span>
+            {
+<span class="nc" id="L150">            state.output.warning(P_FULL + &quot; is deprecated.  Use &quot; + P_DO_SIZE + &quot; and &quot; + P_DO_TIME + &quot; instead.  Also be warned that the table columns have been reorganized. &quot;, base.push(P_FULL), null);</span>
+<span class="nc" id="L151">            boolean gather = state.parameters.getBoolean(base.push(P_FULL), null, false);</span>
+<span class="nc bnc" id="L152" title="All 4 branches missed.">            doSize = doSize || gather;</span>
+<span class="nc bnc" id="L153" title="All 4 branches missed.">            doTime = doTime || gather;</span>
+            }
+<span class="fc" id="L155">        doSubpops = state.parameters.getBoolean(base.push(P_DO_SUBPOPS),null,false);</span>
+<span class="fc" id="L156">        doHeader = state.parameters.getBoolean(base.push(P_DO_HEADER), null, true);</span>
+<span class="fc" id="L157">        }</span>
+
+
+<span class="nc" id="L160">    public Individual[] getBestSoFar() { return bestSoFar; }</span>
+
+    public void preInitializationStatistics(final EvolutionState state)
+        {
+<span class="fc" id="L164">        super.preInitializationStatistics(state);</span>
+<span class="pc bpc" id="L165" title="1 of 2 branches missed.">        if (doHeader)</span>
+<span class="fc" id="L166">            state.output.print(getHeader(), statisticslog);</span>
+<span class="pc bpc" id="L167" title="1 of 2 branches missed.">        boolean output = (state.generation % modulus == 0);</span>
+       
+<span class="pc bpc" id="L169" title="2 of 4 branches missed.">        if (output &amp;&amp; doTime) </span>
+            {
+            // Runtime r = Runtime.getRuntime();
+<span class="nc" id="L172">            lastTime = System.currentTimeMillis();</span>
+            }
+<span class="fc" id="L174">        }</span>
+    
+    public void postInitializationStatistics(final EvolutionState state)
+        {
+<span class="fc" id="L178">        super.postInitializationStatistics(state);</span>
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">        boolean output = (state.generation % modulus == 0);</span>
+        
+        // set up our bestSoFar array -- can't do this in setup, because
+        // we don't know if the number of subpopulations has been determined yet
+<span class="fc" id="L183">        bestSoFar = new Individual[state.population.subpops.size()];</span>
+        
+        // print out our generation number
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">        if (output) state.output.print(&quot;0&quot;, statisticslog);</span>
+
+        // gather timings       
+<span class="fc" id="L189">        totalSizeSoFar = new long[state.population.subpops.size()];</span>
+<span class="fc" id="L190">        totalIndsSoFar = new long[state.population.subpops.size()];</span>
+
+<span class="pc bpc" id="L192" title="2 of 4 branches missed.">        if (output &amp;&amp; doTime)</span>
+            {
+            //Runtime r = Runtime.getRuntime();
+<span class="nc" id="L195">            state.output.print(delimiter + (System.currentTimeMillis()-lastTime),  statisticslog);</span>
+            }
+<span class="fc" id="L197">        }</span>
+    
+    private String getHeader()
+        {
+<span class="fc" id="L201">        final StringBuilder sb = new StringBuilder(&quot;generation&quot;);</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">        if (doTime)</span>
+<span class="nc" id="L203">            sb.append(delimiter).append(&quot;time&quot;);</span>
+<span class="pc bpc" id="L204" title="1 of 2 branches missed.">        if (doSize)</span>
+            {
+<span class="nc" id="L206">            sb.append(delimiter).append(&quot;meanSizeThisGen&quot;);</span>
+<span class="nc" id="L207">            sb.append(delimiter).append(&quot;meanSizeSoFar&quot;);</span>
+<span class="nc" id="L208">            sb.append(delimiter).append(&quot;sizeOfBestOfGen&quot;);</span>
+<span class="nc" id="L209">            sb.append(delimiter).append(&quot;sizeOfBestSoFar&quot;);</span>
+            }
+<span class="fc" id="L211">        sb.append(delimiter).append(&quot;meanFitness&quot;);</span>
+<span class="fc" id="L212">        sb.append(delimiter).append(&quot;bestOfGenFitness&quot;);</span>
+<span class="fc" id="L213">        sb.append(delimiter).append(&quot;bestSoFarFitness&quot;);</span>
+<span class="fc" id="L214">        return sb.append(&quot;\n&quot;).toString();</span>
+        }
+
+    public void preBreedingStatistics(final EvolutionState state)
+        {
+<span class="nc" id="L219">        super.preBreedingStatistics(state);</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        boolean output = (state.generation % modulus == modulus - 1);</span>
+<span class="nc bnc" id="L221" title="All 4 branches missed.">        if (output &amp;&amp; doTime) </span>
+            {
+            //Runtime r = Runtime.getRuntime();
+<span class="nc" id="L224">            lastTime = System.currentTimeMillis();</span>
+            }
+<span class="nc" id="L226">        }</span>
+
+    public void postBreedingStatistics(final EvolutionState state) 
+        {
+<span class="nc" id="L230">        super.postBreedingStatistics(state);</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        boolean output = (state.generation % modulus == modulus - 1);</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        if (output) state.output.print(&quot;&quot; + state.generation, statisticslog); // 1 because we're putting the breeding info on the same line as the generation it *produces*, and the generation number is increased *after* breeding occurs, and statistics for it</span>
+
+        // gather timings
+<span class="nc bnc" id="L235" title="All 4 branches missed.">        if (output &amp;&amp; doTime)</span>
+            {
+            //Runtime r = Runtime.getRuntime();
+            //long curU =  r.totalMemory() - r.freeMemory();          
+<span class="nc" id="L239">            state.output.print(delimiter + (System.currentTimeMillis()-lastTime),  statisticslog);</span>
+            }
+<span class="nc" id="L241">        }</span>
+
+    public void preEvaluationStatistics(final EvolutionState state)
+        {
+<span class="nc" id="L245">        super.preEvaluationStatistics(state);</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        boolean output = (state.generation % modulus == 0);</span>
+
+<span class="nc bnc" id="L248" title="All 4 branches missed.">        if (output &amp;&amp; doTime) </span>
+            {
+            //Runtime r = Runtime.getRuntime();
+<span class="nc" id="L251">            lastTime = System.currentTimeMillis();</span>
+            }
+<span class="nc" id="L253">        }</span>
+
+
+    // This stuff is used by KozaShortStatistics
+
+<span class="fc" id="L258">    protected void prepareStatistics(EvolutionState state) { }</span>
+<span class="fc" id="L259">    protected void gatherExtraSubpopStatistics(EvolutionState state, int subpop, int individual) { }</span>
+<span class="nc" id="L260">    protected void printExtraSubpopStatisticsBefore(EvolutionState state, int subpop) { }</span>
+<span class="nc" id="L261">    protected void printExtraSubpopStatisticsAfter(EvolutionState state, int subpop) { }</span>
+<span class="fc" id="L262">    protected void gatherExtraPopStatistics(EvolutionState state, int subpop) { }</span>
+<span class="fc" id="L263">    protected void printExtraPopStatisticsBefore(EvolutionState state) { }</span>
+<span class="fc" id="L264">    protected void printExtraPopStatisticsAfter(EvolutionState state) { }</span>
+        
+        
+        
+
+    /** Prints out the statistics, but does not end with a println --
+        this lets overriding methods print additional statistics on the same line */
+    public void postEvaluationStatistics(final EvolutionState state) {
+<span class="fc" id="L272">        super.postEvaluationStatistics(state);</span>
+
+<span class="pc bpc" id="L274" title="1 of 2 branches missed.">        boolean output = (state.generation % modulus == 0);</span>
+
+        // gather timings
+<span class="pc bpc" id="L277" title="2 of 4 branches missed.">        if (output &amp;&amp; doTime) {</span>
+<span class="nc" id="L278">            Runtime r = Runtime.getRuntime();</span>
+<span class="nc" id="L279">            long curU = r.totalMemory() - r.freeMemory();</span>
+<span class="nc" id="L280">            state.output.print(delimiter + (System.currentTimeMillis() - lastTime), statisticslog);</span>
+        }
+
+<span class="fc" id="L283">        int subpops = state.population.subpops.size();                          // number of supopulations</span>
+<span class="fc" id="L284">        totalIndsThisGen = new long[subpops];                                           // total assessed individuals</span>
+<span class="fc" id="L285">        bestOfGeneration = new Individual[subpops];                                     // per-subpop best individual this generation</span>
+<span class="fc" id="L286">        totalSizeThisGen = new long[subpops];                           // per-subpop total size of individuals this generation</span>
+<span class="fc" id="L287">        totalFitnessThisGen = new double[subpops];                      // per-subpop mean fitness this generation</span>
+<span class="fc" id="L288">        double[] meanFitnessThisGen = new double[subpops];                      // per-subpop mean fitness this generation</span>
+
+
+<span class="fc" id="L291">        prepareStatistics(state);</span>
+
+        // gather per-subpopulation statistics
+<span class="fc" id="L294">        boolean somethingevaluated = false;</span>
+<span class="fc bfc" id="L295" title="All 2 branches covered.">        for(int x=0;x&lt;subpops;x++)</span>
+            {
+<span class="fc bfc" id="L297" title="All 2 branches covered.">            for(int y = 0; y&lt; state.population.subpops.get(x).individuals.size(); y++)</span>
+                {
+
+<span class="fc bfc" id="L300" title="All 2 branches covered.">                if (state.population.subpops.get(x).individuals.get(y).evaluated)               // he's got a valid fitness</span>
+                    {
+                    // update sizes
+<span class="fc" id="L303">                    long size = state.population.subpops.get(x).individuals.get(y).size();</span>
+<span class="fc" id="L304">                    totalSizeThisGen[x] += size;</span>
+<span class="fc" id="L305">                    totalSizeSoFar[x] += size;</span>
+<span class="fc" id="L306">                    totalIndsThisGen[x] += 1;</span>
+<span class="fc" id="L307">                    totalIndsSoFar[x] += 1;</span>
+                                        
+                    // update fitness
+<span class="fc bfc" id="L310" title="All 2 branches covered.">                    if (bestOfGeneration[x]==null ||</span>
+<span class="fc bfc" id="L311" title="All 2 branches covered.">                        state.population.subpops.get(x).individuals.get(y).fitness.betterThan(bestOfGeneration[x].fitness))</span>
+                        {
+<span class="fc" id="L313">                        bestOfGeneration[x] = state.population.subpops.get(x).individuals.get(y);</span>
+<span class="pc bpc" id="L314" title="1 of 4 branches missed.">                        if (bestSoFar[x]==null || bestOfGeneration[x].fitness.betterThan(bestSoFar[x].fitness))</span>
+<span class="fc" id="L315">                            bestSoFar[x] = (Individual)(bestOfGeneration[x].clone());</span>
+                        }
+            
+                    // sum up mean fitness for population
+<span class="fc" id="L319">                    totalFitnessThisGen[x] += state.population.subpops.get(x).individuals.get(y).fitness.fitness();</span>
+                                        
+                    // hook for KozaShortStatistics etc.
+<span class="fc" id="L322">                    gatherExtraSubpopStatistics(state, x, y);</span>
+<span class="fc" id="L323">                    somethingevaluated = true;</span>
+                    }
+                }
+            // compute mean fitness stats
+<span class="fc bfc" id="L327" title="All 2 branches covered.">            meanFitnessThisGen[x] = (totalIndsThisGen[x] &gt; 0 ? totalFitnessThisGen[x] / totalIndsThisGen[x] : 0);</span>
+
+            // hook for KozaShortStatistics etc.
+<span class="pc bpc" id="L330" title="2 of 4 branches missed.">            if (output &amp;&amp; doSubpops) printExtraSubpopStatisticsBefore(state, x);</span>
+                        
+            // print out optional average size information
+<span class="pc bpc" id="L333" title="4 of 6 branches missed.">            if (output &amp;&amp; doSize &amp;&amp; doSubpops)</span>
+                {
+<span class="nc bnc" id="L335" title="All 2 branches missed.">                state.output.print(delimiter + (totalIndsThisGen[x] &gt; 0 ? ((double)totalSizeThisGen[x])/totalIndsThisGen[x] : 0),  statisticslog);</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">                state.output.print(delimiter + (totalIndsSoFar[x] &gt; 0 ? ((double)totalSizeSoFar[x])/totalIndsSoFar[x] : 0),  statisticslog);</span>
+<span class="nc" id="L337">                state.output.print(delimiter + (double)(bestOfGeneration[x].size()), statisticslog);</span>
+<span class="nc" id="L338">                state.output.print(delimiter + (double)(bestSoFar[x].size()), statisticslog);</span>
+                }
+                        
+            // print out fitness information
+<span class="pc bpc" id="L342" title="2 of 4 branches missed.">            if (output &amp;&amp; doSubpops)</span>
+                {
+<span class="nc" id="L344">                state.output.print(delimiter + meanFitnessThisGen[x], statisticslog);</span>
+<span class="nc" id="L345">                state.output.print(delimiter + bestOfGeneration[x].fitness.fitness(), statisticslog);</span>
+<span class="nc" id="L346">                state.output.print(delimiter + bestSoFar[x].fitness.fitness(), statisticslog);</span>
+                }
+
+            // hook for KozaShortStatistics etc.
+<span class="pc bpc" id="L350" title="2 of 4 branches missed.">            if (output &amp;&amp; doSubpops) printExtraSubpopStatisticsAfter(state, x);</span>
+            }
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">            if(!somethingevaluated) { state.output.fatal(&quot;There are no individuals with a valid fitness; Cannot compute best-so-far statistics&quot;); }</span>
+  
+  
+        // Now gather per-Population statistics
+<span class="fc" id="L356">        long popTotalInds = 0;</span>
+<span class="fc" id="L357">        long popTotalIndsSoFar = 0;</span>
+<span class="fc" id="L358">        long popTotalSize = 0;</span>
+<span class="fc" id="L359">        long popTotalSizeSoFar = 0;</span>
+<span class="fc" id="L360">        double popMeanFitness = 0;</span>
+<span class="fc" id="L361">        double popTotalFitness = 0;</span>
+<span class="fc" id="L362">        Individual popBestOfGeneration = null;</span>
+<span class="fc" id="L363">        Individual popBestSoFar = null;</span>
+                
+<span class="fc bfc" id="L365" title="All 2 branches covered.">        for(int x=0;x&lt;subpops;x++)</span>
+            {
+<span class="fc" id="L367">            popTotalInds += totalIndsThisGen[x];</span>
+<span class="fc" id="L368">            popTotalIndsSoFar += totalIndsSoFar[x];</span>
+<span class="fc" id="L369">            popTotalSize += totalSizeThisGen[x];</span>
+<span class="fc" id="L370">            popTotalSizeSoFar += totalSizeSoFar[x];</span>
+<span class="fc" id="L371">            popTotalFitness += totalFitnessThisGen[x];</span>
+<span class="pc bpc" id="L372" title="4 of 6 branches missed.">	    if (bestOfGeneration[x] != null &amp;&amp; (popBestOfGeneration == null || bestOfGeneration[x].fitness.betterThan(popBestOfGeneration.fitness)))</span>
+<span class="fc" id="L373">	    	popBestOfGeneration = bestOfGeneration[x];</span>
+<span class="pc bpc" id="L374" title="4 of 6 branches missed.">            if (bestSoFar[x] != null &amp;&amp; (popBestSoFar == null || bestSoFar[x].fitness.betterThan(popBestSoFar.fitness)))</span>
+<span class="fc" id="L375">		popBestSoFar = bestSoFar[x];</span>
+
+            // hook for KozaShortStatistics etc.
+<span class="fc" id="L378">            gatherExtraPopStatistics(state, x);</span>
+            }
+                        
+        // build mean
+<span class="pc bpc" id="L382" title="1 of 2 branches missed.">        popMeanFitness = (popTotalInds &gt; 0 ? popTotalFitness / popTotalInds : 0);               // average out</span>
+                
+        // hook for KozaShortStatistics etc.
+<span class="pc bpc" id="L385" title="1 of 2 branches missed.">        if (output) printExtraPopStatisticsBefore(state);</span>
+
+        // optionally print out mean size info
+<span class="pc bpc" id="L388" title="2 of 4 branches missed.">        if (output &amp;&amp; doSize)</span>
+            {
+<span class="nc bnc" id="L390" title="All 2 branches missed.">            state.output.print(delimiter + (popTotalInds &gt; 0 ? popTotalSize / popTotalInds : 0) , statisticslog);                                           // mean size of pop this gen</span>
+<span class="nc bnc" id="L391" title="All 2 branches missed.">            state.output.print(delimiter + (popTotalIndsSoFar &gt; 0 ? popTotalSizeSoFar / popTotalIndsSoFar : 0) , statisticslog);                             // mean size of pop so far</span>
+<span class="nc" id="L392">            state.output.print(delimiter + (double)(popBestOfGeneration.size()) , statisticslog);                                    // size of best ind of pop this gen</span>
+<span class="nc" id="L393">            state.output.print(delimiter + (double)(popBestSoFar.size()) , statisticslog);                           // size of best ind of pop so far</span>
+            }
+                
+        // print out fitness info
+<span class="pc bpc" id="L397" title="1 of 2 branches missed.">        if (output)</span>
+            {
+<span class="fc" id="L399">            state.output.print(delimiter + popMeanFitness , statisticslog);                                                                                  // mean fitness of pop this gen</span>
+<span class="fc" id="L400">	        state.output.print(delimiter + (double)(popBestOfGeneration.fitness.fitness()) , statisticslog);                 // best fitness of pop this gen</span>
+<span class="fc" id="L401">            state.output.print(delimiter + (double)(popBestSoFar.fitness.fitness()) , statisticslog);                // best fitness of pop so far</span>
+            }
+                        
+        // hook for KozaShortStatistics etc.
+<span class="pc bpc" id="L405" title="1 of 2 branches missed.">        if (output) printExtraPopStatisticsAfter(state);</span>
+
+        // we're done!
+<span class="pc bpc" id="L408" title="1 of 2 branches missed.">        if (output) state.output.println(&quot;&quot;, statisticslog);</span>
+<span class="fc" id="L409">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

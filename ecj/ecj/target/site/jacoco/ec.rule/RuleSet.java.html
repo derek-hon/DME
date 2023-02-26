@@ -1,0 +1,524 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RuleSet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.rule</a> &gt; <span class="el_source">RuleSet.java</span></div><h1>RuleSet.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.rule;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+/* 
+ * RuleSet.java
+ * 
+ * Created: Tue Feb 20 13:19:00 2001
+ * By: Liviu Panait and Sean Luke
+ */
+
+/**
+ * RuleSet is a set of Rules, implemented straightforwardly as an arbitrary-length array of Rules.
+ * A RuleIndividual is simply a list of RuleSets.  Most typically, a RuleIndividual contains a
+ * single RuleSet, containing a variety of Rules.
+ * RuleSets contain many useful subsetting and modification functions which you can use
+ * in breeding operators which modify RuleSets and Rules.
+ *
+ * &lt;p&gt; Besides the Rules themselves, the only thing else a RuleSet contains is a pointer to a
+ * corresponding RuleSetConstraints object, which holds all of its modification parameters.
+ * See RuleSetConstraints for a description of these parameters.
+
+ * &lt;p&gt;In addition to serialization for checkpointing, RuleSets may read and write themselves to streams in three ways.
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;writeRuleSet(...,DataOutput)/readRuleSet(...,DataInput)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This method
+ * transmits or receives a RuleSet in binary.  It is the most efficient approach to sending
+ * RuleSets over networks, etc.  The default versions of writeRuleSet/readRuleSet reads/writes out the number
+ * of rules, then calls read/writeRule(...) on each Rule.  Override this if you need more functionality.
+ *
+ * &lt;li&gt;&lt;b&gt;printRuleSet(...,PrintWriter)/readRuleSet(...,LineNumberReader)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach transmits or receives a RuleSet in text encoded such that the RuleSet is largely readable
+ * by humans but can be read back in 100% by ECJ as well.  To do this, these methods will typically encode numbers
+ * using the &lt;tt&gt;ec.util.Code&lt;/tt&gt; class.  These methods are mostly used to write out populations to
+ * files for inspection, slight modification, then reading back in later on.  &lt;b&gt;readRuleSet&lt;/b&gt;
+ * reads in the number of rules, then calls readRule(...) on each new Rule.  &lt;b&gt;printRuleSet&lt;/b&gt; writes
+ * out the number of rules, then calls printrule(...) on each new Rule.  Again, override this if you need more
+ * functionality.
+ * 
+ * &lt;li&gt;&lt;b&gt;printRuleSetForHumans(...,PrintWriter)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach prints a RuleSet in a fashion intended for human consumption only.
+ * &lt;b&gt;printRuleSetForHumans&lt;/b&gt; prints out the number of rules, then calles &lt;b&gt;printRuleForHumans&lt;/b&gt;
+ * on each Rule in turn.  You may wish to override this to provide more information instead. 
+ * You should handle one of these methods properly
+ * to ensure RuleSets can be printed by ECJ.
+ * &lt;/ul&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;constraints&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;string&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(name of the rule set constraints)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ 
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ rule.ruleset
+
+
+ * @author Liviu Panait and Sean Luke
+ * @version 1.0 
+ */
+<span class="nc" id="L70">public class RuleSet implements Prototype</span>
+    {
+
+    /**
+       The message to appear when printing the rule set
+    */
+    public final static String N_RULES = &quot;Num: &quot;;
+    public final static String P_RULESET = &quot;ruleset&quot;;
+    /**
+       The constraint for the rule set
+    */
+    public static final String P_CONSTRAINTS = &quot;constraints&quot;;
+    /**
+       An index to a RuleSetConstraints
+    */
+    public byte constraints;
+
+    /* Returns the RuleSet's constraints.  A good JIT compiler should inline this. */
+    public final RuleSetConstraints constraints(RuleInitializer initializer) 
+        {
+<span class="nc" id="L90">        return initializer.ruleSetConstraints[constraints];</span>
+        }
+
+    /**
+       The rules in the rule set
+    */
+<span class="nc" id="L96">    public Rule[] rules = new Rule[0];</span>
+    /**
+       How many rules are there used in the rules array
+    */
+<span class="nc" id="L100">    public int numRules = 0;</span>
+
+
+    public Object clone()
+        {
+        try
+            {
+<span class="nc" id="L107">            RuleSet newRuleSet = (RuleSet)(super.clone());</span>
+            // copy the rules over
+<span class="nc bnc" id="L109" title="All 2 branches missed.">            if( rules != null )</span>
+                {
+<span class="nc" id="L111">                newRuleSet.rules = (Rule[])(rules.clone());</span>
+                }
+            else
+                {
+<span class="nc" id="L115">                newRuleSet.rules = null;</span>
+                }
+<span class="nc bnc" id="L117" title="All 2 branches missed.">            for(int x=0;x&lt;numRules;x++)</span>
+<span class="nc" id="L118">                newRuleSet.rules[x] = (Rule)(rules[x].clone());</span>
+<span class="nc" id="L119">            return newRuleSet;</span>
+            }
+<span class="nc" id="L121">        catch (CloneNotSupportedException e)</span>
+<span class="nc" id="L122">            { throw new InternalError(); } // never happens</span>
+        }
+
+
+
+    /**
+       How many rules are there used in the rules array
+    */
+    
+<span class="nc" id="L131">    public int numRules() { return numRules; }</span>
+    /**
+       A reset method for randomly reinitializing the RuleSet
+    */
+    public void reset(final EvolutionState state, final int thread)
+        {
+        // reinitialize the array of rules
+<span class="nc" id="L138">        RuleInitializer initializer = ((RuleInitializer)state.initializer);</span>
+<span class="nc" id="L139">        numRules = constraints(initializer).numRulesForReset(this,state,thread);</span>
+
+<span class="nc" id="L141">        rules = new Rule[ numRules ];</span>
+
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        for( int i = 0 ; i &lt; rules.length ; i++ )</span>
+            {
+<span class="nc" id="L145">            rules[i] = (Rule)(constraints(initializer).rulePrototype.clone());</span>
+<span class="nc" id="L146">            rules[i].reset(state,thread);</span>
+            }
+<span class="nc" id="L148">        }</span>
+
+    /**
+       Mutates rules in the RuleSet independently with the given probability.
+    */
+    public void mutate( final EvolutionState state, final int thread)
+        {
+<span class="nc" id="L155">        RuleInitializer initializer = ((RuleInitializer)state.initializer);</span>
+        
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        for( int i = 0 ; i &lt; numRules ; i++ )</span>
+            {
+<span class="nc" id="L159">            rules[i].mutate(state,thread);</span>
+            }
+<span class="nc bnc" id="L161" title="All 4 branches missed.">        while( state.random[thread].nextBoolean( constraints(initializer).p_del ) &amp;&amp; numRules &gt; constraints(initializer).minSize )</span>
+            {
+<span class="nc" id="L163">            removeRandomRule( state, thread );</span>
+            }
+<span class="nc bnc" id="L165" title="All 4 branches missed.">        while( state.random[thread].nextBoolean( constraints(initializer).p_add ) &amp;&amp; numRules &lt; constraints(initializer).maxSize )</span>
+            {
+<span class="nc" id="L167">            addRandomRule( state, thread );</span>
+            }
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        if( state.random[thread].nextBoolean( constraints(initializer).p_randorder ) )</span>
+            {
+<span class="nc" id="L171">            randomizeRulesOrder( state, thread );</span>
+            }
+<span class="nc" id="L173">        }</span>
+        
+    /**
+       Should be called by pipelines to &quot;fix up&quot; the rulesets before they have been
+       mutated or crossed over.  Override this method to do so.
+    */
+    public void preprocessRules(final EvolutionState state, final int thread)
+        {
+<span class="nc" id="L181">        }</span>
+
+    /**
+       Should be called by pipelines to &quot;fix up&quot; the rulesets after they have been
+       mutated or crossed over.  Override this method to do so.
+    */
+    public void postprocessRules(final EvolutionState state, final int thread)
+        {
+<span class="nc" id="L189">        }</span>
+        
+    /**
+       Randomizes the order of the rules in the rule set. It is helpful when the
+       order of rule is important for the conflict resolution.
+    */
+    public void randomizeRulesOrder(final EvolutionState state, final int thread)
+        {
+        Rule temp;
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        for( int i = numRules-1 ; i &gt; 0 ; i-- )</span>
+            {
+<span class="nc" id="L200">            int j = state.random[thread].nextInt( i+1 );</span>
+<span class="nc" id="L201">            temp = rules[i];</span>
+<span class="nc" id="L202">            rules[i] = rules[j];</span>
+<span class="nc" id="L203">            rules[j] = temp;</span>
+            }
+<span class="nc" id="L205">        }</span>
+
+    /**
+       Add a random rule to the rule set
+    */
+    public void addRandomRule(final EvolutionState state, final int thread)
+        {
+<span class="nc" id="L212">        Rule newRule = (Rule)(constraints(((RuleInitializer)state.initializer)).rulePrototype.clone());</span>
+<span class="nc" id="L213">        newRule.reset(state,thread);</span>
+<span class="nc" id="L214">        addRule(newRule);</span>
+<span class="nc" id="L215">        }</span>
+
+    /**
+       Add a rule directly to the rule set.  Does not copy the rule.
+    */
+    public void addRule( Rule rule )
+        {
+<span class="nc bnc" id="L222" title="All 4 branches missed.">        if( rules == null  || ( numRules == rules.length ) )</span>
+            {
+            Rule[] tempRules;
+<span class="nc bnc" id="L225" title="All 2 branches missed.">            if( rules == null )</span>
+                {
+<span class="nc" id="L227">                tempRules = new Rule[2];</span>
+                }
+            else
+                {
+<span class="nc" id="L231">                tempRules = new Rule[ (rules.length + 1 ) * 2 ];</span>
+                }
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            if( rules != null )</span>
+<span class="nc" id="L234">                System.arraycopy( rules, 0, tempRules, 0, rules.length );</span>
+<span class="nc" id="L235">            rules = tempRules;</span>
+            }
+
+        // add the rule and increase the counter
+<span class="nc" id="L239">        rules[ numRules++ ] = rule;</span>
+<span class="nc" id="L240">        }</span>
+
+    /**
+       Removes a rule from the rule set and returns it.  If index is out of bounds, then
+       this method returns null.  The rules are shifted down --- thus this is O(n).
+    */
+    public Rule removeRule( int index )
+        {
+<span class="nc bnc" id="L248" title="All 4 branches missed.">        if (index &gt;= numRules || index &lt; 0 ) return null;</span>
+<span class="nc" id="L249">        Rule myrule = rules[index];</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        if (index &lt; numRules - 1)   // if we've chosen to remove the last rule, leave it where it is</span>
+<span class="nc" id="L251">            System.arraycopy(rules, index+1, rules, index, numRules - (index +1));</span>
+                
+        /*
+        // swap to the top
+        Rule myrule = rules[index];
+        rules[index] = rules[numRules-1];
+        */
+
+<span class="nc" id="L259">        numRules--;</span>
+<span class="nc" id="L260">        return myrule; </span>
+        }
+
+    /**
+       Removes a randomly-chosen rule from the rule set and returns it.  If there are no rules to remove,
+       this method returns null.
+    */
+    public Rule removeRandomRule( final EvolutionState state, final int thread )
+        {
+<span class="nc bnc" id="L269" title="All 2 branches missed.">        if (numRules &lt;= 0) return null;</span>
+<span class="nc" id="L270">        else return removeRule(state.random[thread].nextInt(numRules));</span>
+        }
+
+    /**
+       Makes a copy of the rules in another RuleSet and adds the rule copies.
+    */
+    public void join( final RuleSet other )
+        {
+        // if there's not enough place to store the new rules, increase space
+<span class="nc bnc" id="L279" title="All 2 branches missed.">        if( rules.length &lt;= numRules + other.numRules )</span>
+            {
+<span class="nc" id="L281">            Rule[] tempRules = new Rule[ rules.length + other.rules.length ];</span>
+<span class="nc" id="L282">            System.arraycopy( rules, 0, tempRules, 0, numRules );</span>
+<span class="nc" id="L283">            rules = tempRules;</span>
+            }
+        // copy in the new rules
+<span class="nc" id="L286">        System.arraycopy( other.rules, 0, rules, numRules, other.numRules );</span>
+        // clone the rules
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        for(int x=numRules;x&lt;numRules+other.numRules;x++)</span>
+<span class="nc" id="L289">            rules[x] = (Rule)(rules[x].clone());</span>
+<span class="nc" id="L290">        numRules += other.numRules;</span>
+<span class="nc" id="L291">        }</span>
+        
+    /**
+       Clears out existing rules, and loads the rules from the other ruleset without cloning them.
+       Mostly for use if you create temporary rulesets (see for example RuleCrossoverPipeline)
+    */
+    public void copyNoClone( final RuleSet other )
+        {
+        // if there's not enough place to store the new rules, increase space
+<span class="nc bnc" id="L300" title="All 2 branches missed.">        if( rules.length &lt;= other.numRules )</span>
+            {
+<span class="nc" id="L302">            rules = new Rule[ other.numRules ];</span>
+            }
+        // copy in the new rules
+        // System.out.println(other.rules);
+<span class="nc" id="L306">        System.arraycopy( other.rules, 0, rules, 0, other.numRules );</span>
+<span class="nc" id="L307">        numRules = other.numRules;</span>
+<span class="nc" id="L308">        }</span>
+        
+    /**
+       Splits the rule set into n pieces, according to points, which *must* be sorted.
+       The rules in each piece are cloned and added to the equivalent set.  Sets must be already allocated.
+       sets.length must be 1+ points.length.  
+       Comment: This function appends the split rulesets to the existing rulesets already in &lt;i&gt;sets&lt;/i&gt;.
+    */
+    public RuleSet[] split( int[] points, RuleSet[] sets )
+        {
+        // Do the first chunk or the whole thing
+<span class="nc bnc" id="L319" title="All 4 branches missed.">        for(int i=0; i &lt; (points.length &gt; 0 ? points[0] : rules.length); i++)</span>
+<span class="nc" id="L320">            sets[0].addRule((Rule)(rules[i].clone()) );</span>
+                
+<span class="nc bnc" id="L322" title="All 2 branches missed.">        if (points.length &gt; 0)</span>
+            {
+            // do the in-between chunks
+<span class="nc bnc" id="L325" title="All 2 branches missed.">            for(int p = 1; p &lt; points.length; p++)</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">                for(int i= points[p-1]; i &lt; points[p]; i++)</span>
+<span class="nc" id="L327">                    sets[p].addRule((Rule)(rules[i].clone()) );</span>
+                
+            // do the final chunk
+<span class="nc bnc" id="L330" title="All 2 branches missed.">            for(int i=points[points.length - 1]; i &lt; rules.length; i++)</span>
+<span class="nc" id="L331">                sets[points.length].addRule((Rule)(rules[i].clone()) );</span>
+            }
+<span class="nc" id="L333">        return sets;</span>
+        }
+    
+    /**
+       Splits the rule set into a number of disjoint rule sets, copying the rules and adding
+       them to the sets as appropriate.  Each rule independently
+       throws a die to determine which ruleset it will go into.  Sets must be already allocated.
+       Comment: This function appends the split rulesets to the existing rulesets already in &lt;i&gt;sets&lt;/i&gt;.
+    */
+    public RuleSet[] split( final EvolutionState state, final int thread, RuleSet[] sets )
+        {
+<span class="nc bnc" id="L344" title="All 2 branches missed.">        for( int i = 0 ; i &lt; numRules ; i++ )</span>
+<span class="nc" id="L345">            sets[ state.random[ thread ].nextInt( sets.length ) ].addRule(</span>
+<span class="nc" id="L346">                (Rule)(rules[i].clone()) );</span>
+<span class="nc" id="L347">        return sets;</span>
+        }
+    
+    /**
+       Splits the rule set into a two disjoint rule sets, copying the rules and adding
+       them to the sets as appropriate.  The value &lt;i&gt;prob&lt;/i&gt; is the probability that an element will
+       land in the first set.  Sets must be already allocated.
+       Comment: This function appends the split rulesets to the existing rulesets already in &lt;i&gt;sets&lt;/i&gt;.
+    */
+    public RuleSet[] splitIntoTwo( final EvolutionState state, final int thread, RuleSet[] sets, double prob )
+        {
+<span class="nc bnc" id="L358" title="All 2 branches missed.">        for( int i = 0 ; i &lt; numRules ; i++ )</span>
+<span class="nc bnc" id="L359" title="All 2 branches missed.">            if (state.random[thread].nextBoolean(prob))</span>
+<span class="nc" id="L360">                sets[0].addRule((Rule)(rules[i].clone()) );</span>
+            else
+<span class="nc" id="L362">                sets[1].addRule((Rule)(rules[i].clone()) );</span>
+<span class="nc" id="L363">        return sets;</span>
+        }
+    
+    /**
+       Prints out the rule set in a readable fashion.
+    */
+    public void printRuleSetForHumans(final EvolutionState state, final int log)
+        {
+<span class="nc" id="L371">        printRuleSetForHumans(state, log, Output.V_VERBOSE);</span>
+<span class="nc" id="L372">        }</span>
+                
+    /**
+       Prints out the rule set in a readable fashion.
+       @deprecated Verbosity no longer has an effect
+    */
+    public void printRuleSetForHumans(final EvolutionState state, final int log,
+        final int verbosity)
+        {
+<span class="nc" id="L381">        state.output.println( &quot;Ruleset contains &quot; + numRules + &quot; rules&quot;,</span>
+            log );
+<span class="nc bnc" id="L383" title="All 2 branches missed.">        for( int i = 0 ; i &lt; numRules ; i ++ )</span>
+            {
+<span class="nc" id="L385">            state.output.println( &quot;Rule &quot; + i + &quot;:&quot;, log );</span>
+<span class="nc" id="L386">            rules[i].printRuleForHumans( state, log );</span>
+            }
+<span class="nc" id="L388">        }</span>
+
+    /**
+       Prints the rule set such that the computer can read it later
+    */
+    public void printRuleSet(final EvolutionState state, final int log)
+        {
+<span class="nc" id="L395">        printRuleSet(state, log, Output.V_VERBOSE);</span>
+<span class="nc" id="L396">        }</span>
+                
+    /**
+       Prints the rule set such that the computer can read it later
+       @deprecated Verbosity no longer has an effect
+    */
+    public void printRuleSet(final EvolutionState state,
+        final int log, final int verbosity)
+        {
+<span class="nc" id="L405">        state.output.println(N_RULES + Code.encode(numRules), log);</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">        for( int i = 0 ; i &lt; numRules ; i ++ )</span>
+<span class="nc" id="L407">            rules[i].printRule(state,log);</span>
+<span class="nc" id="L408">        }</span>
+
+    /**
+       Prints the rule set such that the computer can read it later
+    */
+    public void printRuleSet(final EvolutionState state,
+        final PrintWriter writer)
+        {
+<span class="nc" id="L416">        writer.println( N_RULES + Code.encode(numRules) );</span>
+<span class="nc bnc" id="L417" title="All 2 branches missed.">        for( int i = 0 ; i &lt; numRules ; i ++ )</span>
+<span class="nc" id="L418">            rules[i].printRule(state,writer);</span>
+<span class="nc" id="L419">        }</span>
+
+    /**
+       Reads the rule set
+    */
+    public void readRuleSet(final EvolutionState state,
+        final LineNumberReader reader)
+        throws IOException
+        {
+<span class="nc" id="L428">        numRules = Code.readIntegerWithPreamble(N_RULES, state, reader);</span>
+
+<span class="nc" id="L430">        rules = new Rule[ numRules ];</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">        for(int x=0;x&lt;numRules;x++)</span>
+            {
+<span class="nc" id="L433">            rules[x] = (Rule)(constraints(((RuleInitializer)state.initializer)).rulePrototype.clone());</span>
+<span class="nc" id="L434">            rules[x].readRule(state,reader);</span>
+            }
+<span class="nc" id="L436">        }</span>
+
+    /** Writes RuleSets out to a binary stream */
+    public void writeRuleSet(final EvolutionState state,
+        final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L442">        dataOutput.writeInt(numRules);</span>
+<span class="nc bnc" id="L443" title="All 2 branches missed.">        for(int x=0;x&lt;numRules;x++)</span>
+<span class="nc" id="L444">            rules[x].writeRule(state,dataOutput);</span>
+<span class="nc" id="L445">        }</span>
+
+    /** Reads RuleSets in from a binary stream */
+    public void readRuleSet(final EvolutionState state,
+        final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L451">        int ruleCount = dataInput.readInt();</span>
+<span class="nc bnc" id="L452" title="All 4 branches missed.">        if (rules==null || rules.length != ruleCount)</span>
+<span class="nc" id="L453">            rules = new Rule[ruleCount];</span>
+<span class="nc bnc" id="L454" title="All 2 branches missed.">        for(int x=0;x&lt;ruleCount;x++)</span>
+            {
+<span class="nc" id="L456">            rules[x] = (Rule)(constraints((RuleInitializer)state.initializer).rulePrototype.clone());</span>
+<span class="nc" id="L457">            rules[x].readRule(state,dataInput);</span>
+            }
+<span class="nc" id="L459">        }</span>
+
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L464">        return RuleDefaults.base().push(P_RULESET);</span>
+        }
+
+    public void setup(EvolutionState state, Parameter base)
+        {        
+<span class="nc" id="L469">        String constraintname = state.parameters.getString(</span>
+<span class="nc" id="L470">            base.push( P_CONSTRAINTS ),defaultBase().push(P_CONSTRAINTS));</span>
+<span class="nc bnc" id="L471" title="All 2 branches missed.">        if (constraintname == null)</span>
+<span class="nc" id="L472">            state.output.fatal(&quot;No RuleSetConstraints name given&quot;,</span>
+<span class="nc" id="L473">                base.push( P_CONSTRAINTS ),defaultBase().push(P_CONSTRAINTS));</span>
+
+<span class="nc" id="L475">        constraints = RuleSetConstraints.constraintsFor(constraintname,state).constraintNumber;</span>
+<span class="nc" id="L476">        state.output.exitIfErrors();</span>
+<span class="nc" id="L477">        }</span>
+
+    /**
+       The hash code for the rule set.  This isn't a very good hash code,
+       but it has the benefit of not being O(n lg n) -- otherwise, we'd have
+       to do something like sort the rules in the individual first and then
+       do an ordered hash code of some sort, ick.
+    */
+    public int hashCode()
+        {
+<span class="nc" id="L487">        int hash = this.getClass().hashCode();</span>
+<span class="nc bnc" id="L488" title="All 2 branches missed.">        for(int x=0;x&lt;rules.length;x++)</span>
+<span class="nc bnc" id="L489" title="All 2 branches missed.">            if (rules[x] !=null) </span>
+<span class="nc" id="L490">                hash += rules[x].hashCode();</span>
+<span class="nc" id="L491">        return hash;</span>
+        }
+
+    public boolean equals( final Object _other )
+        {
+<span class="nc bnc" id="L496" title="All 2 branches missed.">        if (_other == null) return false;</span>
+<span class="nc bnc" id="L497" title="All 2 branches missed.">        if (!getClass().equals(_other.getClass()))  // not the same class, I'm conservative that way</span>
+<span class="nc" id="L498">            return false;</span>
+            
+<span class="nc" id="L500">        RuleSet other = (RuleSet)_other;</span>
+<span class="nc bnc" id="L501" title="All 2 branches missed.">        if( numRules != other.numRules )</span>
+<span class="nc" id="L502">            return false;  // quick and dirty</span>
+<span class="nc bnc" id="L503" title="All 4 branches missed.">        if (numRules == 0 &amp;&amp; other.numRules==0)</span>
+<span class="nc" id="L504">            return true;  // quick and dirty</span>
+            
+        // we need to sort the rulesets.  First, let's clone
+        // the rule arrays
+
+<span class="nc" id="L509">        Rule[] srules = (Rule[])(rules.clone());</span>
+<span class="nc" id="L510">        Rule[] orules = (Rule[])(other.rules.clone());</span>
+
+<span class="nc" id="L512">        java.util.Arrays.sort(srules);</span>
+<span class="nc" id="L513">        java.util.Arrays.sort(orules);</span>
+        
+        // Now march down and see if the rules are the same
+<span class="nc bnc" id="L516" title="All 2 branches missed.">        for(int x=0;x&lt;numRules;x++)</span>
+<span class="nc bnc" id="L517" title="All 2 branches missed.">            if (!(srules[x].equals(orules[x])))</span>
+<span class="nc" id="L518">                return false;</span>
+
+<span class="nc" id="L520">        return true;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,677 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>noise_filter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets.wavelet_util</a> &gt; <span class="el_source">noise_filter.java</span></div><h1>noise_filter.java</h1><pre class="source lang-java linenums">
+
+package ec.app.experiments.WaveletExperiment.wavelets.wavelet_util;
+
+import java.util.Vector;
+
+import ec.app.experiments.WaveletExperiment.wavelets.*;
+import ec.app.experiments.WaveletExperiment.wavelets.sort.*;
+
+import java.io.*;
+
+/**
+  &lt;p&gt;
+  The objective in filtering is to remove noise while keeping the
+  features that are interesting.
+  &lt;/p&gt;
+
+  &lt;p&gt; 
+  Wavelets allow a time series to be examined at various
+  resolutions.  This can be a powerful tool in filtering out noise.
+  This class supports the subtraction of gaussian noise from
+  the time series.
+  &lt;/p&gt;
+
+  &lt;p&gt;
+  The identification of noise is complex and I have not found any
+  material that I could understand which discussed noise
+  identification in the context of wavelets.  I did find some material
+  that has been difficult and frustrating.  In particular
+  &lt;i&gt;Image Processing and Data Analysis: the multiscale approach&lt;/i&gt;
+  by Starck, Murtagh and Bijaoui.
+  &lt;/p&gt;
+  
+  &lt;p&gt;
+  If the price of a stock follows a random walk, its price will be
+  distributed in a bell (gaussian) curve.  This is one way of stating
+  the concept from financial theory that the daily return is normally
+  distributed (here daily return is defined as the difference between
+  yesterdays close price and today's close price).  Movement outside
+  the bounds of the curve may represent something other than a random walk
+  and so, in theory, might be interesting.
+  &lt;/p&gt;
+
+  &lt;p&gt; 
+  At least in the case of the single test case used in developing this
+  code (Applied Materials, symbol: AMAT), the coefficient distribution
+  in the highest frequency is almost a perfect normal curve.  That is,
+  the mean is close to zero and the standard deviation is close to
+  one.  The area under this curve is very close to one.  This
+  resolution approximates the daily return.  At lower frequencies the
+  mean moves away from zero and the standard deviation increases.
+  This results is a flattened curve, whose area in the coefficient
+  range is increasingly less than one.
+  &lt;/p&gt;
+
+  &lt;p&gt; 
+  The code in this class subtracts the normal curve from the
+  coefficients at each frequency up to some minimum.  This leaves only
+  the coefficients above the curve which are used to regenerate the
+  time series (without the noise, in theory).  This filter removes 50
+  to 60 percent of the coefficients.
+  &lt;/p&gt;
+
+  &lt;p&gt;
+  Its probably worth mentioning that there are other kinds of
+  noise, most notably Poisson noise.  In theory daily data
+  tends to show gaussian noise, while intraday data would
+  should Poisson noise.  Intraday Poisson noise would result
+  from the random arrival and size of orders.
+  &lt;/p&gt;
+
+  &lt;p&gt;
+  This function has two public methods:
+  &lt;/p&gt;
+  &lt;ol&gt;
+  &lt;li&gt;
+  &lt;p&gt;n
+  &lt;i&gt;filter_time_series&lt;/i&gt;, which is passed a file name and a time series
+  &lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+  &lt;p&gt;
+  &lt;i&gt;gaussian_filter&lt;/i&gt; which is passed a set of Haar coefficient
+  spectrum and an array allocated for the noise values.  The
+  noise array will be the same size as the coefficient array.
+  &lt;/p&gt;
+  &lt;/li&gt;
+  &lt;ol&gt;
+    
+  &lt;/p&gt;
+
+ */
+<span class="nc" id="L93">public class noise_filter extends plot {</span>
+
+<span class="nc" id="L95">String class_name() { return &quot;noise_filter&quot;; }</span>
+
+  /**
+    &lt;p&gt;
+    The point class represents a coefficient value so that it can be
+    sorted for histogramming and then resorted back into the orignal
+    ordering (e.g., sorted by value and then sorted by index)
+    &lt;/p&gt;
+   */
+  private class point {
+    point(int i, double v)
+<span class="nc" id="L106">    {</span>
+<span class="nc" id="L107">      index = i;</span>
+<span class="nc" id="L108">      val = v;</span>
+<span class="nc" id="L109">    }</span>
+    public int index;  // index in original array
+    public double val; // coefficient value
+  } // point
+
+
+  /**
+    &lt;p&gt;
+    A histogram bin
+    &lt;/p&gt;
+    &lt;p&gt;
+    For a histogram bin b&lt;sub&gt;i&lt;/sub&gt;, the range of
+    values is b&lt;sub&gt;i&lt;/sub&gt;.start to b&lt;sub&gt;i+1&lt;/sub&gt;.start.
+    &lt;/p&gt;
+    &lt;p&gt;
+    The vector object &lt;i&gt;vals&lt;/i&gt; stores references to 
+    the point objects which fall in the bin range.
+    &lt;/p&gt;
+    &lt;p&gt;
+    The number of values in the bin is &lt;i&gt;vals.size()&lt;/i&gt;
+    &lt;/p&gt;
+   */
+  private class bin {
+<span class="nc" id="L132">    bin( double s ) { start = s; }</span>
+    public double start;
+<span class="nc" id="L134">    public Vector vals = new Vector();</span>
+  } // bin
+
+   /**
+      Bell curve info: mean, sigma (the standard deviation)
+    */
+   private class bell_info {
+<span class="nc" id="L141">     public bell_info() {}</span>
+     public bell_info(double m, double s)
+<span class="nc" id="L143">     {</span>
+<span class="nc" id="L144">       mean = m;</span>
+<span class="nc" id="L145">       sigma = s;</span>
+<span class="nc" id="L146">     }</span>
+     public double mean;
+     public double sigma;
+   } // bell_info
+
+
+
+  /**
+
+    &lt;p&gt;
+    Build a histogram from the sorted data in the pointz
+    array.  The histogram is constructed by appending a
+    point object to the the bin &lt;i&gt;vals&lt;/i&gt; Vector if the value
+    of the point is between b[i].start and b[i].start + step.
+    &lt;/p&gt;
+
+   */
+  private void histogram( bin binz[], point pointz[] )
+  {
+<span class="nc" id="L165">    double step = binz[1].start - binz[0].start;</span>
+<span class="nc" id="L166">    double start = binz[0].start;</span>
+<span class="nc" id="L167">    double end = binz[1].start;</span>
+<span class="nc" id="L168">    int len = pointz.length;</span>
+<span class="nc" id="L169">    double max = binz[ binz.length-1 ].start + step;</span>
+
+<span class="nc" id="L171">    int i = 0;</span>
+<span class="nc" id="L172">    int ix = 0;</span>
+<span class="nc bnc" id="L173" title="All 4 branches missed.">    while (i &lt; len &amp;&amp; ix &lt; binz.length) {</span>
+<span class="nc bnc" id="L174" title="All 4 branches missed.">      if (pointz[i].val &gt;= start &amp;&amp; pointz[i].val &lt; end) {</span>
+<span class="nc" id="L175">	binz[ix].vals.addElement( pointz[i] );</span>
+<span class="nc" id="L176">	i++;</span>
+      }
+      else {
+<span class="nc" id="L179">	ix++;</span>
+<span class="nc" id="L180">	start = end;</span>
+<span class="nc" id="L181">	end = end + step;</span>
+      }
+    } // while
+<span class="nc" id="L184">  } // histogram</span>
+
+
+  
+  /**
+    Sort an array of &lt;i&gt;point&lt;/i&gt; objects by the
+    index field.
+   */
+<span class="nc" id="L192">  private class sort_by_index extends generic_sort {</span>
+    
+    /**
+
+      if (a.index == b.index) return 0
+      if (a.index &lt; b.index) return -1
+      if (a.index &gt; b.index) return 1;
+
+     */
+    protected int compare( Object a, Object b )
+    {
+<span class="nc" id="L203">      int rslt = 0;</span>
+<span class="nc" id="L204">      point t_a = (point)a;</span>
+<span class="nc" id="L205">      point t_b = (point)b;</span>
+
+<span class="nc bnc" id="L207" title="All 2 branches missed.">      if (t_a.index &lt; t_b.index)</span>
+<span class="nc" id="L208">	rslt = -1;</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">      else if (t_a.index &gt; t_b.index)</span>
+<span class="nc" id="L210">	rslt = 1;</span>
+
+<span class="nc" id="L212">      return rslt;</span>
+    } // compare
+
+  } // sort_by_index
+
+
+  /**
+    Sort an array of &lt;i&gt;point&lt;/i&gt; objects by the
+    val filed.
+   */
+<span class="nc" id="L222">  private class sort_by_val extends generic_sort {</span>
+
+    /**
+
+      if (a.val == b.val) return 0
+      if (a.val &lt; b.val) return -1
+      if (a.val &gt; b.val) return 1;
+
+     */
+    protected int compare( Object a, Object b )
+    {
+<span class="nc" id="L233">      int rslt = 0;</span>
+<span class="nc" id="L234">      point t_a = (point)a;</span>
+<span class="nc" id="L235">      point t_b = (point)b;</span>
+
+<span class="nc bnc" id="L237" title="All 2 branches missed.">      if (t_a.val &lt; t_b.val)</span>
+<span class="nc" id="L238">	rslt = -1;</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">      else if (t_a.val &gt; t_b.val)</span>
+<span class="nc" id="L240">	rslt = 1;</span>
+
+<span class="nc" id="L242">      return rslt;</span>
+    } // compare
+
+  } // sort_by_val
+
+
+  /**
+    Allocate an array of histogram bins that is &lt;i&gt;num_bins&lt;/i&gt; in
+    length.  Initialize the start value of each bin with
+    a start value calculated from &lt;i&gt;low&lt;/i&gt; and &lt;i&gt;high&lt;/i&gt;.
+   */
+  private bin[] alloc_bins( int num_bins, double low, double high )
+  {
+<span class="nc" id="L255">    double range = high - low;</span>
+<span class="nc" id="L256">    double step = range / (double)num_bins;</span>
+<span class="nc" id="L257">    double start = low;</span>
+
+<span class="nc" id="L259">    bin binz[] = new bin[ num_bins ];</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">    for (int i = 0; i &lt; num_bins; i++) {</span>
+<span class="nc" id="L261">      binz[i] = new bin( start );</span>
+<span class="nc" id="L262">      start = start + step;</span>
+    }
+
+<span class="nc" id="L265">    return binz;</span>
+  } // alloc_bins
+
+
+  /**
+    &lt;p&gt;
+    Calculate the histogram of the coefficients using 
+    &lt;i&gt;num_bins&lt;/i&gt; histogram bins
+    &lt;/p&gt;
+    &lt;p&gt;
+    The Haar coefficients are stored in point objects
+    which consist of the coefficient value and the
+    index in the point array.
+    &lt;/p&gt;
+    &lt;p&gt;
+    To calculate the histogram, the pointz array is
+    sorted by value.  After it is histogrammed it
+    is resorted by index to return the original ordering.
+    &lt;/p&gt;
+   */
+  private bin[] calc_histo( point pointz[], int num_bins )
+  {
+    // sort by value
+<span class="nc" id="L288">    sort_by_val by_val = new sort_by_val();</span>
+<span class="nc" id="L289">    by_val.sort( pointz );</span>
+
+<span class="nc" id="L291">    int len = pointz.length;</span>
+<span class="nc" id="L292">    double low = pointz[0].val;</span>
+<span class="nc" id="L293">    double high = pointz[len-1].val;</span>
+
+<span class="nc" id="L295">    bin binz[] = alloc_bins( num_bins, low, high );</span>
+<span class="nc" id="L296">    histogram( binz, pointz );</span>
+
+    // return the array to its original order by sorting by index
+<span class="nc" id="L299">    sort_by_index by_index = new sort_by_index();</span>
+<span class="nc" id="L300">    by_index.sort( pointz );</span>
+    
+<span class="nc" id="L302">    return binz;</span>
+  } // calc_histo
+
+
+  /**
+    &lt;p&gt;
+    Allocate and initialize an array of &lt;i&gt;point&lt;/i&gt; objects.
+    The size of the array is &lt;tt&gt;&lt;i&gt;end&lt;/i&gt; - &lt;i&gt;start&lt;/i&gt;&lt;/tt&gt;.
+    Each point object in the array is initialized with its
+    index and a Haar coefficient (from the &lt;i&gt;coef&lt;/i&gt; array).
+    &lt;/p&gt;
+    &lt;p&gt;
+    Since the allocation code has to iterate through the 
+    coefficient spectrum the mean and standard deviation
+    are also calculated to avoid an extra iteration.  These
+    values are returned in the &lt;i&gt;bell_info&lt;/i&gt; object.
+    &lt;/p&gt;
+   */
+  private point[] alloc_points( double coef[], 
+				int start, 
+				int end,
+				bell_info info )
+  {
+<span class="nc" id="L325">    int size = end - start;</span>
+<span class="nc" id="L326">    point pointz[] = new point[ size ];</span>
+
+<span class="nc" id="L328">    double sum = 0;</span>
+<span class="nc" id="L329">    int ix = start;</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">    for (int i = 0; i &lt; size; i++) {</span>
+<span class="nc" id="L331">      pointz[i] = new point( i, coef[ix] );</span>
+<span class="nc" id="L332">      sum = sum + coef[ix];</span>
+<span class="nc" id="L333">      ix++;</span>
+    }
+<span class="nc" id="L335">    double mean = sum / (double)size;</span>
+    
+    // now calculate the standard deviation
+<span class="nc" id="L338">    double stdDevSum = 0;</span>
+    double x;
+<span class="nc bnc" id="L340" title="All 2 branches missed.">    for (int i = 0; i &lt; size; i++) {</span>
+<span class="nc" id="L341">      x = pointz[i].val - mean;</span>
+<span class="nc" id="L342">      stdDevSum = stdDevSum + (x * x);</span>
+    }
+<span class="nc" id="L344">    double sigmaSquared = stdDevSum / (size-1);</span>
+<span class="nc" id="L345">    double sigma = Math.sqrt( sigmaSquared );</span>
+
+<span class="nc" id="L347">    info.mean = mean;</span>
+<span class="nc" id="L348">    info.sigma = sigma;</span>
+
+<span class="nc" id="L350">    return pointz;</span>
+  } // alloc_points
+
+
+
+  /**
+    &lt;p&gt;
+    normal_interval
+    &lt;/p&gt;
+
+    &lt;p&gt;
+    Numerically integreate the normal curve with mean
+    &lt;i&gt;info.mean&lt;/i&gt; and standard deviation &lt;i&gt;info.sigma&lt;/i&gt;
+    over the range &lt;i&gt;low&lt;/i&gt; to &lt;i&gt;high&lt;/i&gt;.
+    &lt;/P&gt;
+
+    &lt;p&gt;
+    There normal curve equation that is integrated is:
+     &lt;/p&gt;
+     &lt;pre&gt;
+       f(y) = (1/(s * sqrt(2 * pi)) e&lt;sup&gt;-(1/(2 * s&lt;sup&gt;2&lt;/sup&gt;)(y-u)&lt;sup&gt;2&lt;/sup&gt;&lt;/sup&gt;
+     &lt;/pre&gt;
+
+     &lt;p&gt;
+     Where &lt;i&gt;u&lt;/i&gt; is the mean and &lt;i&gt;s&lt;/i&gt; is the standard deviation.
+     &lt;/p&gt;
+
+     &lt;p&gt;
+     The area under the section of this curve from &lt;i&gt;low&lt;/i&gt; to
+     &lt;i&gt;high&lt;/i&gt; is returned as the function result.
+     &lt;/p&gt;
+
+     &lt;p&gt;
+     The normal curve equation results in a curve expressed as
+     a probability distribution, where probabilities are expressed
+     as values greater than zero and less than one.  The total area
+     under a normal curve with a mean of zero and a standard
+     deviation of one is is one.
+     &lt;/p&gt;
+
+     &lt;p&gt;
+     The integral is calculated in a dumb fashion (e.g., we're not
+     using anything fancy like simpson's rule).  The area in
+     the interval &lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt; to &lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i+1&lt;/sub&gt;
+     is 
+     &lt;/P&gt;
+
+     &lt;pre&gt;
+     area = (&lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i+1&lt;/sub&gt; - &lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;) * g(&lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;)
+     &lt;/pre&gt;
+
+     &lt;p&gt;
+     where the function g(&lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;) is the point on the
+     normal curve probability distribution at &lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;.
+     &lt;/p&gt;
+
+     @param info       This object encapsulates the mean and standard deviation
+     @param low        Start of the integral
+     @param high       End of the integral
+     @param num_points Number of points to calculate (should be even)
+
+   */
+  private double normal_interval(bell_info info,
+				 double low, 
+				 double high, 
+				 int num_points )
+  {
+<span class="nc" id="L417">    double integral = 0;</span>
+
+<span class="nc bnc" id="L419" title="All 2 branches missed.">    if (info != null) {</span>
+<span class="nc" id="L420">      double s = info.sigma;</span>
+      // calculate 1/(s * sqrt(2 * pi)), where &lt;i&gt;s&lt;/i&gt; is the stddev
+<span class="nc" id="L422">      double sigmaSqrt = 1.0 / (s * (Math.sqrt(2 * Math.PI)));</span>
+<span class="nc" id="L423">      double oneOverTwoSigmaSqrd = 1.0 / (2 * s * s);</span>
+
+<span class="nc" id="L425">      double range = high - low;</span>
+<span class="nc" id="L426">      double step = range / num_points;</span>
+<span class="nc" id="L427">      double x = low;</span>
+      double f_of_x;
+      double area;
+      double t;
+<span class="nc bnc" id="L431" title="All 2 branches missed.">      for (int i = 0; i &lt; num_points-1; i++) {</span>
+<span class="nc" id="L432">	t = x - info.mean;</span>
+<span class="nc" id="L433">	f_of_x = sigmaSqrt * Math.exp( -(oneOverTwoSigmaSqrd * t * t) );</span>
+<span class="nc" id="L434">	area = step * f_of_x; // area of one rectangle in the interval</span>
+<span class="nc" id="L435">	integral = integral + area;  // sum of the rectangles</span>
+<span class="nc" id="L436">	x = x + step;</span>
+      } // for
+    }
+
+<span class="nc" id="L440">    return integral;</span>
+  } // normal_interval
+
+
+  /**
+    &lt;p&gt;
+    Set num_points values in the histogram bin &lt;i&gt;b&lt;/i&gt;
+    to zero.  Or, if the number of values is less
+    than num_zero, set all values in the bin to zero.
+    &lt;/p&gt;
+
+    &lt;p&gt;
+    The num_zero argument is derived from the area under
+    the normal curve in the histogram bin interval.  This
+    area is a fraction of the total curve area.  When multiplied
+    by the total number of coefficient points we get
+    num_zero.
+    &lt;/p&gt;
+
+    &lt;p&gt;
+    The noise coefficients are preserved (returned) in the noise
+    array argument.
+    &lt;/p&gt;
+
+   */
+  private void zero_points( bin b, int num_zero, double noise[] )
+  {
+<span class="nc" id="L467">    int num = b.vals.size();</span>
+<span class="nc" id="L468">    int end = num_zero;</span>
+<span class="nc bnc" id="L469" title="All 2 branches missed.">    if (end &gt; num)</span>
+<span class="nc" id="L470">      end = num;</span>
+
+    point p;
+<span class="nc bnc" id="L473" title="All 2 branches missed.">    for (int i = 0; i &lt; end; i++) {</span>
+<span class="nc" id="L474">      p = (point)b.vals.elementAt( i );</span>
+<span class="nc" id="L475">      noise[ p.index ] = p.val;</span>
+<span class="nc" id="L476">      p.val = 0;</span>
+    }
+<span class="nc" id="L478">  } // zero_points</span>
+
+
+  /**
+    &lt;p&gt;
+    Subtract the gaussian (or normal) curve from the histogram
+    of the coefficients.  This is done by integrating the 
+    gaussian curve over the range of a bin.  If the number of
+    items in the bin is less than or equal to the area under the
+    curve in that interval, all items in the bin are set to
+    zero.  If the number of items in the bin is greater than
+    the area under the curve, then a number of bin items equal
+    to the curve area is set to zero.
+    &lt;/p&gt;
+    &lt;p&gt;
+    The area under a normal curve is always less than or equal
+    to one.  So the area returned by normal_interval is the 
+    fraction of the total area.  This is multiplied by
+    the total number of coefficients.
+    &lt;/p&gt;
+    &lt;p&gt;
+    The function returns the number of coefficients that
+    are set to zero (e.g., the number of coefficients that
+    fell within the gaussian curve).  These coefficients are
+    the noise coefficients.  The noise coefficients are returned
+    in the noise argument.
+    &lt;/p&gt;
+   */
+  private int subtract_gauss_curve( bin binz[], 
+			            bell_info info,
+				    int total_points,
+				    double noise[] )
+  {
+<span class="nc" id="L511">    int points_in_interval = total_points / binz.length;</span>
+<span class="nc" id="L512">    double start = binz[0].start;</span>
+<span class="nc" id="L513">    double end = binz[1].start;</span>
+<span class="nc" id="L514">    double step = end - start;</span>
+    double percent;
+    int num_points;
+<span class="nc" id="L517">    int total_zeroed = 0;</span>
+
+<span class="nc bnc" id="L519" title="All 2 branches missed.">    for (int i = 0; i &lt; binz.length; i++) {</span>
+<span class="nc" id="L520">      percent = normal_interval( info, start, end, points_in_interval );</span>
+<span class="nc" id="L521">      num_points = (int)(percent * (double)total_points);</span>
+<span class="nc" id="L522">      total_zeroed = total_zeroed + num_points;</span>
+<span class="nc bnc" id="L523" title="All 2 branches missed.">      if (num_points &gt; 0) {</span>
+<span class="nc" id="L524">	zero_points( binz[i], num_points, noise );</span>
+      }
+<span class="nc" id="L526">      start = end;</span>
+<span class="nc" id="L527">      end = end + step;</span>
+    } // for
+
+<span class="nc" id="L530">    return total_zeroed;</span>
+  } // subtract_gauss_curve
+
+  
+  /**
+   &lt;p&gt;
+   This function is passed the section of the Haar
+   coefficients that correspond to a single spectrum.
+   It compares this spectrum to a gaussian
+   curve and zeros out the coefficients within the
+   gaussian curve.
+   &lt;/p&gt;
+   &lt;p&gt;
+   The function returns the number of points filtered out as
+   the function result.  The noise spectrum is also returned
+   in the &lt;i&gt;noise&lt;/i&gt; argument.
+   &lt;/p&gt;
+   */
+  private int filter_spectrum( double coef[], int start, int end,
+				double noise[] )
+  {
+<span class="nc" id="L551">    final int num_bins = 32;</span>
+    int num_filtered;
+
+<span class="nc" id="L554">    bell_info info = new bell_info();</span>
+<span class="nc" id="L555">    point pointz[] = alloc_points( coef, start, end, info );</span>
+<span class="nc" id="L556">    bin binz[] = calc_histo( pointz, num_bins );</span>
+<span class="nc" id="L557">    num_filtered = subtract_gauss_curve( binz, info, pointz.length, noise );</span>
+    
+<span class="nc" id="L559">    int zero_count = 0;</span>
+    // copy filtered coefficients back into the coefficient array
+<span class="nc" id="L561">    int ix = start;</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">    for (int i = 0; i &lt; pointz.length; i++) {</span>
+<span class="nc" id="L563">      coef[ix] = pointz[i].val;</span>
+<span class="nc" id="L564">      ix++;</span>
+    }
+
+<span class="nc" id="L567">    return num_filtered;</span>
+  } // filter_spectrum
+
+
+  /**
+    Normalize the noise array to zero by subtracting
+    the smallest value from all points.
+   */
+  private void normalize_to_zero( double noise[] )
+  {
+<span class="nc" id="L577">    double min = noise[0];</span>
+<span class="nc bnc" id="L578" title="All 2 branches missed.">    for (int i = 1; i &lt; noise.length; i++) {</span>
+<span class="nc bnc" id="L579" title="All 2 branches missed.">      if (min &gt; noise[i])</span>
+<span class="nc" id="L580">	min = noise[i];</span>
+    } // for
+
+    // normalize
+<span class="nc bnc" id="L584" title="All 2 branches missed.">    for (int i = 0; i &lt; noise.length; i++) {</span>
+<span class="nc" id="L585">      noise[i] = noise[i] - min;</span>
+    }
+<span class="nc" id="L587">  } // normalize_to_zero</span>
+
+
+  /**
+   &lt;p&gt;
+   This function is passed a set of Haar wavelet
+   coefficients that result from the Haar wavelet
+   transform.  It applies a gaussian noise filter
+   to each frequency spectrum.  This filter zeros
+   out coefficients that fall within a gaussian
+   curve.  This alters the input data (the coef array).
+   &lt;/p&gt;
+   &lt;p&gt;
+   The &lt;i&gt;coef&lt;/i&gt; argument is the input argument and
+   contains the coefficients.  The &lt;i&gt;noise&lt;/i&gt; argument
+   is an output argument and contains the coefficients
+   that have been filtered out.  This allows a noise
+   spectrum to be rebuilt.
+   &lt;/p&gt;
+   */
+  public void gaussian_filter( double coef[], double noise[] )
+  {
+<span class="nc" id="L609">    final int min_size = 64;  // minimum spectrum size</span>
+    
+<span class="nc" id="L611">    int total_filtered = 0;</span>
+    int num_filtered;
+<span class="nc" id="L613">    int end = coef.length;</span>
+<span class="nc" id="L614">    int start = end &gt;&gt; 1;</span>
+<span class="nc bnc" id="L615" title="All 2 branches missed.">    while (start &gt;= min_size) {</span>
+<span class="nc" id="L616">      num_filtered = filter_spectrum( coef, start, end, noise );</span>
+<span class="nc" id="L617">      total_filtered = total_filtered + num_filtered;</span>
+<span class="nc" id="L618">      end = start;</span>
+<span class="nc" id="L619">      start = end &gt;&gt; 1;</span>
+    }
+
+    // Note that coef[0] is the average across the
+    // time series.  This value is needed to regenerate
+    // the noise spectrum time series.
+<span class="nc" id="L625">    noise[0] = coef[0];</span>
+
+<span class="nc" id="L627">    System.out.println(&quot;gaussian_filter: total points filtered out = &quot; +</span>
+		       total_filtered );
+<span class="nc" id="L629">  } // gaussian_filter</span>
+
+
+
+  /**
+    Calculate the Haar tranform on the time series (whose
+    length must be a factor of two) and filter it.  Then
+    calculate the inverse transform and write the result
+    to a file whose name is &lt;i&gt;file_name&lt;/i&gt;.  A noise
+    spectrum is written to &lt;i&gt;file_name&lt;/i&gt;_noise.
+   */
+  public void filter_time_series( String file_name, double ts[] )
+  {
+<span class="nc" id="L642">    double noise[] = new double[ ts.length ];</span>
+<span class="nc" id="L643">    inplace_haar haar = new inplace_haar();</span>
+<span class="nc" id="L644">    haar.wavelet_calc( ts );</span>
+<span class="nc" id="L645">    haar.order();</span>
+<span class="nc" id="L646">    gaussian_filter( ts, noise );</span>
+<span class="nc" id="L647">    haar.inverse();</span>
+
+<span class="nc" id="L649">    PrintWriter prStr = OpenFile( file_name );</span>
+<span class="nc bnc" id="L650" title="All 2 branches missed.">    if (prStr != null) {</span>
+<span class="nc bnc" id="L651" title="All 2 branches missed.">      for (int i = 0; i &lt; ts.length; i++) {</span>
+<span class="nc" id="L652">	prStr.println( i + &quot; &quot; + ts[i] );</span>
+      }
+<span class="nc" id="L654">      prStr.close();</span>
+    }
+
+<span class="nc bnc" id="L657" title="All 2 branches missed.">    if (noise != null) {</span>
+      // calculate the inverse Haar function for the noise
+<span class="nc" id="L659">      haar.setWavefx( noise );</span>
+<span class="nc" id="L660">      haar.setIsOrdered();</span>
+<span class="nc" id="L661">      haar.inverse();</span>
+
+<span class="nc" id="L663">      normalize_to_zero( noise );</span>
+
+      // write the noise spectrum out to a file
+<span class="nc" id="L666">      prStr = OpenFile( file_name + &quot;_noise&quot; );</span>
+<span class="nc bnc" id="L667" title="All 2 branches missed.">      if (prStr != null) {</span>
+<span class="nc bnc" id="L668" title="All 2 branches missed.">	for (int i = 0; i &lt; noise.length; i++) {</span>
+<span class="nc" id="L669">	  prStr.println( i + &quot; &quot; + noise[i] );</span>
+	}
+<span class="nc" id="L671">	prStr.close();</span>
+      }
+    }
+<span class="nc" id="L674">  } // filter_time_series</span>
+
+} // noise_filter
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

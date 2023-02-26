@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RuleSetConstraints.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.rule</a> &gt; <span class="el_source">RuleSetConstraints.java</span></div><h1>RuleSetConstraints.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.rule;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * RuleSetConstraints.java
+ * 
+ * Created: Tue Feb 20 13:26:00 2001
+ * By: Liviu Panait and Sean Luke
+ */
+
+/**
+ * RuleSetConstraints is an basic class for constraints applicable to rulesets.
+ * There are two categories of parameters associated with this class.  First, there are parameters
+ * which guide the initial number of rules to be created when a ruleset is initialized for
+ * the first time, or totally reset.  Second, there are parameters which indicate how rulesets
+ * are to be mutated under the &quot;default&quot; rule mutation operator.
+ *
+ * &lt;p&gt;First the initialization parameters.  You need to specify a distribution from which
+ * the system will pick random integer values X.  When a ruleset is to be initialized, a
+ * random value X is picked from this distribution, and the ruleset will be created with X initial rules.
+ * You can specify the distribution in one of two ways.  First, you can specify a minimum and maximum
+ * number of rules; the system will then pick an X uniformly from between the min and the max. 
+ * Second, you can specify a full distribution of size probabilities for more control.  For example,
+ * to specify that the system should make individuals with 0 rules 0.1 of the time, 1 rule 0.2 of the time,
+ * and 2 rules 0.7 of the time, you set &lt;i&gt;reset-num-sizes&lt;/i&gt; to 3 (for rule sizes up to but not including 3),
+ * and then set  reset-size.0 to 0.1, reset-size.1 to 0.2, and reset-size.2 to 0.7.
+ *
+ * &lt;p&gt;Next the mutation parameters.  The default mutation procedure works as follows.  First, every rule
+ * in the ruleset is mutated.  It is up to the rule to determine by how much or whether it will be mutated
+ * (perhaps by flipping a coin) when its mutate function is called.  Second, the system repeatedly flips
+ * a coin with &quot;p-del&quot; probability of being true, until it comes up false.  The number of times it came up
+ * true is the number of rules to remove from the ruleset; rules to be removed are chosen at random.
+ * Third, the system repeatedly flips
+ * a coin with &quot;p-add&quot; probability of being true, until it comes up false.  The number of times it came up
+ * true is the number of new randomly-generated rules to add to the ruleset; rules are added to the end of the array.
+ * Fourth, with &quot;p-rand-order&quot; probability, the order of rules in the ruleset array is randomized; this last
+ * item might or might not matter to you depending on whether or not your rule interpreter differs depending on rule order.  
+ *
+ * @author Liviu Panait and Sean Luke
+ * @version 1.0 
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of rule set constraints)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;name&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(name of rule set constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;reset-min-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 0 (default=0)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(for rule set constraint &lt;i&gt;n&lt;/i&gt;, the minimum number of rules that rulesets may contain upon initialization (resetting), see discussion above)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;reset-max-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= &lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;reset-min-size&lt;/tt&gt; (default=0)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(for rule set constraint &lt;i&gt;n&lt;/i&gt;, the maximum number of rules that rulesets may contain upon initialization (resetting), see discussion above)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;reset-num-sizes&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 0&lt;/font&gt; (default=unset)&lt;/td&gt;
+ &lt;td valign=top&gt;(for rule set constraint &lt;i&gt;n&lt;/i&gt;, the number of sizes in the size distribution for initializtion, see discussion above)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;reset-size&lt;/tt&gt;.&lt;i&gt;i&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt; double &amp;lt; 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(for rule set constraint &lt;i&gt;n&lt;/i&gt;, the probability that &lt;i&gt;i&lt;/i&gt; will be chosen as the number of rules upon initialization, see discussion above)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;p-add&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt; double &amp;lt; 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the probability that a new rule will be added, see discussion)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;p-del&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt; double &amp;lt; 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the probability that a rule will be deleted, see discussion)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;p-rand-order&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt; double &amp;lt; 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the probability that the rules' order will be randomized, see discussion)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+*/
+<span class="nc" id="L90">public class RuleSetConstraints implements Clique</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    /** The size of a byte */
+    //    public static final int SIZE_OF_BYTE = 256;
+    public final static String P_NAME = &quot;name&quot;;
+    /** num rulesets */
+    //    public final static String P_SIZE = &quot;size&quot;;
+    public final static String P_RULE = &quot;rule&quot;;  // our prototype
+    //    public static final int CHECK_BOUNDARY = 8;
+    public static final String P_RESETMINSIZE = &quot;reset-min-size&quot;;
+    public static final String P_RESETMAXSIZE = &quot;reset-max-size&quot;;
+    public static final String P_NUMSIZES = &quot;reset-num-sizes&quot;;
+    public static final String P_RESETSIZE = &quot;reset-size&quot;;
+
+    public static final String P_MINSIZE = &quot;min-size&quot;;
+    public static final String P_MAXSIZE = &quot;max-size&quot;;
+
+    public int minSize;   // the minimum legal size
+    public int maxSize;   // the maximum legal size
+
+    public int resetMinSize;  // the minium possible size -- if unused, it's 0, but 0 is also a valid number, so check sizeDistribution==null
+    public int resetMaxSize;  // the maximum possible size -- if unused, it's 0, but 0 is also a valid number, so check sizeDistribution==null
+    public double[] sizeDistribution;
+
+    // probability of adding a random rule to the rule set
+    public static final String P_ADD_PROB = &quot;p-add&quot;;
+    public double p_add;
+
+    // probability of removing a random rule from the rule set
+    public static final String P_DEL_PROB = &quot;p-del&quot;;
+    public double p_del;
+
+    // probability of randomizing the rule order in the rule set
+    public static final String P_RAND_ORDER_PROB = &quot;p-rand-order&quot;;
+    public double p_randorder;
+
+    /** Assuming that either resetMinSize and resetMaxSize, or sizeDistribution, is defined,
+        picks a random size from resetMinSize...resetMaxSize inclusive, or randomly
+        from sizeDistribution. */ 
+    public int pickSize(final EvolutionState state, final int thread)
+        {
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        if (sizeDistribution!=null)</span>
+            // pick from distribution
+<span class="nc" id="L135">            return RandomChoice.pickFromDistribution(</span>
+                sizeDistribution,
+<span class="nc" id="L137">                state.random[thread].nextDouble());</span>
+        else
+            // pick from resetMinSize...resetMaxSize
+<span class="nc" id="L140">            return state.random[thread].nextInt(resetMaxSize-resetMinSize+1) + resetMinSize;</span>
+        }
+
+    /**
+       The prototype of the Rule that will be used in the RuleSet
+       (the RuleSet contains only rules with the specified prototype).
+    */
+    public Rule rulePrototype;
+
+    /**
+       Returns a stochastic value picked to specify the number of rules
+       to generate when calling reset() on this kind of Rule.  The default
+       version picks from the min/max or distribution, but you can override
+       this to do whatever kind of thing you like here.
+    */
+    public int numRulesForReset(final RuleSet ruleset, 
+        final EvolutionState state, final int thread)
+        {
+        // the default just uses pickSize
+<span class="nc" id="L159">        return pickSize(state,thread);</span>
+        }
+        
+    /** The byte value of the constraints -- we can only have 256 of them */
+    public byte constraintNumber;
+
+    /** The name of the RuleSetConstraints object */
+    public String name;
+
+    /** Converting the rule to a string ( the name ) */
+<span class="nc" id="L169">    public String toString() { return name; }</span>
+    
+    /** Sets up all the RuleSetConstraints, loading them from the parameter
+        file.  This must be called before anything is called which refers
+        to a type by name. */
+
+    /** You must guarantee that after calling constraintsFor(...) one or
+        several times, you call state.output.exitIfErrors() once. */
+
+    public static RuleSetConstraints constraintsFor(final String constraintsName,
+        final EvolutionState state)
+        {
+<span class="nc" id="L181">        RuleSetConstraints myConstraints = (RuleSetConstraints)(((RuleInitializer)state.initializer).ruleSetConstraintRepository.get(constraintsName));</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        if (myConstraints==null)</span>
+<span class="nc" id="L183">            state.output.error(&quot;The rule constraints \&quot;&quot; + constraintsName + &quot;\&quot; could not be found.&quot;);</span>
+<span class="nc" id="L184">        return myConstraints;</span>
+        }
+
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // What's my name?
+<span class="nc" id="L191">        name = state.parameters.getString(base.push(P_NAME),null);</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        if (name==null)</span>
+<span class="nc" id="L193">            state.output.fatal(&quot;No name was given for this RuleSetConstraints.&quot;,</span>
+<span class="nc" id="L194">                base.push(P_NAME));</span>
+
+        // Register me
+<span class="nc" id="L197">        RuleSetConstraints old_constraints = (RuleSetConstraints)(((RuleInitializer)state.initializer).ruleSetConstraintRepository.put(name,this));</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        if (old_constraints != null)</span>
+<span class="nc" id="L199">            state.output.fatal(&quot;The rule constraints \&quot;&quot; + name + &quot;\&quot; has been defined multiple times.&quot;, base.push(P_NAME));</span>
+        
+        // load my prototypical Rule
+<span class="nc" id="L202">        rulePrototype = (Rule)(state.parameters.getInstanceForParameter(base.push(P_RULE),null,Rule.class));</span>
+<span class="nc" id="L203">        rulePrototype.setup(state,base.push(P_RULE));</span>
+
+<span class="nc" id="L205">        p_add = state.parameters.getDouble( base.push( P_ADD_PROB ), null, 0 );</span>
+<span class="nc bnc" id="L206" title="All 4 branches missed.">        if( p_add &lt; 0 || p_add &gt; 1 )</span>
+            {
+<span class="nc" id="L208">            state.output.fatal( &quot;Parameter not found, or its value is outside of allowed range [0..1].&quot;,</span>
+<span class="nc" id="L209">                base.push( P_ADD_PROB ) );</span>
+            }
+<span class="nc" id="L211">        p_del = state.parameters.getDouble( base.push( P_DEL_PROB ), null, 0 );</span>
+<span class="nc bnc" id="L212" title="All 4 branches missed.">        if( p_del &lt; 0 || p_del &gt; 1 )</span>
+            {
+<span class="nc" id="L214">            state.output.fatal( &quot;Parameter not found, or its value is outside of allowed range [0..1].&quot;,</span>
+<span class="nc" id="L215">                base.push( P_DEL_PROB ) );</span>
+            }
+
+<span class="nc" id="L218">        p_randorder = state.parameters.getDouble( base.push( P_RAND_ORDER_PROB ), null, 0 );</span>
+<span class="nc bnc" id="L219" title="All 4 branches missed.">        if( p_randorder &lt; 0 || p_randorder &gt; 1 )</span>
+            {
+<span class="nc" id="L221">            state.output.fatal( &quot;Parameter not found, or its value is outside of allowed range [0..1].&quot;,</span>
+<span class="nc" id="L222">                base.push( P_RAND_ORDER_PROB ) );</span>
+            }
+
+        // now, we are going to load EITHER min/max size OR a size distribution, or both
+        // (the size distribution takes precedence)
+
+        // reset min and max size
+
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_RESETMINSIZE), null) || </span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">            state.parameters.exists(base.push(P_RESETMAXSIZE), null))</span>
+            {
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            if (!(state.parameters.exists(base.push(P_RESETMAXSIZE), null)))</span>
+<span class="nc" id="L234">                state.output.error(&quot;This RuleSetConstraints has a &quot; + </span>
+                    P_RESETMINSIZE + &quot; but not a &quot; + P_RESETMAXSIZE + &quot;.&quot;);
+           
+<span class="nc" id="L237">            resetMinSize = state.parameters.getInt(</span>
+<span class="nc" id="L238">                base.push(P_RESETMINSIZE), null,0);</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">            if (resetMinSize==-1) </span>
+<span class="nc" id="L240">                state.output.error(&quot;If min&amp;max are defined, RuleSetConstraints must have a min size &gt;= 0.&quot;,</span>
+<span class="nc" id="L241">                    base.push(P_RESETMINSIZE), null);</span>
+            
+<span class="nc" id="L243">            resetMaxSize = state.parameters.getInt(</span>
+<span class="nc" id="L244">                base.push(P_RESETMAXSIZE), null,0);</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">            if (resetMaxSize==-1) </span>
+<span class="nc" id="L246">                state.output.error(&quot;If min&amp;max are defined, RuleSetConstraints must have a max size &gt;= 0.&quot;,</span>
+<span class="nc" id="L247">                    base.push(P_RESETMAXSIZE), null);</span>
+
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            if (resetMinSize &gt; resetMaxSize)</span>
+<span class="nc" id="L250">                state.output.error(</span>
+                    &quot;If min&amp;max are defined, RuleSetConstraints must have min size &lt;= max size.&quot;,
+<span class="nc" id="L252">                    base.push(P_RESETMINSIZE), null);</span>
+<span class="nc" id="L253">            state.output.exitIfErrors();</span>
+            }
+
+        // load sizeDistribution
+
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_NUMSIZES),</span>
+                null))
+            {
+<span class="nc" id="L261">            int siz = state.parameters.getInt(</span>
+<span class="nc" id="L262">                base.push(P_NUMSIZES), null,1);</span>
+<span class="nc bnc" id="L263" title="All 2 branches missed.">            if (siz==0)</span>
+<span class="nc" id="L264">                state.output.fatal(&quot;The number of sizes in the RuleSetConstraints's distribution must be &gt;= 1. &quot;);</span>
+<span class="nc" id="L265">            sizeDistribution = new double[siz];</span>
+            
+<span class="nc" id="L267">            double sum = 0.0;</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">            for(int x=0;x&lt;siz;x++)</span>
+                {
+<span class="nc" id="L270">                sizeDistribution[x] = state.parameters.getDouble(</span>
+<span class="nc" id="L271">                    base.push(P_RESETSIZE).push(&quot;&quot;+x),null, 0.0);</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">                if (sizeDistribution[x]&lt;0.0)</span>
+                    {
+<span class="nc" id="L274">                    state.output.warning(</span>
+                        &quot;Distribution value #&quot; + x + &quot; negative or not defined, assumed to be 0.0&quot;,
+<span class="nc" id="L276">                        base.push(P_RESETSIZE).push(&quot;&quot;+x),null);</span>
+<span class="nc" id="L277">                    sizeDistribution[x] = 0.0;</span>
+                    }
+<span class="nc" id="L279">                sum += sizeDistribution[x];</span>
+                }
+<span class="nc bnc" id="L281" title="All 2 branches missed.">            if (sum&gt;1.0)</span>
+<span class="nc" id="L282">                state.output.warning(</span>
+                    &quot;Distribution sums to greater than 1.0&quot;,
+<span class="nc" id="L284">                    base.push(P_RESETSIZE),</span>
+                    null);
+<span class="nc bnc" id="L286" title="All 2 branches missed.">            if (sum==0.0)</span>
+<span class="nc" id="L287">                state.output.fatal(</span>
+                    &quot;Distribution is all 0's&quot;,
+<span class="nc" id="L289">                    base.push(P_RESETSIZE),</span>
+                    null);
+
+            // normalize and prepare
+<span class="nc" id="L293">            RandomChoice.organizeDistribution(sizeDistribution);</span>
+            }
+        
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_MINSIZE), null))</span>
+<span class="nc" id="L297">            minSize = state.parameters.getInt( base.push( P_MINSIZE ), null, 0 );</span>
+<span class="nc" id="L298">        else minSize = 0;</span>
+        
+<span class="nc bnc" id="L300" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_MAXSIZE), null))</span>
+<span class="nc" id="L301">            maxSize = state.parameters.getInt( base.push( P_MAXSIZE ), null, 0 );</span>
+<span class="nc" id="L302">        else maxSize = Integer.MAX_VALUE;</span>
+
+        // sanity checks
+<span class="nc bnc" id="L305" title="All 2 branches missed.">        if (minSize &gt; maxSize)</span>
+            {
+<span class="nc" id="L307">            state.output.fatal(&quot;Cannot have min size greater than max size : (&quot; + minSize + &quot; &gt; &quot; + maxSize + &quot;)&quot;,base.push(P_MINSIZE), null);</span>
+            }
+        
+<span class="nc bnc" id="L310" title="All 2 branches missed.">        if (sizeDistribution != null)</span>
+            {
+<span class="nc bnc" id="L312" title="All 2 branches missed.">            if (minSize!=0)</span>
+<span class="nc" id="L313">                state.output.fatal(&quot;Using size distribution, but min size is not 0&quot;,</span>
+<span class="nc" id="L314">                    base.push(P_MINSIZE), null);</span>
+<span class="nc bnc" id="L315" title="All 2 branches missed.">            if (sizeDistribution.length - 1 &gt; maxSize)</span>
+<span class="nc" id="L316">                state.output.fatal(&quot;Using size distribution whose maximum size is higher than max size&quot;,</span>
+<span class="nc" id="L317">                    base.push(P_MAXSIZE), null);</span>
+            }
+        else
+            {
+<span class="nc bnc" id="L321" title="All 2 branches missed.">            if (resetMinSize &lt; minSize)</span>
+<span class="nc" id="L322">                state.output.fatal(&quot;Cannot have min size greater than reset min size : (&quot; + minSize + &quot; &gt; &quot; + resetMinSize + &quot;)&quot;,base.push(P_MINSIZE), null);</span>
+<span class="nc bnc" id="L323" title="All 2 branches missed.">            if (resetMaxSize &gt; maxSize)</span>
+<span class="nc" id="L324">                state.output.fatal(&quot;Cannot have max size less than reset max size : (&quot; + maxSize + &quot; &gt; &quot; + resetMaxSize + &quot;)&quot;,base.push(P_MAXSIZE), null);                </span>
+            }
+
+<span class="nc" id="L327">        }</span>
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,342 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPFunctionSet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPFunctionSet.java</span></div><h1>GPFunctionSet.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import java.io.*;
+import ec.*;
+import ec.util.*;
+import java.util.*;
+
+/* 
+ * GPFunctionSet.java
+ * 
+ * Created: Wed Oct 13 22:35:06 1999
+ * By: Sean Luke
+ */
+
+/**
+ * GPFunctionSet is a Clique which represents a set of GPNode prototypes
+ * forming a standard function set for forming certain trees in individuals.
+ * GPFunctionSets instances have unique names with which they're referenced by
+ * GPTreeConstraints objects indicating that they're used for certain trees.
+ * GPFunctionSets store their GPNode Prototypes in three hashtables,
+ * one for all nodes, one for nonterminals, and one for terminals.  Each
+ * hashed item is an array of GPNode objects,
+ * hashed by the return type of the GPNodes in the array.
+ *
+ * GPFunctionSets also contain prototypical GPNode nodes which they
+ * clone to form their arrays.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;name&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(name of function set.  Must be different from other function set instances)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of functions in the function set)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;func.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.gp.GPNode&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(class of function node &lt;i&gt;n&lt;/i&gt; in the set)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;func.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;/td&gt;
+ &lt;td&gt;function node &lt;i&gt;n&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ 
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L61">public class GPFunctionSet implements Clique</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public final static String P_NAME = &quot;name&quot;;
+    public final static String P_FUNC = &quot;func&quot;;
+    public final static String P_SIZE = &quot;size&quot;;
+
+    /** Name of the GPFunctionSet */
+    public String name;
+
+    /** The nodes that our GPTree can use: arrays of nodes hashed by type. */
+    public Hashtable nodes_h;
+    /** The nodes that our GPTree can use: nodes[type][thenodes]. */
+    public GPNode[][] nodes;
+    /** The nonterminals our GPTree can use: arrays of nonterminals hashed by type. */
+    public Hashtable nonterminals_h;
+    /** The nonterminals our GPTree can use: nonterminals[type][thenodes]. */
+    public GPNode[][] nonterminals;
+    /** The terminals our GPTree can use: arrays of terminals hashed by type. */
+    public Hashtable terminals_h;
+    /** The terminals our GPTree can use: terminals[type][thenodes]. */
+    public GPNode[][] terminals;
+
+
+    // some convenience methods which speed up various kinds
+    // of mutation operators
+
+    /** The nodes that our GPTree can use, hashed by name(). */
+    public Hashtable nodesByName;
+
+    /** Nodes == a given arity, that is: nodesByArity[type][arity][thenodes] */
+    public GPNode[][][]nodesByArity;
+
+    /** Nonterminals &lt;= a given arity, that is: nonterminalsUnderArity[type][arity][thenodes] --
+        this will be O(n^2).  Obviously, the number of nonterminals at arity slot 0 is 0.*/
+    public GPNode[][][]nonterminalsUnderArity;
+
+    /** Nonterminals &gt;= a given arity, that is: nonterminalsOverArity[type][arity][thenodes] --
+        this will be O(n^2).  Obviously, the number of nonterminals at arity slot 0 is all the 
+        nonterminals of that type. */
+    public GPNode[][][]nonterminalsOverArity;
+    
+    /** Returns the name. */
+<span class="nc" id="L105">    public String toString() { return name; }</span>
+
+
+    /** Sets up all the GPFunctionSet, loading them from the parameter
+        file.  This must be called before anything is called which refers
+        to a type by name. */
+
+    /** Sets up the arrays based on the hashtables */
+
+    public void postProcessFunctionSet()
+        {
+<span class="nc" id="L116">        nodes = new GPNode[nodes_h.size()][];</span>
+<span class="nc" id="L117">        terminals = new GPNode[terminals_h.size()][];</span>
+<span class="nc" id="L118">        nonterminals = new GPNode[nonterminals_h.size()][];</span>
+
+<span class="nc" id="L120">        Enumeration e = nodes_h.keys();</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L123">            GPType gpt = (GPType)(e.nextElement());</span>
+<span class="nc" id="L124">            GPNode[] gpfi = (GPNode[])(nodes_h.get(gpt));</span>
+<span class="nc" id="L125">            nodes[gpt.type] = gpfi;</span>
+<span class="nc" id="L126">            }</span>
+<span class="nc" id="L127">        e = nonterminals_h.keys();</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L130">            GPType gpt = (GPType)(e.nextElement());</span>
+<span class="nc" id="L131">            GPNode[] gpfi = (GPNode[])(nonterminals_h.get(gpt));</span>
+<span class="nc" id="L132">            nonterminals[gpt.type] = gpfi;</span>
+<span class="nc" id="L133">            }</span>
+<span class="nc" id="L134">        e = terminals_h.keys();</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L137">            GPType gpt = (GPType)(e.nextElement());</span>
+<span class="nc" id="L138">            GPNode[] gpfi = (GPNode[])(terminals_h.get(gpt));</span>
+<span class="nc" id="L139">            terminals[gpt.type] = gpfi;</span>
+<span class="nc" id="L140">            }</span>
+
+        // set up arity-based arrays
+        // first, determine the maximum arity
+<span class="nc" id="L144">        int max_arity=0;</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        for(int x=0;x&lt;nodes.length;x++)</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">            for(int y=0;y&lt;nodes[x].length;y++)</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                if (max_arity &lt; nodes[x][y].children.length)</span>
+<span class="nc" id="L148">                    max_arity = nodes[x][y].children.length;</span>
+
+        // next set up the == array
+<span class="nc" id="L151">        nodesByArity = new GPNode[nodes.length][max_arity+1][];</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        for(int x=0;x&lt;nodes.length;x++)</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            for(int a = 0; a &lt;= max_arity; a++)</span>
+                {
+                // how many nodes do we have?
+<span class="nc" id="L156">                int num_of_a = 0;</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                for(int y=0;y&lt;nodes[x].length;y++)</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">                    if (nodes[x][y].children.length == a) num_of_a++;</span>
+                // allocate and fill
+<span class="nc" id="L160">                nodesByArity[x][a] = new GPNode[num_of_a];</span>
+<span class="nc" id="L161">                int cur_a = 0;</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                for(int y=0;y&lt;nodes[x].length;y++)</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                    if (nodes[x][y].children.length == a )</span>
+<span class="nc" id="L164">                        nodesByArity[x][a][cur_a++] = nodes[x][y];</span>
+                }
+
+        // now set up the &lt;= nonterminals array
+<span class="nc" id="L168">        nonterminalsUnderArity = new GPNode[nonterminals.length][max_arity+1][];</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        for(int x=0;x&lt;nonterminals.length;x++)</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">            for (int a = 0;a &lt;= max_arity; a++)</span>
+                {
+                // how many nonterminals do we have?
+<span class="nc" id="L173">                int num_of_a = 0;</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">                for(int y=0;y&lt;nonterminals[x].length;y++)</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                    if (nonterminals[x][y].children.length &lt;= a) num_of_a++;</span>
+                // allocate and fill
+<span class="nc" id="L177">                nonterminalsUnderArity[x][a] = new GPNode[num_of_a];</span>
+<span class="nc" id="L178">                int cur_a = 0;</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">                for(int y=0;y&lt;nonterminals[x].length;y++)</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">                    if (nonterminals[x][y].children.length &lt;= a )</span>
+<span class="nc" id="L181">                        nonterminalsUnderArity[x][a][cur_a++] = nonterminals[x][y];</span>
+                }
+
+
+
+        // now set up the &gt;= nonterminals array
+<span class="nc" id="L187">        nonterminalsOverArity = new GPNode[nonterminals.length][max_arity+1][];</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">        for(int x=0;x&lt;nonterminals.length;x++)</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">            for (int a = 0;a &lt;= max_arity; a++)</span>
+                {
+                // how many nonterminals do we have?
+<span class="nc" id="L192">                int num_of_a = 0;</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">                for(int y=0;y&lt;nonterminals[x].length;y++)</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">                    if (nonterminals[x][y].children.length &gt;= a) num_of_a++;</span>
+                // allocate and fill
+<span class="nc" id="L196">                nonterminalsOverArity[x][a] = new GPNode[num_of_a];</span>
+<span class="nc" id="L197">                int cur_a = 0;</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">                for(int y=0;y&lt;nonterminals[x].length;y++)</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                    if (nonterminals[x][y].children.length &gt;= a )</span>
+<span class="nc" id="L200">                        nonterminalsOverArity[x][a][cur_a++] = nonterminals[x][y];</span>
+                }
+<span class="nc" id="L202">        }</span>
+
+
+
+
+    /** Must be done &lt;i&gt;after&lt;/i&gt; GPType and GPNodeConstraints have been set up */
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // What's my name?
+<span class="nc" id="L212">        name = state.parameters.getString(base.push(P_NAME),null);</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        if (name==null)</span>
+<span class="nc" id="L214">            state.output.fatal(&quot;No name was given for this function set.&quot;,</span>
+<span class="nc" id="L215">                base.push(P_NAME));</span>
+        // Register me
+<span class="nc" id="L217">        GPFunctionSet old_functionset = (GPFunctionSet)(((GPInitializer)state.initializer).functionSetRepository.put(name,this));</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        if (old_functionset != null)</span>
+<span class="nc" id="L219">            state.output.fatal(&quot;The GPFunctionSet \&quot;&quot; + name + &quot;\&quot; has been defined multiple times.&quot;, base.push(P_NAME));</span>
+
+        // How many functions do I have?
+<span class="nc" id="L222">        int numFuncs = state.parameters.getInt(base.push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (numFuncs &lt; 1)</span>
+<span class="nc" id="L224">            state.output.error(&quot;The GPFunctionSet \&quot;&quot; + name + &quot;\&quot; has no functions.&quot;,</span>
+<span class="nc" id="L225">                base.push(P_SIZE));</span>
+        
+<span class="nc" id="L227">        nodesByName = new Hashtable();</span>
+
+<span class="nc" id="L229">        Parameter p = base.push(P_FUNC);</span>
+<span class="nc" id="L230">        Vector tmp = new Vector();</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        for(int x = 0; x &lt; numFuncs; x++)</span>
+            {
+            // load
+<span class="nc" id="L234">            Parameter pp = p.push(&quot;&quot;+x);</span>
+<span class="nc" id="L235">            GPNode gpfi = (GPNode)(state.parameters.getInstanceForParameter(</span>
+                    pp, null, GPNode.class));
+<span class="nc" id="L237">            gpfi.setup(state,pp);</span>
+
+            // add to my collection
+<span class="nc" id="L240">            tmp.addElement(gpfi);</span>
+                        
+            // Load into the nodesByName hashtable
+<span class="nc" id="L243">            GPNode[] nodes = (GPNode[])(nodesByName.get(gpfi.name()));</span>
+<span class="nc bnc" id="L244" title="All 2 branches missed.">            if (nodes == null)</span>
+<span class="nc" id="L245">                nodesByName.put(gpfi.name(), new GPNode[] { gpfi });</span>
+            else
+                {
+                // O(n^2) but uncommon so what the heck.
+<span class="nc" id="L249">                GPNode[] nodes2 = new GPNode[nodes.length + 1];</span>
+<span class="nc" id="L250">                System.arraycopy(nodes, 0, nodes2, 0, nodes.length);</span>
+<span class="nc" id="L251">                nodes2[nodes2.length - 1] = gpfi;</span>
+<span class="nc" id="L252">                nodesByName.put(gpfi.name(), nodes2);</span>
+                }
+            }
+
+        // Make my hash tables
+<span class="nc" id="L257">        nodes_h = new Hashtable();</span>
+<span class="nc" id="L258">        terminals_h = new Hashtable();</span>
+<span class="nc" id="L259">        nonterminals_h = new Hashtable();</span>
+
+        // Now set 'em up according to the types in GPType
+
+<span class="nc" id="L263">        Enumeration e = ((GPInitializer)state.initializer).typeRepository.elements();</span>
+<span class="nc" id="L264">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L267">            GPType typ = (GPType)(e.nextElement());</span>
+            
+            // make vectors for the type.
+<span class="nc" id="L270">            Vector nodes_v = new Vector();</span>
+<span class="nc" id="L271">            Vector terminals_v = new Vector();</span>
+<span class="nc" id="L272">            Vector nonterminals_v = new Vector();</span>
+
+            // add GPNodes as appropriate to each vector
+<span class="nc" id="L275">            Enumeration v = tmp.elements();</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">            while (v.hasMoreElements())</span>
+                {
+<span class="nc" id="L278">                GPNode i = (GPNode)(v.nextElement());</span>
+<span class="nc bnc" id="L279" title="All 2 branches missed.">                if (typ.compatibleWith(initializer,i.constraints(initializer).returntype))</span>
+                    {
+<span class="nc" id="L281">                    nodes_v.addElement(i);</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">                    if (i.children.length == 0)</span>
+<span class="nc" id="L283">                        terminals_v.addElement(i);</span>
+<span class="nc" id="L284">                    else nonterminals_v.addElement(i);</span>
+                    }
+<span class="nc" id="L286">                }</span>
+
+            // turn nodes_h' vectors into arrays
+<span class="nc" id="L289">            GPNode[] ii = new GPNode[nodes_v.size()];</span>
+<span class="nc" id="L290">            nodes_v.copyInto(ii);</span>
+<span class="nc" id="L291">            nodes_h.put(typ,ii);</span>
+
+            // turn terminals_h' vectors into arrays
+<span class="nc" id="L294">            ii = new GPNode[terminals_v.size()];</span>
+<span class="nc" id="L295">            terminals_v.copyInto(ii);</span>
+<span class="nc" id="L296">            terminals_h.put(typ,ii);</span>
+
+            // turn nonterminals_h' vectors into arrays
+<span class="nc" id="L299">            ii = new GPNode[nonterminals_v.size()];</span>
+<span class="nc" id="L300">            nonterminals_v.copyInto(ii);</span>
+<span class="nc" id="L301">            nonterminals_h.put(typ,ii);</span>
+<span class="nc" id="L302">            }</span>
+
+        // I don't check to see if the generation mechanism will be valid here
+        // -- I check that in GPTreeConstraints, where I can do the weaker check
+        // of going top-down through functions rather than making sure that every
+        // single function has a compatible argument function (an unneccessary check)
+
+<span class="nc" id="L309">        state.output.exitIfErrors();  // because I promised when I called n.setup(...)</span>
+
+        // postprocess the function set
+<span class="nc" id="L312">        postProcessFunctionSet();</span>
+<span class="nc" id="L313">        }</span>
+
+
+    /** Returns the function set for a given name.
+        You must guarantee that after calling functionSetFor(...) one or
+        several times, you call state.output.exitIfErrors() once. */
+
+    public static GPFunctionSet functionSetFor(final String functionSetName,
+        final EvolutionState state)
+        {
+<span class="nc" id="L323">        GPFunctionSet set = (GPFunctionSet)(((GPInitializer)state.initializer).functionSetRepository.get(functionSetName));</span>
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        if (set==null)</span>
+<span class="nc" id="L325">            state.output.error(&quot;The GP function set \&quot;&quot; + functionSetName + &quot;\&quot; could not be found.&quot;);</span>
+<span class="nc" id="L326">        return set;</span>
+        }
+
+
+    private void writeObject(ObjectOutputStream out) throws IOException
+        {
+        // this wastes an hashtable pointer, but what the heck.
+
+<span class="nc" id="L334">        out.defaultWriteObject();</span>
+<span class="nc" id="L335">        }</span>
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
+        {
+<span class="nc" id="L339">        in.defaultReadObject();</span>
+<span class="nc" id="L340">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

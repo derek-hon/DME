@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ColourEvaluationFunctions.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.BehaviourEvaluations</a> &gt; <span class="el_source">ColourEvaluationFunctions.java</span></div><h1>ColourEvaluationFunctions.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.BehaviourEvaluations;
+
+<span class="nc" id="L3">public class ColourEvaluationFunctions {</span>
+    public static double colourEntropy(int[][] pixels) {
+<span class="nc" id="L5">        int frequency[] = new int[256];</span>
+<span class="nc" id="L6">        int length = pixels.length;</span>
+        // int size = img.getWidth() * img.getHeight();
+
+
+<span class="nc bnc" id="L10" title="All 2 branches missed.">        for (int x = 0 ; x &lt; length ; x ++) {</span>
+<span class="nc bnc" id="L11" title="All 2 branches missed.">            for (int y = 0 ; y &lt; length ; y ++) {</span>
+<span class="nc" id="L12">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L13">                int index = (((rgb &amp; 0xFF0000) &gt;&gt; 16) + ((rgb &amp; 0x00FF00) &gt;&gt; 8) + (rgb &amp; 0x0000FF))/3;</span>
+<span class="nc" id="L14">                frequency[index] ++;</span>
+            }
+        }
+
+<span class="nc" id="L18">        double entropyValue = 0,temp=0;</span>
+<span class="nc" id="L19">        double totalSize = length * length; //total size of all symbols in an image</span>
+        
+<span class="nc bnc" id="L21" title="All 2 branches missed.">        for(int i=0 ; i &lt; 256 ; i++){ //the number of times a sybmol has occured</span>
+<span class="nc bnc" id="L22" title="All 2 branches missed.">            if(frequency[i] &gt; 0) { //log of zero goes to infinity</span>
+<span class="nc" id="L23">                temp = ( frequency[i] / totalSize ) * ( Math.log(frequency[i] / totalSize ));</span>
+<span class="nc" id="L24">                entropyValue += temp;</span>
+            }
+        }
+<span class="nc" id="L27">        return entropyValue * (-1);</span>
+    }
+
+    public static double averageRed(int[][] pixels) {
+<span class="nc" id="L31">        double red = 0.0;</span>
+
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L35">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L36">                red += ((rgb &amp; 0xFF0000) &gt;&gt; 16);</span>
+            }
+        }
+
+<span class="nc" id="L40">        return red /= (pixels.length * pixels.length);</span>
+    }
+
+    public static double averageGreen(int[][] pixels) {
+<span class="nc" id="L44">        double green = 0.0;</span>
+
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L48">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L49">                green += ((rgb &amp; 0x00FF00) &gt;&gt; 8);</span>
+            }
+        }
+
+<span class="nc" id="L53">        return green /= (pixels.length * pixels.length);</span>
+    }
+
+    public static double averageBlue(int[][] pixels) {
+<span class="nc" id="L57">        double blue = 0.0;</span>
+
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L61">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L62">                blue += (rgb &amp; 0x0000FF);</span>
+            }
+        }
+
+<span class="nc" id="L66">        return blue /= (pixels.length  * pixels.length );</span>
+    }
+
+    public static double averageIntensity(int[][] pixels) {
+<span class="nc" id="L70">        double intensity = 0.0;</span>
+
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L74">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L75">                intensity += (((rgb &amp; 0xFF0000) &gt;&gt; 16) + ((rgb &amp; 0x00FF00) &gt;&gt; 8) + (rgb &amp; 0x0000FF)) / 3.0;</span>
+            }
+        }
+
+<span class="nc" id="L79">        return intensity /= (pixels.length * pixels.length);</span>
+    }
+
+    public static double averageHue(int[][] pixels) {
+<span class="nc" id="L83">        double hue = 0.0;</span>
+        
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L87">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L88">                hue += hue(((rgb &amp; 0xFF0000) &gt;&gt; 16), ((rgb &amp; 0x00FF00) &gt;&gt; 8), (rgb &amp; 0x0000FF));</span>
+            }
+        }
+
+<span class="nc" id="L92">        return hue /= (pixels.length * pixels.length);</span>
+    }
+
+    public static double averageSaturation(int[][] pixels) {
+<span class="nc" id="L96">        double saturation = 0.0;</span>
+        
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L100">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L101">                saturation += saturation(((rgb &amp; 0xFF0000) &gt;&gt; 16), ((rgb &amp; 0x00FF00) &gt;&gt; 8), (rgb &amp; 0x0000FF));</span>
+            }
+        }
+
+<span class="nc" id="L105">        return saturation /= (pixels.length * pixels.length);</span>
+    }
+
+    public static double intensitySkewness(int[][] pixels) {
+<span class="nc" id="L109">        double skewness = 0.0;</span>
+<span class="nc" id="L110">        double mean = averageIntensity(pixels);</span>
+<span class="nc" id="L111">        double standardDeviation = 0.0;</span>
+
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L115">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L116">                double val = (((rgb &amp; 0xFF0000) &gt;&gt; 16) + ((rgb &amp; 0x00FF00) &gt;&gt; 8) + (rgb &amp; 0x0000FF))/3.0;</span>
+<span class="nc" id="L117">                skewness += Math.pow((val - mean), 3);</span>
+<span class="nc" id="L118">                standardDeviation += Math.pow((val - mean), 2);</span>
+            }
+        }
+<span class="nc" id="L121">        standardDeviation /= (pixels.length * pixels.length);</span>
+<span class="nc" id="L122">        standardDeviation = Math.sqrt(standardDeviation);</span>
+
+<span class="nc" id="L124">        return skewness / (((pixels.length * pixels.length) - 1) * Math.pow(standardDeviation, 3));</span>
+    }
+
+    public static double intensityKurtosis(int[][] pixels) {
+<span class="nc" id="L128">        double kurtosis = 0.0;</span>
+<span class="nc" id="L129">        double mean = averageIntensity(pixels);</span>
+<span class="nc" id="L130">        double standardDeviation = 0.0;</span>
+
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L134">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L135">                double val = (((rgb &amp; 0xFF0000) &gt;&gt; 16) + ((rgb &amp; 0x00FF00) &gt;&gt; 8) + (rgb &amp; 0x0000FF))/3.0;</span>
+<span class="nc" id="L136">                kurtosis += Math.pow((val - mean), 4);</span>
+<span class="nc" id="L137">                standardDeviation += Math.pow((val - mean), 2);</span>
+            }
+        }
+<span class="nc" id="L140">        standardDeviation /= (pixels.length * pixels.length);</span>
+<span class="nc" id="L141">        standardDeviation = Math.sqrt(standardDeviation);</span>
+
+<span class="nc" id="L143">        kurtosis = kurtosis / (Math.pow(standardDeviation, 4) * ((pixels.length * pixels.length)));</span>
+<span class="nc" id="L144">        return kurtosis;</span>
+    }
+
+    private static int saturation(int red, int green, int blue) {
+<span class="nc" id="L148">        int saturation = 0;</span>
+
+<span class="nc" id="L150">        double redPrime = red/255;</span>
+<span class="nc" id="L151">        double greenPrime = green/255;</span>
+<span class="nc" id="L152">        double bluePrime = blue/255;</span>
+
+<span class="nc" id="L154">        double max = Math.max(redPrime, Math.max(greenPrime, bluePrime));</span>
+<span class="nc" id="L155">        double min = Math.min(redPrime, Math.min(greenPrime, bluePrime));</span>
+<span class="nc" id="L156">        double delta = max - min;</span>
+
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (max == 0)</span>
+<span class="nc" id="L159">            saturation = 0;</span>
+        else {
+<span class="nc" id="L161">            saturation = (int) (delta / max);</span>
+        }
+
+<span class="nc" id="L164">        return saturation;</span>
+    }
+
+    /**
+     * https://stackoverflow.com/a/26233318
+     * @param red
+     * @param green
+     * @param blue
+     * @return
+     */
+    private static int hue(int red, int green, int blue) {
+<span class="nc" id="L175">        float min = Math.min(Math.min(red, green), blue);</span>
+<span class="nc" id="L176">        float max = Math.max(Math.max(red, green), blue);</span>
+
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        if (min == max) {</span>
+<span class="nc" id="L179">            return 0;</span>
+        }
+
+<span class="nc" id="L182">        float hue = 0f;</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">        if (max == red) {</span>
+<span class="nc" id="L184">            hue = (green - blue) / (max - min);</span>
+
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        } else if (max == green) {</span>
+<span class="nc" id="L187">            hue = 2f + (blue - red) / (max - min);</span>
+
+        } else {
+<span class="nc" id="L190">            hue = 4f + (red - green) / (max - min);</span>
+        }
+
+<span class="nc" id="L193">        hue = hue * 60;</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">        if (hue &lt; 0) hue = hue + 360;</span>
+
+<span class="nc" id="L196">        return Math.round(hue);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

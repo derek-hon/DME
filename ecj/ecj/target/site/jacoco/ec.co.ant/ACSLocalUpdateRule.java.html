@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ACSLocalUpdateRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co.ant</a> &gt; <span class="el_source">ACSLocalUpdateRule.java</span></div><h1>ACSLocalUpdateRule.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2019 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co.ant;
+
+import ec.EvolutionState;
+import ec.Individual;
+import ec.Subpopulation;
+import ec.co.Component;
+import ec.co.ConstructiveIndividual;
+import ec.util.Parameter;
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * A &quot;local&quot; pheromone decay rule in the style of Ant Colony System.
+ *
+ * ACS uses this rule to decay pheromones as soon as they are visited.  The intention is to encourage diversification
+ * within the same generation, so that ants are less likely to visit identical paths at the same time.
+ *
+ * @author Eric O. Scott
+ */
+<span class="nc bnc" id="L25" title="All 2 branches missed.">public class ACSLocalUpdateRule implements UpdateRule {</span>
+    final public static String P_RHO = &quot;rho&quot;;
+    final public static String P_MINIMUM_PHEROMONE = &quot;minimum-pheromone&quot;;
+
+    private double rho;
+    private double minimumPheromone;
+
+<span class="nc" id="L32">    public double getMinimumPheromone() { return minimumPheromone; }</span>
+
+<span class="nc" id="L34">    public double getRho() { return rho; }</span>
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+<span class="nc bnc" id="L39" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L40" title="All 4 branches missed.">        assert(base != null);</span>
+<span class="nc" id="L41">        rho = state.parameters.getDouble(base.push(P_RHO), null, 0.0);</span>
+<span class="nc" id="L42">        minimumPheromone = state.parameters.getDouble(base.push(P_RHO), null, 0.0);</span>
+<span class="nc bnc" id="L43" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L44">    }</span>
+
+    @Override
+    public void updatePheromones(final EvolutionState state, final PheromoneTable pheromones, final List individuals) {
+<span class="nc bnc" id="L48" title="All 4 branches missed.">        assert(pheromones != null);</span>
+<span class="nc bnc" id="L49" title="All 4 branches missed.">        assert(individuals != null);</span>
+<span class="nc bnc" id="L50" title="All 4 branches missed.">        assert(!individuals.isEmpty());</span>
+
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        for (final Object ind : individuals)</span>
+        {
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            for (final Object oo : (ConstructiveIndividual)ind)</span>
+            {
+<span class="nc bnc" id="L56" title="All 4 branches missed.">                assert(oo instanceof Component);</span>
+<span class="nc" id="L57">                final Component c = (Component) oo;</span>
+
+<span class="nc" id="L59">                final double oldPheromone = pheromones.get(state, c, 0); // Using thread 0 because we are in a single-threaded function</span>
+<span class="nc" id="L60">                pheromones.set(c, (1-rho)*oldPheromone + rho*minimumPheromone);</span>
+<span class="nc" id="L61">            }</span>
+<span class="nc" id="L62">        }</span>
+
+<span class="nc bnc" id="L64" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L65">    }</span>
+
+    public final boolean repOK()
+    {
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        return P_RHO != null</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">                &amp;&amp; !P_RHO.isEmpty()</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">                &amp;&amp; !Double.isInfinite(rho)</span>
+<span class="nc bnc" id="L72" title="All 4 branches missed.">                &amp;&amp; !Double.isNaN(rho)</span>
+                &amp;&amp; rho &gt;= 0.0;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

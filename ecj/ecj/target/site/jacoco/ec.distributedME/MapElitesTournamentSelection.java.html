@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MapElitesTournamentSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">MapElitesTournamentSelection.java</span></div><h1>MapElitesTournamentSelection.java</h1><pre class="source lang-java linenums">package ec.distributedME;
+
+import ec.*;
+import ec.distributedME.*;
+import ec.util.*;
+import ec.select.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/**
+ * MapElitesTournamentSelection.java
+ * @ec.select.TournamentSelection
+ * 
+ * Created: 25 January, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+<span class="nc" id="L19">public class MapElitesTournamentSelection extends MapElitesSelectionMethod implements MapElitesSourceForm {</span>
+    /** default base */
+    public static final String P_TOURNAMENT = &quot;tournament&quot;;
+
+    public static final String P_PICKWORST = &quot;pick-worst&quot;;
+
+    /** size parameter */
+    public static final String P_SIZE = &quot;size&quot;;
+
+    /** Base size of the tournament; this may change. */
+    public int size;
+
+    /** Probablity of picking the size plus one */
+    public double probabilityOfPickingSizePlusOne;
+
+    /** Do we pick the worst instead of the best? */
+    public boolean pickWorst;
+
+    public Parameter defaultBase() {
+<span class="nc" id="L38">        return SelectDefaults.base().push(P_TOURNAMENT);</span>
+    }
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L42">        super.setup(state, base);</span>
+
+<span class="nc" id="L44">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L46">        double val = state.parameters.getDouble(base.push(P_SIZE), def.push(P_SIZE), 1.0);</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        if (val &lt; 1.0)</span>
+<span class="nc" id="L48">            state.output.fatal(&quot;Tournament size must be &gt;= 1.&quot;, base.push(P_SIZE), def.push(P_SIZE));</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        else if (val == (int) val) // easy, it's just an integer</span>
+        {
+<span class="nc" id="L51">            size = (int) val;</span>
+<span class="nc" id="L52">            probabilityOfPickingSizePlusOne = 0.0;</span>
+        } else {
+<span class="nc" id="L54">            size = (int) Math.floor(val);</span>
+<span class="nc" id="L55">            probabilityOfPickingSizePlusOne = val - size; // for example, if we have 5.4, then the probability of</span>
+                                                          // picking *6* is 0.4
+        }
+
+<span class="nc" id="L59">        pickWorst = state.parameters.getBoolean(base.push(P_PICKWORST), def.push(P_PICKWORST), false);</span>
+<span class="nc" id="L60">    }</span>
+
+    /**
+     * Returns a tournament size to use, at random, based on base size and
+     * probability of picking the size plus one.
+     */
+    public int getTournamentSizeToUse(MersenneTwisterFast random) {
+<span class="nc" id="L67">        double p = probabilityOfPickingSizePlusOne; // pulls us to under 35 bytes</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (p == 0.0)</span>
+<span class="nc" id="L69">            return size;</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        return size + (random.nextBoolean(p) ? 1 : 0);</span>
+    }
+
+    /**
+     * Produces the index of a (typically uniformly distributed) randomly chosen
+     * individual to fill the tournament. &lt;i&gt;number&lt;/&gt; is the position of the
+     * individual in the tournament.
+     */
+    public int getRandomIndividual(int number, int submap, EvolutionState state, int thread) {
+<span class="nc" id="L79">        return state.random[thread].nextInt(((DistributedMEEvolutionState) state).distributedMap.subMAPs[submap].getOccupants());</span>
+    }
+
+    /**
+     * Returns true if *first* is a better (fitter, whatever) individual than
+     * *second*.
+     */
+    public boolean betterThan(Elite first, Elite second, int submap, EvolutionState state, int thread) {
+<span class="nc" id="L87">        return first.fitness.betterThan(second.fitness);</span>
+    }
+
+    public int produce(final int submap, final EvolutionState state, final int thread) {
+        // pick size random individuals, then pick the best.
+<span class="nc" id="L92">        EliteMap eMap = ((DistributedMEEvolutionState) state).distributedMap.subMAPs[submap];</span>
+<span class="nc" id="L93">        int best = getRandomIndividual(0, submap, state, thread);</span>
+
+<span class="nc" id="L95">        int s = getTournamentSizeToUse(state.random[thread]);</span>
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (pickWorst)</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            for (int x = 1; x &lt; s; x++) {</span>
+<span class="nc" id="L99">                int j = getRandomIndividual(x, submap, state, thread);</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">                if (!betterThan(eMap.getElite(j), eMap.getElite(best), submap, state, thread)) // j is at least as</span>
+                                                                                           // bad as best
+<span class="nc" id="L102">                    best = j;</span>
+            }
+        else
+<span class="nc bnc" id="L105" title="All 2 branches missed.">            for (int x = 1; x &lt; s; x++) {</span>
+<span class="nc" id="L106">                int j = getRandomIndividual(x, submap, state, thread);</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">                if (betterThan(eMap.getElite(j), eMap.getElite(best), submap, state, thread)) // j is better than</span>
+                                                                                          // best
+<span class="nc" id="L109">                    best = j;</span>
+            }
+
+<span class="nc" id="L112">        return best;</span>
+    }
+
+    public void individualReplaced(final EvolutionState state, final int submap, final int thread,
+            final int individual) {
+<span class="nc" id="L117">        return;</span>
+    }
+
+    public void sourcesAreProperForm(final EvolutionState state) {
+<span class="nc" id="L121">        return;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

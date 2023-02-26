@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PSOBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.pso</a> &gt; <span class="el_source">PSOBreeder.java</span></div><h1>PSOBreeder.java</h1><pre class="source lang-java linenums">package ec.pso;
+
+import ec.* ;
+import ec.util.* ;
+import ec.vector.* ;
+
+
+/*
+ * PSOBreeder.java
+ * Created: Thu May  2 17:09:40 EDT 2013
+ */
+
+/**
+ * PSOBreeder is a simple single-threaded Breeder which performs 
+ * Particle Swarm Optimization using the Particle class as individuals. 
+ * PSOBreeder relies on a number of parameters which define weights for
+ * various vectors computed during Particle Swarm Optimization, plus
+ * a few flags:
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt; Neighborhoods for particles have a size S determined by the parameter neighborhood-size.  It's best if S were even.
+ * &lt;li&gt; Neighborhoods for particles are constructed in one of three ways:
+ * &lt;ul&gt;
+ * &lt;li&gt; random: pick S informants randomly without replacement within the subpopulation, not including the particle itself, once at the beginning of the run.
+ * &lt;li&gt; random-each-time: pick S informants randomly without replacement within the subpopulation, not including the particle itself, every single generation.
+ * &lt;li&gt; toroidal: pick the floor(S/2) informants to the left of the particle's location within the subpopulation and the ceiling(S/2) informants to the right of the particle's location in the subpopulation, once at the beginning of the run.
+ * &lt;/ul&gt;
+ * &lt;li&gt; To this you can add the particle itself to the neighborhood, with include-self. 
+ * &lt;li&gt; The basic velocity update equation is VELOCITY &lt;-- (VELOCITY * velocity-coefficent) + (VECTOR-TO-GLOBAL-BEST * global-coefficient) + (VECTOR-TO-NEIGHBORHOOD-BEST * informant-coefficient) + (VECTOR-TO-PERSONAL-BEST * personal-coefficient)
+ * &lt;li&gt; The basic particle update equation is PARTICLE &lt;-- PARTICLE + VELOCITY
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;
+ * &lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;velocity-coefficient&lt;/tt&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;float &amp;ge; 0&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(The weight for the velocity)&lt;/td&gt;
+ * &lt;/tr&gt;&lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;personal-coefficient&lt;/tt&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;float &amp;ge; 0&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(The weight for the personal-best vector)&lt;/td&gt;
+ * &lt;/tr&gt;&lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;informant-coefficient&lt;/tt&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;float &amp;ge; 0&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(The weight for the neighborhood/informant-best vector)&lt;/td&gt;
+ * &lt;/tr&gt;&lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;global-coefficient&lt;/tt&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;float &amp;ge; 0&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(The weight for the global-best vector)&lt;/td&gt;
+ * &lt;/tr&gt;&lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;neighborhood-size&lt;/tt&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;int &amp;gt; 0&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(The size of the neighborhood of informants, not including the particle)&lt;/td&gt;
+ * &lt;/tr&gt;&lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;neighborhood-style&lt;/tt&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;String, one of: random toroidal random-each-time&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(The method of generating the neighborhood of informants, not including the particle)&lt;/td&gt;
+ * &lt;/tr&gt;&lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;include-self&lt;/tt&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;true or false (default)&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(Whether to include the particle itself as a member of the neighborhood after building the neighborhood)&lt;/td&gt;
+ * &lt;/tr&gt;
+ *
+ * &lt;/table&gt;
+ *
+ * @author Khaled Ahsan Talukder
+ */
+
+
+<span class="nc" id="L72">public class PSOBreeder extends Breeder</span>
+    {
+    public static final int C_NEIGHBORHOOD_RANDOM = 0;
+    public static final int C_NEIGHBORHOOD_TOROIDAL = 1;
+    public static final int C_NEIGHBORHOOD_RANDOM_EACH_TIME = 2;
+
+    public static final String P_VELOCITY_COEFFICIENT = &quot;velocity-coefficient&quot; ;
+    public static final String P_PERSONAL_COEFFICIENT = &quot;personal-coefficient&quot; ;
+    public static final String P_INFORMANT_COEFFICIENT = &quot;informant-coefficient&quot; ;
+    public static final String P_GLOBAL_COEFFICIENT = &quot;global-coefficient&quot; ;
+    public static final String P_INCLUDE_SELF = &quot;include-self&quot; ;
+    public static final String P_NEIGHBORHOOD = &quot;neighborhood-style&quot; ;
+    public static final String P_NEIGHBORHOOD_SIZE = &quot;neighborhood-size&quot; ;
+    public static final String V_NEIGHBORHOOD_RANDOM = &quot;random&quot;;
+    public static final String V_NEIGHBORHOOD_TOROIDAL = &quot;toroidal&quot;;
+    public static final String V_NEIGHBORHOOD_RANDOM_EACH_TIME = &quot;random-each-time&quot;;
+
+<span class="nc" id="L89">    public int neighborhood = C_NEIGHBORHOOD_RANDOM;        // default neighborhood scheme</span>
+<span class="nc" id="L90">    public double velCoeff = 0.5 ;          //  coefficient for the velocity</span>
+<span class="nc" id="L91">    public double personalCoeff = 0.5 ;             //  coefficient for self</span>
+<span class="nc" id="L92">    public double informantCoeff = 0.5 ;            //  coefficient for informants/neighbours</span>
+<span class="nc" id="L93">    public double globalCoeff = 0.5 ;               //  coefficient for global best, this is not done in the standard PSO</span>
+<span class="nc" id="L94">    public int neighborhoodSize = 3 ; </span>
+<span class="nc" id="L95">    public boolean includeSelf = false;         </span>
+
+<span class="nc" id="L97">    public double[][] globalBest = null ; // one for each subpopulation</span>
+<span class="nc" id="L98">    public Fitness[] globalBestFitness = null;</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L102">        velCoeff = state.parameters.getDouble(base.push(P_VELOCITY_COEFFICIENT),null,0.0);</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if ( velCoeff &lt; 0.0 )</span>
+<span class="nc" id="L104">            state.output.fatal( &quot;Parameter not found, or its value is less than 0.&quot;, base.push(P_VELOCITY_COEFFICIENT), null );</span>
+
+<span class="nc" id="L106">        personalCoeff = state.parameters.getDouble(base.push(P_PERSONAL_COEFFICIENT),null,0.0);</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if ( personalCoeff &lt; 0.0)</span>
+<span class="nc" id="L108">            state.output.fatal( &quot;Parameter not found, or its value is less than 0.&quot;, base.push(P_PERSONAL_COEFFICIENT), null );</span>
+
+<span class="nc" id="L110">        informantCoeff = state.parameters.getDouble(base.push(P_INFORMANT_COEFFICIENT),null,0.0);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if ( informantCoeff &lt; 0.0)</span>
+<span class="nc" id="L112">            state.output.fatal( &quot;Parameter not found, or its value is less than 0.&quot;, base.push(P_INFORMANT_COEFFICIENT), null );</span>
+
+<span class="nc" id="L114">        globalCoeff = state.parameters.getDouble(base.push(P_GLOBAL_COEFFICIENT),null,0.0);</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if ( globalCoeff &lt; 0.0 )</span>
+<span class="nc" id="L116">            state.output.fatal( &quot;Parameter not found, or its value is less than 0.&quot;, base.push(P_GLOBAL_COEFFICIENT), null );</span>
+
+<span class="nc" id="L118">        neighborhoodSize = state.parameters.getInt(base.push(P_NEIGHBORHOOD_SIZE), null, 1);               </span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (neighborhoodSize &lt;= 0 )</span>
+<span class="nc" id="L120">            state.output.fatal(&quot;Neighbourhood size must be a value &gt;= 1.&quot;, base.push(P_NEIGHBORHOOD_SIZE), null);</span>
+                        
+<span class="nc" id="L122">        String sch = state.parameters.getString(base.push(P_NEIGHBORHOOD), null);</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (V_NEIGHBORHOOD_RANDOM.equals(sch))</span>
+            {
+<span class="nc" id="L125">            neighborhood = C_NEIGHBORHOOD_RANDOM; // default anyway</span>
+            }
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        else if (V_NEIGHBORHOOD_TOROIDAL.equals(sch))</span>
+            {
+<span class="nc" id="L129">            neighborhood = C_NEIGHBORHOOD_TOROIDAL;</span>
+            }
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        else if (V_NEIGHBORHOOD_RANDOM_EACH_TIME.equals(sch))</span>
+            {
+<span class="nc" id="L133">            neighborhood = C_NEIGHBORHOOD_RANDOM_EACH_TIME;</span>
+            }
+<span class="nc" id="L135">        else state.output.fatal( &quot;Neighborhood style must be either 'random', 'toroidal', or 'random-each-time'.&quot;, base.push(P_NEIGHBORHOOD), null );</span>
+
+<span class="nc" id="L137">        includeSelf = state.parameters.getBoolean(base.push(P_INCLUDE_SELF), null, false);               </span>
+<span class="nc" id="L138">        }</span>
+
+    public Population breedPopulation(EvolutionState state)
+        {
+        // initialize the global best
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (globalBest == null)</span>
+            {
+<span class="nc" id="L145">            globalBest = new double[state.population.subpops.size()][];</span>
+<span class="nc" id="L146">            globalBestFitness = new Fitness[state.population.subpops.size()];</span>
+            }
+                
+        // update global best, neighborhood best, and personal best 
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        for(int subpop = 0; subpop &lt; state.population.subpops.size(); subpop++)</span>
+            {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">            for(int ind = 0; ind &lt; state.population.subpops.get(subpop).individuals.size() ; ind++)</span>
+                {
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                if (globalBestFitness[subpop] == null ||</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                    state.population.subpops.get(subpop).individuals.get(ind).fitness.betterThan(globalBestFitness[subpop]))</span>
+                    {
+<span class="nc" id="L157">                    globalBest[subpop] = ((DoubleVectorIndividual) state.population.subpops.get(subpop).individuals.get(ind)).genome;</span>
+<span class="nc" id="L158">                    globalBestFitness[subpop] = state.population.subpops.get(subpop).individuals.get(ind).fitness;</span>
+                    }
+<span class="nc" id="L160">                ((Particle) state.population.subpops.get(subpop).individuals.get(ind)).update(state, subpop, ind, 0);</span>
+                }
+            // clone global best
+<span class="nc" id="L163">            globalBest[subpop] = (double[])(globalBest[subpop].clone());</span>
+<span class="nc" id="L164">            globalBestFitness[subpop] = (Fitness)(globalBestFitness[subpop].clone());</span>
+            }
+
+
+        // now move the particles
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        for(int subpop = 0; subpop &lt; state.population.subpops.size(); subpop++)</span>
+            {
+<span class="nc bnc" id="L171" title="All 2 branches missed.">            for(int ind = 0; ind &lt; state.population.subpops.get(subpop).individuals.size() ; ind++)</span>
+                // tweak in place, destructively
+<span class="nc" id="L173">                ((Particle) state.population.subpops.get(subpop).individuals.get(ind)).tweak(state, globalBest[subpop],</span>
+                    velCoeff, personalCoeff, informantCoeff, globalCoeff, 0);
+            }
+                
+        // we return the same population
+<span class="nc" id="L178">        return state.population ;</span>
+        }
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

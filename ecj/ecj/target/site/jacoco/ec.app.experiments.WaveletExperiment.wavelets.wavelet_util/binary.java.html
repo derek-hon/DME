@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>binary.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets.wavelet_util</a> &gt; <span class="el_source">binary.java</span></div><h1>binary.java</h1><pre class="source lang-java linenums">
+package ec.app.experiments.WaveletExperiment.wavelets.wavelet_util;
+
+/**
+ *
+
+  Calculate power and log functions using fast
+  binary operations.
+
+ */
+<span class="nc" id="L11">public class binary {</span>
+  /**
+   *
+     Calculate 2&lt;sup&gt;n&lt;/sup&gt; where n &gt;= 0
+
+     @param n
+        a value between 0..31
+
+     @return power2 returns 2&lt;sup&gt;n&lt;/sup&gt;
+
+   */
+  public static int power2( byte n)
+  {
+<span class="nc" id="L24">    int rslt = 0x1 &lt;&lt; (n &amp; 0x1f);</span>
+<span class="nc" id="L25">    return rslt;</span>
+  } // power2
+
+
+  /**
+   *
+  &lt;p&gt;
+     Calculate floor( log&lt;sub&gt;2&lt;/sub&gt;( val ) ), where val &gt; 0
+  &lt;p&gt;
+     The log function is undefined for 0.
+  
+     @param val
+        a positive value
+
+     @return &lt;tt&gt;floor( log&lt;sub&gt;2&lt;/sub&gt;( val ) )&lt;/tt&gt;
+  
+   */
+  public static byte log2(int val )
+  {
+    byte log;
+
+<span class="nc bnc" id="L46" title="All 2 branches missed.">    for (log = 0; val &gt; 0; log++, val = val &gt;&gt; 1)</span>
+      ;
+  
+<span class="nc" id="L49">    log--;</span>
+  
+<span class="nc" id="L51">    return log;</span>
+  } // log2
+
+
+  /**
+    nearestPower2
+  &lt;p&gt;
+    Given a value &quot;val&quot;, where val &gt; 0, nearestPower2 returns
+    the power of 2 that is less than or equal to val.
+
+   */
+  public static int nearestPower2( int val )
+  {
+<span class="nc" id="L64">    byte l = log2( val );</span>
+<span class="nc" id="L65">    int power = power2( l );</span>
+
+<span class="nc" id="L67">    return power;</span>
+  } // nearestPower2
+
+} // class binary
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ColorHistogram.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.GeneralandFitness</a> &gt; <span class="el_source">ColorHistogram.java</span></div><h1>ColorHistogram.java</h1><pre class="source lang-java linenums">package ec.app.experiments.GeneralandFitness;
+
+import java.awt.Color;
+import java.awt.image.*;
+
+/**
+ * This class is used both to store color histogram information and compare its
+ * own values to that of other color histograms.
+ * 
+ * Adaptations by Michael Gircys, 2017-06-08 Precomputed and stored bin colour
+ * similarity, instead of thousands of times across generations.
+ *
+ * @author Steve Bergen
+ */
+
+public class ColorHistogram {
+
+<span class="nc" id="L18">    private static final double Max_Colour_Dist = Math.sqrt(Math.pow(255, 2) * 3);</span>
+<span class="nc" id="L19">    public static final double[][] BIN_COLOUR_SIMILARITY = new double[512][512];</span>
+
+<span class="nc" id="L21">    public int[] rgb = null;</span>
+<span class="nc" id="L22">    public double[] data = null;</span>
+<span class="nc" id="L23">    public BufferedImage img = null;</span>
+<span class="nc" id="L24">    public int[][] pixels = null;</span>
+
+    /**
+     * Constructor which takes in an image as source for initial calculations.
+     * 
+     * @param img Source image
+     */
+    public ColorHistogram(BufferedImage img) {
+<span class="nc" id="L32">        this(img, 1);</span>
+<span class="nc" id="L33">    }</span>
+
+<span class="nc" id="L35">    public ColorHistogram(int[][] pixels, int threads) {</span>
+<span class="nc" id="L36">        this.pixels = pixels;</span>
+<span class="nc" id="L37">        this.data = new double[512];</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc" id="L39">            this.data[i] = 0;</span>
+
+<span class="nc" id="L41">        int start = 0;</span>
+<span class="nc" id="L42">        int inc = pixels.length / threads;</span>
+
+        // Create and fire off additional threads as needed
+<span class="nc" id="L45">        HistThread fit[] = new HistThread[threads - 1];</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (threads &gt; 1) {</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">            for (int i = 0; i &lt; threads - 1; i++) {</span>
+<span class="nc" id="L48">                fit[i] = new HistThread(pixels, start, start + inc, data.clone());</span>
+<span class="nc" id="L49">                start = start + inc;</span>
+<span class="nc" id="L50">                fit[i].start();</span>
+            }
+        }
+
+        // Do work alloted for first thread
+<span class="nc" id="L55">        pixelQuantize(pixels, start, pixels.length, data);</span>
+
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (threads &gt; 1) {</span>
+            // Check for all finished threads, and quit when all are finished
+            while (true) {
+<span class="nc" id="L60">                boolean dead = true;</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">                for (int i = 0; i &lt; threads - 1; i++)</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">                    if (fit[i].isAlive())</span>
+<span class="nc" id="L63">                        dead = false;</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">                if (dead)</span>
+<span class="nc" id="L65">                    break;</span>
+<span class="nc" id="L66">            }</span>
+            // Copy histogram data from threads to main instance
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                for (int j = 0; j &lt; threads - 1; j++)</span>
+<span class="nc" id="L70">                    this.data[i] += fit[j].data[i];</span>
+        }
+
+        // Normalize
+<span class="nc" id="L74">        int pixelCount = pixels.length * pixels.length;</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc" id="L76">            this.data[i] /= (double) pixelCount;</span>
+<span class="nc" id="L77">    }</span>
+
+<span class="nc" id="L79">    public ColorHistogram(BufferedImage img, int threads) {</span>
+<span class="nc" id="L80">        this.img = img;</span>
+<span class="nc" id="L81">        this.data = new double[512];</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc" id="L83">            this.data[i] = 0;</span>
+
+<span class="nc" id="L85">        int start = 0;</span>
+<span class="nc" id="L86">        int inc = img.getHeight() / threads;</span>
+
+        // Create and fire off additional threads as needed
+<span class="nc" id="L89">        HistThread fit[] = new HistThread[threads - 1];</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (threads &gt; 1) {</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            for (int i = 0; i &lt; threads - 1; i++) {</span>
+<span class="nc" id="L92">                fit[i] = new HistThread(img, start, start + inc, data.clone());</span>
+<span class="nc" id="L93">                start = start + inc;</span>
+<span class="nc" id="L94">                fit[i].start();</span>
+            }
+        }
+
+        // Do work alloted for first thread
+<span class="nc" id="L99">        quantize(img, start, img.getHeight(), data);</span>
+
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (threads &gt; 1) {</span>
+            // Check for all finished threads, and quit when all are finished
+            while (true) {
+<span class="nc" id="L104">                boolean dead = true;</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">                for (int i = 0; i &lt; threads - 1; i++)</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                    if (fit[i].isAlive())</span>
+<span class="nc" id="L107">                        dead = false;</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                if (dead)</span>
+<span class="nc" id="L109">                    break;</span>
+<span class="nc" id="L110">            }</span>
+            // Copy histogram data from threads to main instance
+<span class="nc bnc" id="L112" title="All 2 branches missed.">            for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">                for (int j = 0; j &lt; threads - 1; j++)</span>
+<span class="nc" id="L114">                    this.data[i] += fit[j].data[i];</span>
+        }
+
+        // Normalize
+<span class="nc" id="L118">        int pixelCount = img.getWidth() * img.getHeight();</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc" id="L120">            this.data[i] /= (double) pixelCount;</span>
+<span class="nc" id="L121">    };</span>
+
+    // public ColorHistogram(int[] rgb, int width, int height) {
+    //     // this(rgb, 1, width, height);
+    //     BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+    //     for (int y = 0 ; y &lt; height ; y ++) {
+    //         for (int x = 0 ; x &lt; width ; x ++) {
+    //             img.setRGB(x, y, rgb[y * width + x]);
+    //         }
+    //     }
+
+    //     this(img);
+    // }
+
+<span class="nc" id="L135">    public ColorHistogram(int[] rgb, int threads, int width, int height) {</span>
+<span class="nc" id="L136">        this.rgb = rgb.clone();</span>
+
+<span class="nc" id="L138">        this.data = new double[512];</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc" id="L140">            this.data[i] = 0;</span>
+
+<span class="nc" id="L142">        int start = 0;</span>
+<span class="nc" id="L143">        int inc = height / threads;</span>
+
+        // Create and fire off additional threads as needed
+<span class="nc" id="L146">        HistThread fit[] = new HistThread[threads - 1];</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (threads &gt; 1) {</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">            for (int i = 0; i &lt; threads - 1; i++) {</span>
+<span class="nc" id="L149">                fit[i] = new HistThread(rgb, width, height, start, start + inc, data.clone());</span>
+<span class="nc" id="L150">                start = start + inc;</span>
+<span class="nc" id="L151">                fit[i].start();</span>
+            }
+        }
+
+        // Do work alloted for first thread
+<span class="nc" id="L156">        rgbQuantize(rgb, width, height, start, height, data);</span>
+
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        if (threads &gt; 1) {</span>
+            // Check for all finished threads, and quit when all are finished
+            while (true) {
+<span class="nc" id="L161">                boolean dead = true;</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                for (int i = 0; i &lt; threads - 1; i++)</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                    if (fit[i].isAlive())</span>
+<span class="nc" id="L164">                        dead = false;</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">                if (dead)</span>
+<span class="nc" id="L166">                    break;</span>
+<span class="nc" id="L167">            }</span>
+            // Copy histogram data from threads to main instance
+<span class="nc bnc" id="L169" title="All 2 branches missed.">            for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">                for (int j = 0; j &lt; threads - 1; j++)</span>
+<span class="nc" id="L171">                    this.data[i] += fit[j].data[i];</span>
+        }
+
+        // Normalize
+<span class="nc" id="L175">        int pixelCount = width * height;</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc" id="L177">            this.data[i] /= (double) pixelCount;</span>
+<span class="nc" id="L178">    }</span>
+
+    static {
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">            for (int j = 0; j &lt; 512; j++)</span>
+<span class="nc" id="L183">                BIN_COLOUR_SIMILARITY[i][j] = colorSimilarity(getColorI(i), getColorI(j));</span>
+<span class="nc" id="L184">    }</span>
+
+    private static class HistThread extends Thread {
+
+        public double[] data;
+        public int ystart, yend, width, height;
+        private int[] rgb;
+<span class="nc" id="L191">        private int[][] pixels = null;</span>
+        private BufferedImage img;
+
+<span class="nc" id="L194">        public HistThread(int[][] pixels, int ystart, int yend, double[] data) {</span>
+<span class="nc" id="L195">            this.pixels = pixels;</span>
+<span class="nc" id="L196">            this.ystart = ystart;</span>
+<span class="nc" id="L197">            this.yend = yend;</span>
+<span class="nc" id="L198">            this.data = data;</span>
+<span class="nc" id="L199">        }</span>
+
+<span class="nc" id="L201">        public HistThread(BufferedImage img, int ystart, int yend, double[] data) {</span>
+<span class="nc" id="L202">            this.img = img;</span>
+<span class="nc" id="L203">            this.ystart = ystart;</span>
+<span class="nc" id="L204">            this.yend = yend;</span>
+<span class="nc" id="L205">            this.data = data;</span>
+<span class="nc" id="L206">        };</span>
+
+<span class="nc" id="L208">        public HistThread(int[] rgb, int width, int height, int ystart, int yend, double[] data) {</span>
+<span class="nc" id="L209">            this.rgb = rgb;</span>
+<span class="nc" id="L210">            this.width = width;</span>
+<span class="nc" id="L211">            this.height = height;</span>
+<span class="nc" id="L212">            this.ystart = ystart;</span>
+<span class="nc" id="L213">            this.yend = yend;</span>
+<span class="nc" id="L214">            this.data = data;</span>
+<span class="nc" id="L215">        };</span>
+
+        @Override
+        public void run() {
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            if (img == null)</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">                if (this.pixels == null)</span>
+<span class="nc" id="L221">                    ColorHistogram.rgbQuantize(rgb, width, height, ystart, yend, data);</span>
+                else
+<span class="nc" id="L223">                    ColorHistogram.pixelQuantize(pixels, ystart, yend, data);</span>
+            else
+<span class="nc" id="L225">                ColorHistogram.quantize(img, ystart, yend, data);</span>
+<span class="nc" id="L226">        };</span>
+
+    };
+
+    public static void pixelQuantize(int[][] pixels, int y0, int yend, double[] d) {
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        for (int x = 0; x &lt; pixels.length; x++)</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">            for (int y = y0; y &lt; yend; y++)</span>
+<span class="nc" id="L233">                d[getIndex(new Color(pixels[x][y]))]++;</span>
+<span class="nc" id="L234">    }</span>
+
+    public static void rgbQuantize(int[] rgb, int width, int height, int yStart, int yEnd, double[] d) {
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">            for (int y = yStart ; y &lt; yEnd ; y ++)</span>
+<span class="nc" id="L239">                d[getIndex(new Color(rgb[x * height + y]))] ++;</span>
+        }
+<span class="nc" id="L241">    }</span>
+    /**
+     * Method called to quantize an image to 512 colors, and counts the occurrences
+     * of each color in the image, storing them in an array.
+     * 
+     * @param img Source image
+     */
+    public static void quantize(BufferedImage img, int y0, int yend, double[] d) {
+<span class="nc bnc" id="L249" title="All 2 branches missed.">        for (int x = 0; x &lt; img.getWidth(); x++)</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">            for (int y = y0; y &lt; yend; y++)</span>
+<span class="nc" id="L251">                d[getIndex(new Color(img.getRGB(x, y)))]++;</span>
+<span class="nc" id="L252">    };</span>
+
+    /**
+     * Returns an integer representing an index from 0 to 511, which is the value of
+     * the color passed in.
+     * 
+     * @param c Color to be quantized
+     * @return Quantized integer
+     */
+    private static int getIndex(Color c) {
+<span class="nc" id="L262">        int index = 0;</span>
+        // TODO: Make more clear by switching to bitshifts.
+<span class="nc" id="L264">        index = (c.getRed() / 32) * 64;</span>
+<span class="nc" id="L265">        index += (c.getGreen() / 32) * 8;</span>
+<span class="nc" id="L266">        index += (c.getBlue() / 32);</span>
+<span class="nc" id="L267">        return index;</span>
+    };
+
+    /**
+     * Calculates the color index distance between two histograms at a single index
+     * i.
+     * 
+     * @param hist Second histogram
+     * @param i    Index
+     * @return Absolute distance between values.
+     */
+    private double colorDistanceI(ColorHistogram hist, int i) {
+<span class="nc" id="L279">        return Math.abs(hist.data[i] - this.data[i]);</span>
+    };
+
+    /**
+     * Calculates the color similarity between two colors.
+     * 
+     * @param a First color
+     * @param b Second color
+     * @return Color similarity value
+     */
+    private static double colorSimilarity(Color a, Color b) {
+<span class="nc" id="L290">        double R = Math.pow(a.getRed() - b.getRed(), 2);</span>
+<span class="nc" id="L291">        double G = Math.pow(a.getGreen() - b.getGreen(), 2);</span>
+<span class="nc" id="L292">        double B = Math.pow(a.getBlue() - b.getBlue(), 2);</span>
+<span class="nc" id="L293">        double t = Math.sqrt(R + G + B);</span>
+<span class="nc" id="L294">        double res = Math.pow(1.0 - (t / Max_Colour_Dist), 2);</span>
+<span class="nc" id="L295">        return res;</span>
+    };
+
+    private static double colorSimilarity(int ind1, int ind2) {
+<span class="nc" id="L299">        return BIN_COLOUR_SIMILARITY[ind1][ind2];</span>
+    }
+
+    /**
+     * Converts an integer from 0..511 to a color (reverse-quantization).
+     * 
+     * @param i Integer to convert
+     * @return Color value of integer
+     */
+    private static Color getColorI(int i) {
+<span class="nc" id="L309">        int R = ((i / 64)) * 32;</span>
+<span class="nc" id="L310">        int G = ((i % 64) / 8) * 32;</span>
+<span class="nc" id="L311">        int B = ((i % 64) % 8) * 32;</span>
+<span class="nc" id="L312">        return new Color(R, G, B);</span>
+    };
+
+    /**
+     * Returns the color distance between the histograms summed with absolute color
+     * distance between two histogram images. An expensive call.
+     * 
+     * @param hist Second histogram
+     * @return Color distance
+     */
+    public double colorDS(ColorHistogram hist) {
+<span class="nc" id="L323">        double total = 0.0;</span>
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc bnc" id="L325" title="All 2 branches missed.">            for (int j = 0; j &lt; 512; j++)</span>
+<span class="nc" id="L326">                total += colorDistanceI(hist, i) * colorSimilarity(i, j) * colorDistanceI(hist, j);</span>
+<span class="nc" id="L327">        return total;</span>
+    };
+
+    /**
+     * Returns the color index difference between two histograms. Compares values
+     * stored in the arrays.
+     * 
+     * @param hist Second histogram
+     * @return Color distance
+     */
+    public double colorHistDistance(ColorHistogram hist) {
+<span class="nc" id="L338">        double total = 0.0;</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">        for (int i = 0; i &lt; 512; i++)</span>
+<span class="nc" id="L340">            total += colorDistanceI(hist, i);</span>
+<span class="nc" id="L341">        return total;</span>
+    };
+
+    public static void main(String[] args) {
+<span class="nc" id="L345">        int w = 128;</span>
+<span class="nc" id="L346">        int h = 128;</span>
+
+<span class="nc" id="L348">        BufferedImage i1 = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L349">        BufferedImage i2 = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc bnc" id="L350" title="All 2 branches missed.">        for (int y = 0; y &lt; h; y++)</span>
+<span class="nc bnc" id="L351" title="All 2 branches missed.">            for (int x = 0; x &lt; w; x++) {</span>
+<span class="nc" id="L352">                i1.setRGB(x, y, 0x00000000);</span>
+<span class="nc" id="L353">                i2.setRGB(x, y, 0xFFFFFFFF);</span>
+            }
+
+<span class="nc" id="L356">        ColorHistogram h1 = new ColorHistogram(i1);</span>
+<span class="nc" id="L357">        ColorHistogram h2 = new ColorHistogram(i2);</span>
+<span class="nc" id="L358">        double d0 = h1.colorDS(h1);</span>
+<span class="nc" id="L359">        double d1 = h1.colorDS(h2);</span>
+
+<span class="nc" id="L361">        System.out.println(&quot;Min Hist Distance: &quot; + String.valueOf(d0));</span>
+<span class="nc" id="L362">        System.out.println(&quot;Max Hist Distance: &quot; + String.valueOf(d1));</span>
+<span class="nc" id="L363">    }</span>
+
+};
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

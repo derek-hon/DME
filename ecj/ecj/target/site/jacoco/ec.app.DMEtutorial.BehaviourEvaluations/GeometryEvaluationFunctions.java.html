@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GeometryEvaluationFunctions.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.BehaviourEvaluations</a> &gt; <span class="el_source">GeometryEvaluationFunctions.java</span></div><h1>GeometryEvaluationFunctions.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.BehaviourEvaluations;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.opencv.core.Core;
+import org.opencv.core.CvType;
+import org.opencv.core.KeyPoint;
+import org.opencv.core.Mat;
+import org.opencv.core.MatOfKeyPoint;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.Size;
+import org.opencv.features2d.SimpleBlobDetector;
+import org.opencv.features2d.SimpleBlobDetector_Params;
+import org.opencv.imgproc.Imgproc;
+
+import ec.app.DMEtutorial.Fitness.OCVExtensions;
+import ec.app.DMEtutorial.Fitness.PSDExtensions;
+
+<span class="nc" id="L20">public class GeometryEvaluationFunctions {</span>
+
+    /**
+     * Probablistic Hough Line Transform from OpenCV
+     * https://docs.opencv.org/4.x/d9/db0/tutorial_hough_lines.html
+     * @param pixels
+     * @return
+     */
+    public static double LineDetection(int[][] pixels) {
+<span class="nc" id="L29">        double linesDetected = 0.0;</span>
+
+<span class="nc" id="L31">        int imageWidth = pixels.length;</span>
+<span class="nc" id="L32">        int imageHeight = pixels[0].length;</span>
+<span class="nc" id="L33">        Mat image = new Mat(imageWidth, imageHeight, CvType.CV_8U);</span>
+<span class="nc" id="L34">        Mat cannyEdge = new Mat();</span>
+<span class="nc" id="L35">        Mat lines = new Mat();</span>
+<span class="nc" id="L36">        int rgb = 0;</span>
+<span class="nc" id="L37">        double grey = 0;</span>
+
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        for (int x = 0 ; x &lt; imageWidth ; x ++) {</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">            for (int y = 0 ; y &lt; imageHeight ; y ++) {</span>
+<span class="nc" id="L41">                rgb = pixels[x][y];</span>
+<span class="nc" id="L42">                grey = ((rgb &amp; 0xFF0000) &gt;&gt; 16) + ((rgb &amp; 0x00FF00) &gt;&gt; 8) + (rgb &amp; 0x0000FF)/3.0;</span>
+<span class="nc" id="L43">                image.put(x, y, grey);</span>
+            }
+        }
+        
+<span class="nc" id="L47">        Imgproc.Canny(image, cannyEdge, 50, 200, 3, false);</span>
+<span class="nc" id="L48">        Imgproc.HoughLinesP(cannyEdge, lines, 1, Math.PI/180, 50, 50, 10 );</span>
+<span class="nc" id="L49">        linesDetected = lines.rows();</span>
+        
+        // FastLineDetector detector = Ximgproc.createFastLineDetector();
+        // detector.detect(image, lines);
+
+        // linesDetected = lines.cols();
+        
+<span class="nc" id="L56">        return linesDetected;</span>
+    }
+
+    /**
+     * used sobel instead of canny
+     * https://docs.opencv.org/4.x/df/d0d/tutorial_find_contours.html
+     * @param pixels
+     * @return
+     */
+    public static double ContourDetection(int[][] pixels) {
+<span class="nc" id="L66">        double contoursDetected = 0.0;</span>
+
+<span class="nc" id="L68">        int imageWidth = pixels.length;</span>
+<span class="nc" id="L69">        int imageHeight = pixels[0].length;</span>
+<span class="nc" id="L70">        Mat image = OCVExtensions.greyMatify(PSDExtensions.Int2DToImage(pixels));</span>
+<span class="nc" id="L71">        List&lt;MatOfPoint&gt; contours = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L72">        int rgb = 0;</span>
+<span class="nc" id="L73">        double grey = 0;</span>
+
+<span class="nc" id="L75">        Mat sobelX = new Mat();</span>
+<span class="nc" id="L76">        Mat sobelY = new Mat();</span>
+<span class="nc" id="L77">        Mat absX = new Mat();</span>
+<span class="nc" id="L78">        Mat absY = new Mat();</span>
+<span class="nc" id="L79">        Mat sobelResult = new Mat();</span>
+<span class="nc" id="L80">        Mat heirarchy = new Mat();</span>
+
+<span class="nc" id="L82">        Imgproc.Sobel(image, sobelX, CvType.CV_64F, 1, 0, 3);</span>
+<span class="nc" id="L83">        Imgproc.Sobel(image, sobelY, CvType.CV_64F, 0, 1, 3);</span>
+<span class="nc" id="L84">        Core.convertScaleAbs(sobelX, absX);</span>
+<span class="nc" id="L85">        Core.convertScaleAbs(sobelY, absY);</span>
+<span class="nc" id="L86">        Core.addWeighted(absX, 0.5, absY, 0.5, 0, sobelResult);</span>
+
+<span class="nc" id="L88">        Imgproc.findContours(sobelResult, contours, heirarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);</span>
+<span class="nc" id="L89">        contoursDetected = contours.size();</span>
+
+<span class="nc" id="L91">        return contoursDetected;</span>
+    }
+
+    public static double CornerDetection(int[][] pixels) {
+<span class="nc" id="L95">        double edgeCount = 0.0;</span>
+
+<span class="nc" id="L97">        int imageWidth = pixels.length;</span>
+<span class="nc" id="L98">        int imageHeight = pixels[0].length;</span>
+<span class="nc" id="L99">        Mat image = OCVExtensions.greyMatify(PSDExtensions.Int2DToImage(pixels));</span>
+        
+<span class="nc" id="L101">        Mat sobelX = new Mat();</span>
+<span class="nc" id="L102">        Mat sobelY = new Mat();</span>
+<span class="nc" id="L103">        Mat absX = new Mat();</span>
+<span class="nc" id="L104">        Mat absY = new Mat();</span>
+<span class="nc" id="L105">        Mat sobelResult = new Mat();</span>
+<span class="nc" id="L106">        MatOfPoint corners = new MatOfPoint();</span>
+
+<span class="nc" id="L108">        Imgproc.Sobel(image, sobelX, CvType.CV_64F, 1, 0, 3);</span>
+<span class="nc" id="L109">        Imgproc.Sobel(image, sobelY, CvType.CV_64F, 0, 1, 3);</span>
+<span class="nc" id="L110">        Core.convertScaleAbs(sobelX, absX);</span>
+<span class="nc" id="L111">        Core.convertScaleAbs(sobelY, absY);</span>
+<span class="nc" id="L112">        Core.addWeighted(absX, 0.5, absY, 0.5, 0, sobelResult);</span>
+
+<span class="nc" id="L114">        Imgproc.goodFeaturesToTrack(sobelResult, corners, Integer.MAX_VALUE, 0.5, 10, new Mat(), 3, 3, false, 0.04);</span>
+<span class="nc" id="L115">        int[] cornersData = new int[(int)(corners.total() * corners.channels())];</span>
+<span class="nc" id="L116">        corners.get(0, 0, cornersData);</span>
+<span class="nc" id="L117">        edgeCount = corners.rows();</span>
+
+<span class="nc" id="L119">        return edgeCount;</span>
+    }
+
+    /**
+     * Experimental detection
+     * @param pixels
+     * @return
+     */
+    public static double BlobDetection(int[][] pixels) {
+<span class="nc" id="L128">        double blobCount = 0.0;</span>
+
+<span class="nc" id="L130">        int imageWidth = pixels.length;</span>
+<span class="nc" id="L131">        int imageHeight = pixels[0].length;</span>
+<span class="nc" id="L132">        Mat image = OCVExtensions.greyMatify(PSDExtensions.Int2DToImage(pixels));</span>
+<span class="nc" id="L133">        int rgb = 0;</span>
+<span class="nc" id="L134">        double grey = 0;</span>
+
+<span class="nc" id="L136">        SimpleBlobDetector_Params params = new SimpleBlobDetector_Params();</span>
+<span class="nc" id="L137">        params.set_minThreshold(10);</span>
+<span class="nc" id="L138">        params.set_maxThreshold(200);</span>
+<span class="nc" id="L139">        params.set_filterByArea(true);</span>
+<span class="nc" id="L140">        params.set_minArea(1500);</span>
+<span class="nc" id="L141">        params.set_filterByCircularity(true);</span>
+<span class="nc" id="L142">        params.set_minCircularity(0.1f);</span>
+<span class="nc" id="L143">        params.set_filterByConvexity(true);</span>
+<span class="nc" id="L144">        params.set_minConvexity(0.87f);</span>
+<span class="nc" id="L145">        params.set_filterByInertia(true);</span>
+<span class="nc" id="L146">        params.set_minInertiaRatio(0.01f);</span>
+
+<span class="nc" id="L148">        SimpleBlobDetector blobDetector = SimpleBlobDetector.create(params);</span>
+<span class="nc" id="L149">        MatOfKeyPoint keypoints = new MatOfKeyPoint();</span>
+
+<span class="nc" id="L151">        blobDetector.detect(image, keypoints);</span>
+<span class="nc" id="L152">        blobCount = keypoints.rows();</span>
+
+<span class="nc" id="L154">        return blobCount;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

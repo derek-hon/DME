@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProceduralTextureFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.LuminosityColorExperiment.VanillaPT</a> &gt; <span class="el_source">ProceduralTextureFitness.java</span></div><h1>ProceduralTextureFitness.java</h1><pre class="source lang-java linenums">package ec.app.experiments.LuminosityColorExperiment.VanillaPT;
+
+import ec.gp.koza.*;
+import ec.util.Parameter;
+import ec.EvolutionState;
+import ec.Individual;
+import ec.app.experiments.GeneralandFitness.ColorHistogram;
+import ec.app.experiments.GeneralandFitness.DirectMatch;
+import ec.app.experiments.GeneralandFitness.PSDExtensions;
+import ec.app.experiments.GeneralandFitness.TextureIndividual;
+import ec.app.experiments.GeneralandFitness.TextureProblemForm;
+import ec.app.experiments.Vanilla.ImageLoad;
+import ec.util.ThreadPool;
+import ec.app.experiments.GeneralandFitness.DirectMatch.DirectThread;
+
+import java.awt.image.BufferedImage;
+
+@SuppressWarnings(&quot;Serial&quot;)
+<span class="nc" id="L19">public class ProceduralTextureFitness extends ImageLoad{</span>
+    // public BufferedImage TargetImage_ColourScheme = null;
+<span class="nc" id="L21">    DirectMatch TargetDirectMatch = null;</span>
+<span class="nc" id="L22">    int height = 0, width = 0;</span>
+    private static final String P_FITNESS_THREAD = &quot;fit-threads&quot;;
+    // ColorHistogram TargetHistogram;
+<span class="nc" id="L25">    int fitnessThread = 1;</span>
+    // ThreadPool.Worker[] workerThreads = null;
+    // int Size;
+    // public static final String P_SAVE_PATH = &quot;save-path&quot;;
+    // public String savePath;
+
+@Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L33">        super.setup(state, base);</span>
+
+        // Load targets from existing image
+        // if (state.parameters.exists(base.push(P_FITNESS_THREAD), null)) {
+        //     fitnessThread = state.parameters.getInt(base.push(P_FITNESS_THREAD), null, 1);
+        //     state.output.message(&quot;Fitness threads: &quot; + fitnessThread);
+        //     // fitnessThreads = new DirectThread[fitnessThread];
+        //     workerThreads = new ThreadPool.Worker[fitnessThread];
+        // }
+        // System.out.println(fitnesszzThreads.length + &quot;&quot;);
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if( TargetImage == null )</span>
+<span class="nc" id="L44">            state.output.fatal(&quot;Problem &quot; + this.getClass() + &quot; requires a target image.&quot;);</span>
+        // TargetDirectMatch = new DirectMatch(state, TargetImage, fitnessThread, fitnessThreads);
+<span class="nc" id="L46">        TargetDirectMatch = new DirectMatch(state, TargetImage);</span>
+        // TargetDirectMatch = new DirectMatch(TargetImage, false);
+        // TargetDirectMatch.calculateLuminosity();
+        // this.width = TargetImage.getWidth();
+        // this.height = TargetImage.getHeight();
+
+<span class="nc" id="L52">        state.output.systemMessage(&quot;Problem &quot; + this.getClass() + &quot; initialized.&quot;);</span>
+<span class="nc" id="L53">    }</span>
+
+    @Override
+    public void evaluate(EvolutionState state, Individual ind, int subpopulation, int threadnum) {
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if(ind.evaluated) return;</span>
+
+<span class="nc" id="L59">        super.evaluate(state, ind, subpopulation, threadnum);</span>
+        
+        // double[] solutionSample = new double[width * height];
+        // int rgb = 0;
+        // for (int y = 0; y &lt; height; y++) {
+        //     for (int x = 0; x &lt; width; x++) {
+        //         rgb = colours[y * width + x];
+        //         solutionSample[y * width + x] = ((rgb &amp; 0xFF0000) &gt;&gt; 16 + (rgb &amp; 0x00FF00) &gt;&gt; 8 + (rgb &amp; 0x0000FF))/3.0;
+        //     }
+        // }
+        // BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        // for (int y = 0 ; y &lt; height ; y ++) {
+        //     for (int x = 0 ; x &lt; width ; x ++) {
+        //         img.setRGB(x, y, colours[y * width + x]);
+        //     }
+        // }
+<span class="nc" id="L75">        TextureIndividual textInd = (TextureIndividual) ind;</span>
+<span class="nc" id="L76">        DirectMatch match = new DirectMatch(state, textInd.pixels);</span>
+        // match.calculateLuminosity();
+<span class="nc" id="L78">        double fitness = TargetDirectMatch.luminanceDistance(match);</span>
+
+        // DirectMatch match = new DirectMatch(colours, false);
+        // match.calculateLuminosity();
+        // double[] data = TargetDirectMatch.luminosityMatch(match);
+
+<span class="nc" id="L84">        KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc" id="L85">        f.setStandardizedFitness(state, fitness);</span>
+        // f.hits = (int)data[1];
+<span class="nc" id="L87">        ind.evaluated = true;</span>
+<span class="nc" id="L88">    } // evaluate</span>
+
+    @Override
+    public void describe(final EvolutionState state, final Individual ind, final int subpop, final int threadnum, final int log) {
+<span class="nc" id="L92">        super.describe(state, ind, subpop, threadnum, log);</span>
+<span class="nc" id="L93">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

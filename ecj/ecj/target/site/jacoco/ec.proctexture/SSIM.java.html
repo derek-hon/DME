@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SSIM.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.proctexture</a> &gt; <span class="el_source">SSIM.java</span></div><h1>SSIM.java</h1><pre class="source lang-java linenums">package ec.proctexture;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+
+import ec.app.experiments.GeneralandFitness.PSDExtensions;
+
+import javax.imageio.ImageIO;
+
+import ec.EvolutionState;
+
+public class SSIM {
+
+    double L;
+<span class="nc" id="L17">    double kOne = 0.01;</span>
+<span class="nc" id="L18">    double kTwo = 0.03;</span>
+<span class="nc" id="L19">    double cOne = 0.0, cTwo = 0.0, cThree = 0.0;</span>
+<span class="nc" id="L20">    int[] WINDOW_STARTING_X = new int[] {0, 0, 64, 64};</span>
+<span class="nc" id="L21">    int[] WINDOW_STARTING_Y = new int[] {0, 64, 0, 64};</span>
+<span class="nc" id="L22">    int WINDOW_SIZE = 64;</span>
+<span class="nc" id="L23">    double SSIM_INDEX = 0.0;</span>
+<span class="nc" id="L24">    double[][] pixels = null;</span>
+
+    public double getSSIM() {
+<span class="nc" id="L27">        return this.SSIM_INDEX;</span>
+    }
+
+<span class="nc" id="L30">    public SSIM(EvolutionState state, File image, BufferedImage bImage) {</span>
+<span class="nc" id="L31">        double BPP = (image.length() * 8) / (bImage.getWidth() * bImage.getHeight());</span>
+<span class="nc" id="L32">        this.L = Math.pow(2, BPP) - 1.0;</span>
+<span class="nc" id="L33">        this.cOne = Math.pow(this.kOne * this.L, 2);</span>
+<span class="nc" id="L34">        this.cTwo = Math.pow(this.kTwo * this.L, 2);</span>
+<span class="nc" id="L35">        this.cThree = cTwo/2.0;</span>
+
+<span class="nc" id="L37">        this.pixels = PSDExtensions.ImageToDouble2D(bImage, null);</span>
+<span class="nc" id="L38">    }</span>
+
+    public void calculateWindows(double[][] solutionPixels) {
+<span class="nc" id="L41">        double[] targetWindow = new double[WINDOW_SIZE * WINDOW_SIZE];</span>
+<span class="nc" id="L42">        double[] solutionWindow = new double[WINDOW_SIZE * WINDOW_SIZE];</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        for (int index = 0 ; index &lt; WINDOW_STARTING_X.length ; index ++) {</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">            for (int x = 0 ; x &lt; WINDOW_SIZE ; x ++) {</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">                for (int y = 0 ; y &lt; WINDOW_SIZE ; y ++) {</span>
+<span class="nc" id="L46">                    targetWindow[x * WINDOW_SIZE + y] = this.pixels[WINDOW_STARTING_X[index] + x][WINDOW_STARTING_Y[index] + y];</span>
+<span class="nc" id="L47">                    solutionWindow[x * WINDOW_SIZE + y] = solutionPixels[WINDOW_STARTING_X[index] + x][WINDOW_STARTING_Y[index] + y];</span>
+                } //going through y
+            } //going through x
+
+<span class="nc" id="L51">            double targetMean = mean(targetWindow);</span>
+<span class="nc" id="L52">            double solutionMean = mean(solutionWindow);</span>
+<span class="nc" id="L53">            double targetVariance = variance(targetWindow);</span>
+<span class="nc" id="L54">            double solutionVariance = variance(solutionWindow);</span>
+<span class="nc" id="L55">            double covariance = covariance(targetWindow, solutionWindow);</span>
+            
+<span class="nc" id="L57">            double ssimValue = SSIMIndex(targetMean, solutionMean, targetVariance, solutionVariance, covariance);</span>
+            // double ssimValue = luminance(targetMean, solutionMean) * contrast(targetVariance, solutionVariance) * structure(targetVariance, solutionVariance, covariance);
+            // System.out.println(&quot;lum: &quot; + luminance(targetMean, solutionMean) + &quot; cont: &quot; + contrast(targetVariance, solutionVariance) + &quot; struct: &quot; + structure(targetVariance, solutionVariance, covariance) + &quot; ssim: &quot; + ssimValue);
+<span class="nc" id="L60">            this.SSIM_INDEX += Math.sqrt(1.0 - ssimValue);</span>
+            // System.out.println(this.SSIM_INDEX + &quot; val&quot;);
+        }
+        // this.SSIM_INDEX /= (1.0 * WINDOW_STARTING_X.length);
+<span class="nc" id="L64">    }</span>
+
+    public double SSIMIndex(double targetMean, double solutionMean, double targetVariance, double solutionVariance, double covariance) {
+<span class="nc" id="L67">        return ((2.0 * targetMean * solutionMean + cOne) * (2.0 * covariance + cTwo)) / </span>
+<span class="nc" id="L68">                ((Math.pow(solutionMean, 2) + (Math.pow(targetMean, 2) + cOne)) * (Math.pow(targetVariance, 2) + (Math.pow(solutionVariance, 2) + cTwo)));</span>
+        // return luminance(targetMean, solutionMean) * contrast(targetVariance, solutionVariance) * structure(targetVariance, solutionVariance, covariance);
+    }
+
+    private double luminance(double targetMean, double solutionMean) {
+<span class="nc" id="L73">        return (2.0 * targetMean * solutionMean + cOne) / (Math.pow(targetMean, 2) + Math.pow(solutionMean, 2) + cOne);</span>
+    }
+
+    private double contrast(double targetVariance, double solutionVariance) {
+<span class="nc" id="L77">        return (2.0 * targetVariance * solutionVariance + cTwo) / (Math.pow(targetVariance, 2) + Math.pow(solutionVariance, 2) + cTwo);</span>
+    }
+
+    private double structure(double targetVariance, double solutionVariance, double covariance) {
+<span class="nc" id="L81">        System.out.println(&quot;target variance: &quot; + targetVariance + &quot; solution variance: &quot; + solutionVariance + &quot; covariance&quot; + covariance);</span>
+<span class="nc" id="L82">        return (covariance + cThree) / (targetVariance * solutionVariance + covariance);</span>
+    }
+
+    private double mean(double[] values) {
+<span class="nc" id="L86">        double avg = 0;</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        for (double d : values)</span>
+<span class="nc" id="L88">            avg += d;</span>
+<span class="nc" id="L89">        return avg/values.length;</span>
+    }
+
+    private double variance(double[] values) {
+<span class="nc" id="L93">        double mean = this.mean(values);</span>
+<span class="nc" id="L94">        double variance = 0;</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">        for (double d : values)</span>
+<span class="nc" id="L96">            variance += Math.pow((d - mean), 2);</span>
+<span class="nc" id="L97">        return variance / values.length;</span>
+    }
+
+    private double covariance(double[] windowOne, double[] windowTwo) {
+<span class="nc" id="L101">        double windowOneMean = mean(windowOne);</span>
+<span class="nc" id="L102">        double windowTwoMean = mean(windowTwo);</span>
+<span class="nc" id="L103">        double covariance = 0;</span>
+
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        for (int i = 0 ; i &lt; windowOne.length ; i ++) {</span>
+<span class="nc" id="L106">            covariance = (windowOne[i] - windowOneMean) * (windowTwo[i] - windowTwoMean);</span>
+        }
+
+<span class="nc" id="L109">        return covariance / windowOne.length;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

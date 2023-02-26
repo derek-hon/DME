@@ -1,0 +1,490 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Haar.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.Fitness</a> &gt; <span class="el_source">Haar.java</span></div><h1>Haar.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.Fitness;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.DoubleSummaryStatistics;
+import java.util.List;
+import java.awt.image.BufferedImage;
+
+import ec.EvolutionState;
+import ec.distributedME.Elite;
+import ec.util.Parameter;
+
+public class Haar {
+<span class="nc" id="L14">    double ZERO = 0.00001;</span>
+<span class="nc" id="L15">    int TOTAL_MAX_MAGNITUDE = 35;</span>
+    double[] a;
+    double[] d;
+    int[] truncatedColours;
+    ImageQueryData HaarData;
+    int width, height;
+<span class="nc" id="L21">    double[][] coeffs = null;</span>
+<span class="nc" id="L22">    double[][] coefficients = null;</span>
+<span class="nc" id="L23">    int CYCLES = 1;</span>
+<span class="nc" id="L24">    public double[][] truncated = null;</span>
+
+<span class="nc" id="L26">    public Haar(EvolutionState state, BufferedImage img) {</span>
+<span class="nc bnc" id="L27" title="All 2 branches missed.">        if (state.parameters.exists(new Parameter(&quot;coeff&quot;), new Parameter(&quot;coeff&quot;)))</span>
+<span class="nc" id="L28">            TOTAL_MAX_MAGNITUDE = state.parameters.getInt(new Parameter(&quot;coeff&quot;), new Parameter(&quot;coeff&quot;));</span>
+        
+<span class="nc" id="L30">        this.width = img.getWidth();</span>
+<span class="nc" id="L31">        this.height = img.getHeight();</span>
+        
+<span class="nc" id="L33">        double[][] data = PSDExtensions.ImageToDouble2D(img, null);</span>
+
+<span class="nc" id="L35">        this.coefficients = std_decomp(state, data, width, height);</span>
+        // state.output.fatal(Arrays.deepToString(coefficients));
+
+        // double[] samp = new double[width * height];
+        // for (int y = 0 ; y &lt; height ; y ++) {
+        //     for (int x = 0 ; x &lt; width ; x ++)
+        //         samp[y * width + x] = data[x][y];
+        // }
+        // double[] coeff = decompose2D(samp);
+        
+<span class="nc" id="L45">        this.truncated = truncateCoefficients2D(state, coefficients);</span>
+        // state.output.fatal(Arrays.deepToString(truncated));
+<span class="nc" id="L47">        this.HaarData = new ImageQueryData(coefficients[0][0]/255.0, truncated);</span>
+<span class="nc" id="L48">    }</span>
+
+<span class="nc" id="L50">    public Haar(EvolutionState state, int[][] pixels) {</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (state.parameters.exists(new Parameter(&quot;coeff&quot;), new Parameter(&quot;coeff&quot;)))</span>
+<span class="nc" id="L52">            TOTAL_MAX_MAGNITUDE = state.parameters.getInt(new Parameter(&quot;coeff&quot;), new Parameter(&quot;coeff&quot;));</span>
+
+<span class="nc" id="L54">        double[][] data = new double[pixels.length][pixels.length];</span>
+<span class="nc" id="L55">        this.width = pixels.length;</span>
+<span class="nc" id="L56">        this.height = pixels.length;</span>
+
+
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        for (int x = 0 ; x &lt; width ; x ++ ) {</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            for (int y = 0 ; y &lt; height ; y ++)</span>
+<span class="nc" id="L61">                data[x][y] = (double)pixels[x][y];</span>
+        }
+<span class="nc" id="L63">        this.coefficients = std_decomp(state, data, width, height);</span>
+        // state.output.fatal(Arrays.deepToString(coefficients));
+
+        // double[] samp = new double[width * height];
+        // for (int y = 0 ; y &lt; height ; y ++) {
+        //     for (int x = 0 ; x &lt; width ; x ++)
+        //         samp[y * width + x] = data[x][y];
+        // }
+        // double[] coeff = decompose2D(samp);
+        
+<span class="nc" id="L73">        this.truncated = truncateCoefficients2D(state, coefficients);</span>
+        // state.output.fatal(Arrays.deepToString(truncated));
+<span class="nc" id="L75">        this.HaarData = new ImageQueryData(coefficients[0][0]/255.0, truncated);</span>
+<span class="nc" id="L76">    }</span>
+
+<span class="nc" id="L78">    public Haar(EvolutionState state, Elite e) {</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        if (state.parameters.exists(new Parameter(&quot;coeff&quot;), new Parameter(&quot;coeff&quot;)))</span>
+<span class="nc" id="L80">            TOTAL_MAX_MAGNITUDE = state.parameters.getInt(new Parameter(&quot;coeff&quot;), new Parameter(&quot;coeff&quot;));</span>
+
+<span class="nc" id="L82">        int[][] pixels = e.getPixels();</span>
+<span class="nc" id="L83">        double[][] data = new double[pixels.length][pixels.length];</span>
+<span class="nc" id="L84">        this.width = pixels.length;</span>
+<span class="nc" id="L85">        this.height = pixels.length;</span>
+
+
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        for (int x = 0 ; x &lt; width ; x ++ ) {</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">            for (int y = 0 ; y &lt; height ; y ++)</span>
+<span class="nc" id="L90">                data[x][y] = (double)pixels[x][y];</span>
+        }
+<span class="nc" id="L92">        this.coefficients = std_decomp(state, data, width, height);</span>
+        // state.output.fatal(Arrays.deepToString(coefficients));
+
+        // double[] samp = new double[width * height];
+        // for (int y = 0 ; y &lt; height ; y ++) {
+        //     for (int x = 0 ; x &lt; width ; x ++)
+        //         samp[y * width + x] = data[x][y];
+        // }
+        // double[] coeff = decompose2D(samp);
+        
+<span class="nc" id="L102">        this.truncated = truncateCoefficients2D(state, coefficients);</span>
+        // state.output.fatal(Arrays.deepToString(truncated));
+<span class="nc" id="L104">        this.HaarData = new ImageQueryData(coefficients[0][0]/255.0, truncated);</span>
+        // state.output.message(&quot;rank len: &quot; + this.HaarData.getRankData().length);
+<span class="nc" id="L106">    }</span>
+
+    public BufferedImage getCoefficientImage() {
+<span class="nc" id="L109">        BufferedImage img = new BufferedImage(64, 64, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        for (int y = 0 ; y &lt; 64 ; y ++) {</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            for (int x = 0 ; x &lt; 64 ; x ++) {</span>
+<span class="nc" id="L112">                img.setRGB(x, y, getIntFromColor(255, 255, 255));</span>
+            }
+        }
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {</span>
+<span class="nc" id="L116">            img.setRGB((int)this.truncated[i][0], (int)this.truncated[i][1], getIntFromColor(0, 0, 0));</span>
+        }
+
+<span class="nc" id="L119">        return img;</span>
+    }
+    
+    // https://people.sc.fsu.edu/~jburkardt/cpp_src/haar/haar.cpp
+    public double[] decompose2D(double[] sample) {
+<span class="nc" id="L124">        int length = width * height;</span>
+<span class="nc" id="L125">        int k = 1;</span>
+<span class="nc" id="L126">        double[] temp = new double[length];</span>
+<span class="nc" id="L127">        double s = Math.sqrt(2.0);</span>
+
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            for (int y = 0 ; y &lt; height ; y ++)</span>
+<span class="nc" id="L131">                temp[x * height + y] = sample[x * height + y]/255.0;</span>
+        }
+
+        //
+        // Determine K, the largest power of 2 such that K &lt;= M.
+        //
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        while (k * 2 &lt;= height)</span>
+<span class="nc" id="L138">            k *= 2;</span>
+
+        //
+        // Transform all columns.
+        //
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        while (1 &lt; k) {</span>
+<span class="nc" id="L144">            k /= 2;</span>
+
+<span class="nc bnc" id="L146" title="All 2 branches missed.">            for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                for (int y = 0 ; y &lt; k ; y ++) {</span>
+<span class="nc" id="L148">                    temp[x * height + y] = (sample[x * height + 2 * y] + sample[x * height + 2 * y + 1]) / s;</span>
+<span class="nc" id="L149">                    temp[x * height + y + k] = (sample[x * height +  2 * y] - sample[x * height + 2 * y + 1]) / s;</span>
+                }
+            }
+
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                for (int y = 0 ; y &lt; 2 * k ; y ++)</span>
+<span class="nc" id="L155">                    sample[x * height + y] = temp[x * height + y];</span>
+            }
+        }
+
+        //
+        // Determine K, the largest power of 2 such that K &lt;= M.
+        //
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        while (k * 2 &lt;= height)</span>
+<span class="nc" id="L163">            k *= 2;</span>
+        //
+        // Transform all rows.
+        //
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        while (1 &lt; k) {</span>
+<span class="nc" id="L168">            k /= 2;</span>
+
+<span class="nc bnc" id="L170" title="All 2 branches missed.">            for (int x = 0; x &lt; k; x++) {</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                for (int y = 0; y &lt; height; y++) {</span>
+<span class="nc" id="L172">                    temp[x * height + y] = (sample[2 * x * height + y] + sample[(2 * x + 1) * height + y]) / s;</span>
+<span class="nc" id="L173">                    temp[(x + k) * height + y] = (sample[2 * x * height + y] - sample[(2 * x + 1) * height + y]) / s;</span>
+                }
+            }
+
+<span class="nc bnc" id="L177" title="All 2 branches missed.">            for (int x = 0; x &lt; 2 * k; x++) {</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                for (int y = 0; y &lt; height; y++)</span>
+<span class="nc" id="L179">                    sample[x * height + y] = temp[x * height + y];</span>
+            }
+        }
+        
+<span class="nc" id="L183">        return sample.clone();</span>
+    }
+
+    /**
+     * Andrea Weins' Gentropy
+     * @param state
+     * @param data
+     * @param width
+     * @param height
+     * @return
+     */
+    public double[][] std_decomp(EvolutionState state, double[][] data, int width, int height) {
+<span class="nc" id="L195">        int d = 0;</span>
+<span class="nc" id="L196">        double[] coefficients = new double[width * height];</span>
+
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        for (int y = 0 ; y &lt; height ; y ++) {</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">            for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc" id="L200">                data[x][y] /= 255.0;</span>
+            }
+        }
+
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        for (int y = 0 ; y &lt; height ; y ++) {</span>
+<span class="nc" id="L205">            d = width;</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">            for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc" id="L207">                data[x][y] /= Math.sqrt(d);</span>
+            }
+
+<span class="nc bnc" id="L210" title="All 2 branches missed.">            while (d &gt; 1) {</span>
+<span class="nc" id="L211">                d /= 2;</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">                for (int i = 0 ; i &lt; d ; i ++) {</span>
+<span class="nc" id="L213">                    coefficients[i] = (data[2 * i][y] + data[2 * i + 1][y]) / Math.sqrt(2.0);</span>
+<span class="nc" id="L214">                    coefficients[d + i] = (data[2 * i][y] - data[2 * i + 1][y]) / Math.sqrt(2.0);</span>
+                }
+<span class="nc bnc" id="L216" title="All 2 branches missed.">                for (int j = 0 ; j &lt; width ; j ++) {</span>
+<span class="nc" id="L217">                    data[j][y] = coefficients[j];</span>
+                }
+            }
+        }
+
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc" id="L223">            d = height;</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">            for (int y = 0 ; y &lt; height ; y ++) {</span>
+<span class="nc" id="L225">                data[x][y] /= Math.sqrt(d);</span>
+            }
+
+<span class="nc bnc" id="L228" title="All 2 branches missed.">            while (d &gt; 1) {</span>
+<span class="nc" id="L229">                d /= 2;</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">                for (int i = 0 ; i &lt; d ; i ++) {</span>
+<span class="nc" id="L231">                    coefficients[i] = (data[x][2 * i] + data[x][2 * i + 1]) / Math.sqrt(2.0);</span>
+<span class="nc" id="L232">                    coefficients[d + i] = (data[x][2 * i] - data[x][2 * i + 1]) / Math.sqrt(2.0);</span>
+                }
+<span class="nc bnc" id="L234" title="All 2 branches missed.">                for (int j = 0 ; j &lt; height ; j ++) {</span>
+<span class="nc" id="L235">                    data[x][j] = coefficients[j];</span>
+                }
+            }
+        }
+
+<span class="nc" id="L240">        return data.clone();</span>
+    }
+
+    public double[][] truncateCoefficients2D(EvolutionState state, double[][] coefficients) {
+<span class="nc" id="L244">        ArrayList&lt;double[]&gt; cList = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L245">        double max = -1.0;</span>
+<span class="nc" id="L246">        int maxX = 0, maxY = 0, index = 0;</span>
+<span class="nc" id="L247">        double[][] truncated = new double[TOTAL_MAX_MAGNITUDE][3];</span>
+        // for (int i = 0 ; i &lt; truncated.length ; i ++ ) {
+        //     for (int j = 0 ; j &lt; truncated[i].length ; j ++)
+        //         truncated[i][j] = 0;
+        // }
+        //Convert it to an arraylist because we can remove the largest coefficients
+<span class="nc bnc" id="L253" title="All 2 branches missed.">        for (int y= 0 ; y &lt; height ; y ++ ) {</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">            for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc" id="L255">                cList.add(new double[] {x, y, coefficients[x][y]});</span>
+            }
+        }
+        // for (double value : coefficients)
+        //     cList.add(value);
+        //Remove first index because it's the average of the values
+<span class="nc" id="L261">        cList.remove(0);</span>
+        // state.output.message(&quot;length: &quot; + cList.size());
+        //Obtain the largest coefficients and their indices
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {</span>
+<span class="nc" id="L265">            max = -1.0;</span>
+<span class="nc" id="L266">            index = 0;</span>
+<span class="nc bnc" id="L267" title="All 2 branches missed.">            for (int c = 0 ; c &lt; cList.size() ; c ++) {</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                if (Math.abs(cList.get(c)[2]) &gt; max) {</span>
+<span class="nc" id="L269">                    max = Math.abs(cList.get(c)[2]);</span>
+<span class="nc" id="L270">                    maxX = (int)cList.get(c)[0];</span>
+<span class="nc" id="L271">                    maxY = (int)cList.get(c)[1];</span>
+<span class="nc" id="L272">                    index = c;</span>
+                }
+            }
+            // for (int x = 0 ; x &lt; width ; x ++) {
+            //     for (int y = 0 ; y &lt; height ; y ++) {
+            //         if ((x * height + y) &gt;= (cList.size()))
+            //             break;
+            //         // if (cList.get(x * height + y) &gt; 0 || cList.get(x * height + y) &lt; 0)
+            //         //     counter ++;
+            //         if (Math.abs(cList.get(x * height + y)) &gt; max) {
+            //             max = Math.abs(cList.get(x * height + y));
+            //             maxX = x;
+            //             maxY = y;
+            //         }
+            //     }
+            // }
+
+            // state.output.fatal(&quot;max counter; &quot; + counter);
+            // state.output.message(&quot;coords: ( &quot; + maxX + &quot;, &quot; + maxY + &quot; )&quot;);
+<span class="nc" id="L291">            truncated[i][0] = maxX;</span>
+<span class="nc" id="L292">            truncated[i][1] = maxY;</span>
+<span class="nc" id="L293">            truncated[i][2] = i/TOTAL_MAX_MAGNITUDE;</span>
+<span class="nc" id="L294">            cList.remove(index);</span>
+        }
+
+        // state.output.message(Arrays.deepToString(truncated));
+
+        // state.output.fatal(Arrays.deepToString(truncated));
+        
+<span class="nc" id="L301">        return truncated.clone();</span>
+    }
+
+    public ImageQueryData getHaarData() {
+<span class="nc" id="L305">        return this.HaarData;</span>
+    }
+
+    public class ImageQueryData {
+        double average;
+<span class="nc" id="L310">        int[][] coordinates = null;</span>
+<span class="nc" id="L311">        double[] rank = null;</span>
+<span class="nc" id="L312">        double[] values = null;</span>
+<span class="nc" id="L313">        ArrayList&lt;double[]&gt; coefficientData = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L314">        double[][] imageData = null;</span>
+
+        public String printData() {
+<span class="nc" id="L317">            return &quot;Average: &quot; + this.average + &quot; rank data: &quot; + Arrays.toString(this.rank) + &quot; Coordinate data: \n&quot; + Arrays.deepToString(this.coordinates);</span>
+        }
+
+<span class="nc" id="L320">        ImageQueryData(EvolutionState state, double[] coefficients) {</span>
+<span class="nc" id="L321">            this.values = coefficients.clone();</span>
+<span class="nc" id="L322">        }</span>
+
+<span class="nc" id="L324">        public ImageQueryData(double avg, double[][] data) {</span>
+<span class="nc" id="L325">            this.average = avg;</span>
+<span class="nc" id="L326">            this.coordinates = new int[TOTAL_MAX_MAGNITUDE][2];</span>
+<span class="nc" id="L327">            this.rank = new double[TOTAL_MAX_MAGNITUDE];</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">            for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {</span>
+                // this.coefficientData.add(data[i]);
+<span class="nc" id="L330">                this.coordinates[i][0] = (int)data[i][0];</span>
+<span class="nc" id="L331">                this.coordinates[i][1] = (int)data[i][1];</span>
+<span class="nc" id="L332">                this.rank[i] = data[i][2];</span>
+            }
+<span class="nc" id="L334">        }</span>
+
+<span class="nc" id="L336">        ImageQueryData(EvolutionState state, double avg, double[][] data) {</span>
+<span class="nc" id="L337">            this.average = avg;</span>
+<span class="nc" id="L338">            this.coordinates = new int[TOTAL_MAX_MAGNITUDE][2];</span>
+<span class="nc" id="L339">            this.values = new double[TOTAL_MAX_MAGNITUDE];</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">            for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {</span>
+<span class="nc" id="L341">                this.coordinates[i][0] = (int)data[i][0];</span>
+<span class="nc" id="L342">                this.coordinates[i][1] = (int)data[i][1];</span>
+<span class="nc" id="L343">                this.values[i] = data[i][2];</span>
+            }
+            // state.output.fatal(Arrays.deepToString(this.coordinates));
+<span class="nc" id="L346">        }</span>
+
+<span class="nc" id="L348">        ImageQueryData(EvolutionState state, double[][] data) {</span>
+<span class="nc" id="L349">            this.average = data[0][0];</span>
+<span class="nc" id="L350">            this.imageData = new double[data.length][data[0].length];</span>
+<span class="nc bnc" id="L351" title="All 2 branches missed.">            for (int x = 0 ; x &lt; data.length ; x ++) {</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">                for (int y = 0 ; y &lt; data[x].length ; y ++) {</span>
+<span class="nc" id="L353">                    imageData[x][y] = data[x][y];</span>
+                }
+            }
+<span class="nc" id="L356">        }</span>
+
+        double[] getRankData() {
+<span class="nc" id="L359">            return this.rank;</span>
+        }
+
+        double[] getData(int index) {
+<span class="nc" id="L363">            return this.coefficientData.get(index);</span>
+        }
+
+        int getIndex(int index) {
+<span class="nc" id="L367">            return (int)this.coefficientData.get(index)[0];</span>
+        }
+        
+        double getValue(int index) {
+<span class="nc" id="L371">            return this.coefficientData.get(index)[1];</span>
+        }
+
+        int indexExists(int value) {
+<span class="nc bnc" id="L375" title="All 2 branches missed.">            for (int i = 0 ; i &lt; this.coefficientData.size() ; i ++) {</span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">                if (value == this.getIndex(i))</span>
+<span class="nc" id="L377">                    return i;</span>
+            }
+<span class="nc" id="L379">            return -1;</span>
+        }
+
+        int checkIndex(int[] index) {
+<span class="nc bnc" id="L383" title="All 2 branches missed.">            for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {</span>
+<span class="nc bnc" id="L384" title="All 4 branches missed.">                if (this.coordinates[i][0] == index[0] &amp;&amp; this.coordinates[i][1] == index[1]) {</span>
+<span class="nc" id="L385">                    return i;</span>
+                }
+            }
+<span class="nc" id="L388">            return -1;</span>
+        }
+
+        double getCoefficient(int index) {
+<span class="nc" id="L392">            return this.values[index];</span>
+        }
+
+        double getRank(int index) {
+<span class="nc" id="L396">            return this.rank[index];</span>
+        }
+
+        public BufferedImage coefficientImage (EvolutionState state) {
+<span class="nc" id="L400">            BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L401">            int colour = 0;</span>
+            // state.output.fatal(Arrays.deepToString(this.coordinates));
+            // System.out.println(Arrays.deepToString(this.coordinates));
+<span class="nc bnc" id="L404" title="All 2 branches missed.">            for (int y = 0 ; y &lt; height ; y ++) {</span>
+<span class="nc bnc" id="L405" title="All 2 branches missed.">                for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc" id="L406">                    int index = checkIndex(new int[]{x, y});</span>
+<span class="nc bnc" id="L407" title="All 2 branches missed.">                    if (index &gt; -1) {</span>
+<span class="nc" id="L408">                        image.setRGB(x, y, getIntFromColor(255, 255, 255));</span>
+                    }
+                    else {
+<span class="nc" id="L411">                        image.setRGB(x, y, getIntFromColor(0, 0, 0));</span>
+                    }
+                }
+            }
+    
+<span class="nc" id="L416">            return image;</span>
+        }
+
+        public double compareTo(ImageQueryData comparisonHaar) {
+<span class="nc" id="L420">            double comparison = 0.0;</span>
+<span class="nc" id="L421">            int index = 0;</span>
+            // Summation of equal index value pairs of coefficients
+            // for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {
+            //     index = indexExists(comparisonHaar.getIndex(i));
+            //     if (index != -1) {
+            //         comparison += Math.abs(this.getValue(index) - comparisonHaar.getValue(i));
+            //     }
+            //     else {
+            //         comparison += 1000;
+            //     }
+            // }
+<span class="nc bnc" id="L432" title="All 2 branches missed.">            for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {</span>
+<span class="nc" id="L433">                index = checkIndex(comparisonHaar.coordinates[i]);</span>
+<span class="nc bnc" id="L434" title="All 2 branches missed.">                if (index &gt; -1) {</span>
+<span class="nc" id="L435">                    comparison += Math.abs(this.getRank(index) - comparisonHaar.getRank(index));</span>
+                }
+                else {
+<span class="nc" id="L438">                    comparison += 2;</span>
+                }
+            }
+
+            // for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {
+            //     index = checkIndex(comparisonHaar.coordinates[i]);
+            //     if (index &gt; -1) {
+            //         comparison += Math.abs(this.getCoefficient(index) - comparisonHaar.getCoefficient(index));
+            //     }
+            //     else {
+            //         comparison += 1000;
+            //     }
+            // }
+
+            // for (int x = 0 ; x &lt; this.imageData.length ; x ++) {
+            //     for (int y = 0 ; y &lt; this.imageData[x].length ; y ++) {
+            //         if (x == 0 &amp;&amp; y == 0 || (this.imageData[x][y] != 0 &amp;&amp; comparisonHaar.imageData[x][y] != 0)) {
+            //             comparison += (this.imageData[x][y] - comparisonHaar.imageData[x][y]);
+            //         }
+            //         else {
+            //             comparison += 1000;
+            //         }
+            //     }
+            // }
+
+            // for (int i = 0 ; i &lt; TOTAL_MAX_MAGNITUDE ; i ++) {
+            //     comparison += Math.abs(this.values[i] - comparisonHaar.values[i]);
+            // }
+
+            // Fast Multiresolution Image Querying Equation 4
+<span class="nc" id="L468">            comparison = Math.abs(this.average - comparisonHaar.average) + comparison;</span>
+
+<span class="nc" id="L470">            return comparison;</span>
+        }
+    }
+
+    /**
+     * https://stackoverflow.com/a/18037185
+     * 
+     * @param Red
+     * @param Green
+     * @param Blue
+     * @return
+     */
+    public int getIntFromColor(int Red, int Green, int Blue) {
+<span class="nc" id="L483">        Red = (Red &lt;&lt; 16) &amp; 0x00FF0000; // Shift red 16-bits and mask out other stuff</span>
+<span class="nc" id="L484">        Green = (Green &lt;&lt; 8) &amp; 0x0000FF00; // Shift Green 8-bits and mask out other stuff</span>
+<span class="nc" id="L485">        Blue = Blue &amp; 0x000000FF; // Mask out anything not blue.</span>
+
+<span class="nc" id="L487">        return 0xFF000000 | Red | Green | Blue; // 0xFF000000 for 100% Alpha. Bitwise OR everything together.</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

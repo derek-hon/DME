@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BufferedBreedingPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.breed</a> &gt; <span class="el_source">BufferedBreedingPipeline.java</span></div><h1>BufferedBreedingPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.breed;
+import ec.*;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+
+/* 
+ * BufferedBreedingPipeline.java
+ * 
+ * Created: December 28, 1999
+ * By: Sean Luke
+ */
+
+/**
+ * If empty, a 
+ * BufferedBreedingPipeline makes a request of exactly &lt;i&gt;num-inds&lt;/i&gt; 
+ * individuals from a single child source; it then uses these
+ * individuals to fill requests (returning min each time),
+ * until the buffer is emptied, at
+ * which time it grabs exactly &lt;i&gt;num-inds&lt;/i&gt; more individuals, and so on.
+ *
+ * &lt;p&gt;What is this useful for?  Well, let's say for example that 
+ * you want to cross over two individuals, then cross
+ * them over again.  You'd like to hook up two CrossoverPipelines
+ * in series.  Unfortunately, CrossoverPipeline takes
+ * two sources; even if you set them to the same source, it requests
+ * &lt;i&gt;one&lt;/i&gt; individual from the first source and then &lt;i&gt;one&lt;/i&gt;
+ * from the second, where what you really want is for it to request
+ * &lt;i&gt;two&lt;/i&gt; individuals from a single source (the other CrossoverPipeline).
+ * 
+ * &lt;p&gt;The solution to this is to hook a CrossoverPipeline as the
+ * source to a BufferedBreedingPipeline of buffer-size 2 (or some
+ * multiple of 2 actually).  Then the BufferedBreedingPipeline is
+ * set as both sources to another CrossoverPipeline.
+ 
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-inds&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the buffer size)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ breed.buffered
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L66">public class BufferedBreedingPipeline extends BreedingPipeline</span>
+    {
+    public static final String P_BUFSIZE = &quot;num-inds&quot;;
+    public static final String P_BUFFERED = &quot;buffered&quot;;
+    public static final int INDS_PRODUCED = 1;
+    public static final int NUM_SOURCES = 1;
+
+    public ArrayList&lt;Individual&gt; buffer;
+    public int bufSize;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L78">        return BreedDefaults.base().push(P_BUFFERED);</span>
+        }
+
+<span class="nc" id="L81">    public int numSources() { return NUM_SOURCES; }    </span>
+<span class="nc" id="L82">    public int typicalIndsProduced() { return INDS_PRODUCED;}</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L86">        super.setup(state,base);</span>
+
+<span class="nc" id="L88">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L90">        bufSize = state.parameters.getInt(base.push(P_BUFSIZE),</span>
+<span class="nc" id="L91">            def.push(P_BUFSIZE),1);</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (bufSize == 0)</span>
+<span class="nc" id="L93">            state.output.fatal(&quot;BufferedBreedingPipeline's number of individuals must be &gt;= 1.&quot;,base.push(P_BUFSIZE),def.push(P_BUFSIZE));</span>
+        
+<span class="nc" id="L95">        buffer = new ArrayList&lt;Individual&gt;();</span>
+
+        // declare that likelihood isn't used
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (likelihood &lt; 1.0)</span>
+<span class="nc" id="L99">            state.output.warning(&quot;BufferedBreedingPipeline does not respond to the 'likelihood' parameter.&quot;,</span>
+<span class="nc" id="L100">                base.push(P_LIKELIHOOD), def.push(P_LIKELIHOOD));</span>
+<span class="nc" id="L101">        }</span>
+
+
+    public void prepareToProduce(final EvolutionState state,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L108">        super.prepareToProduce(state,subpopulation,thread);</span>
+        // reset my number of individuals to 0
+<span class="nc" id="L110">        buffer.clear();</span>
+<span class="nc" id="L111">        }</span>
+
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+
+        {
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        for(int q=0; q&lt;min; q++ )</span>
+            {
+<span class="nc bnc" id="L124" title="All 2 branches missed.">            if (buffer.isEmpty())       // reload</span>
+                {
+<span class="nc" id="L126">                sources[0].produce(bufSize, bufSize, subpopulation, buffer, state, thread, misc);</span>
+                }
+            
+<span class="nc" id="L129">            inds.add(buffer.remove(buffer.size() - 1));</span>
+            }
+<span class="nc" id="L131">        return min;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

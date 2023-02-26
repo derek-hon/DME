@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SimplePheromoneTable.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co.ant</a> &gt; <span class="el_source">SimplePheromoneTable.java</span></div><h1>SimplePheromoneTable.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co.ant;
+
+import ec.EvolutionState;
+import ec.co.Component;
+import ec.co.ConstructiveProblemForm;
+import ec.util.Parameter;
+import java.util.HashMap;
+
+/**
+ * A straightforward table that stores and retrieves pheromone concentrations
+ * (doubles) independently for a number of components.
+ * 
+ * @author Eric O. Scott
+ */
+<span class="nc bnc" id="L20" title="All 2 branches missed.">public class SimplePheromoneTable implements PheromoneTable {</span>
+    public final static String P_INITIAL_CONCENTRATION = &quot;initial-concentration&quot;;
+    public final static String P_INITIALIZE_WITH_NOISE = &quot;initialize-with-noise&quot;;
+    public final static String P_NOISE = &quot;starting-noise&quot;;
+
+    private int numComponents;
+    private double initialConcentration;
+    private boolean initializeWithNoise;
+    private double noise;
+    private HashMap&lt;Component, Double&gt; pheromones;
+    
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc bnc" id="L33" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L34" title="All 4 branches missed.">        assert(base != null);</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (!(state.evaluator.p_problem instanceof ConstructiveProblemForm))</span>
+<span class="nc" id="L36">            state.output.fatal(String.format(&quot;%s: tried to use pheromone table with a %s, but must be %s.&quot;, this.getClass().getSimpleName(), state.evaluator.p_problem.getClass().getSimpleName(), ConstructiveProblemForm.class.getSimpleName()));</span>
+<span class="nc" id="L37">        numComponents = ((ConstructiveProblemForm)state.evaluator.p_problem).numComponents();</span>
+<span class="nc" id="L38">        pheromones = new HashMap&lt;Component, Double&gt;(numComponents);</span>
+<span class="nc" id="L39">        initializeWithNoise = state.parameters.getBoolean(base.push(P_INITIALIZE_WITH_NOISE), null, true);</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        if (initializeWithNoise)</span>
+        {
+<span class="nc bnc" id="L42" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_INITIAL_CONCENTRATION), null))</span>
+<span class="nc" id="L43">                state.output.warnOnce(String.format(&quot;%s: '%s' is set to true, so I'm ignoring the '%s' parameter.  Is this what you intended?&quot;, this.getClass().getSimpleName(), base.push(P_INITIALIZE_WITH_NOISE), base.push(P_INITIAL_CONCENTRATION)), base.push(P_INITIAL_CONCENTRATION));</span>
+<span class="nc" id="L44">            noise = state.parameters.getDoubleWithDefault(base.push(P_NOISE), null, 0.000001);</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">            if (noise &lt;= 0.0)</span>
+<span class="nc" id="L46">                state.output.fatal(String.format(&quot;%s: '%s' is set to '%f', but must be positive.&quot;, this.getClass().getSimpleName(), base.push(P_NOISE), noise), base.push(P_NOISE));</span>
+        }
+        else
+        {
+<span class="nc bnc" id="L50" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_INITIAL_CONCENTRATION), null))</span>
+<span class="nc" id="L51">                state.output.warnOnce(String.format(&quot;%s: '%s' is set to false, so I'm ignoring the '%s' parameter.  Is this what you intended?&quot;, this.getClass().getSimpleName(), base.push(P_INITIALIZE_WITH_NOISE), base.push(P_NOISE)), base.push(P_NOISE));</span>
+<span class="nc" id="L52">            initialConcentration = state.parameters.getDoubleWithDefault(base.push(P_INITIAL_CONCENTRATION), null, 0.000001);</span>
+        }
+<span class="nc bnc" id="L54" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L55">    }</span>
+    
+    @Override
+    public double get(final EvolutionState state, final Component c, final int thread) {
+<span class="nc bnc" id="L59" title="All 4 branches missed.">        assert(c != null);</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (pheromones.containsKey(c))</span>
+        {
+<span class="nc" id="L62">            final double value = pheromones.get(c);</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            if (value &lt;= 0.0)</span>
+<span class="nc" id="L64">                state.output.fatal(String.format(&quot;%s: a pheremone value of '%f' was found, but must be positive.&quot;, this.getClass().getSimpleName(), value));</span>
+            else
+<span class="nc" id="L66">                return value;</span>
+<span class="nc" id="L67">        }</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        else if (initializeWithNoise) // Uninitialized pheromone: replace with a small random number</span>
+        {
+<span class="nc" id="L70">            final double perturbation = state.random[thread].nextDouble()*noise;</span>
+<span class="nc" id="L71">            pheromones.put(c, perturbation);</span>
+<span class="nc" id="L72">            return perturbation;</span>
+        }
+        else // Uninitialized pheromone: replace with a small fixed number
+        {
+<span class="nc" id="L76">            pheromones.put(c, initialConcentration);</span>
+<span class="nc" id="L77">            return initialConcentration;</span>
+        }
+<span class="nc" id="L79">        throw new IllegalStateException(&quot;Unexpected error.  Please report.&quot;);</span>
+    }
+
+    @Override
+    public void set(final Component c, final double value) {
+<span class="nc bnc" id="L84" title="All 4 branches missed.">        assert(c != null);</span>
+<span class="nc" id="L85">        pheromones.put(c, value);</span>
+<span class="nc" id="L86">    }</span>
+    
+    public boolean repOK()
+    {
+<span class="nc bnc" id="L90" title="All 4 branches missed.">        return numComponents &gt; 0</span>
+                &amp;&amp; pheromones != null
+<span class="nc bnc" id="L92" title="All 2 branches missed.">                &amp;&amp; pheromones.size() &lt;= numComponents;</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L97">        int hash = 3;</span>
+<span class="nc" id="L98">        hash = 67 * hash + this.numComponents;</span>
+<span class="nc" id="L99">        hash = 67 * hash + (int) (Double.doubleToLongBits(this.noise) ^ (Double.doubleToLongBits(this.noise) &gt;&gt;&gt; 32));</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        hash = 67 * hash + (this.pheromones != null ? this.pheromones.hashCode() : 0);</span>
+<span class="nc" id="L101">        return hash;</span>
+    }
+    
+    @Override
+    public boolean equals(final Object o)
+    {
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if (o == this)</span>
+<span class="nc" id="L108">            return true;</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (!(o instanceof SimplePheromoneTable))</span>
+<span class="nc" id="L110">            return false;</span>
+<span class="nc" id="L111">        final SimplePheromoneTable ref = (SimplePheromoneTable) o;</span>
+<span class="nc bnc" id="L112" title="All 8 branches missed.">        return numComponents == ref.numComponents</span>
+                &amp;&amp; noise == ref.noise
+                &amp;&amp; initializeWithNoise == ref.initializeWithNoise
+                &amp;&amp; initialConcentration == ref.initialConcentration
+<span class="nc bnc" id="L116" title="All 2 branches missed.">                &amp;&amp; pheromones.equals(ref.pheromones);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

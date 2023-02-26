@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MooSuite.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.moosuite</a> &gt; <span class="el_source">MooSuite.java</span></div><h1>MooSuite.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.moosuite;
+
+import ec.util.*;
+import ec.*;
+import ec.multiobjective.MultiObjectiveFitness;
+import ec.simple.*;
+import ec.vector.*;
+
+/**
+   Several standard Multi-objective benchmarks are implemented: 
+   &lt;ul&gt;
+   &lt;li&gt;ZDT1: Zitzler, Deb &amp; Thiele
+   &lt;li&gt;ZDT2: Zitzler, Deb &amp; Thiele 
+   &lt;li&gt;ZDT3: Zitzler, Deb &amp; Thiele 
+   &lt;li&gt;ZDT4: Zitzler, Deb &amp; Thiele 
+   &lt;li&gt;ZDT6: Zitzler, Deb &amp; Thiele 
+   &lt;li&gt;SPHERE: ftp.tik.ee.ethz.ch/pub/people/zitzler/ZLT2001a.pdf 
+   &lt;li&gt;SCH: (Schaffer), (a.k.a. F1 in Srinivas &amp; Deb); requires exactly 1 decision variables (genes)
+   &lt;li&gt;F2: (Schaffer), (Srinivas &amp; Deb),  (Coello Coello &amp; Cortes); requires exactly 1 decision variables (genes)
+   &lt;li&gt;unconstrained F3: Schaffer, Srinivas &amp; Deb  (Chankong &amp; Haimes); requires exactly 2 decision variables (genes)
+   &lt;li&gt;QV: Quagliarella &amp; Vicini
+   &lt;li&gt;FON: Fonseca &amp; Fleming (1995); requires exactly 3 decision variables (genes)
+   &lt;li&gt;POL: Poloni; requires exactly 2 decision variables (genes)
+   &lt;li&gt;KUR: Kursawe from the Errata of Zitzler's TIK-Report 103: &quot;SPEA2: Improving the Strength Pareto Evolutionary Algorithm&quot;
+   (note that many different versions are described in the literature).
+   &lt;/ul&gt;   
+
+   &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+   &lt;table&gt;
+   &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;type&lt;/tt&gt;&lt;br&gt;
+   &lt;font size=-1&gt;String, one of: zdt1, zdt2, zdt3, zdt4, zdt6, sphere, sch, fon, qv, pol, kur, f1, f2, unconstrained-f3&lt;/font&gt;&lt;/td&gt;
+   &lt;td valign=top&gt;The multi-objective optimization problem to test against. &lt;/td&gt;&lt;/tr&gt;
+   &lt;/table&gt;
+   @author Gabriel Catalin Balan 
+*/
+ 
+<span class="fc" id="L44">public class MooSuite extends Problem implements SimpleProblemForm</span>
+    {
+    /**
+     * 
+     */
+    private static final long serialVersionUID = 1L;
+    public static final String P_WHICH_PROBLEM = &quot;type&quot;;
+    public static final String P_ZDT1 = &quot;zdt1&quot;;
+    public static final String P_ZDT2 = &quot;zdt2&quot;;
+    public static final String P_ZDT3 = &quot;zdt3&quot;;
+    public static final String P_ZDT4 = &quot;zdt4&quot;;
+    public static final String P_ZDT6 = &quot;zdt6&quot;;
+    public static final String P_SPHERE = &quot;sphere&quot;;
+    public static final String P_SCH = &quot;sch&quot;;
+    public static final String P_FON = &quot;fon&quot;;
+    public static final String P_QV = &quot;qv&quot;;
+    public static final String P_POL = &quot;pol&quot;;
+    public static final String P_KUR = &quot;kur&quot;;
+    public static final String P_F1 = &quot;f1&quot;;    
+    public static final String P_F2 = &quot;f2&quot;;
+    public static final String P_F3 = &quot;unconstrained-f3&quot;;
+
+    //Some of the following problems requires an exact number of decision variables (genes). This is mentioned in comment preceding the problem.
+
+    public static final int PROB_SPHERE = 0;
+    public static final int PROB_ZDT1 = 1;
+    public static final int PROB_ZDT2 = 2;
+    public static final int PROB_ZDT3 = 3;
+    public static final int PROB_ZDT4 = 4;
+    public static final int PROB_ZDT6 = 6;
+    public static final int PROB_FON = 7;
+    public static final int PROB_POL = 8;
+    public static final int PROB_KUR = 9;
+    public static final int PROB_QV = 10;
+    public static final int PROB_SCH = 11;
+    public static final int PROB_F2 = 12;
+    public static final int PROB_F3 = 13;
+
+<span class="fc" id="L82">    public int problemType = PROB_ZDT1;  // defaults on zdt1</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L86">        super.setup(state, base);</span>
+<span class="fc" id="L87">        String wp = state.parameters.getStringWithDefault( base.push( P_WHICH_PROBLEM ), null, &quot;&quot; );</span>
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">        if( wp.compareTo( P_ZDT1) == 0 )</span>
+<span class="nc" id="L89">            problemType = PROB_ZDT1;</span>
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        else if ( wp.compareTo( P_ZDT2) == 0 )</span>
+<span class="nc" id="L91">            problemType = PROB_ZDT2;</span>
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">        else if ( wp.compareTo( P_ZDT3) == 0 )</span>
+<span class="nc" id="L93">            problemType = PROB_ZDT3;</span>
+<span class="pc bpc" id="L94" title="1 of 2 branches missed.">        else if ( wp.compareTo( P_ZDT4) == 0 )</span>
+<span class="nc" id="L95">            problemType = PROB_ZDT4;</span>
+<span class="pc bpc" id="L96" title="1 of 2 branches missed.">        else if ( wp.compareTo( P_ZDT6) == 0 )</span>
+<span class="fc" id="L97">            problemType = PROB_ZDT6;</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        else if ( wp.compareTo( P_FON) == 0 )</span>
+<span class="nc" id="L99">            problemType = PROB_FON;</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        else if ( wp.compareTo( P_POL) == 0 )</span>
+<span class="nc" id="L101">            problemType = PROB_POL;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        else if ( wp.compareTo( P_QV) == 0 )</span>
+<span class="nc" id="L103">            problemType = PROB_QV;</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        else if ( wp.compareTo( P_KUR) == 0 )</span>
+<span class="nc" id="L105">            problemType = PROB_KUR;</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        else if( wp.compareTo( P_SPHERE) == 0)</span>
+<span class="nc" id="L107">            problemType = PROB_SPHERE;         </span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        else if( wp.compareTo( P_F2) == 0)</span>
+<span class="nc" id="L109">            problemType = PROB_F2;</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        else if( wp.compareTo( P_F3) == 0)</span>
+<span class="nc" id="L111">            problemType = PROB_F3;</span>
+<span class="nc bnc" id="L112" title="All 4 branches missed.">        else if( wp.compareTo( P_SCH) == 0 || wp.compareTo( P_F1) == 0 )</span>
+<span class="nc" id="L113">            problemType = PROB_SCH;         </span>
+<span class="nc" id="L114">        else state.output.fatal(</span>
+            &quot;Invalid value for parameter, or parameter not found.\n&quot; +
+            &quot;Acceptable values are:\n&quot; +
+            &quot;  &quot; + P_ZDT1 + &quot;\n&quot; +
+            &quot;  &quot; + P_ZDT2 + &quot;\n&quot; +
+            &quot;  &quot; + P_ZDT3 + &quot;\n&quot; +
+            &quot;  &quot; + P_ZDT4 + &quot;\n&quot; +
+            &quot;  &quot; + P_ZDT6 + &quot;\n&quot; +
+            &quot;  &quot; + P_POL + &quot;\n&quot; +
+            &quot;  &quot; + P_FON + &quot;\n&quot; +
+            &quot;  &quot; + P_KUR + &quot;\n&quot; +
+            &quot;  &quot; + P_SPHERE + &quot;\n&quot; +
+            &quot;  &quot; + P_SCH + &quot;(or &quot; + P_F1 + &quot;)\n&quot;+
+            &quot;  &quot; + P_F2 + &quot;\n\n&quot; +
+            &quot;Are you by any chance running moosuite.params?  Instead\n&quot; + 
+            &quot;You should be running one of the params files for these\n&quot; + 
+            &quot;specific problems, such as zdt2.params.\n&quot;,
+<span class="nc" id="L131">            base.push( P_WHICH_PROBLEM ) );</span>
+<span class="fc" id="L132">        }</span>
+    private static final double TWO_PI = Math.PI*2;//QV uses it.
+    private static final double TEN_PI = Math.PI*10;//ZDT3 uses it.
+    private static final double FOUR_PI = Math.PI*4;//ZDT4 uses it.
+    private static final double SIX_PI = Math.PI*6;//ZDT6 uses it.
+<span class="fc" id="L137">    private static final double ONE_OVER_SQRT_3 = 1d/Math.sqrt(3);//FON uses it.</span>
+<span class="fc" id="L138">    private static final double A1 = 0.5*Math.sin(1) - 2*Math.cos(1) +    Math.sin(2)- 1.5*Math.cos(2);//POL uses it</span>
+<span class="fc" id="L139">    private static final double A2 = 1.5*Math.sin(1) -   Math.cos(1) + 2* Math.sin(2)- 0.5*Math.cos(2);//POL uses it</span>
+
+    public void evaluate(final EvolutionState state,
+        final Individual ind,
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">        if( !( ind instanceof DoubleVectorIndividual ) )</span>
+<span class="nc" id="L147">            state.output.fatal( &quot;The individuals for this problem should be DoubleVectorIndividuals.&quot; );</span>
+
+<span class="fc" id="L149">        DoubleVectorIndividual temp = (DoubleVectorIndividual)ind;</span>
+<span class="fc" id="L150">        double[] genome = temp.genome;</span>
+<span class="fc" id="L151">        int numDecisionVars = genome.length;</span>
+
+<span class="fc" id="L153">        double[] objectives = ((MultiObjectiveFitness)ind.fitness).getObjectives();</span>
+
+        double f, g, h, sum;
+                
+<span class="pc bpc" id="L157" title="13 of 14 branches missed.">        switch(problemType)</span>
+            {
+            case PROB_ZDT1:
+<span class="nc" id="L160">                f = genome[0];</span>
+<span class="nc" id="L161">                objectives[0] = f;</span>
+<span class="nc" id="L162">                sum = 0;</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                for(int i = 1; i&lt; numDecisionVars; ++i)</span>
+<span class="nc" id="L164">                    sum += genome[i];</span>
+<span class="nc" id="L165">                g = 1d+9d*sum/(numDecisionVars - 1.0);</span>
+<span class="nc" id="L166">                h = 1d-Math.sqrt(f/g);</span>
+<span class="nc" id="L167">                objectives[1] = (g*h);</span>
+<span class="nc" id="L168">                break;</span>
+                
+            case PROB_ZDT2:
+<span class="nc" id="L171">                f = genome[0];</span>
+<span class="nc" id="L172">                objectives[0] = f;</span>
+<span class="nc" id="L173">                sum = 0;</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">                for(int i = 1; i&lt; numDecisionVars; i++)</span>
+<span class="nc" id="L175">                    sum += genome[i];</span>
+<span class="nc" id="L176">                g = 1.0+9.0*sum/(numDecisionVars - 1.0);</span>
+<span class="nc" id="L177">                h = 1.0-(f/g)*(f/g);</span>
+<span class="nc" id="L178">                objectives[1] = (g*h);</span>
+<span class="nc" id="L179">                break;</span>
+                        
+            case PROB_ZDT3:     
+<span class="nc" id="L182">                f = genome[0];</span>
+<span class="nc" id="L183">                objectives[0] = f;</span>
+<span class="nc" id="L184">                sum = 0;</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">                for(int i = 1; i&lt; numDecisionVars; i++)</span>
+<span class="nc" id="L186">                    sum += genome[i];</span>
+<span class="nc" id="L187">                g = 1.0+9.0*sum/(numDecisionVars - 1.0);</span>
+<span class="nc" id="L188">                double foverg = f/g;</span>
+<span class="nc" id="L189">                h = 1.0-Math.sqrt(foverg) - foverg * Math.sin(TEN_PI * f);</span>
+<span class="nc" id="L190">                objectives[1] = (g*h);</span>
+<span class="nc" id="L191">                break;</span>
+            case PROB_ZDT4:
+<span class="nc" id="L193">                f = genome[0];</span>
+<span class="nc" id="L194">                objectives[0] = f;</span>
+<span class="nc" id="L195">                sum = 0;</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">                for(int i = 1; i&lt; numDecisionVars; ++i)</span>
+<span class="nc" id="L197">                    sum += genome[i]*genome[i]- 10*Math.cos(FOUR_PI * genome[i]);</span>
+                                
+<span class="nc" id="L199">                g = 1+10*(numDecisionVars - 1.0)+sum;</span>
+<span class="nc" id="L200">                h = 1-Math.sqrt(f/g);</span>
+<span class="nc" id="L201">                objectives[1] = (g*h);</span>
+<span class="nc" id="L202">                break;                </span>
+            case PROB_ZDT6:
+<span class="fc" id="L204">                f = 1 - (Math.exp(-4 * genome[0]) * Math.pow(Math.sin(SIX_PI * genome[0]), 6));</span>
+<span class="fc" id="L205">                objectives[0] = f;</span>
+<span class="fc" id="L206">                sum = 0;</span>
+<span class="fc bfc" id="L207" title="All 2 branches covered.">                for (int i = 1; i &lt; numDecisionVars; ++i)</span>
+<span class="fc" id="L208">                    sum += genome[i];</span>
+<span class="fc" id="L209">                g = 1d + 9 * Math.pow(sum / (numDecisionVars - 1.0), 0.25);</span>
+<span class="fc" id="L210">                h = 1d - Math.pow(f / g, 2);</span>
+<span class="fc" id="L211">                objectives[1] = (g * h);</span>
+<span class="fc" id="L212">                break; </span>
+            case PROB_SPHERE:
+<span class="nc" id="L214">                int numObjectives = objectives.length;</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                for(int j=0; j&lt;numObjectives; ++j)</span>
+                    {
+<span class="nc" id="L217">                    sum = (genome[j]-1)*(genome[j]-1);</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                    for(int i=0; i&lt;numDecisionVars; ++i)</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">                        if (i!=j)</span>
+<span class="nc" id="L220">                            sum += genome[i]*genome[i];</span>
+<span class="nc" id="L221">                    objectives[j] = sum;</span>
+                    }
+<span class="nc" id="L223">                break;</span>
+            case PROB_SCH:
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                if(numDecisionVars!=1) throw new RuntimeException(&quot;SCH needs exactly 1 decision variable (gene).&quot;);</span>
+<span class="nc" id="L226">                double x = genome[0];</span>
+<span class="nc" id="L227">                objectives[0]=(x*x);</span>
+<span class="nc" id="L228">                objectives[1]=((x-2)*(x-2));</span>
+<span class="nc" id="L229">                break;</span>
+            case PROB_F2:
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                if(numDecisionVars!=1) throw new RuntimeException(&quot;F2 needs exactly 1 decision variable (gene).&quot;);</span>
+<span class="nc" id="L232">                x = genome[0];</span>
+<span class="nc bnc" id="L233" title="All 6 branches missed.">                objectives[0]=( x&lt;=1? -x: (x&lt;=3? x-2:(x&lt;=4? 4-x: x-4)));</span>
+<span class="nc" id="L234">                objectives[1]=((x-5)*(x-5));</span>
+<span class="nc" id="L235">                break;</span>
+            case PROB_F3:
+<span class="nc bnc" id="L237" title="All 2 branches missed.">                if(numDecisionVars!=2) throw new RuntimeException(&quot;F3 needs exactly 2 decision variable (gene).&quot;);</span>
+<span class="nc" id="L238">                double x1 = genome[0];</span>
+<span class="nc" id="L239">                double x2 = genome[1];</span>
+<span class="nc" id="L240">                objectives[0]=((x1-2)*(x1-2)+(x2-1)*(x2-1)+2);</span>
+<span class="nc" id="L241">                objectives[1]=(9*x1-(x2-1)*(x2-1));</span>
+<span class="nc" id="L242">                break;</span>
+            case PROB_FON:
+<span class="nc bnc" id="L244" title="All 2 branches missed.">                if(numDecisionVars!=3) throw new RuntimeException(&quot;FON needs exactly 3 decision variables (genes).&quot;);</span>
+<span class="nc" id="L245">                double sum1 = 0, sum2=0;</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">                for(int i = 0; i&lt; numDecisionVars; i++)</span>
+                    {
+<span class="nc" id="L248">                    double xi = genome[i];</span>
+<span class="nc" id="L249">                    double d = xi-ONE_OVER_SQRT_3;</span>
+<span class="nc" id="L250">                    double s = xi+ONE_OVER_SQRT_3;</span>
+<span class="nc" id="L251">                    sum1+=d*d;</span>
+<span class="nc" id="L252">                    sum2+=s*s;</span>
+                    }
+<span class="nc" id="L254">                objectives[0] = 1 - Math.exp(-sum1);</span>
+<span class="nc" id="L255">                objectives[1] = 1 - Math.exp(-sum2);</span>
+<span class="nc" id="L256">                break;</span>
+            case PROB_POL:
+<span class="nc bnc" id="L258" title="All 2 branches missed.">                if(numDecisionVars!=2) throw new RuntimeException(&quot;POL needs exactly 2 decision variables (genes).&quot;);</span>
+<span class="nc" id="L259">                x1= genome[0];</span>
+<span class="nc" id="L260">                x2 = genome[1];</span>
+<span class="nc" id="L261">                double b1 = 0.5*Math.sin(x1) - 2*Math.cos(x1) +    Math.sin(x2)- 1.5*Math.cos(x2);</span>
+<span class="nc" id="L262">                double b2 = 1.5*Math.sin(x1) -   Math.cos(x1) + 2* Math.sin(x2)- 0.5*Math.cos(x2);</span>
+<span class="nc" id="L263">                objectives[0] = (1+(A1-b1)*(A1-b1)+(A2-b2)*(A2-b2));</span>
+<span class="nc" id="L264">                objectives[1] = ((x1+3)*(x1+3)+(x2+1)*(x2+1));</span>
+<span class="nc" id="L265">                break;</span>
+            case PROB_QV:
+<span class="nc" id="L267">                sum=0;</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                for(int i=0;i&lt;numDecisionVars;i++)</span>
+                    {
+<span class="nc" id="L270">                    double xi=genome[i];</span>
+<span class="nc" id="L271">                    sum+=xi*xi-10*Math.cos(TWO_PI*xi)+10;</span>
+                    }
+<span class="nc" id="L273">                objectives[0] = Math.pow(sum/numDecisionVars, 0.25);</span>
+<span class="nc" id="L274">                sum=0;</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">                for(int i=0;i&lt;numDecisionVars;i++)</span>
+                    {
+<span class="nc" id="L277">                    double xi=genome[i]-1.5;</span>
+<span class="nc" id="L278">                    sum+=xi*xi-10*Math.cos(TWO_PI*xi)+10;</span>
+                    }
+<span class="nc" id="L280">                objectives[1] = Math.pow(sum/numDecisionVars, 0.25);</span>
+<span class="nc" id="L281">                break;</span>
+            case PROB_KUR:
+                // The version of the Kursawe function we use here is taken from the erata of Zitzler et al., &quot;SPEA2: Improving the Strength Pareto Evolutionary Algorithm&quot;
+                // Note that many different versions are described in the literature!
+<span class="nc" id="L285">                sum= 0;</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">                for(int i = 0; i &lt; numDecisionVars; ++i)</span>
+                    {
+<span class="nc" id="L288">                    double t1 = Math.pow(Math.abs(genome[i]), .8);</span>
+<span class="nc" id="L289">                    double t2 = 5 * Math.pow(Math.sin(genome[i]), 3);</span>
+<span class="nc" id="L290">                    sum += t1 + t2 + 3.5828;</span>
+                    }
+<span class="nc" id="L292">                objectives[0] = sum;</span>
+                double nextSquared, thisSquared;
+<span class="nc" id="L294">                thisSquared = genome[0]*genome[0];</span>
+<span class="nc" id="L295">                sum=0;</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">                for(int i = 0; i &lt; numDecisionVars-1; ++i)</span>
+                    {
+<span class="nc" id="L298">                    nextSquared = genome[i+1]*genome[i+1];</span>
+<span class="nc" id="L299">                    sum += 1 - Math.exp(-0.2 * Math.sqrt(thisSquared + nextSquared));</span>
+<span class="nc" id="L300">                    thisSquared = nextSquared;</span>
+                    }
+<span class="nc" id="L302">                objectives[1] = sum;</span>
+<span class="nc" id="L303">                break;</span>
+
+            default:
+<span class="nc" id="L306">                state.output.fatal( this.getClass().getSimpleName() + &quot; has an invalid problem -- how on earth did that happen?&quot; );</span>
+                break;
+            }
+
+<span class="fc" id="L310">        ((MultiObjectiveFitness)ind.fitness).setObjectives(state, objectives);</span>
+<span class="fc" id="L311">        ind.evaluated = true;</span>
+<span class="fc" id="L312">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

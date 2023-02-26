@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BreedingSource.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">BreedingSource.java</span></div><h1>BreedingSource.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * BreedingSource.java
+ * 
+ * Created: Thu Nov 18 17:40:26 1999
+ * By: Sean Luke
+ */
+
+/**
+ * A BreedingSource is a Prototype which 
+ * provides Individuals to populate new populations based on
+ * old ones.  The BreedingSource/BreedingPipeline/SelectionMethod mechanism
+ * is inherently designed to work within single subpopulations, which is
+ * by far the most common case.  If for some
+ * reason you need to breed among different subpopulations to produce new ones
+ * in a manner that can't be handled with exchanges, you will probably have to
+ * write your own custom Breeder; you'd have to write your own custom breeding
+ * pipelines anyway of course, though you can probably get away with reusing
+ * the SelectionMethods.
+ *
+ * &lt;p&gt;A BreedingSource may have parent sources which feed it as well.
+ * Some BreedingSources, &lt;i&gt;SelectionMethods&lt;/i&gt;,
+ * are meant solely to plug into other BreedingSources, &lt;i&gt;BreedingPipelines&lt;/i&gt;.
+ * BreedingPipelines can plug into other BreedingPipelines, and can also be
+ * used to provide the final Individual meant to populate a new generation.
+ *
+ * &lt;p&gt;Think of BreedingSources as Streams of Individuals; at one end of the
+ * stream is the provider, a SelectionMethod, which picks individuals from
+ * the old population.  At the other end of the stream is a BreedingPipeline
+ * which hands you the finished product, a small set of new Individuals
+ * for you to use in populating your new population.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;&lt;tt&gt;.prob&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0, or undefined&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(probability this BreedingSource gets chosen.  Undefined is only valid if the caller of this BreedingSource doesn't need a probability)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="fc" id="L55">public abstract class BreedingSource implements Prototype, RandomChoiceChooserD</span>
+    {
+    public static final String P_PROB = &quot;prob&quot;;
+    public static final double NO_PROBABILITY = -1.0;
+    
+    /** The probability that this BreedingSource will be chosen 
+        to breed over other BreedingSources.  This may or may
+        not be used, depending on what the caller to this BreedingSource is.
+        It also might be modified by external sources owning this object,
+        for their own purposes.  A BreedingSource should not use it for
+        any purpose of its own, nor modify it except when setting it up.
+
+        &lt;p&gt;The most common modification is to normalize it with some other
+        set of probabilities, then set all of them up in increasing summation;
+        this allows the use of the fast static BreedingSource-picking utility
+        method, BreedingSource.pickRandom(...).  In order to use this method,
+        for example, if four
+        breeding source probabilities are {0.3, 0.2, 0.1, 0.4}, then
+        they should get normalized and summed by the outside owners
+        as: {0.3, 0.5, 0.6, 1.0}.
+    */
+
+    public double probability;
+
+    /** Sets up the BreedingPipeline.  You can use state.output.error here
+        because the top-level caller promises to call exitIfErrors() after calling
+        setup.  Note that probability might get modified again by
+        an external source if it doesn't normalize right. 
+
+        &lt;p&gt;The most common modification is to normalize it with some other
+        set of probabilities, then set all of them up in increasing summation;
+        this allows the use of the fast static BreedingSource-picking utility
+        method, BreedingSource.pickRandom(...).  In order to use this method,
+        for example, if four
+        breeding source probabilities are {0.3, 0.2, 0.1, 0.4}, then
+        they should get normalized and summed by the outside owners
+        as: {0.3, 0.5, 0.6, 1.0}.
+
+
+        @see Prototype#setup(EvolutionState,Parameter)
+    */
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L98">        Parameter def = defaultBase();</span>
+
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">        if (!state.parameters.exists(base.push(P_PROB),def.push(P_PROB)))</span>
+<span class="fc" id="L101">            probability = NO_PROBABILITY;</span>
+        else
+            {
+<span class="nc" id="L104">            probability = state.parameters.getDouble(base.push(P_PROB),def.push(P_PROB),0.0);</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">            if (probability&lt;0.0) state.output.error(&quot;Breeding Source's probability must be a double floating point value &gt;= 0.0, or empty, which represents NO_PROBABILITY.&quot;,base.push(P_PROB),def.push(P_PROB));</span>
+            }
+<span class="fc" id="L107">        }</span>
+
+    public final double getProbability(final Object obj)
+        {
+<span class="nc" id="L111">        return ((BreedingSource)obj).probability;</span>
+        }
+
+    public final void setProbability(final Object obj, final double prob)
+        {
+<span class="nc" id="L116">        ((BreedingSource)obj).probability = prob;</span>
+<span class="nc" id="L117">        }</span>
+
+
+    /** Picks a random source from an array of sources, with their
+        probabilities normalized and summed as follows:  For example,
+        if four
+        breeding source probabilities are {0.3, 0.2, 0.1, 0.4}, then
+        they should get normalized and summed by the outside owners
+        as: {0.3, 0.5, 0.6, 1.0}. */
+
+    public static int pickRandom(final BreedingSource[] sources, final double prob)
+        {
+<span class="nc" id="L129">        return RandomChoice.pickFromDistribution(sources,sources[0], prob);</span>
+        }
+
+    /** Normalizes and arranges the probabilities in sources so that they
+        are usable by pickRandom(...).  If the sources have all zero probabilities,
+        then a uniform selection is used.  Negative probabilities will
+        generate an ArithmeticException, as will an empty source array. */
+    public static void setupProbabilities(final BreedingSource[] sources)
+        {
+<span class="nc" id="L138">        RandomChoice.organizeDistribution(sources,sources[0],true);</span>
+<span class="nc" id="L139">        }</span>
+
+
+    /** Returns the &quot;typical&quot; number of individuals
+        generated with one call of produce(...). */
+    public abstract int typicalIndsProduced();
+
+    /** Returns true if this BreedingSource, when attached to the given
+        subpopulation, will produce individuals of the subpopulation's species.
+        SelectionMethods should additionally make sure that their Fitnesses are
+        of a valid type, if necessary. newpop *may* be the same as state.population
+    */
+
+    public abstract boolean produces(final EvolutionState state,
+        final Population newpop,
+        final int subpopulation,
+        int thread);
+
+    /** Called before produce(...), usually once a generation, or maybe only
+        once if you're doing steady-state evolution, to let the breeding source
+        &quot;warm up&quot; prior to producing.  Individuals should be produced from
+        old individuals in positions [start...start+length] in the subpopulation 
+        only.  May be called again to reset the BreedingSource for a whole
+        'nuther subpopulation. */
+
+    public abstract void prepareToProduce( EvolutionState state, int subpopulation, int thread);
+
+    /** Called after produce(...), usually once a generation, or maybe only
+        once if you're doing steady-state evolution (at the end of the run). */
+        
+    public abstract void finishProducing(EvolutionState state, int subpopulation, int thread);
+
+    /** Produces &lt;i&gt;n&lt;/i&gt; individuals from the given subpopulation
+        and puts them into inds[start...start+n-1],
+        where n = Min(Max(q,min),max), where &lt;i&gt;q&lt;/i&gt; is the &quot;typical&quot; number of 
+        individuals the BreedingSource produces in one shot, and returns
+        &lt;i&gt;n&lt;/i&gt;.  max must be &gt;= min, and min must be &gt;= 1. For example, crossover
+        might typically produce two individuals, tournament selection might typically
+        produce a single individual, etc. */
+    public abstract int produce(
+        int min,
+        int max,
+        int subpopulation,
+        ArrayList&lt;Individual&gt; inds,
+        EvolutionState state,
+        int thread, 
+        HashMap&lt;String, Object&gt; misc) ;
+
+    public Object clone()
+        {
+<span class="fc" id="L189">        try { return super.clone(); }</span>
+<span class="nc" id="L190">        catch (CloneNotSupportedException e) </span>
+<span class="nc" id="L191">            { throw new InternalError(); } // never happens</span>
+        }
+
+<span class="fc" id="L194">    public void fillStubs(final EvolutionState state, BreedingSource source) { }</span>
+
+    /** A hook which should be passed to all your subsidiary breeding
+        sources.  The default does this for you already, so ordinarily
+        you don't need to change anything.  If you are a BreedingPipeline and you
+        implement your sources in a way different
+        than using the sources[] array, be sure to override this method
+        so that it calls preparePipeline(hook) on all of your sources.
+        
+        &lt;p&gt;ECJ at present does not custom-implement or call this method: 
+        it's available for you. Becuase it has custom functionality, 
+        this method might get called more than once, and by various objects
+        as needed.  If you use it, you should determine somehow how to use
+        it to send information under the assumption that it might be sent
+        by nested items in the pipeline; you don't want to scribble over
+        each other's calls! Note that this method should travel *all*
+        breeding source paths regardless of whether or not it's redundant to
+        do so. */
+    public void preparePipeline(final Object hook)
+        {
+        // the default method does nothing, though BreedingPipelines override this
+        // to guarantee that it's called on all their sources as well.
+<span class="nc" id="L216">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

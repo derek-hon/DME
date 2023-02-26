@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Elite.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">Elite.java</span></div><h1>Elite.java</h1><pre class="source lang-java linenums">package ec.distributedME;
+
+import java.util.Arrays;
+import java.util.Comparator;
+
+import ec.EvolutionState;
+import ec.gp.GPIndividual;
+// import java.awt.image.BufferedImage;
+import ec.util.Parameter;
+
+/**
+ * Elite.java
+ * 
+ * Builds off of GPIndividual in order to hold the 
+ * behaviour values that have been evaluated for it
+ * 
+ * 
+ * Created: 25 January, 2022
+ * @author Derek Hon
+ */
+
+<span class="nc" id="L22">public class Elite extends GPIndividual {</span>
+    /** Values of behaviours evaluated */
+    private double[] behaviourValues;
+    // public BufferedImage render;
+    /** Species of the Elite */
+    MapElitesSpecies species;
+
+    /** MAP Key */
+    private String identifier;
+
+    private int eliteValues;
+
+    /** Running fitness of the cell it fills probably should be changed into the MAP */
+<span class="nc" id="L35">    private double runningFitness = 0.0;</span>
+
+    /** How many times it has replaced a cell probably should also be integreated into the MAP  */
+<span class="nc" id="L38">    private int replacementCounter = 0;</span>
+
+    /** Values of the limits in the MAP based off of the behaviour values */
+    private double[] limits;
+
+    /** Pixels for procedural texture */
+    private int pixels[][];
+
+    /** Position for check */
+    private int[] position;
+
+    private int[] behaviourPosition;
+
+    public void setup (final EvolutionState state, final Parameter base) {
+<span class="nc" id="L52">        super.setup(state, base);</span>
+<span class="nc" id="L53">    }</span>
+
+    public void setKey(String key) {
+<span class="nc" id="L56">        this.identifier = key;</span>
+<span class="nc" id="L57">    }</span>
+
+    public void setValues(int value) {
+<span class="nc" id="L60">        this.eliteValues = value;</span>
+<span class="nc" id="L61">    }</span>
+
+    public void setFitness(double fitness) {
+<span class="nc" id="L64">        this.runningFitness = fitness; </span>
+<span class="nc" id="L65">    }</span>
+
+    public void setCounter(int counter) {
+<span class="nc" id="L68">        this.replacementCounter = counter + 1;</span>
+<span class="nc" id="L69">    }</span>
+
+    public void replaceFitness(double fitnessOne, double fitnessTwo) {
+<span class="nc" id="L72">        this.runningFitness = fitnessOne + fitnessTwo;</span>
+<span class="nc" id="L73">    }</span>
+
+    public int getValues() {
+<span class="nc" id="L76">        return this.eliteValues;</span>
+    }
+
+    public String getKey() {
+<span class="nc" id="L80">        return this.identifier;</span>
+    }
+
+    public double[] getBehaviours() {
+<span class="nc" id="L84">        return this.behaviourValues;</span>
+    }
+
+    public double getRunningFitness() {
+<span class="nc" id="L88">        return this.runningFitness;</span>
+    }
+
+    public int getReplacementCounter() {
+<span class="nc" id="L92">        return this.replacementCounter;</span>
+    }
+
+    public void setLimits(double[] limit) {
+<span class="nc" id="L96">        this.limits = limit.clone();</span>
+<span class="nc" id="L97">    }</span>
+
+    public double[] getLimits() {
+<span class="nc" id="L100">        return this.limits;</span>
+    }
+
+    public void setBehaviours(double[] values) {
+<span class="nc" id="L104">        this.behaviourValues = values.clone();</span>
+<span class="nc" id="L105">    }</span>
+
+    public void setPixels(int[][] pixel) {
+<span class="nc" id="L108">        this.pixels = pixel.clone();</span>
+<span class="nc" id="L109">    }</span>
+
+    public int[][] getPixels() {
+<span class="nc" id="L112">        return this.pixels;</span>
+    }
+
+    public void setPosition(int[] positionsToSet) {
+<span class="nc" id="L116">        this.position = positionsToSet.clone();</span>
+<span class="nc" id="L117">    }</span>
+
+    public int[] getPosition() {
+<span class="nc" id="L120">        return this.position;</span>
+    }
+
+    public void setBehaviourPosition(int[] position) {
+<span class="nc" id="L124">        this.behaviourPosition = position;</span>
+<span class="nc" id="L125">    }</span>
+
+    public int[] getBehaviourPosition() {
+<span class="nc" id="L128">        return this.behaviourPosition;</span>
+    }
+
+    public Object clone() {
+<span class="nc" id="L132">        Elite myobj = (Elite) (super.clone());</span>
+<span class="nc" id="L133">        myobj.behaviourValues = new double[this.behaviourValues.length];</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        for (int i = 0 ; i &lt; behaviourValues.length ; i ++)</span>
+<span class="nc" id="L135">            myobj.behaviourValues[i] = this.behaviourValues[i];</span>
+
+<span class="nc" id="L137">        myobj.limits = this.limits.clone();</span>
+<span class="nc" id="L138">        myobj.behaviourPosition = this.behaviourPosition.clone();</span>
+            
+        // myobj.render = render;
+<span class="nc" id="L141">        myobj.species = species;</span>
+<span class="nc" id="L142">        myobj.identifier = identifier;</span>
+<span class="nc" id="L143">        myobj.eliteValues = eliteValues;</span>
+<span class="nc" id="L144">        myobj.pixels = this.pixels.clone();</span>
+<span class="nc" id="L145">        myobj.replacementCounter = replacementCounter;</span>
+<span class="nc" id="L146">        myobj.runningFitness = runningFitness;</span>
+<span class="nc" id="L147">        return myobj;</span>
+    } // clone
+
+    public Elite lightClone() {
+        // a light clone
+<span class="nc" id="L152">        Elite myobj = (Elite) (super.lightClone());</span>
+<span class="nc" id="L153">        myobj.behaviourValues = behaviourValues;</span>
+        // myobj.render = render;
+<span class="nc" id="L155">        myobj.species = species;</span>
+
+<span class="nc" id="L157">        return myobj;</span>
+    } // lightClone
+
+<span class="nc" id="L160">    public static Comparator&lt;Elite&gt; COMPARE_BY_KEY = new Comparator&lt;Elite&gt;() {</span>
+        public int compare(Elite one, Elite two) {
+<span class="nc" id="L162">            return one.getKey().compareTo(two.getKey());</span>
+        }
+    };
+
+    @Override
+    public String toString() {
+<span class="nc" id="L168">        String output = &quot;&quot;;</span>
+<span class="nc" id="L169">        output += getKey() + &quot; behaviours: &quot; + Arrays.toString(behaviourValues) + &quot; limits: &quot; + Arrays.toString(limits);</span>
+<span class="nc" id="L170">        return output;</span>
+    }
+
+    @Override
+    public int hashCode() {
+<span class="nc" id="L175">        final int prime = 31;</span>
+<span class="nc" id="L176">        int result = 1;</span>
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        result = prime * result + ((identifier == null) ? 0 : identifier.hashCode());</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        result = prime * result + ((pixels == null) ? 0 : pixels.hashCode());</span>
+
+<span class="nc" id="L180">        return result;</span>
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        if (this == obj)</span>
+<span class="nc" id="L186">            return true;</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        if (obj == null)</span>
+<span class="nc" id="L188">            return false;</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        if (getClass() != obj.getClass())</span>
+<span class="nc" id="L190">            return false;</span>
+        
+<span class="nc" id="L192">        Elite other = (Elite) obj;</span>
+<span class="nc bnc" id="L193" title="All 4 branches missed.">        if (identifier == null &amp;&amp; other.getKey() != null)</span>
+<span class="nc" id="L194">            return false;</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">        if (!(identifier.equals(other.getKey())))</span>
+<span class="nc" id="L196">            return false;</span>
+<span class="nc bnc" id="L197" title="All 4 branches missed.">        if (pixels == null &amp;&amp; other.getPixels() != null)</span>
+<span class="nc" id="L198">            return false;</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">        if (!(Arrays.equals(pixels, other.getPixels())))</span>
+<span class="nc" id="L200">            return false;</span>
+<span class="nc" id="L201">        return true;</span>
+    }
+
+    public boolean compare(Elite e) {
+<span class="nc bnc" id="L205" title="All 2 branches missed.">        for (int i = 0 ; i &lt; this.behaviourValues.length ; i ++) {</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">            if (e.behaviourValues[i] != this.behaviourValues[i])</span>
+<span class="nc" id="L207">                return false;</span>
+        }
+<span class="nc" id="L209">        return true;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

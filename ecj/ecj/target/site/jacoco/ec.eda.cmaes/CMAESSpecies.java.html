@@ -1,0 +1,855 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CMAESSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.cmaes</a> &gt; <span class="el_source">CMAESSpecies.java</span></div><h1>CMAESSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2015 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.eda.cmaes;
+import ec.*;
+import ec.vector.*;
+import ec.util.*;
+import java.io.*;
+import org.ejml.data.DenseMatrix64F;
+import org.ejml.factory.DecompositionFactory;
+import org.ejml.interfaces.decomposition.EigenDecomposition;
+import org.ejml.ops.CommonOps;
+import org.ejml.ops.NormOps;
+import org.ejml.ops.RandomMatrices;
+import org.ejml.simple.SimpleMatrix;
+
+import java.util.Arrays;
+import java.util.Collections;
+
+/* 
+ * CMAESSpecies.java
+ * 
+ * Created: Wed Jul  8 12:29:50 EDT 2015
+ * By: Sam McKay and Sean Luke
+ */
+
+/**
+ * CMAESSpecies is a FloatVectorSpecies which implements a faithful version of the
+ * CMA-ES algorithm.  The class has two basic methods.  The newIndividual(...)
+ * method generates a new random individual underneath the current CMA-ES
+ * gaussian distribution.  The updateDistribution(...) method revises the
+ * gaussian distribution to reflect the fitness results of the population.
+ * 
+ * &lt;p&gt;CMAESSpecies must be used in combination with CMAESBreeder, which will
+ * call it at appropriate times to revise the distribution and to generate a new
+ * subpopulation of individuals.  It must also be used in combination with
+ * CMAESInitializer, which will use it to generate the initial population.
+ *
+ * &lt;p&gt;Note importantly that CMAESSpecies &lt;b&gt;ignores the subpopulation size&lt;/b&gt;.
+ * Instead the first thing it will do is revise the subpopulation size to reflect
+ * the &quot;lambda&quot; parameter.  This is a consequence of another feature of
+ * CMAESSpecies: many of its parameters do not have fixed default values, but
+ * rather values which are computed on the fly if the user does not provide them.
+ * For this reason, it also prints out these values when running so the user may
+ * see what values it used for that given run.  The computed default values 
+ * use equations which are common in the CMA-ES literature and are described
+ * below.
+ *
+ * &lt;p&gt;CMAESSpecies also has an &quot;alternative termination&quot; option.  Normally ECJ
+ * terminates when the optimal individual is discovered or when the generations
+ * or maximum number of evaluations has been exceeded.  CMA-ES can optionally
+ * terminate when the eigenvalues of the covariance matrix of its gaussian
+ * distribution are too small.  Among other things, this will generally prevent
+ * CMA-ES from terminating abnormally because an eigenvalue has gone negative
+ * (due to floating point underflows).  But by default this alternative termination
+ * is turned off, and CMA-ES will simply terminate in that case.
+ *
+ * &lt;p&gt;CMAESSpecies needs initial values of sigma (the scaling parameter for its
+ * covariance matrix) and the mean of the gaussian distribution.  By default
+ * sigma's initial value is 1.0.  The mean must be set to one of &quot;zero&quot;
+ * (meaning the origin), &quot;center&quot; (meaning the center of the genome space defined
+ * by the min and max gene values for each gene), or &quot;random&quot; (meaning a randomly-
+ * chosen point in the space&quot;.  If it is not set to any of these, you may
+ * alternatively set the initial mean values by hand.  But you must do one of
+ * the two.
+ *
+ * &lt;p&gt;Initializing the covariance matrix can be a problem in in CMA-ES, particularly
+ * if it is large relative to the gene bounds.  If CMA-ES generates a random individual
+ * under its current distribution and that individual violates the bounds of just a 
+ * single gene, it is invalid and must be regenerated.  If you have a lot of genes,
+ * and the covariance matrix is large relative to their bounds, then the probability
+ * that this will occur rapidly approaches 1.0, so CMA-ES will be trapped in an effectively
+ * infinite loop endlessly producing invalid individuals.
+ *
+ * &lt;p&gt;This can be remedied in a few ways.  First there is an option available to force
+ * the initial covariance matrix to NOT be the identity matrix (the default) but instead
+ * be scaled according to the gene bounds.  That may help.  You can also of course reduce
+ * sigma.  Last, you can turn on an alternative individual generation mechanism; here,
+ * if a specific gene bound is violated, then *for that gene only* the value is chosen at
+ * random uniformly from within the gene bounds.
+ *
+ * &lt;p&gt;CMAESSpecies relies on the EJML matrix library, available at 
+ * &lt;a href=&quot;http://ejml.org/&quot;&gt;http://ejml.org/&lt;/a&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mean&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String, one of center, zero, or random&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the initial mean for the distribution)&lt;br&gt;
+ If not provided, &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mean&lt;/tt&gt;.0 and so on must be given    
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mean&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String, one of center, zero, or random&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the initial mean for the distribution)&lt;br&gt;
+ If not provided, &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mean&lt;/tt&gt;.0 and so on must be given    
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mean&lt;/tt&gt;.&lt;i&gt;i&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Floating-point value&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the value of dimension i of the initial mean vector)&lt;br&gt;
+ These values will override those set as a result of &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mean&lt;/tt&gt; 
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;sigma&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Floating-point value &gt; 0.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the sigma scaling parameter)&lt;br&gt;
+ If not provided, this defaults to 1.0.
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;lambda&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Integer &gt; &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mu&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(lambda population size)&lt;br&gt;
+ If not provided, this defaults to 4 + Math.floor(3 * Math.log(n)).
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;lambda&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Integer &gt; 1&lt;/td&gt;
+ &lt;td valign=top&gt;(mu truncated population size)&lt;br&gt;
+ If not provided, this defaults to Math.floor(lambda / 2.0).
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;weight&lt;/tt&gt;.&lt;i&gt;i&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Float &gt;= 0&lt;/td&gt;
+ &lt;td valign=top&gt;(weight for individual i (i from 0 to mu-1))&lt;br&gt;
+ If not provided, this defaults to Math.log((lambda + 1.0) / (2.0 * (i + 1))).
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;cc&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Float &amp;lt; 1&lt;/td&gt;
+ &lt;td valign=top&gt;(c_c parameter)&lt;br&gt;
+ If not provided, this defaults to (4.0+mueff/n) / (n+4.0 + 2.0*mueff/n)&lt;br&gt;
+ Where mueff is defined in the variables below, and n is the genome size
+ &lt;/td&gt;&lt;/tr&gt;
+ 
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;cs&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Float &amp;lt; 1&lt;/td&gt;
+ &lt;td valign=top&gt;(c_sigma parameter)&lt;br&gt;
+ If not provided, this defaults to (mueff+2.0)/(n+mueff+5.0)&lt;br&gt;
+ Where mueff is defined in the variables below, and n is the genome size
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;c1&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Float &amp;lt; 1 (and c1 &gt; (1-cmu))&lt;/td&gt;
+ &lt;td valign=top&gt;(c_1 parameter)&lt;br&gt;
+ If not provided, this defaults to 2.0 / ((n+1.3)*(n+1.3)+mueff)&lt;br&gt;
+ Where mueff is defined in the variables below, and n is the genome size
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;cmu&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Float &amp;lt; 1 (and cmu &gt; (1-c1))&lt;/td&gt;
+ &lt;td valign=top&gt;(c_mu parameter)&lt;br&gt;
+ If not provided, this defaults to Math.min(1.0-c1, 2.0*(mueff-2.0+1.0/mueff) / ((n+2.0)*(n+2.0)+mueff))&lt;br&gt;
+ Where mueff is defined in the variables below, and n is the genome size
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;damps&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Float &amp;lt; 1&lt;/td&gt;
+ &lt;td valign=top&gt;(d_sigma dampening parameter)&lt;br&gt;
+ If not provided, this defaults to 1.0 + 2.0*Math.max(0.0, Math.sqrt((mueff-1.0)/(n+1.0))-1.0) + cs&lt;br&gt;
+ Where mueff is defined in the variables below, and n is the genome size
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;covariance&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String, either &quot;identity&quot; (default) or &quot;scaled&quot;&lt;/td&gt;
+ &lt;td valign=top&gt;Covariance matrix initialization procedure.&lt;br&gt;
+ If &quot;identity&quot;, then the covariance matrix is initialized to the
+ identity matrix.  If &quot;scaled&quot;, then the covariance matrix is
+ initialized to a diagonal matrix whose values are squares of
+ each gene range (max - min).
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;alternative-generator&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;true or false (default)&lt;/td&gt;
+ &lt;td valign=top&gt;Whether or not to use the alternative indivdiual-generation procedure.&lt;br&gt;
+ If &quot;true&quot;, then if, in the process of generating an individual, we have failed 
+ alternative-generator-tries times to create an individual which falls within the min and
+ max gene values for each gene, then whenever a gene value violates those constraints
+ we will simply randomize it to something uniformly chosen between the min and max.
+ If &quot;false&quot;, then whenever an individual violates constraints, we will try again as
+ necessary.
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;alternative-generator-tries&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Integer &gt; 1 (default is 100)&lt;/td&gt;
+ &lt;td valign=top&gt;How many times we try to generate a valid individual before
+ possibly using the alternative-generator approach.
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;alternative-termination&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;boolean, default false&lt;/td&gt;
+ &lt;td valign=top&gt;Should we also terminate on CMA-ES's additional termination conditions?.
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ eda.cma-es.species
+
+
+ * @author Sam McKay and Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L210">public class CMAESSpecies extends FloatVectorSpecies</span>
+    {
+    public static final String P_CMAES_SPECIES = &quot;cma-es.species&quot;;
+    
+    public static final String P_LAMBDA = &quot;lambda&quot;;
+    public static final String P_MU = &quot;mu&quot;;
+    public static final String P_SIGMA = &quot;sigma&quot;;
+    public static final String P_MEAN = &quot;mean&quot;;
+    public static final String P_WEIGHTS = &quot;weight&quot;;
+
+    public static final String P_CC = &quot;cc&quot;;
+    public static final String P_CS = &quot;cs&quot;;
+    public static final String P_C1 = &quot;c1&quot;;
+    public static final String P_CMU = &quot;cmu&quot;;
+    public static final String P_DAMPS = &quot;damps&quot;;
+    
+    public static final String V_CENTER = &quot;center&quot;;
+    public static final String V_ZERO = &quot;zero&quot;;
+    public static final String V_RANDOM = &quot;random&quot;;
+
+    public static final String P_COVARIANCE = &quot;covariance&quot;;
+    public static final String V_IDENTITY = &quot;identity&quot;;
+    public static final String V_SCALED = &quot;scaled&quot;;
+
+    public static final String P_ALTERNATIVE_TERMINATION = &quot;alternative-termination&quot;;
+    public static final String P_ALTERNATIVE_GENERATOR = &quot;alternative-generator&quot;;
+    public static final String P_ALTERNATIVE_GENERATOR_TRIES = &quot;alternative-generator-tries&quot;;
+
+    /** The individuals generated from the distribution. 
+        If not specified in the parameters, by default 
+        lambda = 4+(int)Math.floor(3*Math.log(n));
+    */
+    public int lambda;
+
+    /** The truncated individuals used to update the distribution. 
+        If not specified in the parameters, by default 
+        mu = (int)Math.floor(lambda/2.0);
+    */
+    public int mu;
+    
+    /** The ranked fitness weights for the mu individuals. 
+        If not specified in the parameters, by default 
+        weights[i] = ln((lambda + 1) / 2i).
+        Then all the weights are normalized so that they sum to 1. */
+    public double[] weights;
+    
+    /** The &quot;mu_{eff}&quot; constant in CMA-ES.   This is set to 
+        1.0 / the sum of the squares of each of the weights[...] */
+    public double mueff;
+    
+    /** The c_{\mu} rank-mu update learning rate.
+        If not specified in the parameters, by default
+        cmu = Math.min(1-c1, 2 * (mueff - 2 + 1/mueff) / ((n+2)*(n+2) + mueff))
+        where n is the genome size.
+    */
+    public double cmu;
+
+    /** The c_1 rank-1 update learning rate.
+        If not specified in the parameters, by default
+        c1 = 2 / ((n + 1.3) * (n + 1.3) + mueff)
+        where n is the genome size.
+    */
+    public double c1;
+
+    /** The c_c rank-one evolution path cumulation parameter.
+        If not specified in the parameters, by default
+        cc = (4 + mueff / n) / (n + 4 + 2 * mueff/n)
+        where n is the genome size.
+    */
+    public double cc;
+
+    /** The c_{\sigma} mutation rate evolution path learning rate.
+        If not specified in the parameters, by default
+        cs = (mueff + 2) / (n + mueff + 5)
+        where n is the genome size.
+    */
+    public double cs; 
+    
+    /** The d_{\sigma} dampening for the mutation rate update.
+        If not specified in the parameters, by default
+        damps = cs + 2 * Math.max(1, Math.sqrt((mueff - 1) / (n + 1))) - 1
+        otherwise known as
+        damps = 1 + 2 * Math.max(0, Math.sqrt((mueff - 1) / (n + 1)) - 1) + cs
+        where n is the genome size.
+    */
+    public double damps;
+
+    /** The &quot;sigma&quot; scaling factor for the covariance matrix. */
+    public double sigma;
+
+    /** The mean of the distribution. */
+    public SimpleMatrix xmean;
+
+    /** The &quot;C&quot; covariance matrix of the distribution. */
+    public SimpleMatrix c;
+
+    /** The &quot;B&quot; matrix, eigendecomposed from the &quot;C&quot; covariance matrix of the distribution. */
+    public SimpleMatrix b;
+
+    /** The &quot;C&quot; matrix, eigendecomposed from the &quot;C&quot; covariance matrix of the distribution. */
+    public SimpleMatrix d;
+    
+    /** b x d */
+    public DenseMatrix64F bd;
+    
+    /** bd x sigma */
+    public DenseMatrix64F sbd;
+    
+    /** C^{-1/2}.  This is equal to B x D^{-1} x B^T */
+    public SimpleMatrix invsqrtC;
+
+    /** The p_{\sigma} evolution path vector. */
+    public SimpleMatrix ps;
+    
+    /** The p_c evolution path vector. */
+    public SimpleMatrix pc;
+    
+    /** An estimate of the expected size of the standard multivariate gaussian N(0,I). 
+        This is chiN = Math.sqrt(n)*(1.0-1.0/(4.0*n)+1.0/(21.0*n*n))
+    */
+    public double chiN;
+
+    /** The most recent generation where an eigendecomposition on C was performed into B and D */
+<span class="nc" id="L333">    public int lastEigenDecompositionGeneration = -1;</span>
+
+    /** Should we terminate when the eigenvalues get too small?  If we don't, they might go negative and the eigendecomposition will fail. */
+    public boolean useAltTermination;
+    
+    /** If, after trying altGeneratorTries to build an indiviual, we are still building one which violates min/max gene constraints, should
+        we instead fill those violated genes with uniformly-selected values between the min and max? */
+    public boolean useAltGenerator;
+
+    /** How many times should we try to generate a valid individual before we give up and use the useAltGenerator approach? */
+<span class="nc" id="L343">    public int altGeneratorTries = DEFAULT_ALT_GENERATOR_TRIES;</span>
+
+    /** Default value (100) for altGeneratorTries. */
+    public static final int DEFAULT_ALT_GENERATOR_TRIES = 100;
+        
+
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L352">        return CMAESDefaults.base().push(P_CMAES_SPECIES);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L357">        super.setup(state, base);</span>
+<span class="nc" id="L358">        MersenneTwisterFast random = state.random[0];</span>
+
+<span class="nc" id="L360">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L362">        Parameter subpopBase = base.pop();</span>
+<span class="nc" id="L363">        Parameter subpopDefaultBase =  ECDefaults.base().push(Subpopulation.P_SUBPOPULATION);</span>
+
+<span class="nc bnc" id="L365" title="All 2 branches missed.">        if(!state.parameters.exists(base.push(P_SIGMA), def.push(P_SIGMA)))</span>
+            {
+<span class="nc" id="L367">            state.output.message(&quot;CMA-ES sigma was not provided, defaulting to 1.0&quot;);</span>
+<span class="nc" id="L368">            sigma = 1.0;</span>
+            }
+        else
+            {
+<span class="nc" id="L372">            sigma = state.parameters.getDouble(base.push(P_SIGMA), def.push(P_SIGMA),0.0);</span>
+<span class="nc bnc" id="L373" title="All 2 branches missed.">            if (sigma &lt;= 0) </span>
+<span class="nc" id="L374">                state.output.fatal(&quot;If CMA-ES sigma is provided, it must be &gt; 0.0&quot;, base.push(P_SIGMA), def.push(P_SIGMA));</span>
+            }
+
+<span class="nc" id="L377">        double[] cvals = new double[genomeSize];</span>
+<span class="nc" id="L378">        String covarianceInitialization = state.parameters.getStringWithDefault(base.push(P_COVARIANCE), def.push(P_COVARIANCE), V_IDENTITY);</span>
+<span class="nc" id="L379">        String covs = &quot;Initial Covariance: &lt;&quot;;</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">        for(int i = 0; i &lt; genomeSize; i++)</span>
+            {
+<span class="nc bnc" id="L382" title="All 2 branches missed.">            if (i &gt; 0) covs += &quot;, &quot;;</span>
+<span class="nc bnc" id="L383" title="All 2 branches missed.">            if (covarianceInitialization.equals(V_SCALED))</span>
+                {
+<span class="nc" id="L385">                cvals[i] = (maxGene(i) - minGene(i));</span>
+                }
+<span class="nc bnc" id="L387" title="All 2 branches missed.">            else if (covarianceInitialization.equals(V_IDENTITY))</span>
+                {
+<span class="nc" id="L389">                cvals[i] = 1.0;</span>
+                }
+            else 
+                {
+<span class="nc" id="L393">                state.output.fatal(&quot;Invalid covariance initialization type &quot; + covarianceInitialization,</span>
+<span class="nc" id="L394">                    base.push(P_COVARIANCE), def.push(P_COVARIANCE));</span>
+                }
+                                
+            // cvals is standard deviations, so we change them to variances now
+<span class="nc" id="L398">            cvals[i] *= cvals[i];</span>
+<span class="nc" id="L399">            covs += cvals[i];</span>
+            }
+<span class="nc" id="L401">        state.output.message(covs + &quot;&gt;&quot;);</span>
+                
+        // set myself up and define my initial distribution here
+<span class="nc" id="L404">        int n = genomeSize;</span>
+<span class="nc" id="L405">        b = SimpleMatrix.identity(n);</span>
+<span class="nc" id="L406">        c = new SimpleMatrix(CommonOps.diag(cvals));</span>
+        
+<span class="nc" id="L408">        d = SimpleMatrix.identity(n);</span>
+<span class="nc" id="L409">        bd = CommonOps.identity(n,n);</span>
+<span class="nc" id="L410">        sbd = CommonOps.identity(n,n);</span>
+<span class="nc" id="L411">        invsqrtC = SimpleMatrix.identity(n);</span>
+
+        
+        // Here we do one FIRST round of eigendecomposition, because newIndividual needs
+        // a valid version of sbd.  If c is initially the identity matrix (and sigma = 1), 
+        // then sbd is too, and we're done.  But if c is scaled in any way, we need to compute
+        // the proper value of sbd.  Along the way we'll wind up computing b, d, bd, and invsqrtC
+                
+<span class="nc" id="L419">        EigenDecomposition&lt;DenseMatrix64F&gt; eig = DecompositionFactory.eig(genomeSize,true,true);</span>
+<span class="nc bnc" id="L420" title="All 2 branches missed.">        if( eig.decompose(c.copy().getMatrix())) </span>
+            {
+<span class="nc" id="L422">            SimpleMatrix dinv = new SimpleMatrix(genomeSize,genomeSize);</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">            for(int i = 0; i &lt; genomeSize; i++)</span>
+                {
+<span class="nc" id="L425">                double eigrt = Math.sqrt(eig.getEigenvalue(i).real);</span>
+<span class="nc" id="L426">                d.set(i,i,eigrt);</span>
+<span class="nc" id="L427">                dinv.set(i,i,1/eigrt);</span>
+<span class="nc" id="L428">                CommonOps.insert(eig.getEigenVector(i), b.getMatrix(),0,i);</span>
+                }
+
+<span class="nc" id="L431">            invsqrtC = b.mult(dinv.mult(b.transpose()));</span>
+<span class="nc" id="L432">            CommonOps.mult(b.getMatrix(),d.getMatrix(), bd);</span>
+<span class="nc" id="L433">            }</span>
+        else
+            {
+<span class="nc" id="L436">            state.output.fatal(&quot;CMA-ES eigendecomposition failed. &quot;);</span>
+            }
+<span class="nc" id="L438">        CommonOps.scale(sigma, bd, sbd);</span>
+                
+        // End FIRST round of eigendecomposition
+        
+        
+
+        // Initialize dynamic (internal) strategy parameters and constants
+<span class="nc" id="L445">        pc = new SimpleMatrix(n,1);</span>
+<span class="nc" id="L446">        ps = new SimpleMatrix(n,1);   // evolution paths for C and sigma</span>
+<span class="nc" id="L447">        chiN=Math.sqrt(n)*(1.0-1.0/(4.0*n)+1.0/(21.0*n*n));  // expectation of ||N(0,I)|| == norm(randn(N,1))</span>
+
+<span class="nc" id="L449">        xmean = new SimpleMatrix(genomeSize,1);</span>
+        
+<span class="nc" id="L451">        boolean meanSpecified = false;</span>
+<span class="nc" id="L452">        String val = state.parameters.getString(base.push(P_MEAN), def.push(P_MEAN));</span>
+<span class="nc bnc" id="L453" title="All 2 branches missed.">        if (val != null)</span>
+            {
+<span class="nc" id="L455">            meanSpecified = true;</span>
+<span class="nc bnc" id="L456" title="All 2 branches missed.">            if (val.equals(V_CENTER))</span>
+                {
+<span class="nc bnc" id="L458" title="All 2 branches missed.">                for(int i = 0; i &lt; genomeSize; i++)</span>
+                    {
+<span class="nc" id="L460">                    xmean.set(i,0, (maxGene(i) + minGene(i)) / 2.0);</span>
+                    }
+                }
+<span class="nc bnc" id="L463" title="All 2 branches missed.">            else if (val.equals(V_ZERO))</span>
+                {
+<span class="nc bnc" id="L465" title="All 2 branches missed.">                for(int i = 0; i &lt; genomeSize; i++)</span>
+                    {
+<span class="nc" id="L467">                    xmean.set(i,0,0);   // it is this anyway</span>
+                    }
+                }
+<span class="nc bnc" id="L470" title="All 2 branches missed.">            else if (val.equals(V_RANDOM))</span>
+                {
+<span class="nc bnc" id="L472" title="All 2 branches missed.">                for(int i = 0; i &lt; genomeSize; i++)</span>
+                    {
+<span class="nc" id="L474">                    xmean.set(i,0, state.random[0].nextDouble(true, true) * (maxGene(i) - minGene(i)) + minGene(i));</span>
+                    }
+                }
+            else
+                {
+<span class="nc" id="L479">                state.output.fatal(&quot;Unknown mean value specified: &quot; + val, base.push(P_MEAN), def.push(P_MEAN));</span>
+                }
+            }
+        else
+            {
+<span class="nc" id="L484">            state.output.fatal(&quot;No default mean value specified.  Loading full mean from parameters.&quot;, base.push(P_MEAN), def.push(P_MEAN));</span>
+            }
+        
+<span class="nc" id="L487">        boolean nonDefaultMeanSpecified = false;</span>
+<span class="nc bnc" id="L488" title="All 2 branches missed.">        for(int i = 0; i &lt; genomeSize; i++)</span>
+            {
+<span class="nc" id="L490">            double m_i = 0;</span>
+            try { 
+<span class="nc" id="L492">                m_i = state.parameters.getDouble(base.push(P_MEAN).push(&quot;&quot;+i), def.push(P_MEAN).push(&quot;&quot;+i)); </span>
+<span class="nc" id="L493">                xmean.set(i,0,m_i);</span>
+<span class="nc" id="L494">                nonDefaultMeanSpecified = true;</span>
+                }
+<span class="nc" id="L496">            catch (NumberFormatException e)</span>
+                {
+<span class="nc bnc" id="L498" title="All 2 branches missed.">                if (!meanSpecified)</span>
+<span class="nc" id="L499">                    state.output.error(&quot;No default mean value was specified, but CMA-ES mean index &quot; + i + &quot; is missing or not a number.&quot;, base.push(P_MEAN).push(&quot;&quot;+i), def.push(P_MEAN).push(&quot;&quot;+i));</span>
+<span class="nc" id="L500">                }</span>
+            }
+
+<span class="nc" id="L503">        state.output.exitIfErrors();</span>
+<span class="nc bnc" id="L504" title="All 4 branches missed.">        if (nonDefaultMeanSpecified &amp;&amp; meanSpecified)</span>
+            {
+<span class="nc" id="L506">            state.output.warning(&quot;A default mean value was specified, but certain mean values were overridden.&quot;); </span>
+            }
+
+<span class="nc" id="L509">        String mes = &quot;Initial Mean: &lt;&quot;;</span>
+<span class="nc bnc" id="L510" title="All 2 branches missed.">        for(int i = 0; i &lt; genomeSize - 1; i++)</span>
+<span class="nc" id="L511">            mes = mes + xmean.get(i,0) + &quot;, &quot;;</span>
+<span class="nc" id="L512">        mes = mes + xmean.get(genomeSize-1, 0) + &quot;&gt;&quot;;</span>
+<span class="nc" id="L513">        state.output.message(mes);              </span>
+
+<span class="nc bnc" id="L515" title="All 2 branches missed.">        if(!state.parameters.exists(base.push(P_LAMBDA), def.push(P_LAMBDA)))</span>
+            {
+<span class="nc" id="L517">            lambda = 4+(int)Math.floor(3*Math.log(n));</span>
+            }
+        else
+            {
+<span class="nc" id="L521">            lambda = state.parameters.getInt(base.push(P_LAMBDA), def.push(P_LAMBDA),1);</span>
+<span class="nc bnc" id="L522" title="All 2 branches missed.">            if (lambda &lt;= 0) </span>
+<span class="nc" id="L523">                state.output.fatal(&quot;If the CMA-ES lambda parameter is provided, it must be a valid integer &gt; 0&quot;, base.push(P_LAMBDA), def.push(P_LAMBDA));</span>
+            }
+
+<span class="nc bnc" id="L526" title="All 2 branches missed.">        if(!state.parameters.exists(base.push(P_MU), def.push(P_MU)))</span>
+            {
+<span class="nc" id="L528">            mu = (int)(Math.floor(lambda/2.0));</span>
+            }
+        else
+            {
+<span class="nc" id="L532">            mu = state.parameters.getInt(base.push(P_MU), def.push(P_MU),1);</span>
+<span class="nc bnc" id="L533" title="All 2 branches missed.">            if (mu &lt;= 0) </span>
+<span class="nc" id="L534">                state.output.fatal(&quot;If the CMA-ES mu parameter is provided, it must be a valid integer &gt; 0&quot;, base.push(P_MU), def.push(P_MU));</span>
+            }
+        
+<span class="nc bnc" id="L537" title="All 2 branches missed.">        if (mu &gt; lambda)  // uh oh</span>
+<span class="nc" id="L538">            state.output.fatal(&quot;CMA-ES mu must be &lt;= lambda.  Presently mu=&quot; + mu + &quot; and lambda=&quot; + lambda);        </span>
+        
+<span class="nc" id="L540">        weights = new double[mu];</span>
+<span class="nc" id="L541">        boolean weightsSpecified = false;</span>
+<span class="nc bnc" id="L542" title="All 2 branches missed.">        for(int i = 0; i &lt; mu; i++)</span>
+<span class="nc bnc" id="L543" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_WEIGHTS).push(&quot;&quot;+i), def.push(P_WEIGHTS).push(&quot;&quot;+i)))</span>
+                {
+<span class="nc" id="L545">                state.output.message(&quot;CMA-ES weight index &quot; + i + &quot; specified.  Loading all weights from parameters.&quot;);</span>
+<span class="nc" id="L546">                weightsSpecified = true;</span>
+<span class="nc" id="L547">                break;</span>
+                }
+        
+<span class="nc bnc" id="L550" title="All 2 branches missed.">        if (weightsSpecified)</span>
+            {
+<span class="nc bnc" id="L552" title="All 2 branches missed.">            for(int i = 0; i &lt; mu; i++)</span>
+                {
+<span class="nc" id="L554">                double m_i = 0;</span>
+<span class="nc" id="L555">                try { weights[i] = state.parameters.getDouble(base.push(P_WEIGHTS).push(&quot;&quot;+i), def.push(P_WEIGHTS).push(&quot;&quot;+i)); }</span>
+<span class="nc" id="L556">                catch (NumberFormatException e)</span>
+                    {
+<span class="nc" id="L558">                    state.output.error(&quot;CMA-ES weight index &quot; + i + &quot; missing or not a number.&quot;, </span>
+<span class="nc" id="L559">                        base.push(P_WEIGHTS).push(&quot;&quot;+i), def.push(P_WEIGHTS).push(&quot;&quot;+i)); </span>
+<span class="nc" id="L560">                    }</span>
+                }
+<span class="nc" id="L562">            state.output.exitIfErrors();</span>
+            }
+        else
+            {
+<span class="nc bnc" id="L566" title="All 2 branches missed.">            for(int i = 0; i &lt; mu; i++)</span>
+<span class="nc" id="L567">                weights[i] = Math.log((lambda+1.0)/(2.0 * (i + 1)));</span>
+            }
+            
+        // normalize
+<span class="nc" id="L571">        double sum = 0.0;</span>
+<span class="nc bnc" id="L572" title="All 2 branches missed.">        for(int i = 0; i &lt; mu; i++)</span>
+<span class="nc" id="L573">            sum += weights[i];</span>
+<span class="nc bnc" id="L574" title="All 2 branches missed.">        for(int i = 0; i &lt; mu; i++)</span>
+<span class="nc" id="L575">            weights[i] /= sum;</span>
+        
+        // compute mueff
+<span class="nc" id="L578">        double sumSqr = 0.0;</span>
+<span class="nc bnc" id="L579" title="All 2 branches missed.">        for(int i = 0; i &lt; mu; i++)</span>
+<span class="nc" id="L580">            sumSqr += weights[i]*weights[i];</span>
+<span class="nc" id="L581">        mueff=1.0/sumSqr;</span>
+
+<span class="nc" id="L583">        mes = &quot;Weights: &lt;&quot;;</span>
+<span class="nc bnc" id="L584" title="All 2 branches missed.">        for(int i = 0; i &lt; weights.length -1; i++)</span>
+<span class="nc" id="L585">            mes = mes + weights[i] + &quot;, &quot;;</span>
+<span class="nc" id="L586">        mes = mes + (weights.length - 1) + &quot;&gt;&quot;;</span>
+<span class="nc" id="L587">        state.output.message(mes);              </span>
+        
+<span class="nc" id="L589">        useAltTermination = state.parameters.getBoolean(base.push(P_ALTERNATIVE_TERMINATION), def.push(P_ALTERNATIVE_TERMINATION),false);</span>
+<span class="nc" id="L590">        useAltGenerator = state.parameters.getBoolean(base.push(P_ALTERNATIVE_GENERATOR), def.push(P_ALTERNATIVE_GENERATOR),false);</span>
+<span class="nc" id="L591">        altGeneratorTries = state.parameters.getIntWithDefault(base.push(P_ALTERNATIVE_GENERATOR_TRIES), def.push(P_ALTERNATIVE_GENERATOR_TRIES), DEFAULT_ALT_GENERATOR_TRIES);</span>
+<span class="nc bnc" id="L592" title="All 2 branches missed.">        if (altGeneratorTries &lt; 1)</span>
+<span class="nc" id="L593">            state.output.fatal(&quot;If specified (the default is &quot; + DEFAULT_ALT_GENERATOR_TRIES + &quot;), alt-generation-tries must be &gt;= 1&quot;, </span>
+<span class="nc" id="L594">                base.push(P_ALTERNATIVE_GENERATOR_TRIES), def.push(P_ALTERNATIVE_GENERATOR_TRIES));</span>
+
+<span class="nc bnc" id="L596" title="All 2 branches missed.">        if(!state.parameters.exists(base.push(P_CC), def.push(P_CC)))</span>
+            {
+<span class="nc" id="L598">            cc = (4.0+mueff/n) / (n+4.0 + 2.0*mueff/n);  // time constant for cumulation for C</span>
+            }
+        else
+            {
+<span class="nc" id="L602">            cc = state.parameters.getDoubleWithMax(base.push(P_CC), def.push(P_CC),0.0,1.0);</span>
+<span class="nc bnc" id="L603" title="All 2 branches missed.">            if (cc &lt; 0.0) </span>
+<span class="nc" id="L604">                state.output.fatal(&quot;If the CMA-ES cc parameter is provided, it must be a valid number in the range [0,1]&quot;, base.push(P_CC), def.push(P_CC));</span>
+            }
+
+<span class="nc bnc" id="L607" title="All 2 branches missed.">        if(!state.parameters.exists(base.push(P_CS), def.push(P_CS)))</span>
+            {
+<span class="nc" id="L609">            cs = (mueff+2.0)/(n+mueff+5.0);  // t-const for cumulation for sigma control</span>
+            }
+        else
+            {
+<span class="nc" id="L613">            cs = state.parameters.getDoubleWithMax(base.push(P_CS), def.push(P_CS),0.0,1.0);</span>
+<span class="nc bnc" id="L614" title="All 2 branches missed.">            if (cs &lt; 0.0) </span>
+<span class="nc" id="L615">                state.output.fatal(&quot;If the CMA-ES cs parameter is provided, it must be a valid number in the range [0,1]&quot;, base.push(P_CS), def.push(P_CS));</span>
+            }
+
+<span class="nc bnc" id="L618" title="All 2 branches missed.">        if(!state.parameters.exists(base.push(P_C1), def.push(P_C1)))</span>
+            {
+<span class="nc" id="L620">            c1 = 2.0 / ((n+1.3)*(n+1.3)+mueff);  // learning rate for rank-one update of C</span>
+            }
+        else
+            {
+<span class="nc" id="L624">            c1 = state.parameters.getDouble(base.push(P_C1), def.push(P_C1),0.0);</span>
+<span class="nc bnc" id="L625" title="All 2 branches missed.">            if (c1 &lt; 0) </span>
+<span class="nc" id="L626">                state.output.fatal(&quot;If the CMA-ES c1 parameter is provided, it must be a valid number &gt;= 0.0&quot;, base.push(P_C1), def.push(P_C1));</span>
+            }
+        
+<span class="nc bnc" id="L629" title="All 2 branches missed.">        if(!state.parameters.exists(base.push(P_CMU), def.push(P_CMU)))</span>
+            {
+<span class="nc" id="L631">            cmu = Math.min(1.0-c1, 2.0*(mueff-2.0+1.0/mueff) / ((n+2.0)*(n+2.0)+mueff));</span>
+            }
+        else
+            {
+<span class="nc" id="L635">            cmu = state.parameters.getDouble(base.push(P_CMU), def.push(P_CMU),0.0);</span>
+<span class="nc bnc" id="L636" title="All 2 branches missed.">            if (cmu &lt; 0) </span>
+<span class="nc" id="L637">                state.output.fatal(&quot;If the CMA-ES cmu parameter is provided, it must be a valid number &gt;= 0.0&quot;, base.push(P_CMU), def.push(P_CMU));</span>
+            }
+
+<span class="nc bnc" id="L640" title="All 2 branches missed.">        if (c1 &gt; (1 - cmu))  // uh oh</span>
+<span class="nc" id="L641">            state.output.fatal(&quot;CMA-ES c1 must be &lt;= 1 - cmu.  You are using c1=&quot; + c1 + &quot; and cmu=&quot; + cmu);</span>
+<span class="nc bnc" id="L642" title="All 2 branches missed.">        if (cmu &gt; (1 - c1))  // uh oh</span>
+<span class="nc" id="L643">            state.output.fatal(&quot;CMA-ES cmu must be &lt;= 1 - c1.  You are using cmu=&quot; + cmu + &quot; and c1=&quot; + c1);  </span>
+
+<span class="nc bnc" id="L645" title="All 2 branches missed.">        if(!state.parameters.exists(base.push(P_DAMPS), def.push(P_DAMPS)))</span>
+            {
+<span class="nc" id="L647">            damps = 1.0 + 2.0*Math.max(0.0, Math.sqrt((mueff-1.0)/(n+1.0))-1.0) + cs; // damping for sigma</span>
+            }
+        else
+            {
+<span class="nc" id="L651">            damps = state.parameters.getDouble(base.push(P_DAMPS), def.push(P_DAMPS),0.0);</span>
+<span class="nc bnc" id="L652" title="All 2 branches missed.">            if (damps &lt;= 0) </span>
+<span class="nc" id="L653">                state.output.fatal(&quot;If the CMA-ES damps parameter is provided, it must be a valid number &gt; 0.0&quot;, base.push(P_DAMPS), def.push(P_DAMPS));</span>
+            }
+
+<span class="nc" id="L656">        double damps_min = 0.5;</span>
+<span class="nc" id="L657">        double damps_max = 2.0;</span>
+<span class="nc bnc" id="L658" title="All 4 branches missed.">        if (damps &gt; damps_max || damps &lt; damps_min)</span>
+<span class="nc" id="L659">            state.output.warning(&quot;CMA-ES damps ought to be close to 1.  You are using damps = &quot; + damps);  </span>
+
+<span class="nc" id="L661">        state.output.message(&quot;lambda: &quot; + lambda);</span>
+<span class="nc" id="L662">        state.output.message(&quot;mu:     &quot; + mu);</span>
+<span class="nc" id="L663">        state.output.message(&quot;mueff:  &quot; + mueff);</span>
+<span class="nc" id="L664">        state.output.message(&quot;cmu:    &quot; + cmu);</span>
+<span class="nc" id="L665">        state.output.message(&quot;c1:     &quot; + c1);</span>
+<span class="nc" id="L666">        state.output.message(&quot;cc:     &quot; + cc);</span>
+<span class="nc" id="L667">        state.output.message(&quot;cs:     &quot; + cs);</span>
+<span class="nc" id="L668">        state.output.message(&quot;damps:  &quot; + damps);</span>
+<span class="nc" id="L669">        }</span>
+
+
+
+    public Object clone()
+        {
+<span class="nc" id="L675">        CMAESSpecies myobj = (CMAESSpecies) (super.clone());</span>
+            
+        // clone the distribution and other variables here
+<span class="nc" id="L678">        myobj.c = c.copy();</span>
+<span class="nc" id="L679">        myobj.b = b.copy();</span>
+<span class="nc" id="L680">        myobj.d = d.copy();</span>
+<span class="nc" id="L681">        myobj.bd = bd.copy();</span>
+<span class="nc" id="L682">        myobj.sbd = sbd.copy();</span>
+<span class="nc" id="L683">        myobj.invsqrtC = invsqrtC.copy();</span>
+    
+<span class="nc" id="L685">        myobj.xmean = xmean.copy();</span>
+<span class="nc" id="L686">        myobj.ps = ps.copy();</span>
+<span class="nc" id="L687">        myobj.pc = pc.copy();</span>
+            
+<span class="nc" id="L689">        return myobj;</span>
+        } 
+
+
+    public static final int MAX_TRIES_BEFORE_WARNING = 100000;
+        
+    public Individual newIndividual(final EvolutionState state, int thread)
+        {
+<span class="nc" id="L697">        Individual newind = super.newIndividual(state, thread);</span>
+<span class="nc" id="L698">        MersenneTwisterFast random = state.random[thread];</span>
+
+<span class="nc bnc" id="L700" title="All 2 branches missed.">        if (!(newind instanceof DoubleVectorIndividual))  // uh oh</span>
+<span class="nc" id="L701">            state.output.fatal(&quot;To use CMAESSpecies, the species must be initialized with a DoubleVectorIndividual.  But it contains a &quot; + newind);</span>
+        
+<span class="nc" id="L703">        DoubleVectorIndividual dvind = (DoubleVectorIndividual)(newind);</span>
+
+<span class="nc" id="L705">        DenseMatrix64F genome = DenseMatrix64F.wrap(genomeSize,1,dvind.genome);</span>
+<span class="nc" id="L706">        DenseMatrix64F temp = new DenseMatrix64F(genomeSize,1);</span>
+
+        // arz(:,k) = randn(N,1); % standard normally distributed vector
+        // arx(:,k) = xmean + sigma*(B*D*arz(:,k));
+<span class="nc" id="L710">        int tries = 0;</span>
+        while(true)
+            {           
+<span class="nc bnc" id="L713" title="All 2 branches missed.">            for( int i = 0; i &lt; genomeSize; i++ ) </span>
+<span class="nc" id="L714">                dvind.genome[i] = random.nextGaussian();</span>
+
+<span class="nc" id="L716">            CommonOps.mult(sbd,genome,temp); // temp = sigma*b*d*genome;</span>
+<span class="nc" id="L717">            CommonOps.add(temp,xmean.getMatrix(),genome); // genome = temp + xmean;</span>
+
+<span class="nc" id="L719">            boolean invalid_value = false;</span>
+<span class="nc bnc" id="L720" title="All 2 branches missed.">            for (int i = 0; i &lt; genomeSize; i++)</span>
+<span class="nc bnc" id="L721" title="All 4 branches missed.">                if (dvind.genome[i] &lt; minGene(i) || dvind.genome[i] &gt; maxGene(i))</span>
+                    {
+<span class="nc bnc" id="L723" title="All 4 branches missed.">                    if (useAltGenerator &amp;&amp; tries &gt; altGeneratorTries)</span>
+                        {
+                        // instead of just failing, we're going to select uniformly from
+                        // possible values for this particular gene.
+<span class="nc" id="L727">                        dvind.genome[i] = state.random[thread].nextDouble() * (maxGene(i) - minGene(i)) + minGene(i);</span>
+                        }
+                    else
+                        {
+<span class="nc" id="L731">                        invalid_value = true;</span>
+<span class="nc" id="L732">                        break;</span>
+                        }
+                    }
+
+<span class="nc bnc" id="L736" title="All 2 branches missed.">            if (invalid_value) </span>
+                {
+<span class="nc bnc" id="L738" title="All 2 branches missed.">                if (++tries &gt; MAX_TRIES_BEFORE_WARNING)</span>
+<span class="nc" id="L739">                    state.output.warnOnce(&quot;CMA-ES may be slow because many individuals are being generated which\n&quot; +</span>
+                        &quot;are outside the min/max gene bounds.  If an individual violates a single\n&quot; +
+                        &quot;gene bounds, it is rejected, so as the number of genes grows, the\n&quot; +
+                        &quot;probability of this happens increases exponentially.  You can deal\n&quot; +
+                        &quot;with this by decreasing sigma.  Alternatively you can use set\n&quot; +
+                        &quot;pop.subpop.0.alternative-generation=true (see the manual).\n&quot; +
+                        &quot;Finally, if this is happening during initialization, you might also\n&quot; + 
+                        &quot;change pop.subpop.0.species.covariance=scaled.\n&quot;);
+                continue;
+                }
+
+<span class="nc" id="L750">            return newind;</span>
+            }
+        }
+
+
+    /** Revises the CMA-ES distribution to reflect the current fitness results in the provided subpopulation. */
+    public void updateDistribution(final EvolutionState state, final Subpopulation subpop)
+        {
+        // % Sort by fitness and compute weighted mean into xmean
+        // [arfitness, arindex] = sort(arfitness); % minimization
+        // xmean = arx(:,arindex(1:mu))*weights;   % recombination            % Eq.39
+        // counteval += lambda;
+
+        // only need partial sort?
+<span class="nc" id="L764">        Collections.sort(subpop.individuals);</span>
+
+<span class="nc" id="L766">        SimpleMatrix artmp = new SimpleMatrix(genomeSize,mu);</span>
+<span class="nc" id="L767">        SimpleMatrix xold = xmean;</span>
+<span class="nc" id="L768">        xmean = new SimpleMatrix(genomeSize, 1);</span>
+
+<span class="nc bnc" id="L770" title="All 2 branches missed.">        for(int i = 0; i &lt; mu; i++)</span>
+            {
+<span class="nc" id="L772">            DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));</span>
+
+            // won't modify the genome
+<span class="nc" id="L775">            SimpleMatrix arz = new SimpleMatrix(genomeSize,1,true,dvind.genome);</span>
+<span class="nc" id="L776">            arz = (arz.minus(xold).divide(sigma));</span>
+
+<span class="nc bnc" id="L778" title="All 2 branches missed.">            for(int j = 0; j &lt; genomeSize; j++) </span>
+                {
+<span class="nc" id="L780">                xmean.set(j,0, xmean.get(j,0)+weights[i]*dvind.genome[j]);</span>
+<span class="nc" id="L781">                artmp.set(j,i,arz.get(j,0));</span>
+                }
+            }
+            
+        // % Cumulation: Update evolution paths
+
+<span class="nc" id="L787">        SimpleMatrix y = xmean.minus(xold).divide(sigma);</span>
+<span class="nc" id="L788">        SimpleMatrix bz = invsqrtC.mult( y );</span>
+<span class="nc" id="L789">        SimpleMatrix bz_scaled = bz.scale(Math.sqrt(cs*(2.0-cs) * mueff));</span>
+<span class="nc" id="L790">        ps = ps.scale(1.0-cs).plus(bz_scaled);</span>
+
+<span class="nc" id="L792">        double h_sigma_value = ((ps.dot(ps) / (1.0 - Math.pow(1.0 - cs, 2.0 * (state.generation+1)) )) / genomeSize);</span>
+<span class="nc bnc" id="L793" title="All 2 branches missed.">        int hsig = (h_sigma_value &lt; (2.0 + (4.0 / (genomeSize + 1)))) ? 1 : 0;</span>
+
+<span class="nc" id="L795">        SimpleMatrix y_scaled = y.scale(hsig * Math.sqrt(cc * (2.0-cc) * mueff));</span>
+<span class="nc" id="L796">        pc = pc.scale(1.0-cc).plus(y_scaled);</span>
+
+        // % Adapt covariance matrix C
+<span class="nc" id="L799">        c = c.scale(1.0-c1-cmu);</span>
+<span class="nc" id="L800">        c = c.plus( pc.mult(pc.transpose()).plus(c.scale((1.0-hsig)*cc*(2.0-cc))).scale(c1) );</span>
+<span class="nc" id="L801">        c = c.plus( (artmp.mult(SimpleMatrix.diag(weights).mult(artmp.transpose()))).scale(cmu) );</span>
+
+        // % Adapt step-size sigma
+<span class="nc" id="L804">        sigma = sigma*Math.exp((cs/damps)*(ps.normF()/chiN - 1.0));</span>
+
+        // % Update B and D from C
+<span class="nc bnc" id="L807" title="All 2 branches missed.">        if((state.generation - lastEigenDecompositionGeneration) &gt; 1.0/((c1+cmu)*genomeSize*10.0) )</span>
+            {
+<span class="nc" id="L809">            lastEigenDecompositionGeneration = state.generation;</span>
+
+            // make sure the matrix is symmetric (it should be already)
+            // not sure if this is necessary           
+<span class="nc bnc" id="L813" title="All 2 branches missed.">            for(int i = 0; i &lt; genomeSize; i++)</span>
+<span class="nc bnc" id="L814" title="All 2 branches missed.">                for(int j = 0; j &lt; i; j++)</span>
+<span class="nc" id="L815">                    c.set(j,i,c.get(i,j));</span>
+
+            // this copy gets modified by the decomposition
+<span class="nc" id="L818">            DenseMatrix64F copy = c.copy().getMatrix();</span>
+<span class="nc" id="L819">            EigenDecomposition&lt;DenseMatrix64F&gt; eig = DecompositionFactory.eig(genomeSize,true,true);</span>
+<span class="nc bnc" id="L820" title="All 2 branches missed.">            if(eig.decompose(copy)) </span>
+                {
+<span class="nc" id="L822">                SimpleMatrix dinv = new SimpleMatrix(genomeSize,genomeSize);</span>
+<span class="nc bnc" id="L823" title="All 2 branches missed.">                for(int i = 0; i &lt; genomeSize; i++)</span>
+                    {
+<span class="nc" id="L825">                    double eigrt = Math.sqrt(eig.getEigenvalue(i).real);</span>
+<span class="nc" id="L826">                    d.set(i,i,eigrt);</span>
+<span class="nc" id="L827">                    dinv.set(i,i,1/eigrt);</span>
+<span class="nc" id="L828">                    CommonOps.insert(eig.getEigenVector(i), b.getMatrix(),0,i);</span>
+                    }
+
+<span class="nc" id="L831">                invsqrtC = b.mult(dinv.mult(b.transpose()));</span>
+<span class="nc" id="L832">                CommonOps.mult(b.getMatrix(),d.getMatrix(), bd);</span>
+<span class="nc" id="L833">                }</span>
+            else
+                {
+<span class="nc" id="L836">                state.output.fatal(&quot;CMA-ES eigendecomposition failed. &quot;);</span>
+                }
+            }
+
+<span class="nc" id="L840">        CommonOps.scale(sigma, bd, sbd);</span>
+
+        // % Break, if fitness is good enough or condition exceeds 1e14, better termination methods are advisable 
+        // if arfitness(1) &lt;= stopfitness || max(D) &gt; 1e7 * min(D)
+        //   break;
+        // end
+<span class="nc bnc" id="L846" title="All 4 branches missed.">        if(useAltTermination &amp;&amp; CommonOps.elementMax(d.extractDiag().getMatrix()) &gt; 1e7*CommonOps.elementMin(d.extractDiag().getMatrix()))</span>
+            {
+<span class="nc" id="L848">            state.evaluator.setRunComplete(&quot;CMAESSpecies: Stopped because matrix condition exceeded limit.&quot;);</span>
+            }
+<span class="nc" id="L850">        }</span>
+
+
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

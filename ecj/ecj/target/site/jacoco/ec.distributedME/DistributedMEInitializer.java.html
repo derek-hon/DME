@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DistributedMEInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">DistributedMEInitializer.java</span></div><h1>DistributedMEInitializer.java</h1><pre class="source lang-java linenums">package ec.distributedME;
+
+import ec.util.Parameter;
+import ec.gp.GPInitializer;
+import ec.EvolutionState;
+/*
+ * DistributedMEInitializer.java
+ *
+ * Created: 19 May, 2020
+ * By: Derek Hon
+ */
+
+/**
+ * DistributedMEInitializer.java
+ * 
+ * @see ec.gp.GPInitializer
+ * Responsible for helping populate the MAP as
+ * well as setting up all the parameters around it.
+ * 
+ * 
+ * Created: 10 February, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+<span class="nc" id="L25">public class DistributedMEInitializer extends GPInitializer {</span>
+    private static final long serialVersionUID = 1;
+
+    public static final String P_MAP = &quot;map&quot;;
+
+    public void setup(EvolutionState state, Parameter base) {
+<span class="nc" id="L31">        super.setup(state, base);</span>
+<span class="nc" id="L32">    }</span>
+
+    public DistributedMap initialMap(final EvolutionState state, int thread) {
+<span class="nc" id="L35">        DistributedMap m = setupMap(state, thread);</span>
+<span class="nc" id="L36">        m.populate(state, thread);</span>
+<span class="nc" id="L37">        return m;</span>
+    }
+
+    public DistributedMap setupMap(final EvolutionState state, int thread) {
+        DistributedMap m;
+<span class="nc" id="L42">        Parameter base = new Parameter(P_MAP);</span>
+<span class="nc" id="L43">        m = new DistributedMap();</span>
+<span class="nc" id="L44">        state.output.message(&quot;Setting up distributed map...&quot;);</span>
+<span class="nc" id="L45">        m.setup(state, base);</span>
+<span class="nc" id="L46">        state.output.message(&quot;Successfully set up distributed map.&quot;);</span>
+<span class="nc" id="L47">        return m;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

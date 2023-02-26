@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TarpeianStatistics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.parsimony</a> &gt; <span class="el_source">TarpeianStatistics.java</span></div><h1>TarpeianStatistics.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.parsimony;
+
+import ec.*;
+import ec.util.*;
+
+/**
+   This Statistics subclass implements Poli's &quot;Tarpeian&quot; method of parsimony control, whereby some
+   &lt;i&gt;kill-proportion&lt;/i&gt; of above-average-sized individuals in each subpopulation have their fitnesses
+   set to a very bad value, and marks them as already evaluated (so the Evaluator can skip them).  
+   The specific individuals in this proportion is determined at random.
+        
+   &lt;p&gt;Different Fitnesses have different meanings of the word &quot;bad&quot;.  At present, we set the fitness
+   to -Double.MAX_VALUE if it's a SimpleFitness, and set it to Double.MAX_VALUE if it's a KozaFitnesss.
+   If it's any other kind of Fitness, an error is reported.  You can override the &quot;bad-setter&quot; function
+   setMinimumFitness(...) to make other kinds of fitness bad in different ways.  In the future we may
+   revisit how to set Fitnesses to &quot;bad&quot; in a more general way if this becomes an issue.
+        
+   &lt;p&gt;Tarpeian is implemented as a Statistics.  Why?  Because we need to mark individuals as evaluated
+   prior to the Evaluator getting to them, and also need to keep track of the total proportion marked
+   as such.  We considered doing this as a SelectionMethod, as a BreedingPipeline, as a Breeder, and
+   as an Evaluator.  None are good options really -- Evaluator is the best approach but it means we
+   have special Tarpeian Evaluators, so it's no longer orthogonal with other Evaluators.  Eventually
+   we settled on the one object which has the right hooks and can be easily stuck onto the system without
+   modifying anything in a special-purpose way: a Statistics object.
+        
+   &lt;p&gt;All you need to do is add TarpeianStatistics as a child to your existing Statistics chain.  If you
+   have one existing Statistics, then you just add the parameters &lt;tt&gt;stat.num-children=1&lt;/tt&gt; and
+   &lt;tt&gt;stat.child.0=ec.parsimony.TarpeianStatistics&lt;/tt&gt;  You'll also need to specify the kill proportion
+   (for example, &lt;tt&gt;stat.child.0.kill-proportion=0.2&lt;/tt&gt; )
+        
+   &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+   &lt;table&gt;
+   &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;kill-proportion&lt;/tt&gt;&lt;br&gt;
+   &lt;font size=-1&gt;0 &amp;lt; int &amp;lt; 1&lt;/font&gt;&lt;/td&gt;
+   &lt;td valign=top&gt;(proportion of above-average-sized individuals killed)&lt;/td&gt;&lt;/tr&gt;
+   &lt;/table&gt;
+
+*/
+ 
+<span class="nc" id="L47">public class TarpeianStatistics extends Statistics</span>
+    {
+    /** one in n individuals are killed */
+    public static final String P_KILL_PROPORTION = &quot;kill-proportion&quot;;
+    double killProportion;
+
+    public void setup( final EvolutionState state, final Parameter base )
+        {
+<span class="nc" id="L55">        super.setup (state, base);</span>
+
+<span class="nc" id="L57">        killProportion = state.parameters.getDouble( base.push(P_KILL_PROPORTION), null, 0.0 );</span>
+<span class="nc bnc" id="L58" title="All 4 branches missed.">        if( killProportion &lt; 0 || killProportion &gt; 1 )</span>
+<span class="nc" id="L59">            state.output.fatal( &quot;Parameter not found, or it has an invalid value (&lt;0 or &gt;1).&quot;, base.push(P_KILL_PROPORTION) );</span>
+<span class="nc" id="L60">        }</span>
+
+    /**
+       Marks a proportion (killProportion) of individuals with above-average size (within their own subpopulation) to a minimum value.
+    */
+    public void preEvaluationStatistics(final EvolutionState state)
+        {
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        for(int subpopulation = 0; subpopulation &lt; state.population.subpops.size(); subpopulation++ )</span>
+            {
+<span class="nc" id="L69">            double averageSize = 0;</span>
+
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            for(int i = 0; i &lt; state.population.subpops.get(subpopulation).individuals.size() ; i++ )</span>
+<span class="nc" id="L72">                averageSize += state.population.subpops.get(subpopulation).individuals.get(i).size();</span>
+
+<span class="nc" id="L74">            averageSize /= state.population.subpops.get(subpopulation).individuals.size();</span>
+
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            for(int i = 0; i &lt; state.population.subpops.get(subpopulation).individuals.size() ; i++ )</span>
+                {
+<span class="nc bnc" id="L78" title="All 2 branches missed.">                if( ( state.population.subpops.get(subpopulation).individuals.get(i).size() &gt; averageSize ) &amp;&amp;</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">                    ( state.random[0].nextDouble() &lt; killProportion ) )</span>
+                    {
+<span class="nc" id="L81">                    Individual ind = state.population.subpops.get(subpopulation).individuals.get(i);</span>
+<span class="nc" id="L82">                    setMinimumFitness( state, subpopulation, ind );</span>
+<span class="nc" id="L83">                    ind.evaluated = true;</span>
+                    }
+                }
+            }
+<span class="nc" id="L87">        }</span>
+
+    /**
+       Sets the fitness of an individual to the minimum fitness possible.
+       If the fitness is of type ec.simple.SimpleFitness, that minimum value is -Double.MAX_VALUE;
+       If the fitness is of type ec.gp.koza.KozaFitness, that minimum value is Double.MAX_VALUE;
+       Else, a fatal error is reported.
+
+       You need to override this method if you're using any other type of fitness.
+    */
+    public void setMinimumFitness( final EvolutionState state, int subpopulation, Individual ind )
+        {
+<span class="nc" id="L99">        Fitness fitness = ind.fitness;</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if( fitness instanceof ec.gp.koza.KozaFitness )</span>
+<span class="nc" id="L101">            ((ec.gp.koza.KozaFitness)fitness).setStandardizedFitness( state, Double.MAX_VALUE );</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        else if( fitness instanceof ec.simple.SimpleFitness )</span>
+<span class="nc" id="L103">            ((ec.simple.SimpleFitness)fitness).setFitness(state,-Double.MAX_VALUE,false);</span>
+        else
+<span class="nc" id="L105">            state.output.fatal( &quot;TarpeianStatistics only accepts individuals with fitness of type ec.simple.SimpleFitness or ec.gp.koza.KozaFitness.&quot; );</span>
+<span class="nc" id="L106">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MuPlusLambdaBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.es</a> &gt; <span class="el_source">MuPlusLambdaBreeder.java</span></div><h1>MuPlusLambdaBreeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.es;
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import ec.*;
+
+/* 
+ * MuPlusLambdaBreeder.java
+ * 
+ * Created: Thu Sep  7 18:49:42 2000
+ * By: Sean Luke
+ */
+
+/**
+ * MuPlusLambdaBreeder is a subclass of MuCommaLambdaBreeder which, together with
+ * ESSelection, implements the (mu + lambda) breeding strategy and gathers
+ * the comparison data you can use to implement a 1/5-rule mutation mechanism.
+ * Note that MuPlusLambdaBreeder increases subpopulation sizes by their mu
+ * values in the second generation and keep them at that size thereafter.
+ * See MuCommaLambdaBreeder for information about how to set mu and lambda.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L33">public class MuPlusLambdaBreeder extends MuCommaLambdaBreeder</span>
+    {
+<span class="nc" id="L35">    public int maximumMuLambdaDivisor() { return 1; }</span>
+ 
+    /** Sets all subpopulations in pop to the expected mu+lambda size.  Does not fill new slots with individuals. */
+    //    public Population setToMuPlusLambda(Population pop, EvolutionState state)
+    //        {
+    //        for(int x = 0; x&lt; pop.subpops.size(); x++)
+    //            {
+    //            int s = mu[x]+lambda[x];
+    //            
+    //            // check to see if the array's big enough
+    //            if (pop.subpops.get(x).individuals.size() != s)
+    //                // need to increase
+    //                {
+    //                Individual[] newinds = new Individual[s];
+    //                System.arraycopy(pop.subpops.get(x).individuals,0,newinds,0,
+    //                    s &lt; pop.subpops.get(x).individuals.size() ?
+    //                    s : pop.subpops.get(x).individuals.size());
+    //                pop.subpops.get(x).individuals = new ArrayList&lt;Individual&gt;(Arrays.asList(newinds));
+    //                }
+    //            }
+    //        return pop;
+    //        }
+
+    // by Ermo. I guess the method on the top is useless now, and accordingly, I changed the method at the bottom to this form
+    public Population postProcess(Population newpop, Population oldpop, EvolutionState state)
+        {
+        // now we need to dump the old population into the high end of the new population
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        for(int x = 0; x&lt; newpop.subpops.size(); x++)</span>
+            {
+<span class="nc bnc" id="L64" title="All 2 branches missed.">            for(int y=0;y&lt;mu[x];y++)</span>
+                {
+<span class="nc" id="L66">                newpop.subpops.get(x).individuals.add((Individual)(oldpop.subpops.get(x).individuals.get(y).clone()));</span>
+                }
+            }
+<span class="nc" id="L69">        return newpop;</span>
+        }
+    
+    //    public Population postProcess(Population newpop, Population oldpop, EvolutionState state)
+    //        {
+    //        // first we need to expand newpop to mu+lambda in size
+    //        newpop = setToMuPlusLambda(newpop,state);
+    //        
+    //        // now we need to dump the old population into the high end of the new population
+    //         
+    //        for(int x = 0; x&lt; newpop.subpops.size(); x++)
+    //            {
+    //            for(int y=0;y&lt;mu[x];y++)
+    //                {
+    //                newpop.subpops.get(x).individuals.set(y+lambda[x],
+    //                    (Individual)(oldpop.subpops.get(x).individuals.get(y).clone()));
+    //                }
+    //            }
+    //        return newpop;
+    //        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

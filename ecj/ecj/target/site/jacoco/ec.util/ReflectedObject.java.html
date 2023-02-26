@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReflectedObject.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">ReflectedObject.java</span></div><h1>ReflectedObject.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+import java.lang.reflect.*;
+import javax.swing.tree.*;
+import javax.swing.event.*;
+
+public class ReflectedObject implements TreeModel
+    {
+    Class type;     // the class or TYPE of the object
+    Object obj;     // the object.  Primitive objects are cast into their wrapper types
+    String name;    // the name of the instance variable holding the object.  Top-level objects have a name of &quot;-&gt;&quot;
+    Object uniq;    // a unique identifier for this particular instance variable (used to make getIndexOfChild() possible, ick)
+<span class="nc" id="L19">    static ReflectedObject unknown = new ReflectedObject(null)</span>
+<span class="nc" id="L20">        {</span>
+<span class="nc" id="L21">        public String toString() { return &quot;&lt;unknown&gt;&quot;; }</span>
+        };
+    
+    public ReflectedObject(Object o)
+        {
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        this(o,(o==null ? Object.class : o.getClass()),null,null);</span>
+<span class="nc" id="L27">        }</span>
+        
+    protected ReflectedObject(Object o, Class t, String n, Object u)
+<span class="nc" id="L30">        {</span>
+<span class="nc" id="L31">        obj = o;</span>
+<span class="nc" id="L32">        type = t;</span>
+<span class="nc" id="L33">        name = n;</span>
+<span class="nc" id="L34">        uniq = u;</span>
+<span class="nc" id="L35">        }</span>
+    
+    public String toString()
+        {
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        String field = (name == null ? &quot;&quot; : name + &quot;: &quot;);</span>
+        try {
+<span class="nc bnc" id="L41" title="All 2 branches missed.">            if (obj == null) return field + &quot;null&quot;;</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">            else if (type.isArray()) return field + type.getName() + &quot;, length=&quot; + Array.getLength(obj);</span>
+<span class="nc" id="L43">            return field+type.getName()+&quot; &quot;+obj.toString();</span>
+<span class="nc" id="L44">            } catch (Exception e) {</span>
+<span class="nc" id="L45">            e.printStackTrace();</span>
+<span class="nc" id="L46">            return field + type.getName() + &quot; &lt;error&gt;&quot;;</span>
+            }
+        }
+        
+    public int getNumChildren()
+        {
+<span class="nc" id="L52">        return getNumFields() + getNumProperties();</span>
+        }
+    
+    public ReflectedObject getChild(int index)
+        {
+<span class="nc" id="L57">        int f = getNumFields();</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">        if (index &lt; f) return getField(index);</span>
+<span class="nc" id="L59">        else return getProperty(index - f);</span>
+        }
+    
+    public ReflectedObject[] getChildren()
+        {
+<span class="nc" id="L64">        ReflectedObject[] fields = getFields();</span>
+<span class="nc" id="L65">        ReflectedObject[] props = getProperties();</span>
+<span class="nc" id="L66">        ReflectedObject o[] = new ReflectedObject[fields.length + props.length];</span>
+<span class="nc" id="L67">        System.arraycopy(fields,0,o,0,fields.length);</span>
+<span class="nc" id="L68">        System.arraycopy(props,0,o,fields.length,props.length);</span>
+<span class="nc" id="L69">        return o;</span>
+        }
+
+    public int getNumFields()
+        {
+        try
+            {
+<span class="nc bnc" id="L76" title="All 4 branches missed.">            if (obj == null || type.isPrimitive()) return 0;</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">            else if (type.isArray())</span>
+                {
+<span class="nc" id="L79">                return Array.getLength(obj);</span>
+                }
+            else
+                {
+<span class="nc" id="L83">                return type.getFields().length;</span>
+                }
+            }
+<span class="nc" id="L86">        catch (IllegalArgumentException e) { e.printStackTrace(); throw new RuntimeException(&quot;Unexpected Exception: &quot; + e); }</span>
+        }
+    
+    public ReflectedObject getField(int index)
+        {
+        try
+            {
+<span class="nc bnc" id="L93" title="All 6 branches missed.">            if (obj == null || type.isPrimitive() || index &lt; 0) return null;</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">            else if (type.isArray())</span>
+                {
+<span class="nc" id="L96">                int len = Array.getLength(obj);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">                if (index &gt; len) return null;</span>
+<span class="nc" id="L98">                return new ReflectedObject(Array.get(obj,index), type.getComponentType(),&quot;&quot;+index, &quot;&quot;+index);</span>
+                }
+            else
+                {
+<span class="nc" id="L102">                Field[] f = type.getFields();</span>
+<span class="nc" id="L103">                int len = f.length;</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">                if (index &gt; len) return null;</span>
+<span class="nc" id="L105">                return new ReflectedObject(f[index].get(obj), </span>
+<span class="nc bnc" id="L106" title="All 4 branches missed.">                        (f[index].get(obj) == null || f[index].getType().isPrimitive() ? </span>
+<span class="nc" id="L107">                        f[index].getType() : f[index].get(obj).getClass()), </span>
+<span class="nc" id="L108">                    f[index].getName(), f[index]);</span>
+                }
+            }
+<span class="nc" id="L111">        catch (IllegalArgumentException e) { e.printStackTrace(); throw new RuntimeException(&quot;Unexpected Exception: &quot; + e); }</span>
+<span class="nc" id="L112">        catch (IllegalAccessException e) { e.printStackTrace(); throw new RuntimeException(&quot;Unexpected Exception: &quot; + e); }</span>
+        }
+    
+    public ReflectedObject[] getFields()
+        {
+        try
+            {
+<span class="nc bnc" id="L119" title="All 4 branches missed.">            if (obj == null || type.isPrimitive()) return new ReflectedObject[0];</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">            else if (type.isArray())</span>
+                {
+<span class="nc" id="L122">                int len = Array.getLength(obj);</span>
+<span class="nc" id="L123">                ReflectedObject[] ref = new ReflectedObject[len];</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                for(int x = 0; x &lt; len; x++)    </span>
+<span class="nc" id="L125">                    ref[x] = new ReflectedObject(Array.get(obj,x), type.getComponentType(),&quot;&quot;+x,&quot;&quot;+x);</span>
+<span class="nc" id="L126">                return ref;</span>
+                }
+            else
+                {
+<span class="nc" id="L130">                Field[] f = type.getFields();</span>
+<span class="nc" id="L131">                int len = f.length;</span>
+<span class="nc" id="L132">                ReflectedObject[] ref = new ReflectedObject[len];</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                for(int x=0;x&lt;len; x++)</span>
+<span class="nc" id="L134">                    ref[x] = new ReflectedObject(f[x].get(obj), </span>
+<span class="nc bnc" id="L135" title="All 4 branches missed.">                        (f[x].get(obj) == null || f[x].getType().isPrimitive() ? f[x].getType() : f[x].get(obj).getClass()), </span>
+<span class="nc" id="L136">                        f[x].getName(), f[x]);</span>
+<span class="nc" id="L137">                return ref;</span>
+                }
+            }
+<span class="nc" id="L140">        catch (IllegalArgumentException e) { e.printStackTrace(); throw new RuntimeException(&quot;Unexpected Exception: &quot; + e); }</span>
+<span class="nc" id="L141">        catch (IllegalAccessException e) { e.printStackTrace(); throw new RuntimeException(&quot;Unexpected Exception: &quot; + e); }</span>
+        }
+    
+    public boolean equals(Object obj)
+        {
+<span class="nc bnc" id="L146" title="All 2 branches missed.">        if (obj == null) return false;</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (!(obj instanceof ReflectedObject)) return false;</span>
+<span class="nc bnc" id="L148" title="All 4 branches missed.">        if (uniq == null &amp;&amp; ((ReflectedObject)obj).uniq == null) return true;</span>
+<span class="nc bnc" id="L149" title="All 4 branches missed.">        if (uniq == null || ((ReflectedObject)obj).uniq == null) return false;</span>
+<span class="nc" id="L150">        return ((ReflectedObject)obj).uniq.equals(uniq);</span>
+        }
+        
+    // tree model stuff
+<span class="nc" id="L154">    public Object getRoot() { return this; }</span>
+    public Object getChild(Object parent, int index)
+        {
+<span class="nc" id="L157">        return ((ReflectedObject)parent).getChild(index);</span>
+        }
+    public int getChildCount(Object parent)
+        {
+<span class="nc" id="L161">        return ((ReflectedObject)parent).getNumChildren();</span>
+        }
+    // This could get grotesquely expensive!
+    public int getIndexOfChild(Object parent, Object child)
+        {
+<span class="nc" id="L166">        ReflectedObject[] children = ((ReflectedObject)parent).getChildren();</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">            if (children[x].equals(child)) return x;</span>
+<span class="nc" id="L169">        throw new IndexOutOfBoundsException(&quot;No such child &quot; + child + &quot; in parent &quot; + ((ReflectedObject)parent).toString());</span>
+        }
+    public boolean isLeaf(Object parent)
+        {
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        return getChildCount(parent) == 0;</span>
+        }
+    public void valueForPathChanged(TreePath path, Object newValue)
+        {
+        // do nothing
+<span class="nc" id="L178">        }</span>
+    public void addTreeModelListener(TreeModelListener l)
+        {
+        // do nothing
+<span class="nc" id="L182">        }</span>
+    public void removeTreeModelListener(TreeModelListener l)
+        {
+        // do nothing
+<span class="nc" id="L186">        }</span>
+        
+    // Java Bean Properties
+    int getNumProperties()
+        {
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        if (obj==null) return 0;</span>
+<span class="nc" id="L192">        int count = 0;</span>
+        
+        // generate the properties
+        try
+            {
+<span class="nc" id="L197">            Class c = obj.getClass();</span>
+<span class="nc" id="L198">            Method[] m = (c.getMethods());</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">            for(int x = 0 ; x &lt; m.length; x++)</span>
+                {
+<span class="nc bnc" id="L201" title="All 4 branches missed.">                if (m[x].getName().startsWith(&quot;get&quot;) || m[x].getName().startsWith(&quot;is&quot;)) // corrrect syntax?</span>
+                    {
+<span class="nc" id="L203">                    int modifier = m[x].getModifiers();</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                    if (m[x].getParameterTypes().length == 0 &amp;&amp;</span>
+<span class="nc bnc" id="L205" title="All 2 branches missed.">                        Modifier.isPublic(modifier) &amp;&amp;</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">                        m[x].getReturnType() != Void.TYPE) // no arguments, and public, non-void, non-abstract?</span>
+                        {
+<span class="nc" id="L208">                        count++;</span>
+                        }
+                    }
+                }
+            }
+<span class="nc" id="L213">        catch (Exception e)</span>
+            {
+<span class="nc" id="L215">            count = 0;</span>
+<span class="nc" id="L216">            e.printStackTrace();</span>
+<span class="nc" id="L217">            }</span>
+<span class="nc" id="L218">        return count;</span>
+        }
+
+    ReflectedObject getProperty(int index)
+        {
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (obj==null) return null;</span>
+<span class="nc" id="L224">        int count = 0;</span>
+        
+        // generate the properties
+        try
+            {
+<span class="nc" id="L229">            Class c = obj.getClass();</span>
+<span class="nc" id="L230">            Method[] m = (c.getMethods());</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">            for(int x = 0 ; x &lt; m.length; x++)</span>
+                {
+<span class="nc bnc" id="L233" title="All 4 branches missed.">                if (m[x].getName().startsWith(&quot;get&quot;) || m[x].getName().startsWith(&quot;is&quot;)) // corrrect syntax?</span>
+                    {
+<span class="nc" id="L235">                    int modifier = m[x].getModifiers();</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">                    if (m[x].getParameterTypes().length == 0 &amp;&amp;</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">                        Modifier.isPublic(modifier) &amp;&amp;</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">                        m[x].getReturnType() != Void.TYPE) // no arguments, and public, non-void, non-abstract?</span>
+                        {
+<span class="nc bnc" id="L240" title="All 2 branches missed.">                        if (count==index)</span>
+                            {
+<span class="nc" id="L242">                            Object o = null;</span>
+                            try
+                                {
+<span class="nc" id="L245">                                o = m[x].invoke(obj, new Object[0]);</span>
+                                }
+<span class="nc" id="L247">                            catch (InvocationTargetException e)</span>
+                                {
+<span class="nc" id="L249">                                return unknown;</span>
+<span class="nc" id="L250">                                }</span>
+<span class="nc bnc" id="L251" title="All 4 branches missed.">                            return new ReflectedObject(o, o == null || m[x].getReturnType().isPrimitive() ? </span>
+<span class="nc" id="L252">                                m[x].getReturnType() : o.getClass(),</span>
+<span class="nc" id="L253">                                &quot;Property &quot; + m[x].getName(), &quot;Property &quot; + m[x].getName());</span>
+                            }
+<span class="nc" id="L255">                        count++;</span>
+                        }
+                    }
+                }
+            }
+<span class="nc" id="L260">        catch (Exception e)</span>
+            {
+<span class="nc" id="L262">            e.printStackTrace();</span>
+<span class="nc" id="L263">            }</span>
+<span class="nc" id="L264">        return unknown;</span>
+        }
+ 
+    
+    ReflectedObject[] getProperties()
+        {
+<span class="nc bnc" id="L270" title="All 2 branches missed.">        if (obj==null) return new ReflectedObject[0];</span>
+<span class="nc" id="L271">        int len = getNumProperties();</span>
+<span class="nc" id="L272">        int count = 0;</span>
+        
+<span class="nc" id="L274">        ReflectedObject[] refs = new ReflectedObject[len];</span>
+        
+        // generate the properties
+        try
+            {
+<span class="nc" id="L279">            Class c = obj.getClass();</span>
+<span class="nc" id="L280">            Method[] m = (c.getMethods());</span>
+<span class="nc bnc" id="L281" title="All 2 branches missed.">            for(int x = 0 ; x &lt; m.length; x++)</span>
+                {
+<span class="nc bnc" id="L283" title="All 4 branches missed.">                if (m[x].getName().startsWith(&quot;get&quot;) || m[x].getName().startsWith(&quot;is&quot;)) // corrrect syntax?</span>
+                    {
+<span class="nc" id="L285">                    int modifier = m[x].getModifiers();</span>
+<span class="nc bnc" id="L286" title="All 2 branches missed.">                    if (m[x].getParameterTypes().length == 0 &amp;&amp;</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">                        Modifier.isPublic(modifier) &amp;&amp;</span>
+<span class="nc bnc" id="L288" title="All 2 branches missed.">                        m[x].getReturnType() != Void.TYPE) // no arguments, and public, non-void, non-abstract?</span>
+                        {
+<span class="nc" id="L290">                        Object o = null;</span>
+                        try
+                            {
+<span class="nc" id="L293">                            o = m[x].invoke(obj, new Object[0]);</span>
+<span class="nc bnc" id="L294" title="All 4 branches missed.">                            refs[count] = new ReflectedObject(o, o == null || m[x].getReturnType().isPrimitive() ? </span>
+<span class="nc" id="L295">                                m[x].getReturnType() : o.getClass(),</span>
+<span class="nc" id="L296">                                &quot;Property &quot; + m[x].getName(), &quot;Property &quot; + m[x].getName());</span>
+                            }
+<span class="nc" id="L298">                        catch (InvocationTargetException e)</span>
+                            {
+<span class="nc" id="L300">                            refs[count] = unknown;</span>
+<span class="nc" id="L301">                            }</span>
+<span class="nc" id="L302">                        count++;</span>
+                        }
+                    }
+                }
+            }
+<span class="nc" id="L307">        catch (Exception e)</span>
+            {
+<span class="nc" id="L309">            e.printStackTrace();</span>
+<span class="nc" id="L310">            }</span>
+<span class="nc" id="L311">        return refs;</span>
+        }
+          
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

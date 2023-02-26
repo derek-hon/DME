@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPInitializer.java</span></div><h1>GPInitializer.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import java.util.Enumeration;
+import java.util.Hashtable;
+
+import ec.simple.SimpleInitializer;
+import ec.util.Parameter;
+import ec.EvolutionState;
+
+/* 
+ * GPInitializer.java
+ * 
+ * Created: Tue Oct  5 18:40:02 1999
+ * By: Sean Luke
+ */
+
+/**
+ * GPInitializer is a SimpleInitializer which sets up all the Cliques,
+ * ( the initial
+ * [tree/node]constraints, types, and function sets) for the GP system.
+ * 
+ * &lt;p&gt;Note that the Cliques must be set up in a very particular order:
+
+ &lt;ol&gt;&lt;li&gt;GPType&lt;/li&gt;&lt;li&gt;GPNodeConstraints&lt;/li&gt;&lt;li&gt;GPFunctionSets&lt;/li&gt;&lt;li&gt;GPTreeConstraints&lt;/li&gt;&lt;/ol&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;gp.type&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;GPTypes&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;gp.nc&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;GPNodeConstraints&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;gp.tc&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;GPTreeConstraints&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;gp.fs&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;GPFunctionSets&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L49">public class GPInitializer extends SimpleInitializer </span>
+    {
+    private static final long serialVersionUID = 1;
+
+    // used just here, so far as I know :-)
+    public static final int SIZE_OF_BYTE = 256;
+    public final static String P_TYPE = &quot;type&quot;;
+    public final static String P_NODECONSTRAINTS = &quot;nc&quot;;
+    public final static String P_TREECONSTRAINTS = &quot;tc&quot;;
+    public final static String P_FUNCTIONSETS = &quot;fs&quot;;
+    public final static String P_SIZE = &quot;size&quot;;
+    public final static String P_ATOMIC = &quot;a&quot;;
+    public final static String P_SET = &quot;s&quot;;
+    
+    /**
+     * TODO Comment these members.
+     * TODO Make clients of these members more efficient by reducing unnecessary casting.
+     */
+    public Hashtable typeRepository;
+    public GPType[] types;
+    public int numAtomicTypes;
+    public int numSetTypes;
+    
+    public Hashtable nodeConstraintRepository;
+    public GPNodeConstraints[] nodeConstraints;
+    public byte numNodeConstraints;
+    
+    public Hashtable functionSetRepository;
+
+    public Hashtable treeConstraintRepository;
+    public GPTreeConstraints[] treeConstraints;
+    public byte numTreeConstraints;
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L84">        super.setup(state,base);</span>
+
+        /**
+         * TODO Move setup methods to the corresponding GP type.
+         */
+        // This is a good place to set up the types.  We use our own base off the
+        // default GP base.  This MUST be done before loading constraints.
+<span class="nc" id="L91">        setupTypes(state,GPDefaults.base().push(P_TYPE));</span>
+
+        // Now let's load our constraints and function sets also.
+        // This is done in a very specific order, don't change it or things
+        // will break.
+<span class="nc" id="L96">        setupNodeConstraints(</span>
+<span class="nc" id="L97">            state,GPDefaults.base().push(P_NODECONSTRAINTS));</span>
+<span class="nc" id="L98">        setupFunctionSets(</span>
+<span class="nc" id="L99">            state,GPDefaults.base().push(P_FUNCTIONSETS));</span>
+<span class="nc" id="L100">        setupTreeConstraints(</span>
+<span class="nc" id="L101">            state,GPDefaults.base().push(P_TREECONSTRAINTS));</span>
+<span class="nc" id="L102">        }</span>
+
+    /** Sets up all the types, loading them from the parameter file.  This
+        must be called before anything is called which refers to a type by
+        name. */
+
+    public void setupTypes(final EvolutionState state,
+        final Parameter base)
+        {
+<span class="nc" id="L111">        state.output.message(&quot;Processing GP Types&quot;);</span>
+        
+<span class="nc" id="L113">        typeRepository = new Hashtable();</span>
+<span class="nc" id="L114">        numAtomicTypes = numSetTypes = 0;</span>
+        
+        // How many atomic types do we have?
+<span class="nc" id="L117">        int x = state.parameters.getInt(base.push(P_ATOMIC).push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        if (x&lt;=0) </span>
+<span class="nc" id="L119">            state.output.fatal(&quot;The number of GP atomic types must be at least 1.&quot;,base.push(P_ATOMIC).push(P_SIZE));</span>
+        
+        // Load our atomic types
+        
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        for(int y=0;y&lt;x;y++)</span>
+<span class="nc" id="L124">            new GPAtomicType().setup(state,base.push(P_ATOMIC).push(&quot;&quot;+y));</span>
+        
+        // How many set types do we have?
+<span class="nc bnc" id="L127" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_SET).push(P_SIZE), null))</span>
+            {
+<span class="nc" id="L129">            x =  state.parameters.getInt(base.push(P_SET).push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            if (x&lt;0) </span>
+<span class="nc" id="L131">                state.output.fatal(&quot;The number of GP set types must be at least 0.&quot;,base.push(P_SET).push(P_SIZE));</span>
+            }
+        else // no set types
+<span class="nc" id="L134">            x = 0;</span>
+        
+        // Load our set types
+        
+<span class="nc bnc" id="L138" title="All 2 branches missed.">        for(int y=0;y&lt;x;y++)</span>
+<span class="nc" id="L139">            new GPSetType().setup(state,base.push(P_SET).push(&quot;&quot;+y));</span>
+        
+        // Postprocess the types
+<span class="nc" id="L142">        postProcessTypes();</span>
+<span class="nc" id="L143">        }</span>
+    
+    /** Assigns unique integers to each atomic type, and sets up compatibility
+        arrays for set types.  If you add new types (heaven forbid), you
+        should call this method again to get all the types set up properly. 
+        However, you will have to set up the function sets again as well,
+        as their arrays are based on these type numbers. */
+    public void postProcessTypes()
+        {
+        // assign positive integers and 0 to atomic types
+<span class="nc" id="L153">        int x = 0;</span>
+<span class="nc" id="L154">        Enumeration e = typeRepository.elements();</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L157">            GPType t = (GPType)(e.nextElement());</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">            if (t instanceof GPAtomicType)</span>
+<span class="nc" id="L159">                { t.type = x; x++; }</span>
+<span class="nc" id="L160">            }</span>
+        
+        // at this point, x holds the number of atomic types.
+<span class="nc" id="L163">        numAtomicTypes = x;</span>
+        
+        // assign additional positive integers to set types
+        // and set up arrays for the set types
+<span class="nc" id="L167">        e = typeRepository.elements();</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L170">            GPType t = (GPType)(e.nextElement());</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">            if (t instanceof GPSetType)</span>
+                {
+<span class="nc" id="L173">                ((GPSetType)t).postProcessSetType(numAtomicTypes);</span>
+<span class="nc" id="L174">                t.type = x; x++;</span>
+                }
+<span class="nc" id="L176">            }</span>
+        
+        // at this point, x holds the number of set types + atomic types
+<span class="nc" id="L179">        numSetTypes = x - numAtomicTypes;</span>
+        
+        // make an array for convenience.  Presently rarely used.
+<span class="nc" id="L182">        types = new GPType[numSetTypes + numAtomicTypes];</span>
+<span class="nc" id="L183">        e = typeRepository.elements();</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L186">            GPType t = (GPType)(e.nextElement());</span>
+<span class="nc" id="L187">            types[t.type] = t;</span>
+<span class="nc" id="L188">            }</span>
+<span class="nc" id="L189">        }</span>
+    
+    
+    /** Sets up all the GPNodeConstraints, loading them from the parameter
+        file.  This must be called before anything is called which refers
+        to a type by name. */
+    
+    public void setupNodeConstraints(
+        final EvolutionState state,
+        final Parameter base)
+        {
+<span class="nc" id="L200">        state.output.message(&quot;Processing GP Node Constraints&quot;);</span>
+        
+<span class="nc" id="L202">        nodeConstraintRepository = new Hashtable();</span>
+<span class="nc" id="L203">        nodeConstraints = new GPNodeConstraints[SIZE_OF_BYTE];</span>
+<span class="nc" id="L204">        numNodeConstraints = 0;</span>
+        
+        // How many GPNodeConstraints do we have?
+<span class="nc" id="L207">        int x = state.parameters.getInt(base.push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">        if (x&lt;=0) </span>
+<span class="nc" id="L209">            state.output.fatal(&quot;The number of GP node constraints must be at least 1.&quot;,</span>
+<span class="nc" id="L210">                base.push(P_SIZE));</span>
+        
+        // Load our constraints
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        for (int y=0;y&lt;x;y++)</span>
+            {
+            GPNodeConstraints c;
+            // Figure the constraint class
+<span class="nc bnc" id="L217" title="All 2 branches missed.">            if (state.parameters.exists(base.push(&quot;&quot;+y), null))</span>
+<span class="nc" id="L218">                c = (GPNodeConstraints)(state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L219">                        base.push(&quot;&quot;+y),null,GPNodeConstraints.class));</span>
+            else
+                {
+<span class="nc" id="L222">                state.output.message(&quot;No GP Node Constraints specified, assuming the default class: ec.gp.GPNodeConstraints for &quot; +  base.push(&quot;&quot;+y));</span>
+<span class="nc" id="L223">                c = new GPNodeConstraints();</span>
+                }
+<span class="nc" id="L225">            c.setup(state,base.push(&quot;&quot;+y));</span>
+            }
+        
+        // set our constraints array up
+<span class="nc" id="L229">        Enumeration e = nodeConstraintRepository.elements();</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L232">            GPNodeConstraints c = (GPNodeConstraints)(e.nextElement());</span>
+<span class="nc" id="L233">            c.constraintNumber = numNodeConstraints;</span>
+<span class="nc" id="L234">            nodeConstraints[numNodeConstraints] = c;</span>
+<span class="nc" id="L235">            numNodeConstraints++;</span>
+<span class="nc" id="L236">            }</span>
+<span class="nc" id="L237">        }</span>
+    
+    
+    public void setupFunctionSets(final EvolutionState state,
+        final Parameter base)
+        {
+<span class="nc" id="L243">        state.output.message(&quot;Processing GP Function Sets&quot;);</span>
+        
+<span class="nc" id="L245">        functionSetRepository = new Hashtable();</span>
+        // How many GPFunctionSets do we have?
+<span class="nc" id="L247">        int x = state.parameters.getInt(base.push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (x&lt;=0) </span>
+<span class="nc" id="L249">            state.output.fatal(&quot;The number of GPFunctionSets must be at least 1.&quot;,base.push(P_SIZE));</span>
+        
+        // Load our FunctionSet
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        for (int y=0;y&lt;x;y++)</span>
+            {
+            GPFunctionSet c;
+            // Figure the GPFunctionSet class
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            if (state.parameters.exists(base.push(&quot;&quot;+y), null))</span>
+<span class="nc" id="L257">                c = (GPFunctionSet)(state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L258">                        base.push(&quot;&quot;+y),null,GPFunctionSet.class));</span>
+            else
+                {
+<span class="nc" id="L261">                state.output.message(&quot;No GPFunctionSet specified, assuming the default class: ec.gp.GPFunctionSet for &quot; + base.push(&quot;&quot;+y));</span>
+<span class="nc" id="L262">                c = new GPFunctionSet();</span>
+                }
+<span class="nc" id="L264">            c.setup(state,base.push(&quot;&quot;+y));</span>
+            }
+<span class="nc" id="L266">        }</span>
+        
+
+    /** Sets up all the GPTreeConstraints, loading them from the parameter
+        file.  This must be called before anything is called which refers
+        to a type by name. */
+        
+    public void setupTreeConstraints(
+        final EvolutionState state,
+        final Parameter base)
+        {
+<span class="nc" id="L277">        state.output.message(&quot;Processing GP Tree Constraints&quot;);</span>
+            
+<span class="nc" id="L279">        treeConstraintRepository = new Hashtable();</span>
+<span class="nc" id="L280">        treeConstraints = new GPTreeConstraints[SIZE_OF_BYTE];</span>
+<span class="nc" id="L281">        numTreeConstraints = 0;</span>
+        // How many GPTreeConstraints do we have?
+<span class="nc" id="L283">        int x = state.parameters.getInt(base.push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L284" title="All 2 branches missed.">        if (x&lt;=0) </span>
+<span class="nc" id="L285">            state.output.fatal(&quot;The number of GP tree constraints must be at least 1.&quot;,base.push(P_SIZE));</span>
+            
+        // Load our constraints
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        for (int y=0;y&lt;x;y++)</span>
+            {
+            GPTreeConstraints c;
+            // Figure the constraint class
+<span class="nc bnc" id="L292" title="All 2 branches missed.">            if (state.parameters.exists(base.push(&quot;&quot;+y), null))</span>
+<span class="nc" id="L293">                c = (GPTreeConstraints)(state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L294">                        base.push(&quot;&quot;+y),null,GPTreeConstraints.class));</span>
+            else
+                {
+<span class="nc" id="L297">                state.output.message(&quot;No GP Tree Constraints specified, assuming the default class: ec.gp.GPTreeConstraints for &quot; + base.push(&quot;&quot;+y));</span>
+<span class="nc" id="L298">                c = new GPTreeConstraints();</span>
+                }
+<span class="nc" id="L300">            c.setup(state,base.push(&quot;&quot;+y));</span>
+            }
+            
+        // set our constraints array up
+<span class="nc" id="L304">        Enumeration e = treeConstraintRepository.elements();</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L307">            GPTreeConstraints c = (GPTreeConstraints)(e.nextElement());</span>
+<span class="nc" id="L308">            c.constraintNumber = numTreeConstraints;</span>
+<span class="nc" id="L309">            treeConstraints[numTreeConstraints] = c;</span>
+<span class="nc" id="L310">            numTreeConstraints++;</span>
+<span class="nc" id="L311">            }</span>
+<span class="nc" id="L312">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

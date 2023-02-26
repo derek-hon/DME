@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KozaBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.koza</a> &gt; <span class="el_source">KozaBuilder.java</span></div><h1>KozaBuilder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.koza;
+import ec.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * KozaBuilder.java
+ * 
+ * Created: Sun Oct 29 22:35:34 EST 2006
+ * By: Sean Luke
+ */
+
+/*
+  KozaBuilder is an abstract superclass of three tree builders: GROW, FULL, and RAMPED HALF-AND-HALF,
+  all described in I/II.  As all three classes specify a minimum and maximum depth, these instance
+  variables and setup methods appear here; but they are described in detail in the relevant subclasses
+  (GrowBuilder, HalfBuilder, and FullBuilder).
+
+  &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+  &lt;table&gt;
+  &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-depth&lt;/tt&gt;&lt;br&gt;
+  &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+  &lt;td valign=top&gt;(smallest &quot;maximum&quot; depth the builder may use for building a tree.  2 is the default.)&lt;/td&gt;&lt;/tr&gt;
+
+  &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-depth&lt;/tt&gt;&lt;br&gt;
+  &lt;font size=-1&gt;int &amp;gt;= &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-depth&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+  &lt;td valign=top&gt;(largest &quot;maximum&quot; depth the builder may use for building a tree. 6 is the default.)&lt;/td&gt;&lt;/tr&gt;
+  &lt;/table&gt;
+
+  @author Sean Luke
+  @version 1.0 
+*/
+
+<span class="nc" id="L41">public abstract class KozaBuilder extends GPNodeBuilder</span>
+    {
+    public static final String P_MAXDEPTH = &quot;max-depth&quot;;
+    public static final String P_MINDEPTH = &quot;min-depth&quot;;
+
+    /** The largest maximum tree depth RAMPED HALF-AND-HALF can specify. */
+    public int maxDepth;
+
+    /** The smallest maximum tree depth RAMPED HALF-AND-HALF can specify. */
+    public int minDepth;
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L54">        super.setup(state,base);</span>
+
+<span class="nc" id="L56">        Parameter def = defaultBase();</span>
+
+        // load maxdepth and mindepth, check that maxdepth&gt;0, mindepth&gt;0, maxdepth&gt;=mindepth
+<span class="nc" id="L59">        maxDepth = state.parameters.getInt(base.push(P_MAXDEPTH),def.push(P_MAXDEPTH),1);</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (maxDepth&lt;=0)</span>
+<span class="nc" id="L61">            state.output.fatal(&quot;The Max Depth for a KozaBuilder must be at least 1.&quot;,</span>
+<span class="nc" id="L62">                base.push(P_MAXDEPTH),def.push(P_MAXDEPTH));</span>
+                        
+<span class="nc" id="L64">        minDepth = state.parameters.getInt(base.push(P_MINDEPTH),def.push(P_MINDEPTH),1);</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (minDepth&lt;=0)</span>
+<span class="nc" id="L66">            state.output.fatal(&quot;The Min Depth for a KozaBuilder must be at least 1.&quot;,</span>
+<span class="nc" id="L67">                base.push(P_MINDEPTH),def.push(P_MINDEPTH));</span>
+
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if (maxDepth&lt;minDepth)</span>
+<span class="nc" id="L70">            state.output.fatal(&quot;Max Depth must be &gt;= Min Depth for a KozaBuilder&quot;,</span>
+<span class="nc" id="L71">                base.push(P_MAXDEPTH),def.push(P_MAXDEPTH));</span>
+<span class="nc" id="L72">        }</span>
+                
+    /** A private recursive method which builds a FULL-style tree for newRootedTree(...) */
+    protected GPNode fullNode(final EvolutionState state,
+        final int current,
+        final int max,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final int argposition,
+        final GPFunctionSet set) 
+        {
+        // fullNode can mess up if there are no available terminals for a given type.  If this occurs,
+        // and we find ourselves unable to pick a terminal when we want to do so, we will issue a warning,
+        // and pick a nonterminal, violating the &quot;FULL&quot; contract.  This can lead to pathological situations
+        // where the system will continue to go on and on unable to stop because it can't pick a terminal,
+        // resulting in running out of memory or some such.  But there are cases where we'd want to let
+        // this work itself out.
+<span class="nc" id="L90">        boolean triedTerminals = false;   // did we try -- and fail -- to fetch a terminal?</span>
+        
+<span class="nc" id="L92">        int t = type.type;</span>
+<span class="nc" id="L93">        GPNode[] terminals = set.terminals[t];</span>
+<span class="nc" id="L94">        GPNode[] nonterminals = set.nonterminals[t];</span>
+<span class="nc" id="L95">        GPNode[] nodes = set.nodes[t];          </span>
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (nodes.length == 0)</span>
+<span class="nc" id="L98">            errorAboutNoNodeWithType(type, state);   // total failure</span>
+
+        // pick a terminal when we're at max depth or if there are NO nonterminals
+<span class="nc bnc" id="L101" title="All 4 branches missed.">        if ((  current+1 &gt;= max ||                                                      // Now pick if we're at max depth</span>
+<span class="nc bnc" id="L102" title="All 6 branches missed.">                warnAboutNonterminal(nonterminals.length==0, type, false, state)) &amp;&amp;     // OR if there are NO nonterminals!</span>
+            // this will freak out the static checkers
+            (triedTerminals = true) &amp;&amp;                                                  // [first set triedTerminals]
+            terminals.length != 0)                                                      // AND if there are available terminals
+            {
+<span class="nc" id="L107">            GPNode n = (GPNode)(terminals[state.random[thread].nextInt(terminals.length)].lightClone());</span>
+<span class="nc" id="L108">            n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L109">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L110">            n.parent = parent;</span>
+<span class="nc" id="L111">            return n;</span>
+            }
+                        
+        // else force a nonterminal unless we have no choice
+        else
+            {
+<span class="nc bnc" id="L117" title="All 2 branches missed.">            if (triedTerminals) warnAboutNoTerminalWithType(type, false, state);        // we tried terminals and we're here because there were none!</span>
+                                
+<span class="nc" id="L119">            GPNode[] nodesToPick = set.nonterminals[type.type];</span>
+<span class="nc bnc" id="L120" title="All 4 branches missed.">            if (nodesToPick==null || nodesToPick.length ==0)                            // no nonterminals, hope the guy knows what he's doing!</span>
+<span class="nc" id="L121">                nodesToPick = set.terminals[type.type];                                 // this can only happen with the warning about nonterminals above</span>
+
+<span class="nc" id="L123">            GPNode n = (GPNode)(nodesToPick[state.random[thread].nextInt(nodesToPick.length)].lightClone());</span>
+<span class="nc" id="L124">            n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L125">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L126">            n.parent = parent;</span>
+
+            // Populate the node...
+<span class="nc" id="L129">            GPType[] childtypes = n.constraints(((GPInitializer)state.initializer)).childtypes;</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            for(int x=0;x&lt;childtypes.length;x++)</span>
+<span class="nc" id="L131">                n.children[x] = fullNode(state,current+1,max,childtypes[x],thread,n,x,set);</span>
+
+<span class="nc" id="L133">            return n;</span>
+            }
+        }
+
+    /** A private function which recursively returns a GROW tree to newRootedTree(...) */
+    protected GPNode growNode(final EvolutionState state,
+        final int current,
+        final int max,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final int argposition,
+        final GPFunctionSet set) 
+        {
+        // growNode can mess up if there are no available terminals for a given type.  If this occurs,
+        // and we find ourselves unable to pick a terminal when we want to do so, we will issue a warning,
+        // and pick a nonterminal, violating the maximum-depth contract.  This can lead to pathological situations
+        // where the system will continue to go on and on unable to stop because it can't pick a terminal,
+        // resulting in running out of memory or some such.  But there are cases where we'd want to let
+        // this work itself out.
+<span class="nc" id="L153">        boolean triedTerminals = false;</span>
+
+<span class="nc" id="L155">        int t = type.type;</span>
+<span class="nc" id="L156">        GPNode[] terminals = set.terminals[t];</span>
+        // GPNode[] nonterminals = set.nonterminals[t];
+<span class="nc" id="L158">        GPNode[] nodes = set.nodes[t];          </span>
+
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        if (nodes.length == 0)</span>
+<span class="nc" id="L161">            errorAboutNoNodeWithType(type, state);   // total failure</span>
+
+        // pick a terminal when we're at max depth or if there are NO nonterminals
+<span class="nc bnc" id="L164" title="All 6 branches missed.">        if ((current+1 &gt;= max) &amp;&amp;                                                       // Now pick if we're at max depth</span>
+            // this will freak out the static checkers
+            (triedTerminals = true) &amp;&amp;                                                  // [first set triedTerminals]
+            terminals.length != 0)                                                      // AND if there are available terminals
+            {
+<span class="nc" id="L169">            GPNode n = (GPNode)(terminals[state.random[thread].nextInt(terminals.length)].lightClone());</span>
+<span class="nc" id="L170">            n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L171">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L172">            n.parent = parent;</span>
+<span class="nc" id="L173">            return n;</span>
+            }
+                        
+        // else pick a random node
+        else
+            {
+<span class="nc bnc" id="L179" title="All 2 branches missed.">            if (triedTerminals) warnAboutNoTerminalWithType(type, false, state);        // we tried terminals and we're here because there were none!</span>
+
+<span class="nc" id="L181">            GPNode n = (GPNode)(nodes[state.random[thread].nextInt(nodes.length)].lightClone());</span>
+<span class="nc" id="L182">            n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L183">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L184">            n.parent = parent;</span>
+
+            // Populate the node...
+<span class="nc" id="L187">            GPType[] childtypes = n.constraints(((GPInitializer)state.initializer)).childtypes;</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">            for(int x=0;x&lt;childtypes.length;x++)</span>
+<span class="nc" id="L189">                n.children[x] = growNode(state,current+1,max,childtypes[x],thread,n,x,set);</span>
+
+<span class="nc" id="L191">            return n;</span>
+            }
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

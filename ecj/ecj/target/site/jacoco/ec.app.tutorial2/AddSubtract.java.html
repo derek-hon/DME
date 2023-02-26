@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AddSubtract.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.tutorial2</a> &gt; <span class="el_source">AddSubtract.java</span></div><h1>AddSubtract.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.tutorial2;
+import ec.*;
+import ec.simple.*;
+import ec.vector.*;
+
+<span class="nc" id="L13">public class AddSubtract extends Problem implements SimpleProblemForm</span>
+    {
+    public void evaluate(final EvolutionState state,
+        final Individual ind,
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L20" title="All 2 branches missed.">        if (ind.evaluated) return;</span>
+
+<span class="nc bnc" id="L22" title="All 2 branches missed.">        if (!(ind instanceof IntegerVectorIndividual))</span>
+<span class="nc" id="L23">            state.output.fatal(&quot;Whoa!  It's not a IntegerVectorIndividual!!!&quot;,null);</span>
+        
+<span class="nc" id="L25">        IntegerVectorIndividual ind2 = (IntegerVectorIndividual)ind;</span>
+        
+<span class="nc" id="L27">        int rawfitness = 0;</span>
+<span class="nc bnc" id="L28" title="All 2 branches missed.">        for(int x=0; x&lt;ind2.genome.length; x++)</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">            if (x % 2 == 0) rawfitness += ind2.genome[x];</span>
+<span class="nc" id="L30">            else rawfitness -= ind2.genome[x];</span>
+        
+        // We finish by taking the ABS of rawfitness.  By the way,
+        // in SimpleFitness, fitness values must be set up so that 0 is &lt;= the worst
+        // fitness and +infinity is &gt;= the ideal possible fitness.  Our raw fitness
+        // value here satisfies this. 
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (rawfitness &lt; 0) rawfitness = -rawfitness;</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        if (!(ind2.fitness instanceof SimpleFitness))</span>
+<span class="nc" id="L38">            state.output.fatal(&quot;Whoa!  It's not a SimpleFitness!!!&quot;,null);</span>
+<span class="nc" id="L39">        ((SimpleFitness)ind2.fitness).setFitness(state,</span>
+            // what the heck, lets normalize the fitness for genome length
+            rawfitness/(double)ind2.genome.length,
+            ///... is the individual ideal?  Indicate here...
+            false);
+<span class="nc" id="L44">        ind2.evaluated = true;</span>
+<span class="nc" id="L45">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RuleCrossoverPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.rule.breed</a> &gt; <span class="el_source">RuleCrossoverPipeline.java</span></div><h1>RuleCrossoverPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.rule.breed;
+
+import ec.rule.*;
+import ec.*;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+
+/* 
+ * RuleCrossoverPipeline.java
+ * 
+ * Created: Tue Mar 13 15:03:12 EST 2001
+ * By: Sean Luke
+ */
+
+
+/**
+ *
+ RuleCrossoverPipeline is a BreedingPipeline which implements a simple default crossover
+ for RuleIndividuals.  Normally it takes two individuals and returns two crossed-over 
+ child individuals.  Optionally, it can take two individuals, cross them over, but throw
+ away the second child (a one-child crossover).  RuleCrossoverPipeline works by iteratively taking rulesets
+ from each individual, and migrating rules from either to the other with a certain
+ per-rule probability.  Rule crossover preserves the min and max rule restrictions.
+  
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ 1 or 2
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 2
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;toss&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;/td&gt;
+ &lt;td valign=top&gt;(after crossing over with the first new individual, should its second sibling individual be thrown away instead of adding it to the population?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;prob&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt; 1.0, or 0.5 (default)&lt;/font&gt;/td&gt;
+ &lt;td valign=top&gt;(probability that a rule will cross over from one individual to the other)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ rule.xover
+
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+public class RuleCrossoverPipeline extends BreedingPipeline
+    {
+    public static final String P_TOSS = &quot;toss&quot;;
+    public static final String P_CROSSOVER = &quot;xover&quot;;
+    public static final String P_CROSSOVERPROB = &quot;crossover-prob&quot;;
+    public static final int INDS_PRODUCED = 2;
+    public static final int NUM_SOURCES = 2;
+    public static final String KEY_PARENTS = &quot;parents&quot;;
+
+    /** Should the pipeline discard the second parent after crossing over? */
+    public boolean tossSecondParent;
+    
+    /** What is the probability of a rule migrating? */
+    public double ruleCrossProbability;
+
+    /** Temporary holding place for parents */
+    ArrayList&lt;Individual&gt; parents;
+
+    public RuleCrossoverPipeline() 
+<span class="nc" id="L77">        {</span>
+        // by Ermo. get rid of asList
+        //parents = new ArrayList&lt;Individual&gt;(Arrays.asList(new RuleIndividual[2]));
+<span class="nc" id="L80">        parents = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L81">        }</span>
+<span class="nc" id="L82">    public Parameter defaultBase() { return RuleDefaults.base().push(P_CROSSOVER); }</span>
+
+    /** Returns 2 */
+<span class="nc" id="L85">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public Object clone()
+        {
+<span class="nc" id="L89">        RuleCrossoverPipeline c = (RuleCrossoverPipeline)(super.clone());</span>
+
+        // deep-cloned stuff
+<span class="nc" id="L92">        c.parents = new ArrayList&lt;Individual&gt;(parents);</span>
+
+<span class="nc" id="L94">        return c;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L99">        super.setup(state,base);</span>
+<span class="nc" id="L100">        Parameter def = defaultBase();</span>
+<span class="nc" id="L101">        tossSecondParent = state.parameters.getBoolean(base.push(P_TOSS),</span>
+<span class="nc" id="L102">            def.push(P_TOSS),false);</span>
+<span class="nc" id="L103">        ruleCrossProbability = state.parameters.getDoubleWithDefault(base.push(P_CROSSOVERPROB),</span>
+<span class="nc" id="L104">            def.push(P_CROSSOVERPROB),0.5f);</span>
+<span class="nc bnc" id="L105" title="All 4 branches missed.">        if (ruleCrossProbability &gt; 1.0 || ruleCrossProbability &lt; 0.0) </span>
+<span class="nc" id="L106">            state.output.fatal(&quot;Rule cross probability must be between 0 and 1&quot;,base.push(P_CROSSOVERPROB),</span>
+<span class="nc" id="L107">                def.push(P_CROSSOVERPROB));</span>
+<span class="nc" id="L108">        }</span>
+        
+    /** Returns 2 (unless tossing the second sibling, in which case it returns 1) */
+<span class="nc bnc" id="L111" title="All 2 branches missed.">    public int typicalIndsProduced() { return (tossSecondParent? 1: INDS_PRODUCED); }</span>
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+
+        {
+<span class="nc" id="L121">        int start = inds.size();</span>
+        
+        // how many individuals should we make?
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        int n = (tossSecondParent? 1 : INDS_PRODUCED);</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (n &lt; min) n = min;</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (n &gt; max) n = max;</span>
+
+        // should we bother?
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+            // just load from source 0 and clone 'em
+<span class="nc" id="L132">            sources[0].produce(n,n,subpopulation,inds, state,thread,misc);</span>
+<span class="nc" id="L133">            return n;</span>
+            }
+
+
+<span class="nc" id="L137">        IntBag[] parentparents = null;</span>
+<span class="nc" id="L138">        IntBag[] preserveParents = null;</span>
+<span class="nc bnc" id="L139" title="All 4 branches missed.">        if (misc!=null &amp;&amp; misc.get(KEY_PARENTS) != null)</span>
+            {
+<span class="nc" id="L141">            preserveParents = (IntBag[])misc.get(KEY_PARENTS);</span>
+<span class="nc" id="L142">            parentparents = new IntBag[2];</span>
+<span class="nc" id="L143">            misc.put(KEY_PARENTS, parentparents);</span>
+            }
+
+<span class="nc" id="L146">        RuleInitializer initializer = ((RuleInitializer)state.initializer);</span>
+    
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        for(int q=start;q&lt;n+start; /* no increment */)  // keep on going until we're filled up</span>
+            {
+<span class="nc" id="L150">            parents.clear();</span>
+            
+            // grab two individuals from our sources
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            if (sources[0]==sources[1])  // grab from the same source</span>
+                {
+<span class="nc" id="L155">                sources[0].produce(2,2,subpopulation, parents, state,thread, misc);</span>
+                }
+            else // grab from different sources
+                {
+<span class="nc" id="L159">                sources[0].produce(1,1,subpopulation, parents, state,thread, misc);</span>
+<span class="nc" id="L160">                sources[1].produce(1,1,subpopulation, parents, state,thread, misc);</span>
+                }
+
+            // at this point, parents[] contains our two selected individuals,
+            // AND they're copied so we own them and can make whatever modifications
+            // we like on them.
+
+            // so we'll cross them over now.
+
+<span class="nc" id="L169">            ((RuleIndividual) parents.get(0)).preprocessIndividual(state,thread);</span>
+<span class="nc" id="L170">            ((RuleIndividual) parents.get(1)).preprocessIndividual(state,thread);</span>
+
+<span class="nc bnc" id="L172" title="All 2 branches missed.">            if( ((RuleIndividual) parents.get(0)).rulesets.length != ((RuleIndividual) parents.get(1)).rulesets.length )</span>
+                {
+<span class="nc" id="L174">                state.output.fatal( &quot;The number of rule sets should be identical in both parents ( &quot; +</span>
+<span class="nc" id="L175">                    ((RuleIndividual) parents.get(0)).rulesets.length + &quot; : &quot; +</span>
+<span class="nc" id="L176">                    ((RuleIndividual) parents.get(1)).rulesets.length + &quot; ).&quot; );</span>
+                }
+
+            // for each set of rules (assume both individuals have the same number of rule sets)
+<span class="nc bnc" id="L180" title="All 2 branches missed.">            for(int x = 0; x &lt; ((RuleIndividual) parents.get(0)).rulesets.length ; x++ )</span>
+                {
+<span class="nc" id="L182">                RuleSet[] temp = new RuleSet[2];</span>
+                while(true)
+                    {
+                    // create two new rulesets (initially empty)
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; 2 ; i++ )</span>
+<span class="nc" id="L187">                        temp[i] = new RuleSet();</span>
+                    // split the ruleset indexed x in parent 1
+<span class="nc" id="L189">                    temp = ((RuleIndividual) parents.get(0)).rulesets[x].splitIntoTwo( state, thread, temp,ruleCrossProbability);</span>
+                    // now temp[0] contains rules to that must go to parent[1]
+                                        
+                    // split the ruleset indexed x in parent 2 (append after the split results from previous operation)
+<span class="nc" id="L193">                    temp = ((RuleIndividual) parents.get(1)).rulesets[x].splitIntoTwo( state, thread, temp, 1 - ruleCrossProbability);</span>
+                    // now temp[1] contains rules that must go to parent[0]
+                    
+                    // ensure that there are enough rules
+<span class="nc bnc" id="L197" title="All 2 branches missed.">                    if (temp[0].numRules &gt;= ((RuleIndividual) parents.get(0)).rulesets[x].constraints(initializer).minSize &amp;&amp;</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">                        temp[0].numRules &lt;= ((RuleIndividual) parents.get(0)).rulesets[x].constraints(initializer).maxSize &amp;&amp;</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                        temp[1].numRules &gt;= ((RuleIndividual) parents.get(1)).rulesets[x].constraints(initializer).minSize &amp;&amp;</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">                        temp[1].numRules &lt;= ((RuleIndividual) parents.get(1)).rulesets[x].constraints(initializer).maxSize)</span>
+<span class="nc" id="L201">                        break;</span>
+                        
+<span class="nc" id="L203">                    temp = new RuleSet[2];</span>
+                    }
+                    
+                // copy the results in the rulesets of the parents
+<span class="nc" id="L207">                ((RuleIndividual) parents.get(0)).rulesets[x].copyNoClone(temp[1]);</span>
+<span class="nc" id="L208">                ((RuleIndividual) parents.get(1)).rulesets[x].copyNoClone(temp[0]);</span>
+                }
+            
+<span class="nc" id="L211">            ((RuleIndividual) parents.get(0)).postprocessIndividual(state,thread);</span>
+<span class="nc" id="L212">            ((RuleIndividual) parents.get(1)).postprocessIndividual(state,thread);</span>
+    
+<span class="nc" id="L214">            ((RuleIndividual) parents.get(0)).evaluated=false;</span>
+<span class="nc" id="L215">            ((RuleIndividual) parents.get(1)).evaluated=false;</span>
+            
+            // add 'em to the population
+            // by Ermo. This is use add instead of set as inds could be empty
+            // Yes -- Sean
+<span class="nc" id="L220">            inds.add(parents.get(0));</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">            if (preserveParents != null)</span>
+                {
+<span class="nc" id="L223">                parentparents[0].addAll(parentparents[1]);</span>
+<span class="nc" id="L224">                preserveParents[q] = parentparents[0];</span>
+                }
+<span class="nc" id="L226">            q++;</span>
+<span class="nc bnc" id="L227" title="All 4 branches missed.">            if (q&lt;n+start &amp;&amp; !tossSecondParent)</span>
+                {
+                // by Ermo. same reason, see comments above
+<span class="nc" id="L230">                inds.add(parents.get(1));</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                if (preserveParents != null)</span>
+                    {
+<span class="nc" id="L233">                    parentparents[0].addAll(parentparents[1]);</span>
+<span class="nc" id="L234">                    preserveParents[q] = parentparents[0];</span>
+                    }
+<span class="nc" id="L236">                q++;</span>
+                }
+            }
+<span class="nc" id="L239">        return n;</span>
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

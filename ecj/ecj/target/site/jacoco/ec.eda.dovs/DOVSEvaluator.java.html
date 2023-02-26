@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DOVSEvaluator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.dovs</a> &gt; <span class="el_source">DOVSEvaluator.java</span></div><h1>DOVSEvaluator.java</h1><pre class="source lang-java linenums">package ec.eda.dovs;
+
+import java.util.*;
+import ec.*;
+import ec.simple.*;
+
+/**
+ * The DOVSEvaluator is a SimpleEvaluator to evaluate the Individual. Due to
+ * the stochastic property of the problem. An individual may not to be evaluate
+ * several times so that we can have a good assessment of it. This evaluator
+ * will make use of the statistics of fitness of each individual and determine
+ * how many evaluation are needed for a individual where we can have high
+ * confidence about its fitness value.
+ *
+ * @author Ermo Wei and David Freelan
+ */
+
+<span class="nc" id="L18">public class DOVSEvaluator extends SimpleEvaluator</span>
+    {
+    /**
+     * For each of the iteration, we are not just evaluate the individuals in
+     * current population but also current best individual and individuals in
+     * activeSolutions. Their number of evaluation is determined by there
+     * fitness statistics.
+     */
+    protected void evalPopChunk(EvolutionState state, int[] numinds, int[] from, int threadnum, SimpleProblemForm p)
+        {
+        // so far the evaluator only support when evalthread is 1
+<span class="nc" id="L29">        ((ec.Problem) p).prepareToEvaluate(state, threadnum);</span>
+
+<span class="nc" id="L31">        ArrayList&lt;Subpopulation&gt; subpops = state.population.subpops;</span>
+<span class="nc" id="L32">        int len = subpops.size();</span>
+
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        for (int pop = 0; pop &lt; len; pop++)</span>
+            {
+            // start evaluatin'!
+<span class="nc" id="L37">            int fp = from[pop];</span>
+<span class="nc" id="L38">            int upperbound = fp + numinds[pop];</span>
+<span class="nc" id="L39">            ArrayList&lt;Individual&gt; inds = subpops.get(pop).individuals;</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">            if (subpops.get(pop).species instanceof DOVSSpecies)</span>
+                {
+<span class="nc" id="L42">                DOVSSpecies species = (DOVSSpecies) subpops.get(pop).species;</span>
+
+                // Evaluator need to evaluate individual from two set: Sk
+                // (individuals) and activeSolution
+                // Original comment: To avoid unnecessary complication with
+                // stopping test
+                // procedure, require that Sk has at least 2 reps.
+                // Although we do not have stopping test here, we still do 2
+                // reps
+<span class="nc bnc" id="L51" title="All 2 branches missed.">                for (int i = 0; i &lt; inds.size(); ++i)</span>
+                    {
+<span class="nc" id="L53">                    DOVSFitness fit = (DOVSFitness)(inds.get(i).fitness);</span>
+<span class="nc" id="L54">                    int addrep = 2 - fit.numOfObservations();</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">                    for (int rep = 0; rep &lt; addrep; ++rep)</span>
+                        {
+<span class="nc" id="L57">                        p.evaluate(state, inds.get(i), pop, threadnum);</span>
+<span class="nc" id="L58">                        species.numOfTotalSamples++;</span>
+                        }
+                    }
+
+                // This is a special treat for activeSolutions when
+                // certain criteria have met
+<span class="nc bnc" id="L64" title="All 2 branches missed.">                if (//species.ocba &amp;&amp; </span>
+                    species.stochastic)
+                    {
+                    // ocba only makes sense when it is a stoc simulation
+                    // allocate some reps to active solutions and sample
+                    // best according to an ocba like heuristic
+                    // if ocba option is turned on.
+                    // There are deltan more reps to allocate, where deltan
+                    // = sizeof(activesolutions).
+<span class="nc" id="L73">                    int deltan = species.activeSolutions.size();</span>
+                    // Always add two more reps to current sample best
+<span class="nc bnc" id="L75" title="All 2 branches missed.">                    for (int i = 0; i &lt; 2; i++)</span>
+<span class="nc" id="L76">                        p.evaluate(state, species.visited.get(species.optimalIndex), pop, threadnum);</span>
+<span class="nc" id="L77">                    species.numOfTotalSamples += 2;</span>
+<span class="nc" id="L78">                    deltan -= 2;</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">                    if (deltan &gt; 0)</span>
+                        {
+                        // get R
+<span class="nc" id="L82">                        double R = 0;</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">                        for (int i = 0; i &lt; species.activeSolutions.size(); ++i)</span>
+                            {
+<span class="nc" id="L85">                            Individual ind = species.activeSolutions.get(i);</span>
+<span class="nc" id="L86">                            DOVSFitness fit = (DOVSFitness)(ind.fitness);</span>
+<span class="nc" id="L87">                            Individual bestInd = species.visited.get(species.optimalIndex);</span>
+<span class="nc" id="L88">                            DOVSFitness bestFit = (DOVSFitness)(bestInd.fitness);</span>
+<span class="nc" id="L89">                            R += (fit.variance</span>
+<span class="nc" id="L90">                                / Math.max(1e-10, Math.abs(fit.mean - bestFit.mean)));</span>
+                            }
+<span class="nc bnc" id="L92" title="All 2 branches missed.">                        for (int i = 0; i &lt; species.activeSolutions.size(); ++i)</span>
+                            {
+<span class="nc" id="L94">                            Individual ind = (Individual) species.activeSolutions.get(i);</span>
+<span class="nc" id="L95">                            DOVSFitness fit = (DOVSFitness)(ind.fitness);</span>
+<span class="nc" id="L96">                            Individual bestInd = (Individual) species.visited.get(species.optimalIndex);</span>
+<span class="nc" id="L97">                            DOVSFitness bestFit = (DOVSFitness)(bestInd.fitness);</span>
+
+<span class="nc" id="L99">                            double fraction = fit.variance</span>
+<span class="nc" id="L100">                                / Math.max(1e-10, Math.abs(fit.mean - bestFit.mean)) / R;</span>
+<span class="nc" id="L101">                            double tempDeltan = fraction * deltan;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                            if (tempDeltan &gt; 1)</span>
+                                {
+<span class="nc" id="L104">                                long roundedDeltan = (long) tempDeltan;</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">                                for (int j = 0; j &lt; roundedDeltan; ++j)</span>
+<span class="nc" id="L106">                                    p.evaluate(state, ind, pop, threadnum);</span>
+<span class="nc" id="L107">                                species.numOfTotalSamples += roundedDeltan;</span>
+                                }
+                            }
+
+                        }
+                    }
+
+                // If it is a deterministic simulation, only one rep
+
+                // origial code start generation at 1, we start at 0
+                // thus, we add 1 to computation of base of log
+<span class="nc" id="L118">                int base = state.generation + 1;</span>
+
+<span class="nc" id="L120">                int newReps = (int) Math</span>
+<span class="nc" id="L121">                    .ceil(species.initialReps * Math.max(1, Math.pow(Math.log((double) base / 2), 1.01)));</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">                if (species.stochastic)</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">                    species.repetition = (species.repetition &gt;= newReps) ? species.repetition : newReps;</span>
+                else
+<span class="nc" id="L125">                    species.repetition = 1;</span>
+
+                // Now do the simulations for activeSolutions
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                for (int count = 0; count &lt; species.activeSolutions.size(); ++count)</span>
+                    {
+<span class="nc" id="L130">                    Individual individual = (Individual) species.activeSolutions.get(count);</span>
+<span class="nc" id="L131">                    DOVSFitness fit = (DOVSFitness)(individual.fitness);</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">                    if (fit.numOfObservations() &lt; species.repetition)</span>
+                        {
+<span class="nc" id="L134">                        int newrep = species.repetition - fit.numOfObservations();</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                        for (int rep = 0; rep &lt; newrep; ++rep)</span>
+                            {
+<span class="nc" id="L137">                            p.evaluate(state, individual, pop, threadnum);</span>
+                            }
+<span class="nc" id="L139">                        species.numOfTotalSamples += newrep;</span>
+                        }
+                    }
+
+                // Simulate current sample best
+                    {
+<span class="nc" id="L145">                    Individual bestIndividual = (Individual) species.visited.get(species.optimalIndex);</span>
+<span class="nc" id="L146">                    DOVSFitness fit = (DOVSFitness)(bestIndividual.fitness);</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                    if (fit.numOfObservations() &lt; species.repetition)</span>
+                        {
+<span class="nc" id="L149">                        int newrep = species.repetition - fit.numOfObservations();</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                        for (int rep = 0; rep &lt; newrep; ++rep)</span>
+                            {
+<span class="nc" id="L152">                            p.evaluate(state, bestIndividual, pop, threadnum);</span>
+                            }
+<span class="nc" id="L154">                        species.numOfTotalSamples += newrep;</span>
+                        }
+                    }
+
+                // Simulate current individuals
+                // Since backtracking flag is always false, we always do this
+<span class="nc bnc" id="L160" title="All 2 branches missed.">                for (int i = 0; i &lt; inds.size(); ++i)</span>
+                    {
+<span class="nc" id="L162">                    DOVSFitness fit = (DOVSFitness)(inds.get(i).fitness);</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                    if (fit.numOfObservations() &lt; species.repetition)</span>
+                        {
+<span class="nc" id="L165">                        int newRep = species.repetition - fit.numOfObservations();</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                        for (int rep = 0; rep &lt; newRep; ++rep)</span>
+                            {
+<span class="nc" id="L168">                            p.evaluate(state, inds.get(i), pop, threadnum);</span>
+                            }
+<span class="nc" id="L170">                        species.numOfTotalSamples += newRep;</span>
+                        }
+                    }
+<span class="nc" id="L173">                }</span>
+            else
+                {
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                for (int x = fp; x &lt; upperbound; x++)</span>
+<span class="nc" id="L177">                    p.evaluate(state, inds.get(x), pop, threadnum);</span>
+                }
+            }
+
+<span class="nc" id="L181">        ((ec.Problem) p).finishEvaluating(state, threadnum);</span>
+<span class="nc" id="L182">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

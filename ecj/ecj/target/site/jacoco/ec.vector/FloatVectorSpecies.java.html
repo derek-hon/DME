@@ -1,0 +1,650 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FloatVectorSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector</a> &gt; <span class="el_source">FloatVectorSpecies.java</span></div><h1>FloatVectorSpecies.java</h1><pre class="source lang-java linenums">package ec.vector;
+
+import ec.*;
+import ec.util.*;
+
+/* 
+ * FloatVectorSpecies.java
+ * 
+ * Created: Tue Feb 20 13:26:00 2001
+ * By: Sean Luke
+ */
+
+/**
+ * FloatVectorSpecies is a subclass of VectorSpecies with special
+ * constraints for floating-point vectors, namely FloatVectorIndividual and
+ * DoubleVectorIndividual.
+ *
+ * &lt;p&gt;FloatVectorSpecies can specify a number of parameters globally, per-segment, and per-gene.
+ * See &lt;a href=&quot;VectorSpecies.html&quot;&gt;VectorSpecies&lt;/a&gt; for information on how to this works.
+ *
+ * &lt;p&gt;FloatVectorSpecies defines a minimum and maximum gene value.  These values
+ * are used during initialization and, depending on whether &lt;tt&gt;mutation-bounded&lt;/tt&gt;
+ * is true, also during various mutation algorithms to guarantee that the gene value
+ * will not exceed these minimum and maximum bounds.
+ *
+ * &lt;p&gt;
+ * FloatVectorSpecies provides support for five ways of mutating a gene.
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;reset&lt;/b&gt; Replacing the gene's value with a value uniformly drawn from the gene's
+ * range (the default behavior).&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;gauss&lt;/b&gt;Perturbing the gene's value with gaussian noise; if the gene-by-gene range 
+ * is used, than the standard deviation is scaled to reflect each gene's range. 
+ * If the gaussian mutation's standard deviation is too large for the range,
+ * than there's a large probability the mutated value will land outside range.
+ * We will try again a number of times (100) before giving up and using the 
+ * previous mutation method.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;polynomial&lt;/b&gt; Perturbing the gene's value with noise chosen from a &lt;i&gt;polynomial distribution&lt;/i&gt;,
+ * similar to the gaussian distribution.  The polynomial distribution was popularized
+ * by Kalyanmoy Deb and is found in many of his publications (see http://www.iitk.ac.in/kangal/deb.shtml).
+ * The polynomial distribution has two options.  First, there is the &lt;i&gt;index&lt;/i&gt;.  This
+ * variable defines the shape of the distribution and is in some sense the equivalent of the
+ * standard deviation in the gaussian distribution.  The index is an integer.  If it is zero,
+ * the polynomial distribution is simply the uniform distribution from [1,-1].  If it is 1, the
+ * polynomial distribution is basically a triangular distribution from [1,-1] peaking at 0.  If
+ * it is 2, the polynomial distribution follows a squared function, again peaking at 0.  Larger
+ * values result in even more peaking and narrowness.  The default values used in nearly all of
+ * the NSGA-II and Deb work is 20.  Second, there is whether or not the value is intended for
+ * &lt;i&gt;bounded&lt;/i&gt; genes.  The default polynomial distribution is used when we assume the gene can
+ * take on literally any value, even beyond the min and max values.  For genes which are restricted
+ * to be between min and max, there is an alternative version of the polynomial distribution, used by
+ * Deb's team but not discussed much in the literature, desiged for that situation.  We assume boundedness
+ * by default, and have found it to be somewhat better for NSGA-II and SPEA2 problems.  For a description
+ * of this alternative version, see &quot;A Niched-Penalty Approach for Constraint Handling in Genetic Algorithms&quot;
+ * by Kalyanmoy Deb and Samir Agrawal.  Deb's default implementation bounds the result to min or max;
+ * instead ECJ's implementation of the polynomial distribution retries until it finds a legal value.  This
+ * will be just fine for ranges like [0,1], but for smaller ranges you may be waiting a long time.
+ * &lt;li&gt;&lt;b&gt;integer-reset&lt;/b&gt; Replacing the gene's value with a value uniformly drawn from the gene's range
+ * but restricted to only integers.
+ * &lt;li&gt;&lt;b&gt;integer-random-walk&lt;/b&gt; Replacing the gene's value by performing a random walk starting at the gene
+ * value.  The random walk either adds 1 or subtracts 1 (chosen at random), then does a coin-flip
+ * to see whether to continue the random walk.  When the coin-flip finally comes up false, the gene value
+ * is set to the current random walk position.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;
+ * FloatVectorSpecies provides support for two ways of initializing a gene.  The initialization procedure
+ * is determined by the choice of mutation procedure as described above.  If the mutation is floating-point
+ * (&lt;tt&gt;reset, gauss, polynomial&lt;/tt&gt;), then initialization will be done by resetting the gene
+ * to uniformly chosen floating-point value between the minimum and maximum legal gene values, inclusive.
+ * If the mutation is integer (&lt;tt&gt;integer-reset, integer-random-walk&lt;/tt&gt;), then initialization will be done
+ * by performing the same kind of reset, but restricting values to integers only.
+ * 
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-gene&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;min-gene&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-gene&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(probability that a gene will get mutated over default mutation)&lt;/td&gt;&lt;/tr&gt;
+ * &lt;font size=-1&gt;double (default=0.0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the minimum gene value)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-gene&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;max-gene&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-gene&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(probability that a gene will get mutated over default mutation)&lt;/td&gt;&lt;/tr&gt;
+ * &lt;font size=-1&gt;double &amp;gt;= &lt;i&gt;base&lt;/i&gt;.min-gene&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the maximum gene value)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-type&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;mutation-type&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-prob&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;&lt;tt&gt;reset&lt;/tt&gt;, &lt;tt&gt;gauss&lt;/tt&gt;, &lt;tt&gt;polynomial&lt;/tt&gt;, &lt;tt&gt;integer-reset&lt;/tt&gt;, or &lt;tt&gt;integer-random-walk&lt;/tt&gt; (default=&lt;tt&gt;reset&lt;/tt&gt;)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the mutation type)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-stdev&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;mutation-stdev&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-stdev&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;double &amp;ge; 0&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the standard deviation or the gauss perturbation)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ * &lt;tr&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;distribution-index&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;distribution-index&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;distribution-index&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;int &amp;ge; 0&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the mutation distribution index for the polynomial mutation distribution)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;alternative-polynomial-version&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;alternative-polynomial-version&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;alternative-polynomial-version&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;boolean (default=true)&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(whether to use the &quot;bounded&quot; variation of the polynomial mutation or the standard (&quot;unbounded&quot;) version)&lt;/td&gt;
+ * &lt;/tr&gt;
+ *
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;random-walk-probability&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;random-walk-probability&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;random-walk-probability&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0 &lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(the probability that a random walk will continue.  Random walks go up or down by 1.0 until the coin flip comes up false.)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ * &lt;tr&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-bounded&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;mutation-bounded&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-bounded&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;boolean (default=true)&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(whether mutation is restricted to only being within the min/max gene values.  Does not apply to SimulatedBinaryCrossover (which is always bounded))&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;out-of-bounds-retries&lt;/tt&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;int &amp;ge; 0 (default=100)&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(number of times the gaussian mutation got the gene out of range 
+ *  before we give up and reset the gene's value; 0 means &quot;never give up&quot;)&lt;/td&gt;
+ * &lt;/tr&gt;
+ *
+ * &lt;/table&gt;
+ * @author Sean Luke, Gabriel Balan, Rafal Kicinger
+ * @version 2.0
+ */
+ 
+<span class="fc" id="L156">public class FloatVectorSpecies extends VectorSpecies</span>
+    {
+    public final static String P_MINGENE = &quot;min-gene&quot;;
+
+    public final static String P_MAXGENE = &quot;max-gene&quot;;
+
+    public final static String P_MUTATIONTYPE = &quot;mutation-type&quot;;
+
+    public final static String P_STDEV = &quot;mutation-stdev&quot;;
+
+    public final static String P_MUTATION_DISTRIBUTION_INDEX = &quot;mutation-distribution-index&quot;;
+
+    public final static String P_POLYNOMIAL_ALTERNATIVE = &quot;alternative-polynomial-version&quot;;
+
+    public final static String V_RESET_MUTATION = &quot;reset&quot;;
+
+    public final static String V_GAUSS_MUTATION = &quot;gauss&quot;;
+
+    public final static String V_POLYNOMIAL_MUTATION = &quot;polynomial&quot;;
+    
+    public final static String V_INTEGER_RANDOM_WALK_MUTATION = &quot;integer-random-walk&quot;;
+
+    public final static String V_INTEGER_RESET_MUTATION = &quot;integer-reset&quot;;
+
+    public final static String P_RANDOM_WALK_PROBABILITY = &quot;random-walk-probability&quot;;
+
+    public final static String P_OUTOFBOUNDS_RETRIES = &quot;out-of-bounds-retries&quot;;
+
+    public final static String P_MUTATION_BOUNDED = &quot;mutation-bounded&quot;;
+
+    public final static int C_RESET_MUTATION = 0;
+
+    public final static int C_GAUSS_MUTATION = 1;
+
+    public final static int C_POLYNOMIAL_MUTATION = 2;
+
+    public final static int C_INTEGER_RESET_MUTATION = 3;
+
+    public final static int C_INTEGER_RANDOM_WALK_MUTATION = 4;
+        
+
+    /** Min-gene value, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected double[] minGene;
+
+    /** Max-gene value, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected double[] maxGene;
+
+    /** Mutation type, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected int[] mutationType;
+
+    /** Standard deviation for Gaussian Mutation, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected double[] gaussMutationStdev;
+
+    /** Whether mutation is bounded to the min- and max-gene values, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected boolean[] mutationIsBounded;
+
+    /** Whether the mutationIsBounded value was defined, per gene.
+        Used internally only.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    boolean mutationIsBoundedDefined;
+
+    /** The distribution index for Polynomial Mutation, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected int[] mutationDistributionIndex;
+
+    /** Whether the Polynomial Mutation method is the &quot;alternative&quot; method, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected boolean[] polynomialIsAlternative;
+
+    /** Whether the polymialIsAlternative value was defined, per gene.
+        Used internally only.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    boolean polynomialIsAlternativeDefined;
+
+    /** The continuation probability for Integer Random Walk Mutation, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected double[] randomWalkProbability;
+
+    /** The number of times Polynomial Mutation or Gaussian Mutation retry for valid
+        numbers until they get one. */
+    public int outOfBoundsRetries;
+    public static final int DEFAULT_OUT_OF_BOUNDS_RETRIES = 100;
+                
+    static final double SIMULATED_BINARY_CROSSOVER_EPS = 1.0e-14;   
+
+    public void outOfRangeRetryLimitReached(EvolutionState state)
+        {
+<span class="nc" id="L268">        state.output.warnOnce(</span>
+            &quot;The limit of 'out-of-range' retries for gaussian or polynomial mutation (&quot; + DEFAULT_OUT_OF_BOUNDS_RETRIES + &quot;) was reached.&quot;);
+<span class="nc" id="L270">        }</span>
+    
+    public double maxGene(int gene)
+        {
+<span class="fc" id="L274">        double[] m = maxGene;</span>
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L276">            gene = m.length - 1;</span>
+<span class="fc" id="L277">        return m[gene];</span>
+        }
+
+    public double minGene(int gene)
+        {
+<span class="fc" id="L282">        double[] m = minGene;</span>
+<span class="pc bpc" id="L283" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L284">            gene = m.length - 1;</span>
+<span class="fc" id="L285">        return m[gene];</span>
+        }
+
+    public int mutationType(int gene)
+        {
+<span class="fc" id="L290">        int[] m = mutationType;</span>
+<span class="pc bpc" id="L291" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L292">            gene = m.length - 1;</span>
+<span class="fc" id="L293">        return m[gene];</span>
+        }
+
+    public double gaussMutationStdev(int gene)
+        {
+<span class="nc" id="L298">        double[] m = gaussMutationStdev;</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L300">            gene = m.length - 1;</span>
+<span class="nc" id="L301">        return m[gene];</span>
+        }
+
+    public boolean mutationIsBounded(int gene)
+        {
+<span class="fc" id="L306">        boolean[] m = mutationIsBounded;</span>
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L308">            gene = m.length - 1;</span>
+<span class="fc" id="L309">        return m[gene];</span>
+        }
+
+    public int mutationDistributionIndex(int gene)
+        {
+<span class="fc" id="L314">        int[] m = mutationDistributionIndex;</span>
+<span class="pc bpc" id="L315" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L316">            gene = m.length - 1;</span>
+<span class="fc" id="L317">        return m[gene];</span>
+        }
+
+    public boolean polynomialIsAlternative(int gene)
+        {
+<span class="fc" id="L322">        boolean[] m = polynomialIsAlternative;</span>
+<span class="pc bpc" id="L323" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L324">            gene = m.length - 1;</span>
+<span class="fc" id="L325">        return m[gene];</span>
+        }
+
+    public double randomWalkProbability(int gene)
+        {
+<span class="nc" id="L330">        double[] m = randomWalkProbability;</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L332">            gene = m.length - 1;</span>
+<span class="nc" id="L333">        return m[gene];</span>
+        }
+
+
+    public boolean inNumericalTypeRange(double geneVal)
+        {
+<span class="pc bpc" id="L339" title="1 of 2 branches missed.">        if (i_prototype instanceof FloatVectorIndividual)</span>
+<span class="nc bnc" id="L340" title="All 4 branches missed.">            return (geneVal &lt;= Float.MAX_VALUE &amp;&amp; geneVal &gt;= -Float.MAX_VALUE);</span>
+<span class="pc bpc" id="L341" title="1 of 2 branches missed.">        else if (i_prototype instanceof DoubleVectorIndividual)</span>
+<span class="fc" id="L342">            return true; // geneVal is valid for all double</span>
+        else
+<span class="nc" id="L344">            return false; // dunno what the individual is...</span>
+        }
+
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L350">        Parameter def = defaultBase();</span>
+        
+<span class="fc" id="L352">        setupGenome(state, base);</span>
+        
+        // OUT OF BOUNDS RETRIES
+
+<span class="fc" id="L356">        outOfBoundsRetries = state.parameters.getIntWithDefault(base.push(P_OUTOFBOUNDS_RETRIES), def.push(P_OUTOFBOUNDS_RETRIES), DEFAULT_OUT_OF_BOUNDS_RETRIES);</span>
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">        if(outOfBoundsRetries&lt;0)</span>
+<span class="nc" id="L358">            state.output.fatal(&quot;Out of bounds retries must be &gt;= 0.&quot;, base.push(P_OUTOFBOUNDS_RETRIES), def.push(P_OUTOFBOUNDS_RETRIES));</span>
+
+
+        // CREATE THE ARRAYS
+        
+<span class="fc" id="L363">        minGene = new double[genomeSize + 1];</span>
+<span class="fc" id="L364">        maxGene = new double[genomeSize + 1];</span>
+<span class="fc" id="L365">        mutationType = fill(new int[genomeSize + 1], -1);</span>
+<span class="fc" id="L366">        gaussMutationStdev = fill(new double[genomeSize + 1], Double.NaN);</span>
+<span class="fc" id="L367">        mutationDistributionIndex = fill(new int[genomeSize + 1], -1);</span>
+<span class="fc" id="L368">        polynomialIsAlternative = new boolean[genomeSize + 1];</span>
+<span class="fc" id="L369">        mutationIsBounded = new boolean[genomeSize + 1];</span>
+<span class="fc" id="L370">        randomWalkProbability = fill(new double[genomeSize + 1], Double.NaN);</span>
+        
+
+        // GLOBAL MIN/MAX GENES
+        
+<span class="fc" id="L375">        double _minGene = state.parameters.getDoubleWithDefault(base.push(P_MINGENE), def.push(P_MINGENE), 0);</span>
+<span class="fc" id="L376">        double _maxGene = state.parameters.getDouble(base.push(P_MAXGENE), def.push(P_MAXGENE), _minGene);</span>
+<span class="pc bpc" id="L377" title="1 of 2 branches missed.">        if (_maxGene &lt; _minGene)</span>
+<span class="nc" id="L378">            state.output.fatal(&quot;FloatVectorSpecies must have a default min-gene which is &lt;= the default max-gene&quot;,</span>
+<span class="nc" id="L379">                base.push(P_MAXGENE), def.push(P_MAXGENE));</span>
+<span class="fc" id="L380">        fill(minGene, _minGene);</span>
+<span class="fc" id="L381">        fill(maxGene, _maxGene);</span>
+
+
+
+        /// MUTATION
+
+<span class="fc" id="L387">        String mtype = state.parameters.getStringWithDefault(base.push(P_MUTATIONTYPE), def.push(P_MUTATIONTYPE), null);</span>
+<span class="fc" id="L388">        int _mutationType = C_RESET_MUTATION;</span>
+<span class="pc bpc" id="L389" title="1 of 2 branches missed.">        if (mtype == null)</span>
+<span class="nc" id="L390">            state.output.warning(&quot;No global mutation type given for FloatVectorSpecies, assuming 'reset' mutation&quot;,</span>
+<span class="nc" id="L391">                base.push(P_MUTATIONTYPE), def.push(P_MUTATIONTYPE));</span>
+<span class="pc bpc" id="L392" title="1 of 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_RESET_MUTATION))</span>
+<span class="nc" id="L393">            _mutationType = C_RESET_MUTATION; // redundant</span>
+<span class="pc bpc" id="L394" title="1 of 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_POLYNOMIAL_MUTATION))</span>
+<span class="fc" id="L395">            _mutationType = C_POLYNOMIAL_MUTATION; // redundant</span>
+<span class="nc bnc" id="L396" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_GAUSS_MUTATION))</span>
+<span class="nc" id="L397">            _mutationType = C_GAUSS_MUTATION;</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_INTEGER_RESET_MUTATION))</span>
+            {
+<span class="nc" id="L400">            _mutationType = C_INTEGER_RESET_MUTATION;</span>
+<span class="nc" id="L401">            state.output.warnOnce(&quot;Integer Reset Mutation used in FloatVectorSpecies.  Be advised that during initialization these genes will only be set to integer values.&quot;);</span>
+            }
+<span class="nc bnc" id="L403" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_INTEGER_RANDOM_WALK_MUTATION))</span>
+            {
+<span class="nc" id="L405">            _mutationType = C_INTEGER_RANDOM_WALK_MUTATION;</span>
+<span class="nc" id="L406">            state.output.warnOnce(&quot;Integer Random Walk Mutation used in FloatVectorSpecies.  Be advised that during initialization these genes will only be set to integer values.&quot;);</span>
+            }
+        else
+<span class="nc" id="L409">            state.output.fatal(&quot;FloatVectorSpecies given a bad mutation type: &quot;</span>
+<span class="nc" id="L410">                + mtype, base.push(P_MUTATIONTYPE), def.push(P_MUTATIONTYPE));</span>
+<span class="fc" id="L411">        fill(mutationType, _mutationType);</span>
+
+
+<span class="pc bpc" id="L414" title="1 of 2 branches missed.">        if (_mutationType == C_POLYNOMIAL_MUTATION)</span>
+            {
+<span class="fc" id="L416">            int _mutationDistributionIndex = state.parameters.getInt(base.push(P_MUTATION_DISTRIBUTION_INDEX), def.push(P_MUTATION_DISTRIBUTION_INDEX), 0);</span>
+<span class="pc bpc" id="L417" title="1 of 2 branches missed.">            if (_mutationDistributionIndex &lt; 0)</span>
+<span class="nc" id="L418">                state.output.fatal(&quot;If FloatVectorSpecies is going to use polynomial mutation as its global mutation type, the global distribution index must be defined and &gt;= 0.&quot;,</span>
+<span class="nc" id="L419">                    base.push(P_MUTATION_DISTRIBUTION_INDEX), def.push(P_MUTATION_DISTRIBUTION_INDEX));</span>
+<span class="fc" id="L420">            fill(mutationDistributionIndex, _mutationDistributionIndex);</span>
+            
+<span class="pc bpc" id="L422" title="1 of 2 branches missed.">            if (!state.parameters.exists(base.push(P_POLYNOMIAL_ALTERNATIVE), def.push(P_POLYNOMIAL_ALTERNATIVE)))</span>
+<span class="nc" id="L423">                state.output.warning(&quot;FloatVectorSpecies is using polynomial mutation as its global mutation type, but &quot; + P_POLYNOMIAL_ALTERNATIVE + &quot; is not defined.  Assuming 'true'&quot;);</span>
+<span class="fc" id="L424">            boolean _polynomialIsAlternative = state.parameters.getBoolean(base.push(P_POLYNOMIAL_ALTERNATIVE), def.push(P_POLYNOMIAL_ALTERNATIVE), true);</span>
+<span class="fc" id="L425">            fill(polynomialIsAlternative, _polynomialIsAlternative);</span>
+<span class="fc" id="L426">            polynomialIsAlternativeDefined = true;</span>
+            }
+<span class="pc bpc" id="L428" title="1 of 2 branches missed.">        if (_mutationType == C_GAUSS_MUTATION)</span>
+            {
+<span class="nc" id="L430">            double _gaussMutationStdev = state.parameters.getDouble(base.push(P_STDEV),def.push(P_STDEV), 0);</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">            if (_gaussMutationStdev &lt;= 0)</span>
+<span class="nc" id="L432">                state.output.fatal(&quot;If it's going to use gaussian mutation as its global mutation type, FloatvectorSpecies must have a strictly positive standard deviation&quot;,</span>
+<span class="nc" id="L433">                    base.push(P_STDEV), def.push(P_STDEV));</span>
+<span class="nc" id="L434">            fill(gaussMutationStdev, _gaussMutationStdev);</span>
+            }
+<span class="pc bpc" id="L436" title="1 of 2 branches missed.">        if (_mutationType == C_INTEGER_RANDOM_WALK_MUTATION)</span>
+            {
+<span class="nc" id="L438">            double _randomWalkProbability = state.parameters.getDoubleWithMax(base.push(P_RANDOM_WALK_PROBABILITY),def.push(P_RANDOM_WALK_PROBABILITY), 0.0, 1.0);</span>
+<span class="nc bnc" id="L439" title="All 2 branches missed.">            if (_randomWalkProbability &lt;= 0)</span>
+<span class="nc" id="L440">                state.output.fatal(&quot;If it's going to use random walk mutation as its global mutation type, FloatvectorSpecies must a random walk mutation probability between 0.0 and 1.0.&quot;,</span>
+<span class="nc" id="L441">                    base.push(P_RANDOM_WALK_PROBABILITY), def.push(P_RANDOM_WALK_PROBABILITY));</span>
+<span class="nc" id="L442">            fill(randomWalkProbability, _randomWalkProbability);</span>
+            }        
+        
+<span class="pc bpc" id="L445" title="5 of 6 branches missed.">        if (_mutationType == C_POLYNOMIAL_MUTATION || </span>
+            _mutationType == C_GAUSS_MUTATION ||
+            _mutationType == C_INTEGER_RANDOM_WALK_MUTATION )
+            {
+<span class="pc bpc" id="L449" title="1 of 2 branches missed.">            if (!state.parameters.exists(base.push(P_MUTATION_BOUNDED), def.push(P_MUTATION_BOUNDED)))</span>
+<span class="nc" id="L450">                state.output.warning(&quot;FloatVectorSpecies is using gaussian, polynomial, or integer random walk mutation as its global mutation type, but &quot; + P_MUTATION_BOUNDED + &quot; is not defined.  Assuming 'true'&quot;);</span>
+<span class="fc" id="L451">            boolean _mutationIsBounded = state.parameters.getBoolean(base.push(P_MUTATION_BOUNDED), def.push(P_MUTATION_BOUNDED), true);</span>
+<span class="fc" id="L452">            fill(mutationIsBounded, _mutationIsBounded);</span>
+<span class="fc" id="L453">            mutationIsBoundedDefined = true;</span>
+            }
+            
+
+
+        // CALLING SUPER
+                
+        // This will cause the remaining parameters to get set up, and
+        // all per-gene and per-segment parameters to get set up as well.
+        // We need to do this at this point because the global params need
+        // to get set up first, and also prior to the prototypical individual
+        // getting setup at the end of super.setup(...).
+
+<span class="fc" id="L466">        super.setup(state, base);</span>
+
+
+
+
+              
+        // VERIFY
+        
+<span class="fc bfc" id="L474" title="All 2 branches covered.">        for(int x=0 ; x &lt; genomeSize + 1; x++)</span>
+            {
+<span class="pc bpc" id="L476" title="1 of 2 branches missed.">            if (maxGene[x] != maxGene[x])  // uh oh, NaN</span>
+<span class="nc" id="L477">                state.output.fatal(&quot;FloatVectorSpecies found that max-gene[&quot; + x + &quot;] is NaN&quot;);</span>
+
+<span class="pc bpc" id="L479" title="1 of 2 branches missed.">            if (minGene[x] != minGene[x])  // uh oh, NaN</span>
+<span class="nc" id="L480">                state.output.fatal(&quot;FloatVectorSpecies found that min-gene[&quot; + x + &quot;] is NaN&quot;);</span>
+
+<span class="pc bpc" id="L482" title="1 of 2 branches missed.">            if (maxGene[x] &lt; minGene[x])</span>
+<span class="nc" id="L483">                state.output.fatal(&quot;FloatVectorSpecies must have a min-gene[&quot; + x + &quot;] which is &lt;= the max-gene[&quot; + x + &quot;]&quot;);</span>
+
+            // check to see if these longs are within the data type of the particular individual
+<span class="pc bpc" id="L486" title="1 of 2 branches missed.">            if (!inNumericalTypeRange(minGene[x]))</span>
+<span class="nc" id="L487">                state.output.fatal(&quot;This FloatvectorSpecies has a prototype of the kind: &quot;</span>
+<span class="nc" id="L488">                    + i_prototype.getClass().getName()</span>
+                    + &quot;, but doesn't have a min-gene[&quot;
+                    + x
+                    + &quot;] value within the range of this prototype's genome's data types&quot;);
+<span class="pc bpc" id="L492" title="1 of 2 branches missed.">            if (!inNumericalTypeRange(maxGene[x]))</span>
+<span class="nc" id="L493">                state.output.fatal(&quot;This FloatvectorSpecies has a prototype of the kind: &quot;</span>
+<span class="nc" id="L494">                    + i_prototype.getClass().getName()</span>
+                    + &quot;, but doesn't have a max-gene[&quot;
+                    + x
+                    + &quot;] value within the range of this prototype's genome's data types&quot;);
+                    
+<span class="pc bpc" id="L499" title="2 of 4 branches missed.">            if (((mutationType[x] == FloatVectorSpecies.C_INTEGER_RESET_MUTATION || </span>
+                        mutationType[x] == FloatVectorSpecies.C_INTEGER_RANDOM_WALK_MUTATION))  // integer type
+<span class="nc bnc" id="L501" title="All 2 branches missed.">                &amp;&amp; (maxGene[x] != Math.floor(maxGene[x])))</span>
+<span class="nc" id="L502">                state.output.fatal(&quot;Gene &quot; + x + &quot; is using an integer mutation method, but the max gene is not an integer (&quot; + maxGene[x] + &quot;).&quot;);</span>
+                                 
+<span class="pc bpc" id="L504" title="2 of 4 branches missed.">            if (((mutationType[x] == FloatVectorSpecies.C_INTEGER_RESET_MUTATION || </span>
+                        mutationType[x] == FloatVectorSpecies.C_INTEGER_RANDOM_WALK_MUTATION))  // integer type
+<span class="nc bnc" id="L506" title="All 2 branches missed.">                &amp;&amp; (minGene[x] != Math.floor(minGene[x])))</span>
+<span class="nc" id="L507">                state.output.fatal(&quot;Gene &quot; + x + &quot; is using an integer mutation method, but the min gene is not an integer (&quot; + minGene[x] + &quot;).&quot;);</span>
+            }       
+                        
+        /*
+        //Debugging
+        for(int i = 0; i &lt; minGene.length; i++)
+        System.out.println(&quot;Min: &quot; + minGene[i] + &quot;, Max: &quot; + maxGene[i]);
+        */
+<span class="fc" id="L515">        }</span>
+    
+    
+    
+    protected void loadParametersForGene(EvolutionState state, int index, Parameter base, Parameter def, String postfix)
+        {       
+<span class="fc" id="L521">        super.loadParametersForGene(state, index, base, def, postfix);</span>
+        
+<span class="fc" id="L523">        double minVal = state.parameters.getDoubleWithDefault(base.push(P_MINGENE).push(postfix), def.push(P_MINGENE).push(postfix), Double.NaN);</span>
+<span class="pc bpc" id="L524" title="1 of 2 branches missed.">        if (minVal == minVal)  // it's not NaN</span>
+            {                        
+            //check if the value is in range
+<span class="nc bnc" id="L527" title="All 2 branches missed.">            if (!inNumericalTypeRange(minVal))</span>
+<span class="nc" id="L528">                state.output.fatal(&quot;Min Gene Value out of range for data type &quot; + i_prototype.getClass().getName(),</span>
+<span class="nc" id="L529">                    base.push(P_MINGENE).push(postfix), </span>
+<span class="nc" id="L530">                    base.push(P_MINGENE).push(postfix));</span>
+<span class="nc" id="L531">            else minGene[index] = minVal;</span>
+
+<span class="nc bnc" id="L533" title="All 2 branches missed.">            if (dynamicInitialSize)</span>
+<span class="nc" id="L534">                state.output.warnOnce(&quot;Using dynamic initial sizing, but per-gene or per-segment min-gene declarations.  This is probably wrong.  You probably want to use global min/max declarations.&quot;,</span>
+<span class="nc" id="L535">                    base.push(P_MINGENE).push(postfix), </span>
+<span class="nc" id="L536">                    base.push(P_MINGENE).push(postfix));</span>
+            }
+            
+<span class="fc" id="L539">        double maxVal = state.parameters.getDoubleWithDefault(base.push(P_MAXGENE).push(postfix), def.push(P_MAXGENE).push(postfix), Double.NaN);</span>
+<span class="pc bpc" id="L540" title="1 of 2 branches missed.">        if (maxVal == maxVal)  // it's not NaN</span>
+            {                        
+            //check if the value is in range
+<span class="nc bnc" id="L543" title="All 2 branches missed.">            if (!inNumericalTypeRange(maxVal))</span>
+<span class="nc" id="L544">                state.output.fatal(&quot;Max Gene Value out of range for data type &quot; + i_prototype.getClass().getName(),</span>
+<span class="nc" id="L545">                    base.push(P_MAXGENE).push(postfix), </span>
+<span class="nc" id="L546">                    base.push(P_MAXGENE).push(postfix));</span>
+<span class="nc" id="L547">            else maxGene[index] = maxVal;</span>
+
+<span class="nc bnc" id="L549" title="All 2 branches missed.">            if (dynamicInitialSize)</span>
+<span class="nc" id="L550">                state.output.warnOnce(&quot;Using dynamic initial sizing, but per-gene or per-segment max-gene declarations.  This is probably wrong.  You probably want to use global min/max declarations.&quot;,</span>
+<span class="nc" id="L551">                    base.push(P_MAXGENE).push(postfix), </span>
+<span class="nc" id="L552">                    base.push(P_MAXGENE).push(postfix));</span>
+            }
+        
+<span class="pc bpc" id="L555" title="3 of 4 branches missed.">        if ((maxVal == maxVal &amp;&amp; !(minVal == minVal)))</span>
+<span class="nc" id="L556">            state.output.warning(&quot;Max Gene specified but not Min Gene&quot;, base.push(P_MINGENE).push(postfix), def.push(P_MINGENE).push(postfix));</span>
+                
+<span class="pc bpc" id="L558" title="3 of 4 branches missed.">        if ((minVal == minVal &amp;&amp; !(maxVal == maxVal)))</span>
+<span class="nc" id="L559">            state.output.warning(&quot;Min Gene specified but not Max Gene&quot;, base.push(P_MAXGENE).push(postfix), def.push(P_MINGENE).push(postfix));</span>
+
+
+        /// MUTATION
+                   
+<span class="fc" id="L564">        String mtype = state.parameters.getStringWithDefault(base.push(P_MUTATIONTYPE).push(postfix), def.push(P_MUTATIONTYPE).push(postfix), null);</span>
+<span class="fc" id="L565">        int mutType = -1;</span>
+<span class="pc bpc" id="L566" title="1 of 2 branches missed.">        if (mtype == null) { }  // we're cool</span>
+<span class="nc bnc" id="L567" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_RESET_MUTATION))</span>
+<span class="nc" id="L568">            mutType = mutationType[index] = C_RESET_MUTATION; </span>
+<span class="nc bnc" id="L569" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_POLYNOMIAL_MUTATION))</span>
+<span class="nc" id="L570">            mutType = mutationType[index] = C_POLYNOMIAL_MUTATION;</span>
+<span class="nc bnc" id="L571" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_GAUSS_MUTATION))</span>
+<span class="nc" id="L572">            mutType = mutationType[index] = C_GAUSS_MUTATION;</span>
+<span class="nc bnc" id="L573" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_INTEGER_RESET_MUTATION))      </span>
+            {
+<span class="nc" id="L575">            mutType = mutationType[index] = C_INTEGER_RESET_MUTATION;</span>
+<span class="nc" id="L576">            state.output.warnOnce(&quot;Integer Reset Mutation used in FloatVectorSpecies.  Be advised that during initialization these genes will only be set to integer values.&quot;);</span>
+            }
+<span class="nc bnc" id="L578" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_INTEGER_RANDOM_WALK_MUTATION))</span>
+            {
+<span class="nc" id="L580">            mutType = mutationType[index] = C_INTEGER_RANDOM_WALK_MUTATION;</span>
+<span class="nc" id="L581">            state.output.warnOnce(&quot;Integer Random Walk Mutation used in FloatVectorSpecies.  Be advised that during initialization these genes will only be set to integer values.&quot;);</span>
+            }
+        else
+<span class="nc" id="L584">            state.output.fatal(&quot;FloatVectorSpecies given a bad mutation type: &quot; + mtype, </span>
+<span class="nc" id="L585">                base.push(P_MUTATIONTYPE).push(postfix), def.push(P_MUTATIONTYPE).push(postfix));</span>
+
+
+<span class="pc bpc" id="L588" title="1 of 2 branches missed.">        if (mutType == C_POLYNOMIAL_MUTATION)</span>
+            {
+<span class="nc bnc" id="L590" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_MUTATION_DISTRIBUTION_INDEX).push(postfix), def.push(P_MUTATION_DISTRIBUTION_INDEX).push(postfix)))</span>
+                {
+<span class="nc" id="L592">                mutationDistributionIndex[index] = state.parameters.getInt(base.push(P_MUTATION_DISTRIBUTION_INDEX).push(postfix), def.push(P_MUTATION_DISTRIBUTION_INDEX).push(postfix), 0);</span>
+<span class="nc bnc" id="L593" title="All 2 branches missed.">                if (mutationDistributionIndex[index] &lt; 0)</span>
+<span class="nc" id="L594">                    state.output.fatal(&quot;If FloatVectorSpecies is going to use polynomial mutation as a per-gene or per-segment type, the global distribution index must be defined and &gt;= 0.&quot;,</span>
+<span class="nc" id="L595">                        base.push(P_MUTATION_DISTRIBUTION_INDEX).push(postfix), def.push(P_MUTATION_DISTRIBUTION_INDEX).push(postfix));</span>
+                }
+<span class="nc bnc" id="L597" title="All 2 branches missed.">            else if (mutationDistributionIndex[index] != mutationDistributionIndex[index])  // it's NaN</span>
+<span class="nc" id="L598">                state.output.fatal(&quot;If FloatVectorSpecies is going to use polynomial mutation as a per-gene or per-segment type, either the global or per-gene/per-segment distribution index must be defined and &gt;= 0.&quot;,</span>
+<span class="nc" id="L599">                    base.push(P_MUTATION_DISTRIBUTION_INDEX).push(postfix), def.push(P_MUTATION_DISTRIBUTION_INDEX).push(postfix));</span>
+            
+<span class="nc bnc" id="L601" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_POLYNOMIAL_ALTERNATIVE).push(postfix), def.push(P_POLYNOMIAL_ALTERNATIVE).push(postfix)))</span>
+                {
+<span class="nc" id="L603">                polynomialIsAlternative[index] = state.parameters.getBoolean(base.push(P_POLYNOMIAL_ALTERNATIVE).push(postfix), def.push(P_POLYNOMIAL_ALTERNATIVE).push(postfix), true);</span>
+                }
+            }
+<span class="pc bpc" id="L606" title="1 of 2 branches missed.">        if (mutType == C_GAUSS_MUTATION)</span>
+            {
+<span class="nc bnc" id="L608" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_STDEV).push(postfix),def.push(P_STDEV).push(postfix)))</span>
+                {
+<span class="nc" id="L610">                gaussMutationStdev[index] = state.parameters.getDouble(base.push(P_STDEV).push(postfix),def.push(P_STDEV).push(postfix), 0);</span>
+<span class="nc bnc" id="L611" title="All 2 branches missed.">                if (gaussMutationStdev[index] &lt;= 0)</span>
+<span class="nc" id="L612">                    state.output.fatal(&quot;If it's going to use gaussian mutation as a per-gene or per-segment type, it must have a strictly positive standard deviation&quot;,</span>
+<span class="nc" id="L613">                        base.push(P_STDEV).push(postfix), def.push(P_STDEV).push(postfix));</span>
+                }
+<span class="nc bnc" id="L615" title="All 2 branches missed.">            else if (gaussMutationStdev[index] != gaussMutationStdev[index])</span>
+<span class="nc" id="L616">                state.output.fatal(&quot;If FloatVectorSpecies is going to use gaussian mutation as a per-gene or per-segment type, either the global or per-gene/per-segment standard deviation must be defined.&quot;,</span>
+<span class="nc" id="L617">                    base.push(P_STDEV).push(postfix), def.push(P_STDEV).push(postfix));</span>
+            }
+<span class="pc bpc" id="L619" title="1 of 2 branches missed.">        if (mutType == C_INTEGER_RANDOM_WALK_MUTATION)</span>
+            {
+<span class="nc bnc" id="L621" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_RANDOM_WALK_PROBABILITY).push(postfix),def.push(P_RANDOM_WALK_PROBABILITY).push(postfix)))</span>
+                {
+<span class="nc" id="L623">                randomWalkProbability[index] = state.parameters.getDoubleWithMax(base.push(P_RANDOM_WALK_PROBABILITY).push(postfix),def.push(P_RANDOM_WALK_PROBABILITY).push(postfix), 0.0, 1.0);</span>
+<span class="nc bnc" id="L624" title="All 2 branches missed.">                if (randomWalkProbability[index] &lt;= 0)</span>
+<span class="nc" id="L625">                    state.output.fatal(&quot;If it's going to use random walk mutation as a per-gene or per-segment type, FloatVectorSpecies must a random walk mutation probability between 0.0 and 1.0.&quot;,</span>
+<span class="nc" id="L626">                        base.push(P_RANDOM_WALK_PROBABILITY).push(postfix), def.push(P_RANDOM_WALK_PROBABILITY).push(postfix));</span>
+                }
+            else
+<span class="nc" id="L629">                state.output.fatal(&quot;If FloatVectorSpecies is going to use polynomial mutation as a per-gene or per-segment type, either the global or per-gene/per-segment random walk mutation probability must be defined.&quot;,</span>
+<span class="nc" id="L630">                    base.push(P_RANDOM_WALK_PROBABILITY).push(postfix), def.push(P_RANDOM_WALK_PROBABILITY).push(postfix));</span>
+            }  
+        
+<span class="pc bpc" id="L633" title="3 of 6 branches missed.">        if (mutType == C_POLYNOMIAL_MUTATION ||</span>
+            mutType == C_GAUSS_MUTATION ||
+            mutType == C_INTEGER_RANDOM_WALK_MUTATION)
+            {
+<span class="nc bnc" id="L637" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_MUTATION_BOUNDED).push(postfix), def.push(P_MUTATION_BOUNDED).push(postfix)))</span>
+                {
+<span class="nc" id="L639">                mutationIsBounded[index] = state.parameters.getBoolean(base.push(P_MUTATION_BOUNDED).push(postfix), def.push(P_MUTATION_BOUNDED).push(postfix), true);</span>
+                }
+<span class="nc bnc" id="L641" title="All 2 branches missed.">            else if (!mutationIsBoundedDefined)</span>
+<span class="nc" id="L642">                state.output.fatal(&quot;If FloatVectorSpecies is going to use gaussian, polynomial, or integer random walk mutation as a per-gene or per-segment type, the mutation bounding must be defined.&quot;,</span>
+<span class="nc" id="L643">                    base.push(P_MUTATION_BOUNDED).push(postfix), def.push(P_MUTATION_BOUNDED).push(postfix));</span>
+            }
+         
+<span class="fc" id="L646">        }</span>
+    
+        
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MutateOneNodePipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.breed</a> &gt; <span class="el_source">MutateOneNodePipeline.java</span></div><h1>MutateOneNodePipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.breed;
+import ec.*;
+import ec.util.*;
+import ec.gp.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * MutateOneNodePipeline.java
+ * 
+ * Created: Wed Dec 15 21:41:30 1999
+ * By: Sean Luke
+ */
+
+/**
+ * MutateOneNodesPipeline implements the OneNode mutation algorithm described
+ * in Kumar Chellapilla,
+ * &quot;A Preliminary Investigation into Evolving Modular Programs without Subtree
+ * Crossover&quot;, GP98.
+ *
+ * &lt;p&gt;MutateOneNodesPipeline chooses a single node in an individual and
+ * replaces it with a randomly-chosen node of the same arity and type 
+ * constraints.  Thus the original topological structure is
+ * the same but that one node is different.
+ *
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ ...as many as the source produces
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ns&lt;/tt&gt;.0&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != GPNodeSelector&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(GPNodeSelector for tree)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.0&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; int &amp;lt; (num trees in individuals), if exists&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(tree chosen for mutation; if parameter doesn't exist, tree is picked at random)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.breed.mutate-one-node
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ns&lt;/tt&gt;&lt;br&gt;
+ &lt;td&gt;The GPNodeSelector selector&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L66">public class MutateOneNodePipeline extends GPBreedingPipeline</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_MUTATEONENODE = &quot;mutate-one-node&quot;;
+    public static final int NUM_SOURCES = 1;
+    
+    /** How the pipeline chooses a subtree to mutate */
+    public GPNodeSelector nodeselect;    
+
+    /** Is our tree fixed?  If not, this is -1 */
+    int tree;
+
+<span class="nc" id="L79">    public Parameter defaultBase() { return GPBreedDefaults.base().push(P_MUTATEONENODE); }</span>
+
+<span class="nc" id="L81">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public Object clone()
+        {
+<span class="nc" id="L85">        MutateOneNodePipeline c = (MutateOneNodePipeline)(super.clone());</span>
+        
+        // deep-cloned stuff
+<span class="nc" id="L88">        c.nodeselect = (GPNodeSelector)(nodeselect.clone());</span>
+<span class="nc" id="L89">        return c;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L94">        super.setup(state,base);</span>
+
+<span class="nc" id="L96">        Parameter p = base.push(P_NODESELECTOR).push(&quot;&quot;+0);</span>
+<span class="nc" id="L97">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L99">        nodeselect = (GPNodeSelector)</span>
+<span class="nc" id="L100">            (state.parameters.getInstanceForParameter(</span>
+<span class="nc" id="L101">                p,def.push(P_NODESELECTOR).push(&quot;&quot;+0),GPNodeSelector.class));</span>
+<span class="nc" id="L102">        nodeselect.setup(state,p);</span>
+
+
+<span class="nc" id="L105">        tree = TREE_UNFIXED;</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L107">                def.push(P_TREE).push(&quot;&quot;+0)))</span>
+            {
+<span class="nc" id="L109">            tree = state.parameters.getInt(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L110">                def.push(P_TREE).push(&quot;&quot;+0),0);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if (tree==-1)</span>
+<span class="nc" id="L112">                state.output.fatal(&quot;Tree fixed value, if defined, must be &gt;= 0&quot;);</span>
+            }
+<span class="nc" id="L114">        }</span>
+
+
+
+
+    /** Returns a node which is swap-compatible with returntype, and whose arguments are swap-compatible with the current children of original.  You need to clone this node. */
+
+
+    private GPNode pickCompatibleNode(final GPNode original, final GPFunctionSet set, final EvolutionState state, final GPType returntype, final int thread)
+        {
+        // an expensive procedure: we will linearly search for a valid node
+<span class="nc" id="L125">        int numValidNodes = 0;</span>
+        
+<span class="nc" id="L127">        int type = returntype.type;</span>
+<span class="nc" id="L128">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc" id="L129">        int len = original.constraints(initializer).childtypes.length;</span>
+        boolean failed;
+
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (initializer.numAtomicTypes + initializer.numSetTypes == 1)  // easy</span>
+<span class="nc" id="L133">            numValidNodes = set.nodesByArity[type][len].length;</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        else for(int x=0;x&lt;set.nodesByArity[type][len].length;x++) // ugh, the hard way -- nodes swap-compatible with type, and of arity len</span>
+                 {
+<span class="nc" id="L136">                 failed = false;</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">                 for(int y=0;y&lt;set.nodesByArity[type][len][x].constraints(initializer).childtypes.length;y++)</span>
+<span class="nc" id="L138">                     if (!set.nodesByArity[type][len][x].constraints(initializer).</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                         childtypes[y].compatibleWith(initializer,original.children[y].</span>
+<span class="nc" id="L140">                             constraints(initializer).returntype))</span>
+<span class="nc" id="L141">                         { failed = true; break; }</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                 if (!failed) numValidNodes++;</span>
+                 }
+        
+        // we must have at least success -- the node itself.  Otherwise we're
+        // in deep doo-doo.
+
+        // now pick a random node number
+<span class="nc" id="L149">        int nodenum = state.random[thread].nextInt(numValidNodes);</span>
+
+        // find and return that node
+<span class="nc" id="L152">        int prosnode = 0;</span>
+        
+<span class="nc bnc" id="L154" title="All 2 branches missed.">        if (numValidNodes == set.nodesByArity[type][len].length) // easy</span>
+<span class="nc" id="L155">            return set.nodesByArity[type][len][nodenum];</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        else for(int x=0;x&lt;set.nodesByArity[type][len].length;x++) // ugh, the hard way -- nodes swap-compatible with type, and of arity len</span>
+                 {
+<span class="nc" id="L158">                 failed = false;</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">                 for(int y=0;y&lt;set.nodesByArity[type][len][x].constraints(initializer).childtypes.length;y++)</span>
+<span class="nc" id="L160">                     if (!set.nodesByArity[type][len][x].constraints(initializer).</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                         childtypes[y].compatibleWith(initializer,original.children[y].</span>
+<span class="nc" id="L162">                             constraints(initializer).returntype))</span>
+<span class="nc" id="L163">                         { failed = true; break; }</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">                 if (!failed) </span>
+                     {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                     if (prosnode == nodenum)  // got it!</span>
+<span class="nc" id="L167">                         return set.nodesByArity[type][len][x];</span>
+<span class="nc" id="L168">                     prosnode++;</span>
+                     }
+                 }
+
+        // should never be able to get here
+<span class="nc" id="L173">        throw new InternalError();  // whoops!</span>
+        }
+
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+        {
+<span class="nc" id="L184">        int start = inds.size();</span>
+                
+        // grab n individuals from our source and stick 'em right into inds.
+        // we'll modify them from there
+<span class="nc" id="L188">        int n = sources[0].produce(min,max,subpopulation,inds, state,thread, misc);</span>
+
+        // should we bother?
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+<span class="nc" id="L193">            return n;</span>
+            }
+
+
+<span class="nc" id="L197">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+
+        // now let's mutate 'em
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        for(int q=start; q &lt; n+start; q++)</span>
+            {
+<span class="nc" id="L202">            GPIndividual i = (GPIndividual)inds.get(q);</span>
+            
+<span class="nc bnc" id="L204" title="All 6 branches missed.">            if (tree!=TREE_UNFIXED &amp;&amp; (tree&lt;0 || tree &gt;= i.trees.length))</span>
+                // uh oh
+<span class="nc" id="L206">                state.output.fatal(&quot;MutateOneNodePipeline attempted to fix tree.0 to a value which was out of bounds of the array of the individual's trees.  Check the pipeline's fixed tree values -- they may be negative or greater than the number of trees in an individual&quot;); </span>
+
+            int t;
+            // pick random tree
+<span class="nc bnc" id="L210" title="All 2 branches missed.">            if (tree==TREE_UNFIXED)</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">                if (i.trees.length&gt;1) t = state.random[thread].nextInt(i.trees.length);</span>
+<span class="nc" id="L212">                else t = 0;</span>
+<span class="nc" id="L213">            else t = tree;</span>
+                    
+            // prepare the nodeselector
+<span class="nc" id="L216">            nodeselect.reset();</span>
+            
+            // pick a node
+            
+<span class="nc" id="L220">            GPNode p1=null;  // the node we pick</span>
+<span class="nc" id="L221">            GPNode p2=null;</span>
+            
+            // pick a node in individual 1
+<span class="nc" id="L224">            p1 = nodeselect.pickNode(state,subpopulation,thread,i,i.trees[t]);</span>
+            
+            // generate a tree with a new root but the same children,
+            // which we will replace p1 with
+            
+            GPType type;
+<span class="nc" id="L230">            type = p1.parentType(initializer);</span>
+            
+<span class="nc" id="L232">            p2 = (GPNode)(pickCompatibleNode(p1,i.trees[t].constraints(initializer).functionset,state,type,thread)).lightClone();</span>
+
+            // if it's an ERC, let it set itself up
+<span class="nc" id="L235">            p2.resetNode(state,thread);</span>
+            
+            // p2's parent and argposition will be set automatically below
+
+<span class="nc" id="L239">            p1.replaceWith(p2);</span>
+<span class="nc" id="L240">            i.evaluated = false;</span>
+
+            // add the new individual, replacing its previous source
+<span class="nc" id="L243">            inds.set(q,i);</span>
+            
+            }
+<span class="nc" id="L246">        return n;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

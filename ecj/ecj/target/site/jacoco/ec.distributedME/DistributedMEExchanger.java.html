@@ -1,0 +1,307 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DistributedMEExchanger.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">DistributedMEExchanger.java</span></div><h1>DistributedMEExchanger.java</h1><pre class="source lang-java linenums">package ec.distributedME;
+
+import java.io.Serializable;
+
+import ec.EvolutionState;
+import ec.util.Parameter;
+import ec.Exchanger;
+import ec.Population;
+
+/**
+ * DistributedMEBreeder.java
+ * 
+ * @see ec.exchange.InterPopulationExchange
+ * Used InterPopulatioNExchange as the basis for this class. Modifiede it slightly to be used 
+ * by MAP-Elites.
+ *
+ * 
+ * Created: 10 February, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+<span class="nc" id="L22">public class DistributedMEExchanger extends Exchanger {</span>
+    private static final long serialVersionUID = 1;
+
+<span class="nc" id="L25">    static class ExchangeInformation implements Serializable {</span>
+
+        /** Name of the submap */
+        String name;
+
+        /** Immigrant selection method */
+        MapElitesSelectionMethod immigrantSelectionMethod;
+        
+        /** Death/replace selection method */
+        MapElitesSelectionMethod deathSelectionMethod;
+        
+        /** Number of destination sub-maps */
+        int numDest;
+
+        /** Sub-maps where individuals need to be sent */
+        int[] destinations;
+
+        /** modulo */
+        int modulo;
+
+        /** Start offset value */
+        int offset;
+
+        /** Size */
+        int size;
+    }
+
+
+    /** Submaps */
+    public static final String P_NAME = &quot;name&quot;;
+
+    /** Submaps */
+    public static final String P_SUBMAPS = &quot;submaps&quot;;
+
+    /** The sub-map delimiter */
+    public static final String P_SUBMAP = &quot;submap&quot;;
+
+    /** The parameter for the modulo (how many evaluations should pass between consecutive sendings of individuals */
+    public static final String P_MODULO = &quot;mod&quot;;
+
+    /** The number of emigrants to be sent */
+    public static final String P_SIZE = &quot;size&quot;;
+
+    /** How many evaluations to pass at the beginning of the evolution before the first
+        emigration from the current sub-map */
+    public static final String P_OFFSET = &quot;start&quot;;
+
+    /** The number of destinations from current island */
+    public static final String P_DEST_FOR_SUBPOP = &quot;num-dest&quot;;
+
+    /** The prefix for destinations */
+    public static final String P_DEST = &quot;dest&quot;;
+
+    /** The selection method for sending individuals to other islands */
+    public static final String P_SELECT_METHOD = &quot;select&quot;;
+
+    /** The selection method for deciding individuals to be replaced by immigrants */
+    public static final String P_SELECT_TO_DIE_METHOD = &quot;select-to-die&quot;;
+
+    /** Whether or not we're chatty */
+    public static final String P_CHATTY = &quot;chatty&quot;;
+
+    ExchangeInformation[] exchangeInformation;
+
+    /** Mailbox for immigrants to be sent */
+    Elite[][] immigrants;
+
+    /** Number of immigrants in storage for each sub-map */
+    int[] immigrantStorage;
+
+    int sources;
+
+    public boolean chatty;
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L100">        Parameter p_numSubmaps = new Parameter(&quot;map&quot;).push(P_SUBMAPS);</span>
+<span class="nc" id="L101">        int numSubmaps = state.parameters.getInt(p_numSubmaps, null, 1);</span>
+        
+        // how many individuals (maximally) would each of the mailboxes have to hold
+<span class="nc" id="L104">        int[] incoming = new int[numSubmaps];</span>
+
+<span class="nc" id="L106">        exchangeInformation = new ExchangeInformation[numSubmaps];</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        for  (int i = 0 ; i &lt; numSubmaps ; i ++)</span>
+<span class="nc" id="L108">            exchangeInformation[i] = new ExchangeInformation();</span>
+<span class="nc" id="L109">        immigrantStorage = new int[numSubmaps];</span>
+        Parameter p, 
+<span class="nc" id="L111">                  localBase = base.push(P_SUBMAP);</span>
+        
+<span class="nc" id="L113">        chatty = state.parameters.getBoolean(base.push(P_CHATTY), null, true);</span>
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        for (int i = 0 ; i &lt; numSubmaps ; i ++) {</span>
+
+<span class="nc" id="L117">            p = localBase.push(&quot;&quot; + i);</span>
+
+            //Name
+<span class="nc" id="L120">            exchangeInformation[i].name = (String) state.parameters.getString(p.push(P_NAME), null);</span>
+
+            //Selection method
+<span class="nc" id="L123">            exchangeInformation[i].immigrantSelectionMethod = (MapElitesSelectionMethod)</span>
+<span class="nc" id="L124">                state.parameters.getInstanceForParameter( p.push( P_SELECT_METHOD ), base.push(P_SELECT_METHOD), MapElitesSelectionMethod.class );</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            if( exchangeInformation[i].immigrantSelectionMethod == null )</span>
+<span class="nc" id="L126">                state.output.fatal( &quot;Invalid parameter.&quot;,  p.push( P_SELECT_METHOD ), base.push(P_SELECT_METHOD) );</span>
+<span class="nc" id="L127">            exchangeInformation[i].immigrantSelectionMethod.setup( state, p.push(P_SELECT_METHOD) );</span>
+
+            // read the selection method
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            if( state.parameters.exists( p.push( P_SELECT_TO_DIE_METHOD ), base.push(P_SELECT_TO_DIE_METHOD ) ) )</span>
+<span class="nc" id="L131">                exchangeInformation[i].deathSelectionMethod = (MapElitesSelectionMethod)</span>
+<span class="nc" id="L132">                    state.parameters.getInstanceForParameter( p.push( P_SELECT_TO_DIE_METHOD ), base.push( P_SELECT_TO_DIE_METHOD ), MapElitesSelectionMethod.class );</span>
+            else // use RandomSelection
+<span class="nc" id="L134">                exchangeInformation[i].deathSelectionMethod = new DistributedMERandomSelection();</span>
+<span class="nc" id="L135">            exchangeInformation[i].deathSelectionMethod.setup( state, p.push(P_SELECT_TO_DIE_METHOD));</span>
+
+            // get the modulo
+<span class="nc" id="L138">            exchangeInformation[i].modulo = state.parameters.getInt( p.push( P_MODULO ), base.push(P_MODULO ), 1 );</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">            if( exchangeInformation[i].modulo == 0 )</span>
+<span class="nc" id="L140">                state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_MODULO ), base.push( P_MODULO ) );</span>
+            
+            // get the offset
+<span class="nc" id="L143">            exchangeInformation[i].offset = state.parameters.getInt( p.push( P_OFFSET ), base.push( P_OFFSET ), 0 );</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">            if( exchangeInformation[i].offset == -1 )</span>
+<span class="nc" id="L145">                state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_OFFSET ), base.push( P_OFFSET ) );</span>
+            
+            // get the size
+<span class="nc" id="L148">            exchangeInformation[i].size = state.parameters.getInt( p.push( P_SIZE ), base.push( P_SIZE ), 1 );</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">            if( exchangeInformation[i].size == 0 )</span>
+<span class="nc" id="L150">                state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_SIZE ), base.push( P_SIZE ) );</span>
+
+            // get the number of destinations
+<span class="nc" id="L153">            exchangeInformation[i].numDest = state.parameters.getInt( p.push( P_DEST_FOR_SUBPOP ), null, 0 );</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">            if( exchangeInformation[i].numDest == -1 )</span>
+<span class="nc" id="L155">                state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_DEST_FOR_SUBPOP ) );</span>
+
+<span class="nc" id="L157">            exchangeInformation[i].destinations = new int[ exchangeInformation[i].numDest ];</span>
+            // read the destinations
+<span class="nc bnc" id="L159" title="All 2 branches missed.">            for( int j = 0 ; j &lt; exchangeInformation[i].numDest ; j++ ) {</span>
+<span class="nc" id="L160">                exchangeInformation[i].destinations[j] =</span>
+<span class="nc" id="L161">                    state.parameters.getInt( p.push( P_DEST ).push( &quot;&quot; + j ), null, 0 );</span>
+<span class="nc bnc" id="L162" title="All 4 branches missed.">                if( exchangeInformation[i].destinations[j] == -1 ||</span>
+                    exchangeInformation[i].destinations[j] &gt;= numSubmaps )
+<span class="nc" id="L164">                    state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_DEST ).push( &quot;&quot; + j ) );</span>
+                // update the maximum number of incoming individuals for the destination island
+<span class="nc" id="L166">                incoming[ exchangeInformation[i].destinations[j] ] += exchangeInformation[i].size;</span>
+            }
+
+            // calculate the maximum number of incoming individuals to be stored in the mailbox
+<span class="nc" id="L170">        int max = -1;</span>
+
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        for( int j = 0 ; j &lt; incoming.length ; j++ )</span>
+<span class="nc bnc" id="L173" title="All 4 branches missed.">            if( max == - 1 || max &lt; incoming[j] )</span>
+<span class="nc" id="L174">                max = incoming[j];</span>
+
+        // set up the mailboxes
+<span class="nc" id="L177">        immigrants = new Elite[ numSubmaps ][ max ];</span>
+        }
+
+<span class="nc" id="L180">    }</span>
+
+    public void preBreedingExchangeEliteMap (EvolutionState state) {
+        // exchange individuals between submap
+        // BUT ONLY if the modulo and offset are appropriate for this
+        // generation (state.generation)
+        // I am responsible for returning a map. This could
+        // be a new population that I created fresh, or I could modify
+        // the existing map and return that.
+
+        // for each of the islands that sends individuals
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        for( int island = 0 ; island &lt; exchangeInformation.length ; island++ ) {</span>
+
+            // else, check whether the emigrants need to be sent
+<span class="nc bnc" id="L194" title="All 6 branches missed.">            if( ( ((DistributedMEEvolutionState) state).evaluations &gt;= exchangeInformation[island].offset ) &amp;&amp;</span>
+                    ( ( exchangeInformation[island].modulo == 0 ) ||
+                    ( ( ( ((DistributedMEEvolutionState) state).evaluations - exchangeInformation[island].offset ) % exchangeInformation[island].modulo ) == 0 ) ) )
+                {
+
+                // send the individuals!!!!
+
+                // for each of the islands where we have to send individuals
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                for( int exchangeDest = 0 ; exchangeDest &lt; exchangeInformation[island].numDest ; exchangeDest++ ) {</span>
+
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                    if (chatty) state.output.message( &quot;Sending the emigrants from map &quot; +</span>
+                    island + &quot; to map &quot; +
+                        exchangeInformation[island].destinations[exchangeDest] );
+
+                    // select &quot;size&quot; individuals and send then to the destination as emigrants
+<span class="nc" id="L209">                    exchangeInformation[island].immigrantSelectionMethod.prepareToProduce( state, island, 0 );</span>
+                     // send all necesary individuals
+<span class="nc bnc" id="L211" title="All 2 branches missed.">                    for( int y = 0 ; y &lt; exchangeInformation[island].size ; y++ ) {</span>
+                        // get the index of the immigrant
+<span class="nc" id="L213">                        int index = exchangeInformation[island].immigrantSelectionMethod.produce( island, state, 0 );</span>
+<span class="nc" id="L214">                        Elite e = process(state, 0, null, exchangeInformation[island].destinations[exchangeDest], </span>
+<span class="nc" id="L215">                                            ((DistributedMEEvolutionState) state).distributedMap.subMAPs[island].getEliteForMigration(index));</span>
+                        
+                        // copy the individual to the mailbox of the destination submap
+<span class="nc" id="L218">                        immigrants[exchangeInformation[island].destinations[exchangeDest]][immigrantStorage[exchangeInformation[island].destinations[exchangeDest]]] = e;</span>
+
+<span class="nc" id="L220">                        immigrantStorage[ exchangeInformation[island].destinations[exchangeDest] ]++;</span>
+                        // ((DistributedMEEvolutionState) state).distributedMap.submaps.get(island).remove(state, key);
+                    }
+<span class="nc" id="L223">                    exchangeInformation[island].immigrantSelectionMethod.finishProducing( state, island, 0 ); // end the selection step</span>
+                }
+            }
+        }
+
+        // return ((DistributedMEEvolutionState) state).distributedMap;
+<span class="nc" id="L229">    }</span>
+
+    //TODO: individual reading to map implementation
+    public void postBreedingExchangEliteMap (EvolutionState state) {
+        // receiving individuals from other islands
+        // same situation here of course.
+
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        for( int x = 0 ; x &lt; immigrantStorage.length ; x++ )</span>
+            {
+
+<span class="nc bnc" id="L239" title="All 4 branches missed.">            if( immigrantStorage[x] &gt; 0 &amp;&amp; chatty )</span>
+                {
+<span class="nc" id="L241">                state.output.message( &quot;Immigrating &quot; +  immigrantStorage[x] +</span>
+                    &quot; individuals from mailbox for submap &quot; + x );
+                }
+                
+<span class="nc" id="L245">            int len = ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getOccupants();</span>
+            // double check that we won't go into an infinite loop!
+<span class="nc bnc" id="L247" title="All 2 branches missed.">            if ( immigrantStorage[x] &gt;= len )</span>
+<span class="nc" id="L248">                state.output.fatal(&quot;Number of immigrants (&quot;+immigrantStorage[x] +</span>
+                    &quot;) is larger than submap #&quot; + x + &quot;'s size (&quot; +
+                    len +&quot;).  This would cause an infinite loop in the selection-to-die procedure.&quot;);
+
+<span class="nc" id="L252">            boolean[] selected = new boolean[ len ];</span>
+<span class="nc" id="L253">            int[] indices = new int[ immigrantStorage[x] ];</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">            for( int i = 0 ; i &lt; selected.length ; i++ )</span>
+<span class="nc" id="L255">                selected[i] = false;</span>
+<span class="nc" id="L256">            exchangeInformation[x].deathSelectionMethod.prepareToProduce( state, x, 0 );</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">            for( int i = 0 ; i &lt; immigrantStorage[x] ; i++ )</span>
+                {
+                do {
+<span class="nc" id="L260">                    indices[i] = exchangeInformation[x].deathSelectionMethod.produce( x, state, 0 );</span>
+                    }
+<span class="nc bnc" id="L262" title="All 2 branches missed.">                while( selected[indices[i]] );</span>
+<span class="nc" id="L263">                selected[indices[i]] = true;</span>
+                }
+<span class="nc" id="L265">            exchangeInformation[x].deathSelectionMethod.finishProducing( state, x, 0 );</span>
+
+<span class="nc bnc" id="L267" title="All 2 branches missed.">            for( int y = 0 ; y &lt; immigrantStorage[x] ; y++ ) {</span>
+                // read the individual
+<span class="nc" id="L269">                ((DistributedMEEvolutionState) state).ProcessIndividual(immigrants[x][y], x);</span>
+            }
+
+            // reset the number of immigrants in the mailbox for the current subpopulation
+            // this doesn't need another synchronization, because the thread is already synchronized
+<span class="nc" id="L274">            immigrantStorage[x] = 0;</span>
+            }
+        // return ((DistributedMEEvolutionState) state).distributedMap;
+<span class="nc" id="L277">    }</span>
+
+    @Override
+    public Population preBreedingExchangePopulation(EvolutionState state) {
+        // TODO Auto-generated method stub
+<span class="nc" id="L282">        return null;</span>
+    }
+
+    @Override
+    public Population postBreedingExchangePopulation(EvolutionState state) {
+        // TODO Auto-generated method stub
+<span class="nc" id="L288">        return null;</span>
+    }
+
+    @Override
+    public String runComplete(EvolutionState state) {
+        // TODO Auto-generated method stub
+<span class="nc" id="L294">        return null;</span>
+    }
+
+    /**
+     * Utilizes Exchanger's process except making it compliant for elites due to mismatch of class with Individual.
+     * 
+     * @see ec.Exchanger#process
+     */
+    Elite process(EvolutionState state, int thread, String island, int subpop, Elite ind) {
+<span class="nc" id="L303">        return ind;</span>
+    }
+    
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

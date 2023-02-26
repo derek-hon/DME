@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SimpleConstructionRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co.ant</a> &gt; <span class="el_source">SimpleConstructionRule.java</span></div><h1>SimpleConstructionRule.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co.ant;
+
+import ec.EvolutionState;
+import ec.Setup;
+import ec.co.Component;
+import ec.co.ConstructiveIndividual;
+import ec.co.ConstructiveProblemForm;
+import ec.util.Parameter;
+import java.util.List;
+
+/**
+ * Builds an individual by adding one component at a time.  The component
+ * is chosen using a &lt;code&gt;ComponentSelector&lt;/code&gt; of your choice.
+ * 
+ * @author Eric O. Scott
+ */
+<span class="nc bnc" id="L22" title="All 2 branches missed.">public class SimpleConstructionRule implements ConstructionRule, Setup {</span>
+    public final static String P_SELECTOR = &quot;component-selector&quot;;
+    public final static String P_START = &quot;start-component&quot;;
+
+    private String startComponent;
+    private ComponentSelector selector;
+    
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+<span class="nc bnc" id="L32" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L33" title="All 4 branches missed.">        assert(base != null);</span>
+<span class="nc" id="L34">        startComponent = state.parameters.getString(base.push(P_START), null);</span>
+<span class="nc" id="L35">        selector = (ComponentSelector) state.parameters.getInstanceForParameter(base.push(P_SELECTOR), null, ComponentSelector.class);</span>
+<span class="nc" id="L36">        selector.setup(state, base.push(P_SELECTOR));</span>
+<span class="nc bnc" id="L37" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L38">    }</span>
+
+    /** Constructs a solution by greedily adding the lowest-desirability component at
+     * each step until a complete solution is formed.  The pheromone matrix
+     * argument is ignored, and may be null.
+     */
+    @Override
+    public ConstructiveIndividual constructSolution(final EvolutionState state, final ConstructiveIndividual ind, final PheromoneTable pheromones, final int thread)
+    {
+<span class="nc bnc" id="L47" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L48" title="All 4 branches missed.">        assert(ind != null);</span>
+<span class="nc bnc" id="L49" title="All 4 branches missed.">        assert(ind.isEmpty());</span>
+<span class="nc bnc" id="L50" title="All 4 branches missed.">        assert(state.evaluator.p_problem instanceof ConstructiveProblemForm);</span>
+        
+<span class="nc" id="L52">        final ConstructiveProblemForm problem = (ConstructiveProblemForm) state.evaluator.p_problem;</span>
+<span class="nc bnc" id="L53" title="All 4 branches missed.">        assert(!problem.isCompleteSolution(ind));</span>
+        
+        // Choose the initial component
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (startComponent != null) // given manually</span>
+<span class="nc" id="L57">            ind.add(state, problem.getComponentFromString(startComponent));</span>
+        else // chosen arbitratily
+<span class="nc" id="L59">            ind.add(state, problem.getArbitraryComponent(state, thread));</span>
+        
+        // Constructively build a new individual
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        while (!problem.isCompleteSolution(ind))</span>
+            {
+<span class="nc" id="L64">            final List&lt;Component&gt; allowedMoves = problem.getAllowedComponents(ind);</span>
+<span class="nc" id="L65">            final Component component = selector.choose(state, allowedMoves, pheromones, thread);</span>
+<span class="nc" id="L66">            ind.add(state, component);</span>
+<span class="nc" id="L67">            }</span>
+        
+<span class="nc bnc" id="L69" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L70">        return ind;</span>
+    }
+    
+    public final boolean repOK()
+    {
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        return P_SELECTOR != null</span>
+<span class="nc bnc" id="L76" title="All 4 branches missed.">                &amp;&amp; !P_SELECTOR.isEmpty()</span>
+                &amp;&amp; P_START != null
+<span class="nc bnc" id="L78" title="All 4 branches missed.">                &amp;&amp; !P_START.isEmpty()</span>
+                &amp;&amp; selector != null;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

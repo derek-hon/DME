@@ -1,0 +1,803 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>inplace_haar.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets</a> &gt; <span class="el_source">inplace_haar.java</span></div><h1>inplace_haar.java</h1><pre class="source lang-java linenums">
+package ec.app.experiments.WaveletExperiment.wavelets;
+
+import ec.app.experiments.WaveletExperiment.wavelets.wavelet_util.*;
+
+/**
+ *
+  
+&lt;h4&gt;
+   Copyright and Use
+&lt;/h4&gt;
+
+&lt;p&gt;
+   You may use this source code without limitation and without
+   fee as long as you include:
+&lt;/p&gt;
+&lt;blockquote&gt;
+     This software was written and is copyrighted by Ian Kaplan, Bear
+     Products International, www.bearcave.com, 2001.
+&lt;/blockquote&gt;
+&lt;p&gt;
+   This software is provided &quot;as is&quot;, without any warrenty or
+   claim as to its usefulness.  Anyone who uses this source code
+   uses it at their own risk.  Nor is any support provided by
+   Ian Kaplan and Bear Products International.
+&lt;p&gt;
+   Please send any bug fixes or suggested source changes to:
+&lt;pre&gt;
+     iank@bearcave.com
+&lt;/pre&gt;
+
+&lt;p&gt;
+   To generate the documentation for the &lt;tt&gt;wavelets&lt;/tt&gt; package
+   using Sun Microsystem's &lt;tt&gt;javadoc&lt;/tt&gt; use the command
+&lt;pre&gt;
+        javadoc -private wavelets
+&lt;/pre&gt;
+
+&lt;p&gt;
+   The inplace_haar class calculates an in-place Haar wavelet
+   transform.  By in-place it's ment that the result occupies the same
+   array as the data set on which the Haar transform is calculated.
+
+&lt;p&gt;
+   The Haar wavelet calculation is awkward when the data values are
+   not an even power of two.  This is especially true for the in-place
+   Haar.  So here we only support data that falls into an even power
+   of two.
+
+&lt;p&gt;
+   The sad truth about computation is that the time-space tradeoff
+   is an iron rule.  The Haar in-place wavelet transform is more 
+   memory efficient, but it also takes more computation.
+
+&lt;p&gt;
+   The algorithm used here is from &lt;i&gt;Wavelets Made Easy&lt;/i&gt;
+   by Yves Nievergelt, section 1.4.  The in-place transform
+   replaces data values when Haar values and coefficients.
+   This algorithm uses a butterfly pattern, where the indices
+   are calculated by the following:
+
+&lt;pre&gt;
+   for (l = 0; l &lt; log&lt;sub&gt;2&lt;/sub&gt;( size ); l++) {
+     for (j = 0; j &lt; size; j++) {
+        &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;j&lt;/sub&gt; = 2&lt;sup&gt;l&lt;/sup&gt; * (2 * j);
+        &lt;b&gt;c&lt;/b&gt;&lt;sub&gt;j&lt;/sub&gt; = 2&lt;sup&gt;l&lt;/sup&gt; * ((2 * j) + 1);
+        if (c&lt;sub&gt;j&lt;/sub&gt; &gt;= size)
+	  break;
+     } &lt;i&gt;// for j&lt;/i&gt;
+   } &lt;i&gt;// for l&lt;/i&gt;
+&lt;/pre&gt;
+
+&lt;p&gt;
+   If there are 16 data elements (indexed 0..15), these loops will
+   generate the butterfly index pattern shown below, where the first
+   element in a pair is &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;j&lt;/sub&gt;, the Haar value and the
+   second element is &lt;b&gt;c&lt;/b&gt;&lt;sub&gt;j&lt;/sub&gt;, the Haar coefficient.
+
+&lt;pre&gt;
+{0, 1} {2, 3} {4, 5} {6, 7} {8, 9} {10, 11} {12, 13} {14, 15}
+{0, 2} {4, 6} {8, 10} {12, 14}
+{0, 4} {8, 12}
+{0, 8}
+&lt;/pre&gt;
+
+&lt;p&gt;
+  Each of these index sets represents a Haar wavelet frequency (here
+  they are listed from the highest frequency to the lowest).
+
+  @author Ian Kaplan
+
+ */
+<span class="nc" id="L93">public class inplace_haar extends wavelet_base {</span>
+  /** result of calculating the Haar wavelet */
+  private double[] wavefx;
+  /** initially false: true means wavefx is ordered by frequency */
+<span class="nc" id="L97">  boolean isOrdered = false;</span>
+
+  double[] getwavefx() {
+<span class="nc" id="L100">    return this.wavefx;</span>
+  }
+
+  /**
+    Set the wavefx reference variable to the data vector.  Also,
+    initialize the isOrdered flag to false.  This indicates that the
+    Haar coefficients have not been calculated and ordered by
+    frequency.
+   */
+  public void setWavefx( double[] vector )
+  {
+<span class="nc bnc" id="L111" title="All 2 branches missed.">    if (vector != null) {</span>
+<span class="nc" id="L112">      wavefx = vector;</span>
+<span class="nc" id="L113">      isOrdered = false;</span>
+    }
+<span class="nc" id="L115">  }</span>
+
+<span class="nc" id="L117">  public void setIsOrdered() { isOrdered = true; }</span>
+
+  /**
+   *
+&lt;p&gt;
+   Calculate the in-place Haar wavelet function.  The
+   data values are overwritten by the coefficient result, which
+   is pointed to by a local reference (&lt;tt&gt;wavefx&lt;/tt&gt;).
+
+&lt;p&gt;
+   The in-place Haar transform leaves the coefficients in a butterfly
+   pattern.  The Haar transform calculates a Haar value
+   (&lt;tt&gt;&lt;b&gt;a&lt;/b&gt;&lt;tt&gt;) and a coefficient (&lt;tt&gt;c&lt;/tt&gt;) from the forumla
+   shown below.
+
+&lt;pre&gt;
+  &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt; = (v&lt;sub&gt;i&lt;/sub&gt; + v&lt;sub&gt;i+1&lt;/sub&gt;)/2
+   c&lt;sub&gt;i&lt;/sub&gt; = (v&lt;sub&gt;i&lt;/sub&gt; - v&lt;sub&gt;i+1&lt;/sub&gt;)/2
+&lt;/pre&gt;
+
+&lt;p&gt;
+
+   In the in-place Haar transform the values for &lt;tt&gt;&lt;b&gt;a&lt;/b&gt;&lt;/tt&gt; and
+   &lt;tt&gt;c&lt;/tt&gt; replace the values for v&lt;sub&gt;i&lt;/sub&gt; and
+   v&lt;sub&gt;i+1&lt;/sub&gt;. Subsequent passes calculate new &lt;tt&gt;&lt;b&gt;a&lt;/b&gt;&lt;/tt&gt;
+   and &lt;tt&gt;c&lt;/tt&gt; values from the previous
+   &lt;tt&gt;&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;&lt;/tt&gt; and &lt;tt&gt;&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i+1&lt;/sub&gt;&lt;/tt&gt;
+   values.  The produces the butterfly pattern outlined below.
+
+&lt;pre&gt;
+
+v&lt;sub&gt;0&lt;/sub&gt; v&lt;sub&gt;1&lt;/sub&gt; v&lt;sub&gt;2&lt;/sub&gt; v&lt;sub&gt;3&lt;/sub&gt; v&lt;sub&gt;4&lt;/sub&gt; v&lt;sub&gt;5&lt;/sub&gt; v&lt;sub&gt;6&lt;/sub&gt; v&lt;sub&gt;7&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;/pre&gt;
+
+&lt;p&gt; 
+   For example, Haar wavelet the calculation with the data set 
+   {3, 1, 0, 4, 8, 6, 9, 9} is shown below.  Bold type
+   denotes an &lt;b&gt;a&lt;/b&gt; value which will be used in the 
+   next sweep of the calculation.
+
+&lt;pre&gt;
+3  1  0  4  8  6  9  9
+
+&lt;b&gt;2&lt;/b&gt;  1  &lt;b&gt;2&lt;/b&gt; -2  &lt;b&gt;7&lt;/b&gt;  1  &lt;b&gt;9&lt;/b&gt;  0
+
+&lt;b&gt;2&lt;/b&gt;  1  0 -2  &lt;b&gt;8&lt;/b&gt;  1 -1  0
+
+&lt;b&gt;5&lt;/b&gt;  1  0 -2 -3  1 -1  0
+&lt;/pre&gt;
+
+
+   @param values
+      An array of double data values from which the
+      Haar wavelet function will be calculated.  The
+      number of values must be a power of two.
+
+   */
+  public void wavelet_calc( double[] values ) {
+<span class="nc" id="L182">    int len = values.length;</span>
+<span class="nc" id="L183">    setWavefx( values );</span>
+
+<span class="nc bnc" id="L185" title="All 2 branches missed.">    if (len &gt; 0) {</span>
+<span class="nc" id="L186">      byte log = binary.log2( len );</span>
+      
+<span class="nc" id="L188">      len = binary.power2( log );  // calculation must be on 2 ** n values</span>
+
+<span class="nc bnc" id="L190" title="All 2 branches missed.">      for (byte l = 0; l &lt; log; l++) {</span>
+<span class="nc" id="L191">        int p = binary.power2( l );</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        for (int j = 0; j &lt; len; j++) {</span>
+<span class="nc" id="L193">          int a_ix = p * (2 * j);</span>
+<span class="nc" id="L194">          int c_ix = p * ((2 * j) + 1);</span>
+
+<span class="nc bnc" id="L196" title="All 2 branches missed.">          if (c_ix &lt; len) {</span>
+<span class="nc" id="L197">            double a = (values[a_ix] + values[c_ix]) / 2;</span>
+<span class="nc" id="L198">            double c = (values[a_ix] - values[c_ix]) / 2;</span>
+<span class="nc" id="L199">            values[a_ix] = a;</span>
+<span class="nc" id="L200">            values[c_ix] = c;</span>
+          }
+          else {
+            break;
+          }
+        } // for j
+      } // for l
+    }
+<span class="nc" id="L208">  } // wavelet_calc</span>
+
+
+  /**
+   *
+
+    Recursively calculate the Haar spectrum, replacing data in the
+    original array with the calculated averages.
+
+   */
+  private void spectrum_calc(double[] values, 
+			     int start, 
+			     int end ) {
+    int j;
+    int newEnd;
+<span class="nc bnc" id="L223" title="All 2 branches missed.">    if (start &gt; 0) {</span>
+<span class="nc" id="L224">      j = start-1;</span>
+<span class="nc" id="L225">      newEnd = end &gt;&gt; 1;</span>
+    }
+    else {
+<span class="nc" id="L228">      j = end-1;</span>
+<span class="nc" id="L229">      newEnd = end;</span>
+    }
+
+<span class="nc bnc" id="L232" title="All 2 branches missed.">    for (int i = end-1; i &gt; start; i = i - 2, j--) {</span>
+<span class="nc" id="L233">      values[j] = (values[i-1] + values[i]) / 2;</span>
+    } // for
+    
+
+<span class="nc bnc" id="L237" title="All 2 branches missed.">    if (newEnd &gt; 1) {</span>
+<span class="nc" id="L238">      int newStart = newEnd &gt;&gt; 1;</span>
+<span class="nc" id="L239">      spectrum_calc(values, newStart, newEnd);</span>
+    }
+<span class="nc" id="L241">  } // spectrum_calc</span>
+
+
+  /**
+   *
+
+&lt;p&gt;
+   Calculate the Haar wavelet spectrum
+
+&lt;p&gt; 
+   Wavelet calculations sample a signal via a window.  In the case of
+   the Haar wavelet, this window is a rectangle.  The signal is
+   sampled in passes, using a window of a wider width for each pass.
+   Each sampling can be thought of as generating a spectrum of the
+   original signal at a particular resolution.
+
+&lt;p&gt;
+   In the case of the Haar wavelet, the window is initially two values
+   wide.  The first spectrum has half as many values as the original
+   signal, where each new value is the average of two values from 
+   the original signal.
+
+&lt;p&gt;
+   The next spectrum is generated by increasing the window
+   width by a factor of two and averaging four elements.
+   The third spectrum is generated by increasing the
+   window size to eight, etc...  Note that each  of these
+   averages can be formed from the previous average.
+
+&lt;p&gt;
+   For example, if the initial data set is
+&lt;pre&gt;
+    { 32.0, 10.0, 20.0, 38.0, 37.0, 28.0, 38.0, 34.0,
+      18.0, 24.0, 18.0,  9.0, 23.0, 24.0, 28.0, 34.0 }
+&lt;/pre&gt;
+&lt;p&gt;
+    The first spectrum is constructed by averaging
+    elements {0,1}, {2,3}, {4,5} ...
+&lt;/p&gt;
+&lt;pre&gt;
+    {21, 29, 32.5, 36, 21, 13.5, 23.5, 31} &lt;i&gt;1&lt;sup&gt;st&lt;/sup&gt; spectrum&lt;/i&gt;
+&lt;/pre&gt;
+&lt;p&gt;
+    The second spectrum is constructed by averaging elements
+    averaging elements {0,1}, {2,3} in the first spectrum:
+&lt;/p&gt;
+&lt;pre&gt;
+    {25, 34.25, 17.25, 27.25}           &lt;i&gt;2&lt;sup&gt;nd&lt;/sup&gt; spectrum&lt;/i&gt;
+
+    {29.625, 22.25}                     &lt;i&gt;3&lt;sup&gt;ed&lt;/sup&gt; spectrum&lt;/i&gt;
+
+    {25.9375}                           &lt;i&gt;4&lt;sup&gt;th&lt;/sup&gt; spectrum&lt;/i&gt;
+&lt;/pre&gt;
+&lt;p&gt;
+    Note that we can calculate the Haar spectrum &quot;in-place&quot;, by
+    replacing the original data values with the spectrum values:
+&lt;pre&gt;
+    {0, 
+     25.9375, 
+     29.625, 22.25, 
+     25, 34.25, 17.25, 27.25,
+     21, 29, 32.5, 36, 21, 13.5, 23.5, 31}
+&lt;/pre&gt;
+&lt;p&gt;
+    The spetrum is ordered by increasing frequency.
+    This is the same ordering used for the Haar coefficients.
+    Keeping to this ordering allows the same code to be applied
+    to both the Haar spectrum and a set of Haar coefficients.
+&lt;/p&gt;
+&lt;p&gt;
+    This function will destroy the original data.
+    When the Haar spectrum is calculated information is lost.
+    For example, without the Haar coefficients, which provide the
+    difference between the two numbers that form the average, there
+    may be several numbers which satisify the equation
+&lt;pre&gt;
+   &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt; = (v&lt;sub&gt;j&lt;/sub&gt; + v&lt;sub&gt;j+1&lt;/sub&gt;)/2
+&lt;/pre&gt;
+
+&lt;p&gt;
+  For 2&lt;sup&gt;n&lt;/sup&gt; initial elements, there will be
+  2&lt;sup&gt;n&lt;/sup&gt; - 1 results.  For example:
+&lt;/p&gt;
+&lt;pre&gt;
+    512 : initial length
+    256 : 1st spectrum
+    128 : 2nd spectrum
+     64 : 3ed spectrum
+     32 : 4th spectrum
+     16 : 5th spectrum
+      8 : 6th spectrum
+      4 : 7th spectrum
+      2 : 8th spectrum
+      1 : 9th spectrum (overall average)
+&lt;/pre&gt;
+
+&lt;p&gt;
+  Since this is an in-place algorithm, the result is
+  returned in the values argument.
+&lt;/p&gt;
+
+
+   */
+  public void wavelet_spectrum( double[] values ) {
+<span class="nc" id="L345">    int len = values.length;</span>
+
+<span class="nc bnc" id="L347" title="All 2 branches missed.">    if (len &gt; 0) {</span>
+<span class="nc" id="L348">      setWavefx( values );</span>
+<span class="nc" id="L349">      byte log = binary.log2( len );</span>
+      
+<span class="nc" id="L351">      len = binary.power2( log );  // calculation must be on 2 ** n values</span>
+
+<span class="nc" id="L353">      int srcStart = 0;</span>
+<span class="nc" id="L354">      spectrum_calc(values, srcStart, len);</span>
+<span class="nc" id="L355">      values[0] = 0;</span>
+    }
+<span class="nc" id="L357">  } // wavelet_vals</span>
+
+
+  /**
+   *
+
+     Print the result of the Haar wavelet function.
+
+   */
+  public void pr() {
+<span class="nc bnc" id="L367" title="All 2 branches missed.">    if (wavefx != null) {</span>
+<span class="nc" id="L368">      int len = wavefx.length;</span>
+
+<span class="nc" id="L370">      System.out.print(&quot;{&quot;);</span>
+<span class="nc bnc" id="L371" title="All 2 branches missed.">      for (int i = 0; i &lt; len; i++) {</span>
+<span class="nc" id="L372">        System.out.print( wavefx[i] );</span>
+<span class="nc bnc" id="L373" title="All 2 branches missed.">        if (i &lt; len-1)</span>
+<span class="nc" id="L374">          System.out.print(&quot;, &quot;);</span>
+      }
+<span class="nc" id="L376">      System.out.println(&quot;}&quot;);</span>
+    }
+<span class="nc" id="L378">  } // pr</span>
+
+
+  /**
+   *
+&lt;p&gt;
+     Print the Haar value and coefficient showing the 
+     ordering.  The Haar value is printed first, followed
+     by the coefficients in increasing frequency.  An
+     example is shown below.  The Haar value is shown in
+     bold.  The coefficients are in normal type.
+
+&lt;p&gt;
+    Data set
+&lt;pre&gt;
+    { 32.0, 10.0, 20.0, 38.0,
+      37.0, 28.0, 38.0, 34.0,
+      18.0, 24.0, 18.0,  9.0, 
+      23.0, 24.0, 28.0, 34.0 }
+&lt;/pre&gt;
+&lt;p&gt;
+    Ordered Haar transform:
+&lt;pre&gt;
+   &lt;b&gt;25.9375&lt;/b&gt;
+   3.6875
+   -4.625 -5.0
+   -4.0 -1.75 3.75 -3.75
+   11.0 -9.0 4.5 2.0 -3.0 4.5 -0.5 -3.0
+&lt;/pre&gt;
+
+   */
+  public void pr_ordered() {
+<span class="nc bnc" id="L410" title="All 2 branches missed.">    if (wavefx != null) {</span>
+<span class="nc" id="L411">      int len = wavefx.length;</span>
+
+<span class="nc bnc" id="L413" title="All 2 branches missed.">      if (len &gt; 0) {</span>
+<span class="nc" id="L414">	System.out.println(wavefx[0]);</span>
+
+<span class="nc" id="L416">	int num_in_freq = 1;</span>
+<span class="nc" id="L417">	int cnt = 0;</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">	for (int i = 1; i &lt; len; i++) {</span>
+<span class="nc" id="L419">	  System.out.print(wavefx[i] + &quot; &quot;);</span>
+<span class="nc" id="L420">	  cnt++;</span>
+<span class="nc bnc" id="L421" title="All 2 branches missed.">	  if (cnt == num_in_freq) {</span>
+<span class="nc" id="L422">	    System.out.println();</span>
+<span class="nc" id="L423">	    cnt = 0;</span>
+<span class="nc" id="L424">	    num_in_freq = num_in_freq * 2;</span>
+	  }
+	}
+      }
+    }
+<span class="nc" id="L429">  } // pr_ordered</span>
+
+
+  /**
+   *
+&lt;p&gt;
+
+     Order the result of the in-place Haar wavelet function,
+     referenced by wavefx.  As noted above in the documentation for
+     &lt;tt&gt;wavelet_calc()&lt;/tt&gt;, the in-place Haar transform leaves the
+     coefficients in a butterfly pattern.  This can be awkward for
+     some calculations.  The &lt;tt&gt;order&lt;/tt&gt; function orders the
+     coefficients by frequency, from the lowest frequency to the
+     highest.  The number of coefficients for each frequency band
+     follow powers of two (e.g., 1, 2, 4, 8 ... 2&lt;sup&gt;n&lt;/sup&gt;).
+     An example of the coefficient sort performed by the &lt;tt&gt;order()&lt;/tt&gt;
+     function is shown below;
+
+&lt;pre&gt;
+before: &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt;
+
+after:  &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;/pre&gt;
+
+&lt;p&gt;
+     The results in the same ordering as the ordered Haar wavelet
+     transform.
+
+&lt;p&gt;
+     If the number of elements is 2&lt;sup&gt;n&lt;/sup&gt;, then the largest
+     number of coefficients will be 2&lt;sup&gt;n-1&lt;/sup&gt;.  Each of the
+     coefficients in the largest group is separated by one element
+     (which contains other coefficients).  This algorithm pushes these
+     together so they are not separated.  These coefficients now make
+     up half of the array.  The remaining coefficients take up the
+     other half.  The next frequency down is also separated by one
+     element.  These are pushed together taking up half of the half.
+     The algorithm keeps going until only one coefficient is left.
+
+&lt;p&gt;
+     As with wavelet_calc above, this algorithm assumes that
+     the number of values is a power of two.
+
+   */
+  public void order() {
+<span class="nc bnc" id="L475" title="All 2 branches missed.">    if (wavefx != null) {</span>
+
+<span class="nc" id="L477">      int half = 0;</span>
+<span class="nc bnc" id="L478" title="All 2 branches missed.">      for (int len = wavefx.length; len &gt; 1; len = half) {</span>
+<span class="nc" id="L479">	half = len / 2;</span>
+<span class="nc" id="L480">	int skip = 1;</span>
+<span class="nc bnc" id="L481" title="All 2 branches missed.">	for (int dest = len - 2; dest &gt;= half; dest--) {</span>
+<span class="nc" id="L482">	  int src = dest - skip;</span>
+<span class="nc" id="L483">	  double tmp = wavefx[src];</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">	  for (int i = src; i &lt; dest; i++)</span>
+<span class="nc" id="L485">	    wavefx[i] = wavefx[i+1];</span>
+<span class="nc" id="L486">	  wavefx[dest] = tmp;</span>
+<span class="nc" id="L487">	  skip++;</span>
+	} // for dest
+      } // for len
+
+<span class="nc" id="L491">      isOrdered = true;</span>
+    } // if
+<span class="nc" id="L493">  } // order()</span>
+
+
+  /**
+   *
+&lt;p&gt;
+     Regenerate the data from the Haar wavelet function.
+
+&lt;p&gt;
+
+     There is no information loss in the Haar function.  The original
+     data can be regenerated by reversing the calculation.  Given
+     a Haar value, &lt;b&gt;a&lt;/b&gt; and a coefficient &lt;b&gt;c&lt;/b&gt;, two Haar
+     values can be generated
+
+&lt;pre&gt;
+        &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;  = a + c;
+        &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i+1&lt;/sub&gt; = a - c;
+&lt;/pre&gt;
+
+&lt;p&gt;
+     The transform is calculated from the low frequency coefficients
+     to the high frequency coefficients.  An example is shown below
+     for the result of the ordered Haar transform.  Note that the
+     values are in bold and the coefficients are in normal type.
+
+&lt;p&gt;
+To regenerate {&lt;a&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;a&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;a&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, &lt;a&gt;a&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt;, &lt;a&gt;a&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt;, &lt;a&gt;a&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt;, &lt;a&gt;a&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt;, &lt;a&gt;a&lt;/b&gt;&lt;sub&gt;8&lt;/sub&gt;} from
+&lt;pre&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;
+c&lt;sub&gt;1&lt;/sub&gt;
+c&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;3&lt;/sub&gt;
+c&lt;sub&gt;4&lt;/sub&gt; c&lt;sub&gt;5&lt;/sub&gt; c&lt;sub&gt;6&lt;/sub&gt; c&lt;sub&gt;7&lt;/sub&gt;
+&lt;/pre&gt;
+&lt;p&gt;
+   The inverse Haar transform is applied:
+
+&lt;pre&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; + c&lt;sub&gt;1&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; - c&lt;sub&gt;1&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; + c&lt;sub&gt;2&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; - c&lt;sub&gt;2&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; + c&lt;sub&gt;3&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; - c&lt;sub&gt;3&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; + c&lt;sub&gt;4&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; - c&lt;sub&gt;4&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; + c&lt;sub&gt;5&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; - c&lt;sub&gt;5&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; + c&lt;sub&gt;6&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; - c&lt;sub&gt;6&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt; + c&lt;sub&gt;7&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;8&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt; - c&lt;sub&gt;7&lt;/sub&gt;
+&lt;/pre&gt;
+&lt;p&gt;
+    For example:
+
+&lt;pre&gt;
+&lt;b&gt;5.0&lt;/b&gt;
+-3.0
+0.0 -1.0
+1.0 -2.0 1.0 0.0
+
+&lt;b&gt;5.0&lt;/b&gt;+(-3), &lt;b&gt;5.0&lt;/b&gt;-(-3) = {&lt;b&gt;2&lt;/b&gt; &lt;b&gt;8&lt;/b&gt;}
+
+&lt;b&gt;2&lt;/b&gt;+0, &lt;b&gt;2&lt;/b&gt;-0, &lt;b&gt;8&lt;/b&gt;+(-1), &lt;b&gt;8&lt;/b&gt;-(-1) = {&lt;b&gt;2, 2, 7, 9&lt;/b&gt;}
+
+&lt;b&gt;2&lt;/b&gt;+1, &lt;b&gt;2&lt;/b&gt;-1, &lt;b&gt;2&lt;/b&gt;+(-2), &lt;b&gt;2&lt;/b&gt;-(-2), &lt;b&gt;7&lt;/b&gt;+1, &lt;b&gt;7&lt;/b&gt;-1, &lt;b&gt;9&lt;/b&gt;+0, &lt;b&gt;9&lt;/b&gt;-0 = {3,1,0,4,8,6,9,9}
+
+&lt;/pre&gt;
+
+&lt;p&gt;
+   By using the butterfly indices the inverse transform can
+   also be applied to an unordered in-place haar function.
+
+&lt;p&gt;
+   This function checks the to see whether the wavefx array is
+   ordered.  If wavefx is ordered the inverse transform described
+   above is applied.  If the data remains in the in-order configuration
+   an inverse butterfly is applied.  Note that once the inverse
+   Haar is calculated the Haar function data will be replaced by
+   the original data.
+
+   */
+  public void inverse() {
+<span class="nc bnc" id="L579" title="All 2 branches missed.">    if (wavefx != null) {</span>
+<span class="nc bnc" id="L580" title="All 2 branches missed.">      if (isOrdered) {</span>
+<span class="nc" id="L581">	inverse_ordered();</span>
+	// Since the signal has been rebuilt from the
+	// ordered coefficients, set isOrdered to false
+<span class="nc" id="L584">	isOrdered = false;</span>
+      }
+      else {
+<span class="nc" id="L587">	inverse_butterfly();</span>
+      }
+    }
+<span class="nc" id="L590">  } // inverse</span>
+
+
+  /**
+   *
+&lt;p&gt;
+     Calculate the inverse Haar transform on an ordered
+     set of coefficients.
+&lt;p&gt;
+     See comment above for the &lt;tt&gt;inverse()&lt;/tt&gt; method
+     for details.
+&lt;p&gt;
+     The algorithm above uses an implicit temporary.  The
+     in-place algorithm is a bit more complex.  As noted
+     above, the Haar value and coefficient are replaced
+     with the newly calculated values:
+
+&lt;pre&gt;
+     t&lt;sub&gt;1&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; + c&lt;sub&gt;1&lt;/sub&gt;;
+     t&lt;sub&gt;2&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; - c&lt;sub&gt;1&lt;/sub&gt;;
+     &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; = t&lt;sub&gt;1&lt;/sub&gt;;
+     c&lt;sub&gt;1&lt;/sub&gt; = t&lt;sub&gt;2&lt;/sub&gt;
+&lt;/pre&gt;
+
+&lt;p&gt;
+    As the calculation proceeds and the coefficients are replaced by
+    the newly calculated Haar values, the values are out of order.
+    This is shown in the below (use &lt;tt&gt;javadoc -private
+    wavelets&lt;/tt&gt;).  Here each element is numbered with a subscript as
+    it should be ordered.  A sort operation reorders these values
+    as the calculation proceeds.  The variable &lt;tt&gt;L&lt;/tt&gt; is the power of
+    two.
+
+&lt;pre&gt;
+start: {&lt;b&gt;5.0&lt;/b&gt;, -3.0, 0.0, -1.0, 1.0, -2.0, 1.0, 0.0}
+[0, 1]
+L = 1
+{&lt;b&gt;2.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, 0.0, -1.0, 1.0, -2.0, 1.0, 0.0}
+ sort:
+
+ start: {&lt;b&gt;2.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, 0.0, -1.0, 1.0, -2.0, 1.0, 0.0}
+[0, 2], [1, 3]
+L = 2
+{&lt;b&gt;2.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;7.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;2.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, 1.0, -2.0, 1.0, 0.0}
+ sort:
+exchange [1, 2]
+{&lt;b&gt;2.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;2.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;7.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, 1.0, -2.0, 1.0, 0.0}
+
+ start: {2.0, 2.0, 7.0, 9.0, 1.0, -2.0, 1.0, 0.0}
+[0, 4], [1, 5], [2, 6], [3, 7]
+L = 4
+{&lt;b&gt;3.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;0.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt;, &lt;b&gt;1.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;4.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, &lt;b&gt;6.0&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt;&lt;/b&gt;}
+ sort:
+exchange [1, 4]
+{&lt;b&gt;3.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;1.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt;, &lt;b&gt;0.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;4.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, &lt;b&gt;6.0&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt;}
+exchange [2, 5]
+{&lt;b&gt;3.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;1.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;4.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt;, &lt;b&gt;0.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt;, &lt;b&gt;6.0&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt;}
+exchange [3, 6]
+{&lt;b&gt;3.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;1.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;4.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, &lt;b&gt;6.0&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt;, &lt;b&gt;0.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt;}
+exchange [2, 4]
+{&lt;b&gt;3.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;1.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;0.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;6.0&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt;, &lt;b&gt;4.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt;}
+exchange [3, 5]
+{&lt;b&gt;3.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;1.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;0.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt;, &lt;b&gt;4.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, &lt;b&gt;6.0&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt;}
+exchange [3, 4]
+{&lt;b&gt;3.0&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;, &lt;b&gt;1.0&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;, &lt;b&gt;0.0&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;, &lt;b&gt;4.0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;, &lt;b&gt;8.0&lt;/b&gt;&lt;sub&gt;4&lt;/sub&gt;, &lt;b&gt;6.0&lt;/b&gt;&lt;sub&gt;5&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;6&lt;/sub&gt;, &lt;b&gt;9.0&lt;/b&gt;&lt;sub&gt;7&lt;/sub&gt;}
+&lt;/pre&gt;   
+ 
+  ********/
+
+  private void inverse_ordered() {
+<span class="nc" id="L660">    int len = wavefx.length;</span>
+    
+<span class="nc bnc" id="L662" title="All 2 branches missed.">    for (int L = 1; L &lt; len; L = L * 2) {</span>
+      
+      int i;
+      
+      // calculate
+<span class="nc bnc" id="L667" title="All 2 branches missed.">      for (i = 0; i &lt; L; i++) {</span>
+<span class="nc" id="L668">	int a_ix = i;</span>
+<span class="nc" id="L669">	int c_ix = i + L;</span>
+<span class="nc" id="L670">	double a1        = wavefx[a_ix] + wavefx[c_ix];</span>
+<span class="nc" id="L671">	double a1_plus_1 = wavefx[a_ix] - wavefx[c_ix];</span>
+<span class="nc" id="L672">	wavefx[a_ix] = a1;</span>
+<span class="nc" id="L673">	wavefx[c_ix] =a1_plus_1;</span>
+      } // for i
+      
+      // sort
+<span class="nc" id="L677">      int offset = L-1;</span>
+<span class="nc bnc" id="L678" title="All 2 branches missed.">      for (i = 1; i &lt; L; i++) {</span>
+<span class="nc bnc" id="L679" title="All 2 branches missed.">	for (int j = i; j &lt; L; j++) {</span>
+<span class="nc" id="L680">	  double tmp = wavefx[j];</span>
+<span class="nc" id="L681">	  wavefx[j] = wavefx[j+offset];</span>
+<span class="nc" id="L682">	  wavefx[j+offset] = tmp;</span>
+	} // for j
+<span class="nc" id="L684">	offset = offset - 1;</span>
+      } // for i
+      
+    } // for L
+<span class="nc" id="L688">  } // inverse_ordered</span>
+
+
+  /**
+   *
+&lt;p&gt;
+    Calculate the inverse Haar transform on the result of
+    the in-place Haar transform.
+
+&lt;p&gt;
+    The inverse butterfly exactly reverses in-place Haar
+    transform.  Instead of generating coefficient values
+    (&lt;tt&gt;c&lt;sub&gt;i&lt;/sub&gt;&lt;tt&gt;), the inverse butterfly calculates
+    Haar values (&lt;tt&gt;&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;) using the 
+    equations:
+&lt;pre&gt;
+        &lt;b&gt;new_a&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt; + c&lt;sub&gt;i&lt;/sub&gt;
+        &lt;b&gt;new_a&lt;/b&gt;&lt;sub&gt;i+1&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt; - c&lt;sub&gt;i&lt;/sub&gt;
+&lt;/pre&gt;
+
+&lt;pre&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt; + c&lt;sub&gt;2&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt; - c&lt;sub&gt;2&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; c&lt;sub&gt;1&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; + c&lt;sub&gt;1&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; - c&lt;sub&gt;1&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; + c&lt;sub&gt;1&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; - c&lt;sub&gt;1&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; c&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; + c&lt;sub&gt;0&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; - c&lt;sub&gt;0&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; + c&lt;sub&gt;0&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; - c&lt;sub&gt;0&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; + c&lt;sub&gt;0&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; - c&lt;sub&gt;0&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; + c&lt;sub&gt;0&lt;/sub&gt;
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; - c&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; &lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; 
+
+&lt;/pre&gt;
+
+&lt;p&gt;
+A numeric example is shown below.
+
+&lt;pre&gt;
+&lt;b&gt;5&lt;/b&gt;&lt;sub&gt;0&lt;/sub&gt;  1&lt;sub&gt;0&lt;/sub&gt;  0&lt;sub&gt;1&lt;/sub&gt; -2&lt;sub&gt;0&lt;/sub&gt; -3&lt;sub&gt;2&lt;/sub&gt;  1&lt;sub&gt;0&lt;/sub&gt; -1&lt;sub&gt;1&lt;/sub&gt;  0&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; = 5 + (-3) = 2
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt; = 5 - (-3) = 8
+
+&lt;b&gt;2&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;  1&lt;sub&gt;0&lt;/sub&gt;  0&lt;sub&gt;1&lt;/sub&gt; -2&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;8&lt;/b&gt;&lt;sub&gt;1&lt;/sub&gt;  1&lt;sub&gt;0&lt;/sub&gt; -1&lt;sub&gt;1&lt;/sub&gt;  0&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = 2 + 0    = 2
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = 2 - 0    = 2
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = 8 + (-1) = 7
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; = 8 - (-1) = 9
+
+&lt;b&gt;2&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;  1&lt;sub&gt;0&lt;/sub&gt;  &lt;b&gt;2&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt; -2&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;7&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;  1&lt;sub&gt;0&lt;/sub&gt; &lt;b&gt;9&lt;/b&gt;&lt;sub&gt;2&lt;/sub&gt;  0&lt;sub&gt;0&lt;/sub&gt;
+
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = 2 + 1    = 3
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = 2 - 1    = 1
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = 2 + (-2) = 0
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = 2 - (-2) = 4
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = 7 + 1    = 8
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = 7 - 1    = 6
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = 9 + 0    = 9
+&lt;b&gt;a&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt; = 9 - 0    = 9
+
+&lt;b&gt;3&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;  &lt;b&gt;1&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;  &lt;b&gt;0&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;  &lt;b&gt;4&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;  &lt;b&gt;8&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;  &lt;b&gt;6&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;  &lt;b&gt;9&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;  &lt;b&gt;9&lt;/b&gt;&lt;sub&gt;3&lt;/sub&gt;
+
+&lt;/pre&gt;
+
+&lt;p&gt;
+   Note that the inverse_butterfly function is faster than
+   the inverse_ordered function, since data does not have
+   to be reshuffled during the calculation.
+
+   */
+  private void inverse_butterfly() {
+<span class="nc" id="L774">    int len = wavefx.length;</span>
+    
+<span class="nc bnc" id="L776" title="All 2 branches missed.">    if (len &gt; 0) {</span>
+<span class="nc" id="L777">      byte log = binary.log2( len );</span>
+      
+<span class="nc" id="L779">      len = binary.power2( log );  // calculation must be on 2 ** n values</span>
+      
+<span class="nc bnc" id="L781" title="All 2 branches missed.">      for (byte l = (byte)(log-1); l &gt;= 0; l--) {</span>
+<span class="nc" id="L782">	int p = binary.power2( l );</span>
+<span class="nc bnc" id="L783" title="All 2 branches missed.">	for (int j = 0; j &lt; len; j++) {</span>
+<span class="nc" id="L784">	  int a_ix = p * (2 * j);</span>
+<span class="nc" id="L785">	  int c_ix = p * ((2 * j) + 1);</span>
+	  
+<span class="nc bnc" id="L787" title="All 2 branches missed.">	  if (c_ix &lt; len) {</span>
+<span class="nc" id="L788">	    double a = wavefx[a_ix] + wavefx[c_ix];</span>
+<span class="nc" id="L789">	    double c = wavefx[a_ix] - wavefx[c_ix];</span>
+<span class="nc" id="L790">	    wavefx[a_ix] = a;</span>
+<span class="nc" id="L791">	    wavefx[c_ix] = c;</span>
+	  }
+	  else {
+	    break;
+	  }
+	} // for j
+      } // for l
+    }
+<span class="nc" id="L799">  } // inverse_butterfly</span>
+
+
+} // inplace_haar
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

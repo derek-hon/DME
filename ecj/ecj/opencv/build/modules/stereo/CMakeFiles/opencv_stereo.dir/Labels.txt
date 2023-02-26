@@ -1,0 +1,51 @@
+# Target labels
+ Extra
+ opencv_stereo
+ Module
+# Source files and their labels
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/include/opencv2/stereo.hpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/include/opencv2/stereo/descriptor.hpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/include/opencv2/stereo/quasi_dense_stereo.hpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/include/opencv2/stereo/stereo.hpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/src/descriptor.cpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/src/quasi_dense_stereo.cpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/src/stereo_binary_bm.cpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/src/stereo_binary_sgbm.cpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/src/descriptor.hpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/src/matching.hpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/stereo/src/precomp.hpp
+ Extra
+ opencv_stereo
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/cvconfig.h
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/opencv2/opencv_modules.hpp

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TopSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">TopSelection.java</span></div><h1>TopSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2017 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.select;
+import ec.util.*;
+
+import java.util.ArrayList;
+
+import ec.*;
+/* 
+ * TopSelection.java
+ * 
+ * Created: Thu Jun  8 14:27:40 CEST 2017
+ * By: Sean Luke
+ */
+
+/**
+ * Returns the single fittest individual in the population, breaking ties randomly.
+ *
+ * &lt;p&gt;The individual can be &lt;i&gt;cached&lt;/i&gt; so it is not recomputed every single time;
+ * the cache is cleared after &lt;tt&gt;prepareToProduce(...)&lt;/tt&gt; is called.  Note that this
+ * means that if there are multiple individuals with the top fitness, and we're caching,
+ * only one of them will be returned throughout the series of multiple produce(...) calls.
+ *
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;cache&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we cache the individual?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.top
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L46">public class TopSelection extends SelectionMethod </span>
+    {
+    /** Default base */
+    public static final String P_TOP = &quot;top&quot;;
+    public static final String P_CACHE = &quot;cache&quot;;
+        
+    boolean cache;
+    int best;
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L57">        return SelectDefaults.base().push(P_TOP);</span>
+        }
+
+    // don't need clone etc. 
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L64">        super.setup(state,base);</span>
+        
+<span class="nc" id="L66">        Parameter def = defaultBase();</span>
+        
+<span class="nc" id="L68">        cache = state.parameters.getBoolean(base.push(P_CACHE),def.push(P_CACHE), false);</span>
+<span class="nc" id="L69">        }</span>
+
+    public void prepareToProduce(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L75">        super.prepareToProduce(s, subpopulation, thread);</span>
+        
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (cache) </span>
+<span class="nc" id="L78">            best = -1;</span>
+<span class="nc" id="L79">        }</span>
+        
+    public void cacheBest(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+<span class="nc" id="L85">        ArrayList&lt;Individual&gt; oldinds = state.population.subpops.get(subpopulation).individuals;</span>
+<span class="nc" id="L86">        int len = oldinds.size();</span>
+
+<span class="nc" id="L88">        int b = 0;                                                      // this is the INDEX of the best known individual</span>
+<span class="nc" id="L89">        Individual bi = oldinds.get(b);         // this is the best known individual            </span>
+<span class="nc" id="L90">        int ties = 1;</span>
+                                
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        for (int i = 1; i &lt; len; i++)</span>
+            {
+<span class="nc" id="L94">            Individual ni = oldinds.get(i);</span>
+                        
+            // if he's better, definitely adopt him and reset the ties
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            if (ni.fitness.betterThan(bi.fitness))</span>
+                { 
+<span class="nc" id="L99">                bi = ni; </span>
+<span class="nc" id="L100">                b = i; </span>
+<span class="nc" id="L101">                ties = 1;</span>
+                }
+            // if he's the same, adopt him with 1/n probability
+<span class="nc bnc" id="L104" title="All 2 branches missed.">            else if (ni.fitness.equivalentTo(bi.fitness))</span>
+                {
+<span class="nc" id="L106">                ties++;</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">                if (state.random[thread].nextBoolean(1.0 / ties))</span>
+                    {
+<span class="nc" id="L109">                    bi = ni;</span>
+<span class="nc" id="L110">                    b = i;</span>
+                    }
+                }
+            }
+<span class="nc" id="L114">        best = b;</span>
+<span class="nc" id="L115">        }</span>
+
+    public int produce(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+<span class="nc bnc" id="L121" title="All 4 branches missed.">        if (cache &amp;&amp; best &gt;= 0)</span>
+            {
+            // do nothing, it's cached
+            }
+        else
+            {
+<span class="nc" id="L127">            cacheBest(subpopulation, state, thread);</span>
+            }
+<span class="nc" id="L129">        return best;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NEATNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.neat</a> &gt; <span class="el_source">NEATNode.java</span></div><h1>NEATNode.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.neat;
+
+import java.io.*;
+import java.text.*;
+import java.util.*;
+import ec.*;
+import ec.util.*;
+
+/**
+ * NEATNode is the class to represent node in network, it stores status of the
+ * node in that network. A Node is either a NEURON or a SENSOR. If it's a
+ * sensor, it can be loaded with a value for output. If it's a neuron, it has a
+ * list of its incoming input signals. Based on the position of the node in
+ * network, we have output, input, bias and hidden nodes. We use INPUT nodes to
+ * load inputs, and get output from OUTPUT nodes.
+ * 
+ * @author Ermo Wei and David Freelan
+ */
+
+<span class="nc" id="L25">public class NEATNode implements Prototype</span>
+    {
+
+    /**
+     * The type of a node. A node could be a sensor node, where the input get
+     * loaded in, or a neuron node, where activation is triggered.
+     */
+<span class="nc" id="L32">    public enum NodeType</span>
+        {
+<span class="nc" id="L34">        NEURON, SENSOR</span>
+        }
+
+    /** The place this node could be. */
+<span class="nc" id="L38">    public enum NodePlace</span>
+        {
+<span class="nc" id="L40">        HIDDEN, INPUT, OUTPUT, BIAS</span>
+        }
+
+    /** The activation function is used in for hidden node. */
+<span class="nc" id="L44">    public enum FunctionType</span>
+        {
+<span class="nc" id="L46">        SIGMOID</span>
+        }
+
+    public static final String P_NODE = &quot;node&quot;;
+
+    /** Keeps track of which activation the node is currently in. */
+    public int activationCount;
+
+    /** Holds the previous step's activation for recurrence. */
+    public double lastActivation;
+
+    /**
+     * Holds the activation BEFORE the previous step's This is necessary for a
+     * special recurrent case when the inNode of a recurrent link is one time
+     * step ahead of the outNode. The innode then needs to send from TWO time
+     * steps ago.
+     */
+    public double previousLastActivation;
+
+    /**
+     * Indicates if the value of current node has been override by method other
+     * than network's activation.
+     */
+    public boolean override;
+
+    /**
+     * Contains the activation value that will override this node's activation.
+     */
+    public double overrideValue;
+
+    /** When it's true, the node cannot be mutated. */
+    public boolean frozen;
+
+    /**
+     * The activation function, use sigmoid for default, but can use some other
+     * choice, like ReLU.
+     */
+    public FunctionType functionType;
+
+    /** Distinguish the Sensor node or other neuron node. */
+    public NodeType type;
+
+    /** Distinguish the input node, hidden or output node. */
+    public NodePlace geneticNodeLabel;
+
+    /** The incoming activity before being processed. */
+    public double activeSum;
+
+    /** The total activation entering the node. */
+    public double activation;
+
+    /** To make sure outputs are active. */
+    public boolean activeFlag;
+
+    /**
+     * A list of incoming links, it is used to get activation status of the
+     * nodes on the other ends.
+     */
+    public ArrayList&lt;NEATGene&gt; incomingGenes;
+
+    /** Node id for this node. */
+    public int nodeId;
+
+    /**
+     * The depth of current node in current network, this field is used in
+     * counting max depth in a network.
+     */
+    public int innerLevel;
+
+    /** Indicate if this node has been traversed in max depth counting. */
+    public boolean isTraversed;
+
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L120">        activationCount = 0;</span>
+<span class="nc" id="L121">        lastActivation = 0;</span>
+<span class="nc" id="L122">        previousLastActivation = 0;</span>
+<span class="nc" id="L123">        override = false;</span>
+<span class="nc" id="L124">        overrideValue = 0;</span>
+<span class="nc" id="L125">        frozen = false;</span>
+        // TODO : could be extend to use some other activation function
+<span class="nc" id="L127">        functionType = FunctionType.SIGMOID;</span>
+<span class="nc" id="L128">        type = NodeType.NEURON;</span>
+<span class="nc" id="L129">        geneticNodeLabel = NodePlace.HIDDEN;</span>
+<span class="nc" id="L130">        activeSum = 0;</span>
+<span class="nc" id="L131">        activation = 0;</span>
+<span class="nc" id="L132">        activeFlag = false;</span>
+<span class="nc" id="L133">        incomingGenes = new ArrayList&lt;NEATGene&gt;();</span>
+<span class="nc" id="L134">        nodeId = 0;</span>
+<span class="nc" id="L135">        innerLevel = 0;</span>
+<span class="nc" id="L136">        isTraversed = false;</span>
+<span class="nc" id="L137">        }</span>
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L141">        return NEATDefaults.base().push(P_NODE);</span>
+        }
+
+    /** Reset the node to initial status. */
+    public void reset(NodeType nodeType, int id, NodePlace placement)
+        {
+        // NNode::NNode(nodetype ntype,int nodeid, nodeplace placement)
+<span class="nc" id="L148">        nodeId = id;</span>
+<span class="nc" id="L149">        activeFlag = false;</span>
+<span class="nc" id="L150">        activeSum = 0;</span>
+<span class="nc" id="L151">        activation = 0;</span>
+<span class="nc" id="L152">        lastActivation = 0;</span>
+<span class="nc" id="L153">        previousLastActivation = 0;</span>
+<span class="nc" id="L154">        type = nodeType; // NEURON or SENSOR type</span>
+<span class="nc" id="L155">        activationCount = 0; // Inactive upon creation</span>
+<span class="nc" id="L156">        functionType = FunctionType.SIGMOID;</span>
+<span class="nc" id="L157">        geneticNodeLabel = placement;</span>
+<span class="nc" id="L158">        frozen = false;</span>
+<span class="nc" id="L159">        override = false;</span>
+<span class="nc" id="L160">        overrideValue = 0;</span>
+<span class="nc" id="L161">        innerLevel = 0;</span>
+<span class="nc" id="L162">        isTraversed = false;</span>
+<span class="nc" id="L163">        }</span>
+
+    /**
+     * Return a clone of this node, but with a empty incomingGenes list.
+     */
+    public Object emptyClone()
+        {
+<span class="nc" id="L170">        NEATNode myobj = (NEATNode) clone();</span>
+<span class="nc" id="L171">        myobj.incomingGenes = new ArrayList&lt;NEATGene&gt;();</span>
+
+<span class="nc" id="L173">        return myobj;</span>
+        }
+
+    public Object clone()
+        {
+        // NNode::NNode(NNode *n,Trait *t)
+<span class="nc" id="L179">        NEATNode myobj = null;</span>
+        try
+            {
+<span class="nc" id="L182">            myobj = (NEATNode) (super.clone());</span>
+
+<span class="nc" id="L184">            myobj.nodeId = nodeId;</span>
+<span class="nc" id="L185">            myobj.type = type;</span>
+<span class="nc" id="L186">            myobj.geneticNodeLabel = geneticNodeLabel;</span>
+<span class="nc" id="L187">            myobj.activationCount = 0;</span>
+<span class="nc" id="L188">            myobj.lastActivation = 0;</span>
+<span class="nc" id="L189">            myobj.previousLastActivation = 0;</span>
+<span class="nc" id="L190">            myobj.override = false;</span>
+<span class="nc" id="L191">            myobj.overrideValue = 0;</span>
+<span class="nc" id="L192">            myobj.frozen = false;</span>
+<span class="nc" id="L193">            myobj.functionType = FunctionType.SIGMOID;</span>
+<span class="nc" id="L194">            myobj.activeSum = 0;</span>
+<span class="nc" id="L195">            myobj.activation = 0;</span>
+<span class="nc" id="L196">            myobj.activeFlag = false;</span>
+<span class="nc" id="L197">            myobj.isTraversed = false;</span>
+<span class="nc" id="L198">            myobj.innerLevel = 0;</span>
+<span class="nc" id="L199">            } catch (CloneNotSupportedException e) // never happens</span>
+            {
+<span class="nc" id="L201">            throw new InternalError();</span>
+<span class="nc" id="L202">            }</span>
+<span class="nc" id="L203">        return myobj;</span>
+        }
+
+    @Override
+    public boolean equals(Object obj)
+        {
+<span class="nc" id="L209">        NEATNode n = (NEATNode) obj;</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        if (nodeId != n.nodeId)</span>
+<span class="nc" id="L211">            return false;</span>
+
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        for(int i = 0; i&lt; incomingGenes.size(); i++)</span>
+            {
+<span class="nc bnc" id="L215" title="All 2 branches missed.">            if(!n.incomingGenes.get(i).equals(incomingGenes.get(i)))</span>
+<span class="nc" id="L216">                return false;</span>
+            }
+<span class="nc" id="L218">        return true;</span>
+        }
+
+    @Override
+    public int hashCode()
+        {
+<span class="nc" id="L224">        int result = nodeId;</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        for(int i = 0; i&lt; incomingGenes.size(); i++)</span>
+            {
+            // this is probably sufficient
+<span class="nc" id="L228">            result = (result * 31 + 17 + incomingGenes.get(i).hashCode());</span>
+            }
+<span class="nc" id="L230">        return result;</span>
+        }
+
+    /**
+     * Old flush code, used in C++ version. Put all the field into initial
+     * status, this is useful in flushing the whole network.
+     */
+    public void flushBack()
+        {
+<span class="nc bnc" id="L239" title="All 2 branches missed.">        if (type != NodeType.SENSOR)</span>
+            {
+            // SENSOR Node do not need to flush recursively
+<span class="nc bnc" id="L242" title="All 2 branches missed.">            if (activationCount &gt; 0)</span>
+                {
+<span class="nc" id="L244">                activationCount = 0;</span>
+<span class="nc" id="L245">                activation = 0;</span>
+<span class="nc" id="L246">                lastActivation = 0;</span>
+<span class="nc" id="L247">                previousLastActivation = 0;</span>
+                }
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            for (int i = 0; i &lt; incomingGenes.size(); ++i)</span>
+                {
+<span class="nc" id="L251">                NEATGene link = incomingGenes.get(i);</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">                if (link.inNode.activationCount &gt; 0)</span>
+                    {
+                    // NOTE : in here we have the add_weight field clear code
+                    // for hebbian learning,
+                    // we ignore it here since we are not using it
+<span class="nc" id="L257">                    link.inNode.flushBack();</span>
+                    }
+                }
+            }
+        else
+            {
+            // Flush the SENSOR
+<span class="nc" id="L264">            activationCount = 0;</span>
+<span class="nc" id="L265">            activation = 0;</span>
+<span class="nc" id="L266">            lastActivation = 0;</span>
+<span class="nc" id="L267">            previousLastActivation = 0;</span>
+            }
+<span class="nc" id="L269">        }</span>
+
+    /**
+     * Put all the field into initial status, this is useful in flushing the
+     * whole network.
+     */
+    public void flush()
+        {
+<span class="nc" id="L277">        activationCount = 0;</span>
+<span class="nc" id="L278">        activation = 0;</span>
+<span class="nc" id="L279">        lastActivation = 0;</span>
+<span class="nc" id="L280">        previousLastActivation = 0;</span>
+
+        // FIXME: jneat code seems have a lot of redundant here
+<span class="nc" id="L283">        }</span>
+
+    /** Return the activation status of this node. */
+    public double getActivation()
+        {
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        if (activationCount &gt; 0)</span>
+<span class="nc" id="L289">            return activation;</span>
+<span class="nc" id="L290">        return 0.0;</span>
+        }
+
+    /** Return the last step activation if this node is active at last step. */
+    public double getTimeDelayActivation()
+        {
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        if (activationCount &gt; 1)</span>
+<span class="nc" id="L297">            return lastActivation;</span>
+<span class="nc" id="L298">        return 0.0;</span>
+        }
+
+    /** Set activation to the override value and turn off override. */
+    public void activateWithOverride()
+        {
+<span class="nc" id="L304">        activation = overrideValue;</span>
+<span class="nc" id="L305">        override = false;</span>
+<span class="nc" id="L306">        }</span>
+
+    /** Force an output value on the node. */
+    public void overrideOutput(double newOutput)
+        {
+<span class="nc" id="L311">        overrideValue = newOutput;</span>
+<span class="nc" id="L312">        override = true;</span>
+<span class="nc" id="L313">        }</span>
+
+    /**
+     * Clear in incomgin links of this node, this is useful in create a new
+     * network from current genotype.
+     */
+    public void clearIncoming()
+        {
+<span class="nc" id="L321">        incomingGenes.clear();</span>
+<span class="nc" id="L322">        }</span>
+
+    /** Return the depth of this node in the network. */
+    public int depth(int d, NEATNetwork network, int maxDepth)
+        {
+<span class="nc bnc" id="L327" title="All 2 branches missed.">        if (d &gt; 100)</span>
+            {
+            // original code use these number in code, need to find a good way
+            // to justify these
+<span class="nc" id="L331">            return 10;</span>
+            }
+
+        // Base case
+<span class="nc bnc" id="L335" title="All 2 branches missed.">        if (this.type == NodeType.SENSOR)</span>
+            {
+<span class="nc" id="L337">            return d;</span>
+            }
+
+<span class="nc" id="L340">        d++;</span>
+
+        // recursion
+<span class="nc" id="L343">        int curDepth = 0; // The depth of current node</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">        for (int i = 0; i &lt; incomingGenes.size(); ++i)</span>
+            {
+<span class="nc" id="L346">            NEATNode node = incomingGenes.get(i).inNode;</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">            if (!node.isTraversed)</span>
+                {
+<span class="nc" id="L349">                node.isTraversed = true;</span>
+<span class="nc" id="L350">                curDepth = node.depth(d, network, maxDepth);</span>
+<span class="nc" id="L351">                node.innerLevel = curDepth - d;</span>
+                }
+            else
+<span class="nc" id="L354">                curDepth = d + node.innerLevel;</span>
+
+<span class="nc" id="L356">            maxDepth = Math.max(curDepth, maxDepth);</span>
+            }
+<span class="nc" id="L358">        return maxDepth;</span>
+
+        }
+
+    /**
+     * Reads a Node printed by printNode(...). The default form simply reads a
+     * line into a string, and then calls readNodeFromString() on that line.
+     */
+    public void readNode(EvolutionState state, LineNumberReader reader) throws IOException
+        {
+        // NNode::NNode (const char *argline, std::vector&lt;Trait*&gt; &amp;traits)
+<span class="nc" id="L369">        readNodeFromString(reader.readLine(), state);</span>
+<span class="nc" id="L370">        }</span>
+
+    /**
+     * This method is used to read a node in start genome from file.
+     */
+    public void readNodeFromString(String string, EvolutionState state)
+        {
+<span class="nc" id="L377">        DecodeReturn dr = new DecodeReturn(string);</span>
+<span class="nc" id="L378">        Code.decode(dr);</span>
+<span class="nc" id="L379">        nodeId = (int) dr.l;</span>
+<span class="nc" id="L380">        Code.decode(dr);</span>
+<span class="nc" id="L381">        int nType = (int) dr.l;</span>
+<span class="nc" id="L382">        Code.decode(dr);</span>
+<span class="nc" id="L383">        int nPlace = (int) dr.l;</span>
+
+<span class="nc" id="L385">        type = NodeType.values()[nType];</span>
+<span class="nc" id="L386">        geneticNodeLabel = NodePlace.values()[nPlace];</span>
+
+<span class="nc" id="L388">        override = false;</span>
+<span class="nc" id="L389">        activeSum = 0;</span>
+<span class="nc" id="L390">        frozen = false;</span>
+<span class="nc" id="L391">        }</span>
+
+    /**
+     * This method convert the gene in to human readable format. It can be
+     * useful in debugging.
+     */
+    public String toString()
+        {
+<span class="nc" id="L399">        StringBuffer stringBuffer = new StringBuffer();</span>
+<span class="nc" id="L400">        String maskf = &quot; #,##0&quot;;</span>
+<span class="nc" id="L401">        DecimalFormat fmtf = new DecimalFormat(maskf);</span>
+
+
+
+<span class="nc bnc" id="L405" title="All 2 branches missed.">        if (type == NodeType.SENSOR)</span>
+<span class="nc" id="L406">            stringBuffer.append(&quot;\n (Sensor)&quot;);</span>
+<span class="nc bnc" id="L407" title="All 2 branches missed.">        if (type == NodeType.NEURON)</span>
+<span class="nc" id="L408">            stringBuffer.append(&quot;\n (Neuron)&quot;);</span>
+
+<span class="nc" id="L410">        stringBuffer.append(fmtf.format(nodeId));</span>
+
+<span class="nc" id="L412">        String mask5 = &quot; #,##0.000&quot;;</span>
+<span class="nc" id="L413">        fmtf = new DecimalFormat(mask5);</span>
+
+<span class="nc" id="L415">        stringBuffer.append( &quot; activation count &quot; + fmtf.format(activationCount) + &quot; activation=&quot;</span>
+<span class="nc" id="L416">            + fmtf.format(activation) + &quot;)&quot;);</span>
+
+<span class="nc" id="L418">        return stringBuffer.toString();</span>
+        }
+
+    /**
+     * This method is used to output a gene that is same as the format in start
+     * genome file.
+     */
+    public String printNodeToString()
+        {
+<span class="nc" id="L427">        StringBuilder stringBuilder = new StringBuilder();</span>
+
+<span class="nc" id="L429">        stringBuilder.append(Code.encode(nodeId));</span>
+<span class="nc" id="L430">        stringBuilder.append(Code.encode(type.ordinal()));</span>
+<span class="nc" id="L431">        stringBuilder.append(Code.encode(geneticNodeLabel.ordinal()));</span>
+
+<span class="nc" id="L433">        return stringBuilder.toString();</span>
+        }
+
+    /** The Sigmoid function. */
+    public void sigmoid(double slope)
+        {
+        
+        // constant is not used for non shifted steepened
+<span class="nc" id="L441">        activation = 1.0 / (1.0 + Math.exp(-(slope * activeSum)));</span>
+<span class="nc" id="L442">        }</span>
+
+    /** If this node is a sensor node, load this node with the given input */
+    public boolean sensorLoad(double val)
+        {
+<span class="nc bnc" id="L447" title="All 2 branches missed.">        if (type == NodeType.SENSOR)</span>
+            {
+            // Time delay memory
+<span class="nc" id="L450">            previousLastActivation = lastActivation;</span>
+<span class="nc" id="L451">            lastActivation = activation;</span>
+
+<span class="nc" id="L453">            activationCount++;</span>
+<span class="nc" id="L454">            activation = val;</span>
+<span class="nc" id="L455">            return true;</span>
+            }
+
+<span class="nc" id="L458">        return false;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

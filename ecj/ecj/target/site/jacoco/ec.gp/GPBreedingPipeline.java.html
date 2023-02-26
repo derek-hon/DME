@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPBreedingPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPBreedingPipeline.java</span></div><h1>GPBreedingPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+
+/* 
+ * GPBreedingPipeline.java
+ * 
+ * Created: Tue Sep 14 19:38:09 1999
+ * By: Sean Luke
+ */
+
+/**
+ * A GPBreedingPipeline is a BreedingPipeline which produces only
+ * members of some subclass of GPSpecies.   This is just a convenience
+ * superclass for many of the breeding pipelines here; you don't have
+ * to be a GPBreedingPipeline in order to breed GPSpecies or anything. 
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L28">public abstract class GPBreedingPipeline extends BreedingPipeline </span>
+    {
+    /** Standard parameter for node-selectors associated with a GPBreedingPipeline */
+    public static final String P_NODESELECTOR = &quot;ns&quot;;
+
+    /** Standard parameter for tree fixing */
+    public static final String P_TREE = &quot;tree&quot;;
+
+    /** Standard value for an unfixed tree */
+    public static final int TREE_UNFIXED = -1;
+
+
+    /** Returns true if &lt;i&gt;s&lt;/i&gt; is a GPSpecies. */
+    public boolean produces(final EvolutionState state,
+        final Population newpop,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (!super.produces(state,newpop,subpopulation,thread)) return false;</span>
+
+        // we produce individuals which are owned by subclasses of GPSpecies
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (newpop.subpops.get(subpopulation).species instanceof GPSpecies)</span>
+<span class="nc" id="L50">            return true;</span>
+<span class="nc" id="L51">        return false;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

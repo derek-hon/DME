@@ -1,0 +1,283 @@
+parent.0 = ./inherited.params
+#-------------------------------------------------------------------------------------------------- PSDEvoArt/common.params
+
+# ======= GP Params =======
+quit-on-run-complete = false
+generations = 100
+#
+current-job = 0
+jobs = 30
+#
+breedthreads = 1
+evalthreads  = 1
+seed.0 = time
+#
+pop.subpop.0.size = 500
+pop.subpop.0.duplicate-retries = 2
+
+
+# ======= Stats =======
+# Files are streams relative to this config, 
+# folders are relative to the working directory.
+#stat = ec.simple.SimpleStatistics
+#stat.file = .\\Results\\Statistics\\results_best.stat
+#stat.num-children=5
+#stat.child.0 = ec.gp.koza.KozaShortStatistics
+#stat.child.0.file = ..\\Results\\Statistics\\results_koza.stat
+#stat.child.0.do-depth = true
+#stat.child.0.do-size  = true
+#stat.child.0.do-time  = true
+#stat.child.1 = TextureGen.SaveImagesStatistics
+#stat.child.1.dir = .\\src\\PSDEvoArt\\Results\\Renderings\\
+#stat.child.2 = ec.simple.SaveIndividualsStatistics
+#stat.child.2.dir = .\\src\\PSDEvoArt\\Results\\Individuals\\
+#stat.child.3 = ec.simple.SimpleSeedTimeStatistics
+#stat.child.3.file = ..\\Results\\Statistics\\results_seed.stat
+#stat.child.4 = ec.multiobjective.SumOfRanksStatistics
+#stat.child.4.file = ..\\Results\\Statistics\\results_multiobj.stat
+
+# === DEBUG ===
+#stat.child.1.modulus = 1
+#stat.child.1.onlybest = false
+#stat.child.1.bestbig = false
+# =============
+
+# ======= Problem =======
+# Evaluator and problems specifications
+#eval = TextureGen.TextureGenEvaluator
+#eval.usebase = true
+#eval.base = ec.multiobjective.SumOfRanksEvaluator
+#
+# UNSPECIFIED! Make the experiment specify this.
+#eval.problem = PSDEvoArt.E05
+#eval.problem = PSDEvoArt.E01
+#
+eval.problem.data = TextureGen.MultiData
+#eval.problem.showgui = true
+#eval.problem.waitend = true
+eval.problem.complex-coordinates = false
+# Now, for experiments:
+eval.problem.target = src/main/resources/ec/proctexture/stripe.png
+#eval.problem.target = ..\\..\\targets\\Painting_People_004.128.png
+#eval.problem.target = ..\\..\\targets\\Pattern_Texture_012.128.png
+#eval.problem.target = ..\\..\\targets\\Photo_Objects_005.128.png
+
+#pop.subpop.0.species.fitness = PSDEvoArt.FitnessPSDSlope
+#pop.subpop.0.species.fitness = ec.multiobjective.SumOfRanksFitness
+#pop.subpop.0.species.fitness.showraw        = true
+#pop.subpop.0.species.fitness.normalize      = true
+#pop.subpop.0.species.fitness.num-objectives = 1
+#pop.subpop.0.species.fitness.0.name     = Spectra Sum of Error
+#pop.subpop.0.species.fitness.0.weight   = 1
+#pop.subpop.0.species.fitness.0.maximize = false
+# Population size of 1000 suggests (via Ross):
+#pop.subpop.0.species.fitness.penalty.diversity = 10
+#pop.subpop.0.species.fitness.penalty.diversity.increment = 10
+
+# Using IEASIndividual, we're associating a BufferedImage phenotype with each individual
+pop.subpop.0.species.ind = TextureGen.TextureIndividual
+#(Gray) Each individual has a single tree
+pop.subpop.0.species.ind.numtrees = 1
+pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+pop.subpop.0.species.ind.tree.0.tc = tc0
+#(RGB) Each individual has 3 trees
+#pop.subpop.0.species.ind.numtrees = 3
+#pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+#pop.subpop.0.species.ind.tree.0.tc = tc0
+#pop.subpop.0.species.ind.tree.1 = ec.gp.GPTree
+#pop.subpop.0.species.ind.tree.1.tc = tc0
+#pop.subpop.0.species.ind.tree.2 = ec.gp.GPTree
+#pop.subpop.0.species.ind.tree.2.tc = tc0
+
+
+# ======= Nodes =======
+# We have some functions.  They are:
+gp.fs.0.size = 28
+#
+# Direct Variables (2)
+gp.fs.0.func.0  = TextureGen.Func_Variable$Pos_X
+gp.fs.0.func.0.nc  = nc0
+gp.fs.0.func.1  = TextureGen.Func_Variable$Pos_Y
+gp.fs.0.func.1.nc  = nc0
+#
+# Math (10):
+gp.fs.0.func.2 = TextureGen.Func_Math$Add
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = TextureGen.Func_Math$Sub
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = TextureGen.Func_Math$Mul
+gp.fs.0.func.4.nc = nc2
+gp.fs.0.func.5 = TextureGen.Func_Math$Div
+gp.fs.0.func.5.nc = nc2
+gp.fs.0.func.6 = TextureGen.Func_Math$Sin
+gp.fs.0.func.6.nc = nc1
+gp.fs.0.func.7 = TextureGen.Func_Math$Cos
+gp.fs.0.func.7.nc = nc1
+gp.fs.0.func.8 = TextureGen.Func_Math$Max
+gp.fs.0.func.8.nc = nc2
+gp.fs.0.func.9 = TextureGen.Func_Math$Min
+gp.fs.0.func.9.nc = nc2
+gp.fs.0.func.10 = TextureGen.Func_Math$Exp
+gp.fs.0.func.10.nc = nc1
+gp.fs.0.func.11 = TextureGen.Func_Math$Neg
+gp.fs.0.func.11.nc = nc1
+#
+# Conditionals (1)
+gp.fs.0.func.12 = TextureGen.Func_Conditional$IfGT
+gp.fs.0.func.12.nc = nc4
+#
+# Ephemerals (3)
+gp.fs.0.func.13 = TextureGen.Func_Ephemeral$Eph_1
+gp.fs.0.func.13.nc = nc0
+gp.fs.0.func.14 = TextureGen.Func_Ephemeral$Eph_10
+gp.fs.0.func.14.nc = nc0
+gp.fs.0.func.15 = TextureGen.Func_Ephemeral$Eph_100
+gp.fs.0.func.15.nc = nc0
+#
+# Extended functions (12)
+gp.fs.0.func.16 = TextureGen.Func_Math$Abs
+gp.fs.0.func.16.nc = nc1
+gp.fs.0.func.17 = TextureGen.Func_Math$Pow
+gp.fs.0.func.17.nc = nc2
+gp.fs.0.func.18 = TextureGen.Func_Math$Log10
+gp.fs.0.func.18.nc = nc1
+gp.fs.0.func.19 = TextureGen.Func_Math$LogE
+gp.fs.0.func.19.nc = nc1
+gp.fs.0.func.20 = TextureGen.Func_Math$Floor
+gp.fs.0.func.20.nc = nc1
+gp.fs.0.func.21 = TextureGen.Func_Math$Ceil
+gp.fs.0.func.21.nc = nc1
+gp.fs.0.func.22 = TextureGen.Func_Math$Tan
+gp.fs.0.func.22.nc = nc1
+gp.fs.0.func.23 = TextureGen.Func_Math$Sqrt
+gp.fs.0.func.23.nc = nc1
+gp.fs.0.func.24 = TextureGen.Func_Math$Square
+gp.fs.0.func.24.nc = nc1
+gp.fs.0.func.25 = TextureGen.Func_Math$Cube
+gp.fs.0.func.25.nc = nc1
+gp.fs.0.func.26 = TextureGen.Func_Math$Avg
+gp.fs.0.func.26.nc = nc2
+gp.fs.0.func.27 = TextureGen.Func_Math$Lerp
+gp.fs.0.func.27.nc = nc3
+#
+# Geometric functions (0)
+#gp.fs.0.func.21 = TextureGen.Func_Math$Spiral
+#gp.fs.0.func.21.nc = nc1
+#gp.fs.0.func.21 = TextureGen.Func_Math$Circle
+#gp.fs.0.func.21.nc = nc1
+#gp.fs.0.func.21 = TextureGen.Func_Math$Cone
+#gp.fs.0.func.21.nc = nc2
+#
+# Noise/Texture functions (1)
+#gp.fs.0.func.28 = TextureGen.Func_Noise$Simplex
+#gp.fs.0.func.28.nc = nc0
+
+
+# ======= Reproduction Params =======
+
+# Elitism would be kinda weird when there's only a handful of discrete fitness values
+# User can configure to permit a few of their favourites.
+breed.elite.0 = 1
+
+# Crossover, Mutation, Ephemeral adjustment, Reproduction
+pop.subpop.0.species.pipe = ec.breed.MultiBreedingPipeline
+pop.subpop.0.species.pipe.generate-max = false
+pop.subpop.0.species.pipe.num-sources = 4
+pop.subpop.0.species.pipe.source.0 = ec.gp.koza.CrossoverPipeline
+pop.subpop.0.species.pipe.source.0.prob = 0.7
+pop.subpop.0.species.pipe.source.1 = ec.gp.koza.MutationPipeline
+pop.subpop.0.species.pipe.source.1.prob = 0.2
+pop.subpop.0.species.pipe.source.2 = ec.gp.breed.MutateERCPipeline
+pop.subpop.0.species.pipe.source.2.prob = 0.1
+pop.subpop.0.species.pipe.source.3 = ec.breed.ReproductionPipeline
+pop.subpop.0.species.pipe.source.3.prob = 0.0
+
+# Pick some random node, in which ERCs will be mutated.
+# Terminal/Non-terminal selection is defined elsewhere.
+# If we pick a non-terminal, it'll try children, so, whatever.
+gp.breed.mutate-erc.source.0 = ec.select.TournamentSelection
+gp.breed.mutate-erc.ns.0 = ec.gp.koza.KozaNodeSelector
+
+# Crossover will use Tournament Selection, try only 1
+# time, have a max depth of 17, and use KozaNodeSelector
+gp.koza.xover.source.0 = ec.select.TournamentSelection
+gp.koza.xover.source.1 = same
+gp.koza.xover.ns.0 = ec.gp.koza.KozaNodeSelector
+gp.koza.xover.ns.1 = same
+gp.koza.xover.maxdepth = 17
+gp.koza.xover.tries = 1
+
+# Point Mutation will use Tournament Selection, try only 1
+# time, have a max depth of 17, and use KozaNodeSelector
+# and GROW for building.  Also, Point Mutation uses a GrowBuilder
+# by default, with a default of min-depth=max-depth=5
+# as shown a ways below
+gp.koza.mutate.source.0 = ec.select.TournamentSelection
+gp.koza.mutate.ns.0 = ec.gp.koza.KozaNodeSelector
+gp.koza.mutate.build.0 = ec.gp.koza.GrowBuilder
+gp.koza.mutate.maxdepth = 17
+gp.koza.mutate.tries = 1
+
+# The default tournament size for TournamentSelection is 7
+# That's pretty heavy.
+select.tournament.size = 3
+
+# Since GROW is only used for subtree mutation, ECJ uses
+# the Koza-standard subtree mutation GROW values for the
+# default for GROW as a whole.
+gp.koza.grow.min-depth = 5
+gp.koza.grow.max-depth = 5
+
+# Here we define the default values for KozaNodeSelection;
+# The default is 10% terminals, 90% nonterminals when possible,
+# 0% "always pick the root", 0% "pick any node"
+gp.koza.ns.terminals = 0.1
+gp.koza.ns.nonterminals = 0.9
+gp.koza.ns.root = 0.0
+
+# The tree uses an ec.gp.koza.HalfBuilder to create
+# itself initially.
+# HalfBuilder will pick GROW half the time and FULL
+# the other half, with a ramp from 2 to 6 inclusive.
+# with a grow probability of 0.5
+# By ramp we mean that it first picks a random number between
+# 2 and 6 inclusive.  This then becomes the *maximum* tree size
+# (for the FULL approach, it's the tree size of the tree, for
+# GROW, the tree can get no bigger than this)
+gp.tc.0.init = ec.gp.koza.HalfBuilder
+gp.koza.half.min-depth = 2
+gp.koza.half.max-depth = 6
+gp.koza.half.growp = 0.5
+
+
+# ======= Defaults (Reference) =======
+
+# -- simple.params --
+# simple generational evolution
+#state 	= ec.simple.SimpleEvolutionState
+# We're using the standard initialization method
+#init	= ec.simple.SimpleInitializer
+#pop 	= ec.Population
+# We're using the standard (empty) finalization method
+#finish	= ec.simple.SimpleFinisher
+# We're using the standard (empty) exchange method
+#exch 	= ec.simple.SimpleExchanger
+# We're using standard breeding -- no cross-population breeding
+#breed 	= ec.simple.SimpleBreeder
+# We're using standard evaluation -- no coevolution
+#eval 	= ec.simple.SimpleEvaluator
+
+# -- koza.params --
+# We define the fitness of an individual to use the traditional
+# Koza-style fitness metrics, just to make everyone happy :-)
+#pop.subpop.0.species.fitness = ec.gp.koza.KozaFitness
+# We have a single subpopulation containing a GPSpecies,
+# using GPIndividuals as the prototypical individual class.
+#pop.subpop.0.species = ec.gp.GPSpecies
+#pop.subpop.0.species.ind = ec.gp.GPIndividual
+# That GPIndividual has a single tree, which uses the
+# "tc0" Tree Constraints (which we define below later)
+#pop.subpop.0.species.ind.numtrees = 1
+#pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+#pop.subpop.0.species.ind.tree.0.tc = tc0
+

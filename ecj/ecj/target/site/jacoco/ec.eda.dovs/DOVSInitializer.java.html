@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DOVSInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.dovs</a> &gt; <span class="el_source">DOVSInitializer.java</span></div><h1>DOVSInitializer.java</h1><pre class="source lang-java linenums">package ec.eda.dovs;
+
+import java.util.ArrayList;
+
+import ec.*;
+import ec.simple.*;
+import ec.vector.*;
+
+/**
+ * DOVSInitializer is a SimpleInitializer which ensures that the subpopulations
+ * are create from an existing individual read from file. This individual will
+ * be serve as the start search point for our algorithm.
+ *
+ * @author Ermo Wei and David Freelan
+ */
+<span class="nc" id="L16">public class DOVSInitializer extends SimpleInitializer</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    /**
+     * In DOVS, we provide the algorithm with a start individual from file, this
+     * start individual is the start search point of the DOVS algorithm. We use
+     * this start point to construct a hyperbox contains promising solutions,
+     * and sample from this region, the number of sample is equal to parameter
+     * &quot;pop.subpop.X.size&quot; in parameter files.
+     * 
+     * However, due to redundant samples, we the final individuals size may be
+     * smaller than what have been specified in pop.subpop.X.size.
+     */
+    public Population initialPopulation(final EvolutionState state, int thread)
+        {
+<span class="nc" id="L32">        Population p = super.initialPopulation(state, thread);</span>
+        // make sure the each subpop only have one individual
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        for (int i = 0; i &lt; p.subpops.size(); i++)</span>
+            {
+<span class="nc bnc" id="L36" title="All 2 branches missed.">            if (p.subpops.get(i).species instanceof DOVSSpecies)</span>
+                {
+<span class="nc" id="L38">                DOVSSpecies species = (DOVSSpecies) p.subpops.get(i).species;</span>
+
+<span class="nc bnc" id="L40" title="All 2 branches missed.">                if (p.subpops.get(i).individuals.size() != 1)</span>
+<span class="nc" id="L41">                    state.output.fatal(&quot;contain more than one start point&quot;);</span>
+
+                // add the start point to the visited ArrayList
+<span class="nc" id="L44">                species.visited.clear();</span>
+<span class="nc" id="L45">                species.visited.add(p.subpops.get(i).individuals.get(0));</span>
+<span class="nc" id="L46">                species.visitedIndexMap.put(p.subpops.get(i).individuals.get(0), 0);</span>
+<span class="nc" id="L47">                species.optimalIndex = 0;</span>
+
+<span class="nc" id="L49">                IntegerVectorIndividual ind = (IntegerVectorIndividual) species.visited.get(species.optimalIndex);</span>
+                // For the visited solution, record its coordinate
+                // positions in the multimap
+<span class="nc bnc" id="L52" title="All 2 branches missed.">                for (int j = 0; j &lt; species.genomeSize; ++j)</span>
+                    {
+                    // The individual is the content. The key is its
+                    // coordinate position
+<span class="nc" id="L56">                    species.corners.get(j).insert(ind.genome[j], ind);</span>
+                    }
+
+                // update MPA
+<span class="nc" id="L60">                species.updateMostPromisingArea(state);</span>
+
+                // sample from MPA
+<span class="nc" id="L63">                int initialSize = p.subpops.get(i).initialSize;</span>
+<span class="nc" id="L64">                ArrayList&lt;Individual&gt; candidates = species.mostPromisingAreaSamples(state, initialSize);</span>
+
+                // get unique candidates for evaluation, this is Sk in paper
+<span class="nc" id="L67">                ArrayList&lt;Individual&gt; uniqueCandidates = species.uniqueSamples(state, candidates);</span>
+
+                // update the individuals
+<span class="nc" id="L70">                p.subpops.get(i).individuals = uniqueCandidates;</span>
+
+                }
+
+            }
+<span class="nc" id="L75">        return p;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

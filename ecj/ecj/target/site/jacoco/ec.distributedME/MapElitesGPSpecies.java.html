@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MapElitesGPSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">MapElitesGPSpecies.java</span></div><h1>MapElitesGPSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.distributedME;
+
+import ec.EvolutionState;
+import ec.Fitness;
+
+import ec.gp.GPDefaults;
+
+import ec.util.Parameter;
+
+import java.io.LineNumberReader;
+import java.io.IOException;
+import java.io.DataInput;
+
+/**
+ * MapElitesGPSpecies.java
+ * 
+ * @see ec.gp.GPSpecies
+ * MAP-Elites equivalent of GPSpecies
+ * 
+ * Modified: 25 January, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+
+<span class="nc" id="L31">public class MapElitesGPSpecies extends MapElitesSpecies {</span>
+    public static final String P_MEGPSPECIES = &quot;species&quot;;
+
+    public Parameter defaultBase() {
+<span class="nc" id="L35">        return GPDefaults.base().push(P_MEGPSPECIES);</span>
+    }
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L39">        super.setup(state, base);</span>
+
+        // check to make sure that our individual prototype is a Elite
+<span class="nc bnc" id="L42" title="All 2 branches missed.">        if (!(i_prototype instanceof Elite))</span>
+<span class="nc" id="L43">            state.output.fatal(&quot;The Elite class for the Species &quot; + getClass().getName()</span>
+                    + &quot; is must be a subclass of ec.mapelites.Elite.&quot;, base);
+<span class="nc" id="L45">    }</span>
+
+    public Elite newIndividual(EvolutionState state, int thread) {
+<span class="nc" id="L48">        Elite newind = ((Elite) i_prototype).lightClone();</span>
+
+        // Initialize the trees
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        for (int x = 0; x &lt; newind.trees.length; x++)</span>
+<span class="nc" id="L52">            newind.trees[x].buildTree(state, thread);</span>
+
+        // Set the fitness
+<span class="nc" id="L55">        newind.fitness = (Fitness) (f_prototype.clone());</span>
+<span class="nc" id="L56">        newind.evaluated = false;</span>
+
+        // Set the species to me
+<span class="nc" id="L59">        newind.species = this;</span>
+
+        // ...and we're ready!
+<span class="nc" id="L62">        return newind;</span>
+    }
+
+    // A custom version of newIndividual() which guarantees that the
+    // prototype is light-cloned before readIndividual is issued
+    @Override
+    public Elite newIndividual(final EvolutionState state, final LineNumberReader reader) throws IOException {
+<span class="nc" id="L69">        Elite newind = ((Elite) i_prototype).lightClone();</span>
+
+        // Set the fitness -- must be done BEFORE loading!
+<span class="nc" id="L72">        newind.fitness = (Fitness) (f_prototype.clone());</span>
+<span class="nc" id="L73">        newind.evaluated = false; // for sanity's sake, though it's a useless line</span>
+
+        // load that sucker
+<span class="nc" id="L76">        newind.readIndividual(state, reader);</span>
+
+        // Set the species to me
+<span class="nc" id="L79">        newind.species = this;</span>
+
+        // and we're ready!
+<span class="nc" id="L82">        return newind;</span>
+    }
+
+    // A custom version of newIndividual() which guarantees that the
+    // prototype is light-cloned before readIndividual is issued
+    @Override
+    public Elite newIndividual(final EvolutionState state, final DataInput dataInput) throws IOException {
+<span class="nc" id="L89">        Elite newind = ((Elite) i_prototype).lightClone();</span>
+
+        // Set the fitness -- must be done BEFORE loading!
+<span class="nc" id="L92">        newind.fitness = (Fitness) (f_prototype.clone());</span>
+<span class="nc" id="L93">        newind.evaluated = false; // for sanity's sake, though it's a useless line</span>
+
+        // Set the species to me
+<span class="nc" id="L96">        newind.species = this;</span>
+
+        // load that sucker
+<span class="nc" id="L99">        newind.readIndividual(state, dataInput);</span>
+
+        // and we're ready!
+<span class="nc" id="L102">        return newind;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

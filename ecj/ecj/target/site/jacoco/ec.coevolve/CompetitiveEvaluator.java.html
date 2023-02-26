@@ -1,0 +1,663 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CompetitiveEvaluator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.coevolve</a> &gt; <span class="el_source">CompetitiveEvaluator.java</span></div><h1>CompetitiveEvaluator.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.coevolve;
+import java.util.ArrayList;
+
+import ec.*;
+import ec.util.*;
+
+/** 
+ * CompetitiveEvaluator.java
+ *
+
+ &lt;p&gt;CompetitiveEvaluator is a Evaluator which performs &lt;i&gt;competitive fitness evaluations&lt;/i&gt;.  
+ Competitive fitness is where individuals' fitness is determined by testing them against 
+ other members of the same subpopulation.  Competitive fitness topologies differ from
+ co-evolution topologies in that co-evolution is a term I generally reserve for 
+ multiple sbupopulations which breed separately but compete against other subpopulations 
+ during evaluation time.  Individuals are evaluated regardless of whether or not they've
+ been evaluated in the past.
+
+ &lt;p&gt;Your Problem is responsible for setting up the fitness appropriately.  
+ CompetitiveEvaluator expects to use Problems which adhere to the GroupedProblemForm interface, 
+ which defines a new evaluate(...) function, plus a preprocess(...) and postprocess(...) function.
+
+ &lt;p&gt;This competitive fitness evaluator is single-threaded -- maybe we'll hack in multithreading later. 
+ And it only has two individuals competing during any fitness evaluation.  The order of individuals in the 
+ subpopulation will be changed during the evaluation process.  There are seven evaluation topologies
+ presently supported:
+
+ &lt;p&gt;&lt;dl&gt;
+ &lt;dt&gt;&lt;b&gt;Single Elimination Tournament&lt;/b&gt;&lt;dd&gt;
+ All members of the population are paired up and evaluated.  In each pair, the &quot;winner&quot; is the individual
+ which winds up with the superior fitness.  If neither fitness is superior, then the &quot;winner&quot; is picked
+ at random.  Then all the winners are paired up and evaluated, and so on, just like in a single elimination
+ tournament.  It is important that the &lt;b&gt;population size be a &lt;i&gt;power of two&lt;/i&gt;&lt;/b&gt;, else some individuals
+ will not have the same number of &quot;wins&quot; as others and may lose the tournament as a result.
+
+ &lt;dt&gt;&lt;b&gt;Round Robin&lt;/b&gt;&lt;dd&gt;
+ Every member of the population are paired up and evaluated with all other members of the population, not
+ not including the member itself (we might add in self-play as a future later if people ask for it, it's
+ easy to hack in).
+
+ &lt;dt&gt;&lt;b&gt;K-Random-Opponents-One-Way&lt;/b&gt;&lt;dd&gt;
+ Each individual's fitness is calculated based on K competitions against random opponents.
+ For details, see &quot;A Comparison of Two Competitive Fitness Functions&quot; by Liviu Panait and
+ Sean Luke in the Proceedings of GECCO 2002.
+
+ &lt;dt&gt;&lt;b&gt;K-Random-Opponents-Two-Way&lt;/b&gt;&lt;dd&gt;
+ Each individual's fitness is calculated based on K competitions against random opponents. The advantage of
+ this method over &lt;b&gt;K-Random-Opponents-One-Way&lt;/b&gt; is a reduced number of competitions (when I competes
+ against J, both I's and J's fitnesses are updated, while in the previous method only one of the individuals
+ has its fitness updated).
+ For details, see &quot;A Comparison of Two Competitive Fitness Functions&quot; by Liviu Panait and
+ Sean Luke in the Proceedings of GECCO 2002.
+ &lt;/dl&gt; 
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;style&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;string with possible values: &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the style of the tournament)&lt;br&gt;
+ &lt;i&gt;single-elim-tournament&lt;/i&gt; (a single elimination tournament)&lt;br&gt;
+ &lt;i&gt;round-robin&lt;/i&gt; (a round robin tournament)&lt;br&gt;
+ &lt;i&gt;rand-1-way&lt;/i&gt; (K-Random-Opponents, each game counts for only one of the players)&lt;br&gt;
+ &lt;i&gt;rand-2-way&lt;/i&gt; (K-Random-Opponents, each game counts for both players)&lt;br&gt;
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;group-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; int&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(how many individuals per group, used in rand-1-way&lt;/i&gt; and &lt;i&gt;rand-2-way&lt;/i&gt; tournaments)&lt;br&gt;
+ &lt;i&gt;group-size&lt;/i&gt; &amp;gt;= 1 for &lt;i&gt;rand-1-way&lt;/i&gt; or &lt;i&gt;rand-2-way&lt;/i&gt;&lt;br&gt;
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;over-eval&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(if the tournament style leads to an individual playing more games than others (as can be the case for rand-2-way),
+ should the extra games be used for his fitness evaluatiuon?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ *
+ * @author Sean Luke &amp; Liviu Panait
+ * @version 1.0 
+ */
+
+
+<span class="nc" id="L92">public class CompetitiveEvaluator extends Evaluator</span>
+    {
+    public static final int STYLE_SINGLE_ELIMINATION=1;
+    public static final int STYLE_ROUND_ROBIN=2;
+    public static final int STYLE_N_RANDOM_COMPETITORS_ONEWAY=3;
+    public static final int STYLE_N_RANDOM_COMPETITORS_TWOWAY=4;
+
+    public static final String P_COMPETE_STYLE = &quot;style&quot;;
+    public int style;
+
+    public static final String P_GROUP_SIZE = &quot;group-size&quot;;
+    public int groupSize;
+
+    public static final String P_OVER_EVAL = &quot;over-eval&quot;;
+    public boolean allowOverEvaluation;
+
+    public void setup( final EvolutionState state, final Parameter base )
+        {
+<span class="nc" id="L110">        super.setup( state, base );</span>
+                                
+        String temp;
+<span class="nc" id="L113">        temp = state.parameters.getStringWithDefault( base.push( P_COMPETE_STYLE ), null, &quot;&quot; );</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if( temp.equalsIgnoreCase( &quot;single-elim-tournament&quot; ) )</span>
+            {
+<span class="nc" id="L116">            style = STYLE_SINGLE_ELIMINATION;</span>
+            }
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        else if( temp.equalsIgnoreCase( &quot;round-robin&quot; ) )</span>
+            {
+<span class="nc" id="L120">            style = STYLE_ROUND_ROBIN;</span>
+            }
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        else if( temp.equalsIgnoreCase( &quot;rand-1-way&quot; ) )</span>
+            {
+<span class="nc" id="L124">            style = STYLE_N_RANDOM_COMPETITORS_ONEWAY;</span>
+            }
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        else if( temp.equalsIgnoreCase( &quot;rand-2-way&quot; ) )</span>
+            {
+<span class="nc" id="L128">            style = STYLE_N_RANDOM_COMPETITORS_TWOWAY;</span>
+            }
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        else if (temp.equalsIgnoreCase( &quot;rand-2-ways&quot; ) )</span>
+            {
+<span class="nc" id="L132">            state.output.fatal(&quot;'rand-2-ways' is no longer a valid style name: use 'rand-2-way'&quot;,</span>
+<span class="nc" id="L133">                base.push(P_COMPETE_STYLE), null);</span>
+            }
+        else
+            {
+<span class="nc" id="L137">            state.output.fatal( &quot;Incorrect value for parameter. Acceptable values: &quot; +</span>
+<span class="nc" id="L138">                &quot;single-elim-tournament, round-robin, rand-1-way, rand-2-way&quot; , base.push( P_COMPETE_STYLE ) );</span>
+            }
+
+<span class="nc bnc" id="L141" title="All 4 branches missed.">        if( style == STYLE_N_RANDOM_COMPETITORS_ONEWAY || style == STYLE_N_RANDOM_COMPETITORS_TWOWAY )</span>
+            {
+<span class="nc" id="L143">            groupSize = state.parameters.getInt( base.push( P_GROUP_SIZE ), null, 1 );</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">            if( groupSize &lt; 1 )</span>
+                {
+<span class="nc" id="L146">                state.output.fatal( &quot;Incorrect value for parameter&quot;, base.push( P_GROUP_SIZE ) );</span>
+                }
+            }
+<span class="nc" id="L149">        allowOverEvaluation = state.parameters.getBoolean( base.push( P_OVER_EVAL ), null, false );</span>
+<span class="nc" id="L150">        }</span>
+
+    public String runComplete( final EvolutionState state )
+        {
+<span class="nc" id="L154">        return null;</span>
+        }
+
+    public void randomizeOrder(final EvolutionState state, final ArrayList&lt;Individual&gt; individuals)
+        {
+        // copy the inds into a new array, then dump them randomly into the
+        // subpopulation again
+<span class="nc" id="L161">        Individual[] queue = new Individual[individuals.size()];</span>
+<span class="nc" id="L162">        int len = queue.length;</span>
+<span class="nc" id="L163">        individuals.toArray(queue);</span>
+        
+        
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        for(int x=len;x&gt;0;x--)</span>
+            {
+<span class="nc" id="L168">            int i = state.random[0].nextInt(x);</span>
+<span class="nc" id="L169">            individuals.set(x-1, queue[i]);</span>
+            // get rid of queue[i] by swapping the highest guy there and then
+            // decreasing the highest value  :-)
+<span class="nc" id="L172">            queue[i] = queue[x-1];</span>
+            }
+<span class="nc" id="L174">        }</span>
+
+    /**
+     * An evaluator that performs coevolutionary evaluation.  Like SimpleEvaluator,
+     * it applies evolution pipelines, one per thread, to various subchunks of
+     * a new population.
+     */
+    public void evaluatePopulation(final EvolutionState state)
+        {
+<span class="nc" id="L183">        int numinds[] = new int[state.evalthreads];</span>
+<span class="nc" id="L184">        int from[] = new int[state.evalthreads];</span>
+<span class="nc" id="L185">        boolean[] assessFitness = new boolean[state.population.subpops.size()];</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        for(int i = 0; i &lt; assessFitness.length; i++)</span>
+<span class="nc" id="L187">            assessFitness[i] = true;                                        // update everyone's fitness in preprocess and postprocess</span>
+        
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        for (int y=0;y&lt;state.evalthreads;y++)</span>
+            {
+            // figure numinds
+<span class="nc bnc" id="L192" title="All 2 branches missed.">            if (y&lt;state.evalthreads-1) // not last one</span>
+<span class="nc" id="L193">                numinds[y] = state.population.subpops.get(0).individuals.size()/</span>
+                    state.evalthreads;
+            else
+<span class="nc" id="L196">                numinds[y] = </span>
+<span class="nc" id="L197">                    state.population.subpops.get(0).individuals.size()/</span>
+                    state.evalthreads +
+                    
+<span class="nc" id="L200">                    (state.population.subpops.get(0).individuals.size() -</span>
+<span class="nc" id="L201">                        (state.population.subpops.get(0).individuals.size() /</span>
+                        state.evalthreads)
+                    *state.evalthreads);
+            // figure from
+<span class="nc" id="L205">            from[y] = (state.population.subpops.get(0).individuals.size()/</span>
+                state.evalthreads) * y;
+            }
+        
+<span class="nc" id="L209">        randomizeOrder( state, state.population.subpops.get(0).individuals );</span>
+        
+<span class="nc" id="L211">        GroupedProblemForm prob = (GroupedProblemForm)(p_problem.clone());</span>
+
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        prob.preprocessPopulation(state,state.population, assessFitness, style == STYLE_SINGLE_ELIMINATION);</span>
+                
+<span class="nc bnc" id="L215" title="All 5 branches missed.">        switch(style)</span>
+            {
+            case STYLE_SINGLE_ELIMINATION:
+<span class="nc" id="L218">                evalSingleElimination( state, state.population.subpops.get(0).individuals, 0, prob);</span>
+<span class="nc" id="L219">                break;</span>
+            case STYLE_ROUND_ROBIN:
+<span class="nc" id="L221">                evalRoundRobin( state, from, numinds, state.population.subpops.get(0).individuals, 0, prob );</span>
+<span class="nc" id="L222">                break;</span>
+            case STYLE_N_RANDOM_COMPETITORS_ONEWAY:
+<span class="nc" id="L224">                evalNRandomOneWay( state, from, numinds, state.population.subpops.get(0).individuals, 0, prob );</span>
+<span class="nc" id="L225">                break;</span>
+            case STYLE_N_RANDOM_COMPETITORS_TWOWAY:
+<span class="nc" id="L227">                evalNRandomTwoWay( state, from, numinds, state.population.subpops.get(0).individuals, 0, prob );</span>
+<span class="nc" id="L228">                break;</span>
+            default:
+<span class="nc" id="L230">                state.output.fatal(&quot;Invalid competition style in CompetitiveEvaluator.evaluatePopulation()&quot;);</span>
+            }
+    
+<span class="nc bnc" id="L233" title="All 2 branches missed.">        state.incrementEvaluations(prob.postprocessPopulation(state, state.population, assessFitness, style == STYLE_SINGLE_ELIMINATION));</span>
+<span class="nc" id="L234">        }</span>
+    
+    public void evalSingleElimination( final EvolutionState state,
+        final ArrayList&lt;Individual&gt; individuals,
+        final int subpop,
+        final GroupedProblemForm prob )
+        {
+        // for a single-elimination tournament, the subpop[0] size must be 2^n for
+        // some value n.  We don't check that here!  Check it in setup.
+        
+        // create the tournament array
+<span class="nc" id="L245">        Individual[] tourn = individuals.toArray(new Individual[individuals.size()]);</span>
+
+<span class="nc" id="L247">        int len = tourn.length;</span>
+<span class="nc" id="L248">        Individual[] competition = new Individual[2];</span>
+<span class="nc" id="L249">        int[] subpops = new int[] { subpop, subpop };</span>
+<span class="nc" id="L250">        boolean[] updates = new boolean[2];</span>
+<span class="nc" id="L251">        updates[0] = updates[1] = true;</span>
+
+        // the &quot;top half&quot; of our array will be losers.
+        // the bottom half will be winners.  Then we cut our array in half and repeat.
+<span class="nc bnc" id="L255" title="All 2 branches missed.">        while( len &gt; 1 )</span>
+            {
+<span class="nc bnc" id="L257" title="All 2 branches missed.">            for(int x=0;x&lt;len/2;x++)</span>
+                {
+<span class="nc" id="L259">                competition[0] = tourn[x];</span>
+<span class="nc" id="L260">                competition[1] = tourn[len-x-1];</span>
+
+<span class="nc" id="L262">                prob.evaluate(state,competition,updates,true,subpops, 0);</span>
+                }
+
+<span class="nc bnc" id="L265" title="All 2 branches missed.">            for(int x=0;x&lt;len/2;x++)</span>
+                {
+                // if the second individual is better, or coin flip if equal, than we switch them around
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                if( tourn[len-x-1].fitness.betterThan(tourn[x].fitness) ||</span>
+<span class="nc bnc" id="L269" title="All 4 branches missed.">                    (tourn[len-x-1].fitness.equivalentTo(tourn[x].fitness) &amp;&amp; state.random[0].nextBoolean()))</span>
+                    {
+<span class="nc" id="L271">                    Individual temp = tourn[x];</span>
+<span class="nc" id="L272">                    tourn[x] = tourn[len-x-1];</span>
+<span class="nc" id="L273">                    tourn[len-x-1] = temp;</span>
+                    }
+                }
+
+            // last part of the tournament: deal with odd values of len!
+<span class="nc bnc" id="L278" title="All 2 branches missed.">            if( len%2 != 0 )</span>
+<span class="nc" id="L279">                len = 1 + len/2;</span>
+            else
+<span class="nc" id="L281">                len /= 2;</span>
+            }
+<span class="nc" id="L283">        }</span>
+
+
+    public void evalRoundRobin( final EvolutionState state,
+        int[] from, int[] numinds,
+        final ArrayList&lt;Individual&gt; individuals, int subpop,
+        final GroupedProblemForm prob )
+        {
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        if (state.evalthreads==1)</span>
+<span class="nc" id="L292">            evalRoundRobinPopChunk(state,from[0],numinds[0],0,individuals, subpop, prob);</span>
+        else
+            {
+<span class="nc" id="L295">            Thread[] t = new Thread[state.evalthreads];</span>
+            
+            // start up the threads
+<span class="nc bnc" id="L298" title="All 2 branches missed.">            for (int y=0;y&lt;state.evalthreads;y++)</span>
+                {
+<span class="nc" id="L300">                CompetitiveEvaluatorThread r = new RoundRobinCompetitiveEvaluatorThread();</span>
+<span class="nc" id="L301">                r.threadnum = y;</span>
+<span class="nc" id="L302">                r.numinds = numinds[y];</span>
+<span class="nc" id="L303">                r.from = from[y];</span>
+<span class="nc" id="L304">                r.me = this;</span>
+<span class="nc" id="L305">                r.subpop = subpop;</span>
+<span class="nc" id="L306">                r.state = state;</span>
+<span class="nc" id="L307">                r.p = prob;</span>
+<span class="nc" id="L308">                r.inds = individuals;</span>
+<span class="nc" id="L309">                t[y] = new Thread(r);</span>
+<span class="nc" id="L310">                t[y].start();</span>
+                }
+            
+            // gather the threads
+<span class="nc bnc" id="L314" title="All 2 branches missed.">            for (int y=0;y&lt;state.evalthreads;y++) </span>
+<span class="nc" id="L315">                try { t[y].join(); }</span>
+<span class="nc" id="L316">                catch(InterruptedException e)</span>
+                    {
+<span class="nc" id="L318">                    state.output.fatal(&quot;Whoa! The main evaluation thread got interrupted!  Dying...&quot;);</span>
+<span class="nc" id="L319">                    }</span>
+            }
+        
+<span class="nc" id="L322">        }</span>
+
+    /**
+     * A private helper function for evalutatePopulation which evaluates a chunk
+     * of individuals in a subpopulation for a given thread.
+     * 
+     * Although this method is declared public (for the benefit of a private
+     * helper class in this file), you should not call it.
+     * 
+     * @param state
+     * @param numinds
+     * @param from
+     * @param threadnum
+     * @param prob
+     */
+    public void evalRoundRobinPopChunk(final EvolutionState state,
+        int from, int numinds, int threadnum, 
+        final ArrayList&lt;Individual&gt; individuals, int subpop,
+        final GroupedProblemForm prob)
+        {
+<span class="nc" id="L342">        Individual[] competition = new Individual[2];</span>
+<span class="nc" id="L343">        int[] subpops = new int[] { subpop, subpop };</span>
+<span class="nc" id="L344">        boolean[] updates = new boolean[2];</span>
+<span class="nc" id="L345">        updates[0] = updates[1] = true;</span>
+<span class="nc" id="L346">        int upperBound = from+numinds;</span>
+        
+        // evaluate chunk of population against entire population
+        // since an individual x will be evaluated against all 
+        // other individuals &lt;x in other threads, only evaluate it against
+        // individuals &gt;x in this thread.
+<span class="nc bnc" id="L352" title="All 2 branches missed.">        for(int x=from;x&lt;upperBound;x++)</span>
+<span class="nc bnc" id="L353" title="All 2 branches missed.">            for(int y=x+1;y&lt;individuals.size();y++)</span>
+                {
+<span class="nc" id="L355">                competition[0] = individuals.get(x);</span>
+<span class="nc" id="L356">                competition[1] = individuals.get(y);</span>
+<span class="nc" id="L357">                prob.evaluate(state,competition,updates,false, subpops, 0);</span>
+                }
+<span class="nc" id="L359">        }</span>
+
+
+    public void evalNRandomOneWay( final EvolutionState state, 
+        int[] from, int[] numinds, 
+        final ArrayList&lt;Individual&gt; individuals, int subpop, 
+        final GroupedProblemForm prob )
+        {
+<span class="nc bnc" id="L367" title="All 2 branches missed.">        if (state.evalthreads==1)</span>
+<span class="nc" id="L368">            evalNRandomOneWayPopChunk(state,from[0],numinds[0],0,individuals, subpop, prob);</span>
+        else
+            {
+<span class="nc" id="L371">            Thread[] t = new Thread[state.evalthreads];</span>
+            
+            // start up the threads
+<span class="nc bnc" id="L374" title="All 2 branches missed.">            for (int y=0;y&lt;state.evalthreads;y++)</span>
+                {
+<span class="nc" id="L376">                CompetitiveEvaluatorThread r = new NRandomOneWayCompetitiveEvaluatorThread();</span>
+<span class="nc" id="L377">                r.threadnum = y;</span>
+<span class="nc" id="L378">                r.numinds = numinds[y];</span>
+<span class="nc" id="L379">                r.from = from[y];</span>
+<span class="nc" id="L380">                r.subpop = subpop;</span>
+<span class="nc" id="L381">                r.me = this;</span>
+<span class="nc" id="L382">                r.state = state;</span>
+<span class="nc" id="L383">                r.p = prob;</span>
+<span class="nc" id="L384">                r.inds = individuals;</span>
+<span class="nc" id="L385">                t[y] = new Thread(r);</span>
+<span class="nc" id="L386">                t[y].start();</span>
+                }
+            
+            // gather the threads
+<span class="nc bnc" id="L390" title="All 2 branches missed.">            for (int y=0;y&lt;state.evalthreads;y++) </span>
+<span class="nc" id="L391">                try { t[y].join(); }</span>
+<span class="nc" id="L392">                catch(InterruptedException e)</span>
+                    {
+<span class="nc" id="L394">                    state.output.fatal(&quot;Whoa! The main evaluation thread got interrupted!  Dying...&quot;);</span>
+<span class="nc" id="L395">                    }</span>
+            }
+<span class="nc" id="L397">        }</span>
+    
+    public void evalNRandomOneWayPopChunk( final EvolutionState state,
+        int from, int numinds, int threadnum,
+        final ArrayList&lt;Individual&gt; individuals,
+        final int subpop,
+        final GroupedProblemForm prob )
+        {
+<span class="nc" id="L405">        Individual[] queue = individuals.toArray(new Individual[individuals.size()]);</span>
+<span class="nc" id="L406">        int len = queue.length;</span>
+        
+
+<span class="nc" id="L409">        Individual[] competition = new Individual[2];</span>
+<span class="nc" id="L410">        int subpops[] = new int[] { subpop, subpop };</span>
+<span class="nc" id="L411">        boolean[] updates = new boolean[2];</span>
+<span class="nc" id="L412">        updates[0] = true;</span>
+<span class="nc" id="L413">        updates[1] = false;</span>
+<span class="nc" id="L414">        int upperBound = from+numinds;</span>
+        
+<span class="nc bnc" id="L416" title="All 2 branches missed.">        for(int x=from;x&lt;upperBound;x++)</span>
+            {
+<span class="nc" id="L418">            competition[0] = individuals.get(x);</span>
+            // fill up our tournament
+<span class="nc bnc" id="L420" title="All 2 branches missed.">            for(int y=0;y&lt;groupSize;)</span>
+                {
+                // swap to end and remove
+<span class="nc" id="L423">                int index = state.random[0].nextInt(len-y);</span>
+<span class="nc" id="L424">                competition[1] = queue[index];</span>
+<span class="nc" id="L425">                queue[index] = queue[len-y-1];</span>
+<span class="nc" id="L426">                queue[len-y-1] = competition[1];</span>
+                // if the opponent is not the actual individual, we can
+                // have a competition
+<span class="nc bnc" id="L429" title="All 2 branches missed.">                if( competition[1] != individuals.get(x) )</span>
+                    {
+<span class="nc" id="L431">                    prob.evaluate(state,competition,updates,false,subpops, 0);</span>
+<span class="nc" id="L432">                    y++;</span>
+                    }
+<span class="nc" id="L434">                }</span>
+            }
+<span class="nc" id="L436">        }</span>
+
+    public void evalNRandomTwoWay( final EvolutionState state,
+        int[] from, int[] numinds,
+        final ArrayList&lt;Individual&gt; individuals, int subpop, 
+        final GroupedProblemForm prob )
+        {
+<span class="nc bnc" id="L443" title="All 2 branches missed.">        if (state.evalthreads==1)</span>
+<span class="nc" id="L444">            evalNRandomTwoWayPopChunk(state,from[0],numinds[0],0,individuals, subpop, prob);</span>
+        else
+            {
+<span class="nc" id="L447">            Thread[] t = new Thread[state.evalthreads];</span>
+            
+            // start up the threads
+<span class="nc bnc" id="L450" title="All 2 branches missed.">            for (int y=0;y&lt;state.evalthreads;y++)</span>
+                {
+<span class="nc" id="L452">                CompetitiveEvaluatorThread r = new NRandomTwoWayCompetitiveEvaluatorThread();</span>
+<span class="nc" id="L453">                r.threadnum = y;</span>
+<span class="nc" id="L454">                r.numinds = numinds[y];</span>
+<span class="nc" id="L455">                r.from = from[y];</span>
+<span class="nc" id="L456">                r.me = this;</span>
+<span class="nc" id="L457">                r.subpop = subpop;</span>
+<span class="nc" id="L458">                r.state = state;</span>
+<span class="nc" id="L459">                r.p = prob;</span>
+<span class="nc" id="L460">                r.inds = individuals;</span>
+<span class="nc" id="L461">                t[y] = new Thread(r);</span>
+<span class="nc" id="L462">                t[y].start();</span>
+                }
+            
+            // gather the threads
+<span class="nc bnc" id="L466" title="All 2 branches missed.">            for (int y=0;y&lt;state.evalthreads;y++)</span>
+<span class="nc" id="L467">                try { t[y].join(); }</span>
+<span class="nc" id="L468">                catch(InterruptedException e)</span>
+                    {
+<span class="nc" id="L470">                    state.output.fatal(&quot;Whoa! The main evaluation thread got interrupted!  Dying...&quot;);</span>
+<span class="nc" id="L471">                    }</span>
+            }
+<span class="nc" id="L473">        }</span>
+    
+    public void evalNRandomTwoWayPopChunk( final EvolutionState state,
+        int from, int numinds, int threadnum,
+        final ArrayList&lt;Individual&gt; individuals,
+        final int subpop,
+        final GroupedProblemForm prob )
+        {
+
+        // the number of games played for each player
+<span class="nc" id="L483">        EncapsulatedIndividual[] individualsOrdered = new EncapsulatedIndividual[individuals.size()];</span>
+<span class="nc" id="L484">        EncapsulatedIndividual[] queue = new EncapsulatedIndividual[individuals.size()];</span>
+<span class="nc bnc" id="L485" title="All 2 branches missed.">        for( int i = 0 ; i &lt; individuals.size() ; i++ )</span>
+<span class="nc" id="L486">            individualsOrdered[i] = new EncapsulatedIndividual( individuals.get(i), 0 );</span>
+
+<span class="nc" id="L488">        Individual[] competition = new Individual[2];</span>
+<span class="nc" id="L489">        int[] subpops = new int[] { subpop, subpop }; </span>
+<span class="nc" id="L490">        boolean[] updates = new boolean[2];</span>
+<span class="nc" id="L491">        updates[0] = true;</span>
+<span class="nc" id="L492">        int upperBound = from+numinds;</span>
+        
+<span class="nc bnc" id="L494" title="All 2 branches missed.">        for(int x=from;x&lt;upperBound;x++)</span>
+            {
+<span class="nc" id="L496">            System.arraycopy(individualsOrdered,0,queue,0,queue.length);</span>
+<span class="nc" id="L497">            competition[0] = queue[x].ind;</span>
+
+            // if the rest of individuals is not enough to fill
+            // all games remaining for the current individual
+            // (meaning that the current individual has left a
+            // lot of games to play versus players with index
+            // greater than his own), then it should play with
+            // all. In the end, we should check that he finished
+            // all the games he needs. If he did, everything is
+            // ok, otherwise he should play with some other players
+            // with index smaller than his own, but all these games
+            // will count only for his fitness evaluation, and
+            // not for the opponents' (unless allowOverEvaluations is set to true)
+
+            // if true, it means that he has to play against all opponents with greater index
+<span class="nc bnc" id="L512" title="All 2 branches missed.">            if( individuals.size() - x - 1 &lt;= groupSize - queue[x].nOpponentsMet )</span>
+                {
+<span class="nc bnc" id="L514" title="All 2 branches missed.">                for( int y = x+1 ; y &lt; queue.length ; y++ )</span>
+                    {
+<span class="nc" id="L516">                    competition[1] = queue[y].ind;</span>
+<span class="nc bnc" id="L517" title="All 4 branches missed.">                    updates[1] = (queue[y].nOpponentsMet &lt; groupSize) || allowOverEvaluation;</span>
+<span class="nc" id="L518">                    prob.evaluate( state, competition, updates, false, subpops, 0 );</span>
+<span class="nc" id="L519">                    queue[x].nOpponentsMet++;</span>
+<span class="nc bnc" id="L520" title="All 2 branches missed.">                    if( updates[1] )</span>
+<span class="nc" id="L521">                        queue[y].nOpponentsMet++;</span>
+                    }
+                }
+            else // here he has to play against a selection of the opponents with greater index
+                {
+                // we can use the queue structure because we'll just rearrange the indexes
+                // but we should make sure we also rearrange the other vectors referring to the individuals
+
+<span class="nc bnc" id="L529" title="All 2 branches missed.">                for( int y = 0 ; groupSize &gt; queue[x].nOpponentsMet ; y++ )</span>
+                    {
+                    // swap to the end and remove from list
+<span class="nc" id="L532">                    int index = state.random[0].nextInt( queue.length - x - 1 - y )+x+1;</span>
+<span class="nc" id="L533">                    competition[1] = queue[index].ind;</span>
+
+<span class="nc bnc" id="L535" title="All 4 branches missed.">                    updates[1] = (queue[index].nOpponentsMet &lt; groupSize) || allowOverEvaluation;</span>
+<span class="nc" id="L536">                    prob.evaluate( state, competition, updates, false, subpops, 0 );</span>
+<span class="nc" id="L537">                    queue[x].nOpponentsMet++;</span>
+<span class="nc bnc" id="L538" title="All 2 branches missed.">                    if( updates[1] )</span>
+<span class="nc" id="L539">                        queue[index].nOpponentsMet++;</span>
+
+                    // swap the players (such that a player will not be considered twice)
+<span class="nc" id="L542">                    EncapsulatedIndividual temp = queue[index];</span>
+<span class="nc" id="L543">                    queue[index] = queue[queue.length - y - 1];</span>
+<span class="nc" id="L544">                    queue[queue.length - y - 1] = temp;</span>
+
+                    }
+
+                }
+
+            // if true, it means that the current player needs to play some games with other players with lower indexes.
+            // this is an unfortunate situation, since all those players have already had their groupSize games for the evaluation
+<span class="nc bnc" id="L552" title="All 2 branches missed.">            if( queue[x].nOpponentsMet &lt; groupSize )</span>
+                {
+<span class="nc bnc" id="L554" title="All 2 branches missed.">                for( int y = queue[x].nOpponentsMet ; y &lt; groupSize ; y++ )</span>
+                    {
+                    // select a random opponent with smaller index (don't even care for duplicates)
+                    int index;
+<span class="nc bnc" id="L558" title="All 2 branches missed.">                    if( x &gt; 0 ) // if x is 0, then there are no players with smaller index, therefore pick a random one</span>
+<span class="nc" id="L559">                        index = state.random[0].nextInt( x );</span>
+                    else
+<span class="nc" id="L561">                        index = state.random[0].nextInt( queue.length-1 )+1;</span>
+                    // use the opponent for the evaluation
+<span class="nc" id="L563">                    competition[1] = queue[index].ind;</span>
+<span class="nc bnc" id="L564" title="All 4 branches missed.">                    updates[1] = (queue[index].nOpponentsMet &lt; groupSize) || allowOverEvaluation;</span>
+<span class="nc" id="L565">                    prob.evaluate( state, competition, updates, false, subpops, 0 );</span>
+<span class="nc" id="L566">                    queue[x].nOpponentsMet++;</span>
+<span class="nc bnc" id="L567" title="All 2 branches missed.">                    if( updates[1] )</span>
+<span class="nc" id="L568">                        queue[index].nOpponentsMet++;</span>
+                    
+                    }
+                }
+
+            }
+<span class="nc" id="L574">        }</span>
+
+    int nextPowerOfTwo( int N )
+        {
+<span class="nc" id="L578">        int i = 1;</span>
+<span class="nc bnc" id="L579" title="All 2 branches missed.">        while( i &lt; N )</span>
+<span class="nc" id="L580">            i *= 2;</span>
+<span class="nc" id="L581">        return i;</span>
+        }
+
+    int whereToPutInformation;
+    void fillPositions( int[] positions, int who, int totalPerDepth, int total )
+        {
+<span class="nc bnc" id="L587" title="All 2 branches missed.">        if(totalPerDepth &gt;= total - 1 )</span>
+            {
+<span class="nc" id="L589">            positions[whereToPutInformation] = who;</span>
+<span class="nc" id="L590">            whereToPutInformation++;</span>
+            }
+        else
+            {
+<span class="nc" id="L594">            fillPositions( positions, who, totalPerDepth*2+1, total );</span>
+<span class="nc" id="L595">            fillPositions( positions, totalPerDepth-who, totalPerDepth*2+1, total );</span>
+            }
+<span class="nc" id="L597">        }</span>
+
+    }
+
+// used by the K-Random-Opponents-One-Way and K-Random-Opponents-Two-Ways evaluations
+class EncapsulatedIndividual
+    {
+    public Individual ind;
+    public int nOpponentsMet;
+    public EncapsulatedIndividual( Individual ind_, int value_ )
+<span class="nc" id="L607">        {</span>
+<span class="nc" id="L608">        ind = ind_;</span>
+<span class="nc" id="L609">        nOpponentsMet = value_;</span>
+<span class="nc" id="L610">        }</span>
+    };
+
+/*
+// used by the Single-Elimination-Tournament, (Double-Elimination-Tournament and World-Cup) evaluations
+class IndividualAndVictories
+{
+public Individual ind;
+public int victories;
+public IndividualAndVictories( Individual ind_, int value_ )
+{
+ind = ind_;
+victories = value_;
+}
+};
+*/
+
+<span class="nc" id="L627">class IndComparator implements SortComparator</span>
+    {
+    public boolean lt(Object a, Object b)
+<span class="nc" id="L630">        { return ((Individual)a).fitness.betterThan(((Individual)b).fitness); }</span>
+    public boolean gt(Object a, Object b)
+<span class="nc" id="L632">        { return ((Individual)b).fitness.betterThan(((Individual)a).fitness); }</span>
+    }
+
+<span class="nc" id="L635">abstract class CompetitiveEvaluatorThread implements Runnable</span>
+    {
+    public int numinds;
+    public int from;
+    public CompetitiveEvaluator me;
+    public EvolutionState state;
+    public int threadnum;
+    public GroupedProblemForm p;
+    public int subpop;
+    public ArrayList&lt;Individual&gt; inds;
+    }
+
+<span class="nc" id="L647">class RoundRobinCompetitiveEvaluatorThread extends CompetitiveEvaluatorThread</span>
+    {
+    public synchronized void run()
+<span class="nc" id="L650">        { me.evalRoundRobinPopChunk(state,from,numinds,threadnum,inds, subpop, p); }</span>
+    }
+
+<span class="nc" id="L653">class NRandomOneWayCompetitiveEvaluatorThread extends CompetitiveEvaluatorThread</span>
+    {
+    public synchronized void run()
+<span class="nc" id="L656">        { me.evalNRandomOneWayPopChunk(state,from,numinds,threadnum,inds, subpop, p); }</span>
+    }
+<span class="nc" id="L658">class NRandomTwoWayCompetitiveEvaluatorThread extends CompetitiveEvaluatorThread</span>
+    {
+    public synchronized void run()
+<span class="nc" id="L661">        { me.evalNRandomTwoWayPopChunk(state,from,numinds,threadnum,inds, subpop, p); }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

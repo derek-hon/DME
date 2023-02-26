@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Frog.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.lawnmower.func</a> &gt; <span class="el_source">Frog.java</span></div><h1>Frog.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.lawnmower.func;
+import ec.*;
+import ec.app.lawnmower.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * Frog.java
+ * 
+ * Created: Wed Nov  3 18:26:37 1999
+ * By: Sean Luke
+ */
+
+/**
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L26">public class Frog extends GPNode</span>
+    {
+<span class="nc" id="L28">    public String toString() { return &quot;frog&quot;; }</span>
+
+    /*
+      public void checkConstraints(final EvolutionState state,
+      final int tree,
+      final GPIndividual typicalIndividual,
+      final Parameter individualBase)
+      {
+      super.checkConstraints(state,tree,typicalIndividual,individualBase);
+      if (children.length!=1)
+      state.output.error(&quot;Incorrect number of children for node &quot; + 
+      toStringForError() + &quot; at &quot; +
+      individualBase);
+      }
+    */
+<span class="nc" id="L43">    public int expectedChildren() { return 1; }</span>
+
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+<span class="nc" id="L52">        Lawnmower p = (Lawnmower)problem;</span>
+<span class="nc" id="L53">        LawnmowerData d = (LawnmowerData)input;</span>
+
+<span class="nc" id="L55">        children[0].eval(state,thread,input,stack,individual,problem);</span>
+        
+        // we follow the Koza-II example, not the lil-gp example.
+        // that is, we &quot;assume&quot; that in our orientation the X axis
+        // is moving out away from us, and the Y axis is moving
+        // out to the left.  In lil-gp, the assumption is that the Y axis
+        // axis is moving out away from us, and the X axis is moving out
+        // to the right.
+
+<span class="nc bnc" id="L64" title="All 5 branches missed.">        switch (p.orientation)</span>
+            {
+            case Lawnmower.O_UP:
+                // counter-clockwise rotation
+<span class="nc" id="L68">                p.posx -= d.y;</span>
+<span class="nc" id="L69">                p.posy += d.x;</span>
+<span class="nc" id="L70">                break;</span>
+            case Lawnmower.O_LEFT:
+                // flipped orientation
+<span class="nc" id="L73">                p.posx -= d.x;</span>
+<span class="nc" id="L74">                p.posy -= d.y;</span>
+<span class="nc" id="L75">                break;</span>
+            case Lawnmower.O_DOWN:
+                // clockwise rotation
+<span class="nc" id="L78">                p.posx += d.y;</span>
+<span class="nc" id="L79">                p.posy -= d.x;</span>
+<span class="nc" id="L80">                break;</span>
+            case Lawnmower.O_RIGHT:
+                // proper orientation
+<span class="nc" id="L83">                p.posx += d.x;</span>
+<span class="nc" id="L84">                p.posy += d.y;</span>
+<span class="nc" id="L85">                break;</span>
+            default:  // whoa!
+<span class="nc" id="L87">                state.output.fatal(&quot;Whoa, somehow I got a bad orientation! (&quot; + p.orientation + &quot;)&quot;);</span>
+                break;
+            }
+
+        // shift back into the lawn frame.
+        // because Java's % on negative numbers preserves the
+        // minus sign, we have to mod twice with an addition.
+        // C has to do this too.
+<span class="nc" id="L95">        p.posx = ((p.posx % p.maxx) + p.maxx ) % p.maxx ; </span>
+<span class="nc" id="L96">        p.posy = ((p.posy % p.maxy) + p.maxy ) % p.maxy ;</span>
+
+<span class="nc" id="L98">        p.moves++;</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (p.map[p.posx][p.posy]==Lawnmower.UNMOWED)</span>
+            {
+<span class="nc" id="L101">            p.sum++;</span>
+<span class="nc" id="L102">            p.map[p.posx][p.posy] = p.moves;</span>
+            }
+
+        // return [x,y] -- to do this, simply don't modify input
+<span class="nc" id="L106">        }</span>
+    }
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

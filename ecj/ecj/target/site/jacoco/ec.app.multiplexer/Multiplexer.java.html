@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Multiplexer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.multiplexer</a> &gt; <span class="el_source">Multiplexer.java</span></div><h1>Multiplexer.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.multiplexer;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+
+/* 
+ * Multiplexer.java
+ * 
+ * Created: Mon Nov  1 15:46:19 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Multiplexer implements the family of &lt;i&gt;n&lt;/i&gt;-Multiplexer problems.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.app.multiplexer.MultiplexerData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the Multiplexer problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;bits&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;1, 2, or 3&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The number of address bits (1 == 3-multiplexer, 2 == 6-multiplexer, 3==11-multiplexer)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L45">public class Multiplexer extends GPProblem implements SimpleProblemForm</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final int NUMINPUTS = 20;
+    public static final String P_NUMBITS = &quot;bits&quot;;
+
+    public int bits;  // number of bits in the data
+
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L58">        super.setup(state,base);</span>
+
+        // not using any default base -- it's not safe
+
+        // verify our input is the right class (or subclasses from it)
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (!(input instanceof MultiplexerData))</span>
+<span class="nc" id="L64">            state.output.fatal(&quot;GPData class must subclass from &quot; + MultiplexerData.class,</span>
+<span class="nc" id="L65">                base.push(P_DATA), null);</span>
+
+        // I figure 3 bits is plenty -- otherwise we'd be dealing with
+        // REALLY big arrays!
+<span class="nc" id="L69">        bits = state.parameters.getIntWithMax(base.push(P_NUMBITS),null,1,3);</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        if (bits&lt;1)</span>
+<span class="nc" id="L71">            state.output.fatal(&quot;The number of bits for Multiplexer must be between 1 and 3 inclusive&quot;);</span>
+<span class="nc" id="L72">        }</span>
+
+
+    public void evaluate(final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+<span class="nc" id="L82">            MultiplexerData input = (MultiplexerData)(this.input);</span>
+        
+<span class="nc" id="L84">            input.status = (byte)bits;</span>
+
+<span class="nc" id="L86">            int sum = 0;</span>
+                
+<span class="nc" id="L88">            ((GPIndividual)ind).trees[0].child.eval(</span>
+                state,threadnum,input,stack,((GPIndividual)ind),this);
+                
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            if (bits==1)</span>
+                {
+<span class="nc" id="L93">                byte item1 = input.dat_3;</span>
+<span class="nc" id="L94">                byte item2 = Fast.M_3[Fast.M_3_OUTPUT];</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">                for(int y=0;y&lt;MultiplexerData.MULTI_3_BITLENGTH;y++)</span>
+                    {
+                    // if the first bit matches, grab it as:
+                    // sum += 1 and not(item1 xor item2)
+                    // that is, if item1 and item2 are the SAME at bit 1
+                    // then we increase
+<span class="nc" id="L101">                    sum += ( 1 &amp; ((item1 ^ item2) ^ (-1)));</span>
+                    // shift to the next bit
+<span class="nc" id="L103">                    item1 = (byte)(item1 &gt;&gt;&gt; 1);</span>
+<span class="nc" id="L104">                    item2 = (byte)(item2 &gt;&gt;&gt; 1);</span>
+                    }
+<span class="nc" id="L106">                }</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            else if (bits==2)</span>
+                {
+<span class="nc" id="L109">                long item1 = input.dat_6;</span>
+<span class="nc" id="L110">                long item2 = Fast.M_6[Fast.M_6_OUTPUT];</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">                for(int y=0;y&lt;MultiplexerData.MULTI_6_BITLENGTH;y++)</span>
+                    {
+                    // if the first bit matches, grab it
+<span class="nc" id="L114">                    sum += ( 1L &amp; ((item1 ^ item2) ^(-1L)));</span>
+                    // shift to the next bit
+<span class="nc" id="L116">                    item1 = item1 &gt;&gt;&gt; 1;</span>
+<span class="nc" id="L117">                    item2 = item2 &gt;&gt;&gt; 1;</span>
+                    }
+<span class="nc" id="L119">                }</span>
+            else // bits==3
+                {
+                long item1, item2;
+<span class="nc bnc" id="L123" title="All 2 branches missed.">                for(int y=0;y&lt;MultiplexerData.MULTI_11_NUM_BITSTRINGS; y++)</span>
+                    {
+<span class="nc" id="L125">                    item1 = input.dat_11[y];</span>
+<span class="nc" id="L126">                    item2 = Fast.M_11[Fast.M_11_OUTPUT][y];</span>
+                    //System.out.println(&quot;&quot; + y + &quot; ### &quot; + item1 + &quot; &quot; + item2);
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                    for(int z=0;z&lt;MultiplexerData.MULTI_11_BITLENGTH;z++)</span>
+                        {
+                        // if the first bit matches, grab it
+<span class="nc" id="L131">                        sum += ( 1L &amp; ((item1 ^ item2) ^(-1L)));</span>
+                        // shift to the next bit
+<span class="nc" id="L133">                        item1 = item1 &gt;&gt;&gt; 1;</span>
+<span class="nc" id="L134">                        item2 = item2 &gt;&gt;&gt; 1;</span>
+                        }
+                    }
+                }
+                
+            // the fitness better be KozaFitness!
+<span class="nc" id="L140">            KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (bits==1)</span>
+<span class="nc" id="L142">                f.setStandardizedFitness(state, (Fast.M_3_SIZE - sum));</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">            else if (bits==2)</span>
+<span class="nc" id="L144">                f.setStandardizedFitness(state, (Fast.M_6_SIZE - sum));</span>
+            else // (bits==3)
+<span class="nc" id="L146">                f.setStandardizedFitness(state, (Fast.M_11_SIZE - sum));</span>
+<span class="nc" id="L147">            f.hits = sum;</span>
+<span class="nc" id="L148">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L150">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

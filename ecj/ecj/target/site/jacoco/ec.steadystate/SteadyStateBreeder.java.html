@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SteadyStateBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.steadystate</a> &gt; <span class="el_source">SteadyStateBreeder.java</span></div><h1>SteadyStateBreeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.steadystate;
+
+import ec.simple.*;
+
+import java.util.ArrayList;
+
+import ec.*;
+import ec.util.*;
+
+/* 
+ * SteadyStateBreeder.java
+ * 
+ */
+
+/**
+ * This subclass of Breeder performs the evaluation portion of Steady-State
+ * Evolution and (in distributed form) Asynchronous Evolution. The procedure is
+ * as follows. We begin with an empty Population and one by one create new
+ * Indivdiuals and send them off to be evaluated. In basic Steady-State
+ * Evolution the individuals are immediately evaluated and we wait for them; but
+ * in Asynchronous Evolution the individuals are evaluated for however long it
+ * takes and we don't wait for them to finish. When individuals return they are
+ * added to the Population until it is full. No duplicate individuals are
+ * allowed.
+ *
+ * &lt;p&gt;
+ * At this point the system switches to its &quot;steady state&quot;: individuals are bred
+ * from the population one by one, and sent off to be evaluated. Once again, in
+ * basic Steady-State Evolution the individuals are immediately evaluated and we
+ * wait for them; but in Asynchronous Evolution the individuals are evaluated
+ * for however long it takes and we don't wait for them to finish. When an
+ * individual returns, we mark an individual in the Population for death, then
+ * replace it with the new returning individual. Note that during the
+ * steady-state, Asynchronous Evolution could be still sending back some &quot;new&quot;
+ * individuals created during the initialization phase, not &quot;bred&quot; individuals.
+ *
+ * &lt;p&gt;
+ * The determination of how an individual is marked for death is done by the
+ * SteadyStateBreeder. This is a SelectionMethod. Note that this SelectionMethod
+ * probably should &lt;i&gt;not&lt;/i&gt; be selecting for the &quot;fittest&quot; individuals, but
+ * rather for either random individuals (the standard approach) or for &quot;bad&quot;
+ * individuals.
+ * 
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;deselector&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;classname, inherits and != ec.SelectionMethod&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(The SelectionMethod used to pick individuals for death)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * 
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+public class SteadyStateBreeder extends SimpleBreeder {
+    private static final long serialVersionUID = 1;
+
+    /**
+     * If st.firstTimeAround, this acts exactly like SimpleBreeder. Else, it only
+     * breeds one new individual per subpopulation, to place in position 0 of the
+     * subpopulation.
+     */
+    BreedingSource[] bp;
+
+    public static final String P_DESELECTOR = &quot;deselector&quot;;
+    // public static final String P_RETRIES = &quot;duplicate-retries&quot;;
+
+    /** Loaded during the first iteration of breedPopulation */
+    SelectionMethod deselectors[];
+
+    /** Do we allow duplicates? */
+    // public int numDuplicateRetries;
+
+<span class="nc" id="L84">    public SteadyStateBreeder() {</span>
+<span class="nc" id="L85">        bp = null;</span>
+<span class="nc" id="L86">        deselectors = null;</span>
+<span class="nc" id="L87">    }</span>
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L90">        super.setup(state, base);</span>
+
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (!clonePipelineAndPopulation)</span>
+<span class="nc" id="L93">            state.output.fatal(</span>
+                    &quot;clonePipelineAndPopulation must be true for SteadyStateBreeder -- we'll use only one Pipeline anyway.&quot;);
+
+<span class="nc" id="L96">        Parameter p = new Parameter(Initializer.P_POP).push(Population.P_SIZE);</span>
+<span class="nc" id="L97">        int size = state.parameters.getInt(p, null, 1);</span>
+
+        // if size is wrong, we'll let Population complain about it -- for us, we'll
+        // just make 0-sized arrays and drop out.
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (size &gt; 0)</span>
+<span class="nc" id="L102">            deselectors = new SelectionMethod[size];</span>
+
+        // load the deselectors
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        for (int x = 0; x &lt; deselectors.length; x++) {</span>
+<span class="nc" id="L106">            deselectors[x] = (SelectionMethod) (state.parameters.getInstanceForParameter(</span>
+<span class="nc" id="L107">                    SteadyStateDefaults.base().push(P_DESELECTOR).push(&quot;&quot; + x), null, SelectionMethod.class));</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            if (!(deselectors[x] instanceof SteadyStateBSourceForm))</span>
+<span class="nc" id="L109">                state.output.error(&quot;Deselector for subpopulation &quot; + x + &quot; is not of SteadyStateBSourceForm.&quot;);</span>
+<span class="nc" id="L110">            deselectors[x].setup(state, SteadyStateDefaults.base().push(P_DESELECTOR).push(&quot;&quot; + x));</span>
+        }
+<span class="nc" id="L112">        state.output.exitIfErrors();</span>
+
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (sequentialBreeding) // uh oh</span>
+<span class="nc" id="L115">            state.output.fatal(&quot;SteadyStateBreeder does not support sequential evaluation.&quot;,</span>
+<span class="nc" id="L116">                    base.push(P_SEQUENTIAL_BREEDING));</span>
+
+        // How often do we retry if we find a duplicate?
+        /*
+         * numDuplicateRetries = state.parameters.getInt(
+         * SteadyStateDefaults.base().push(P_RETRIES),null,0); if (numDuplicateRetries &lt;
+         * 0) state.output.fatal(
+         * &quot;The number of retries for duplicates must be an integer &gt;= 0.\n&quot;,
+         * base.push(P_RETRIES),null);
+         */
+<span class="nc" id="L126">    }</span>
+
+    /**
+     * Called to check to see if the breeding sources are correct -- if you use this
+     * method, you must call state.output.exitIfErrors() immediately afterwards.
+     */
+    public void sourcesAreProperForm(final SteadyStateEvolutionState state, final BreedingSource[] breedingSources) {
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        for (int x = 0; x &lt; breedingSources.length; x++) {</span>
+            // all breeding pipelines are SteadyStateBSourceForm
+            // if (!(breedingSources[x] instanceof SteadyStateBSourceForm))
+            // state.output.error(&quot;Breeding Pipeline of subpopulation &quot; + x + &quot; is not of
+            // SteadyStateBSourceForm&quot;);
+<span class="nc bnc" id="L138" title="All 2 branches missed.">            if (breedingSources[x] != null) {</span>
+<span class="nc" id="L139">                ((SteadyStateBSourceForm) (breedingSources[x])).sourcesAreProperForm(state);</span>
+            }
+        }
+<span class="nc" id="L142">    }</span>
+
+    /**
+     * Called whenever individuals have been replaced by new individuals in the
+     * population.
+     */
+    public void individualReplaced(final SteadyStateEvolutionState state, final int subpopulation, final int thread,
+            final int individual) {
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        for (int x = 0; x &lt; bp.length; x++)</span>
+<span class="nc" id="L151">            ((SteadyStateBSourceForm) bp[x]).individualReplaced(state, subpopulation, thread, individual);</span>
+        // let the deselector know
+<span class="nc" id="L153">        ((SteadyStateBSourceForm) deselectors[subpopulation]).individualReplaced(state, subpopulation, thread,</span>
+                individual);
+<span class="nc" id="L155">    }</span>
+
+    public void finishPipelines(EvolutionState state) {
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        for (int x = 0; x &lt; deselectors.length; x++) {</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">            if (bp[x] != null) {</span>
+<span class="nc" id="L160">                bp[x].finishProducing(state, x, 0);</span>
+<span class="nc" id="L161">                deselectors[x].finishProducing(state, x, 0);</span>
+            }
+        }
+<span class="nc" id="L164">    }</span>
+
+    public void prepareToBreed(EvolutionState state, int thread) {
+<span class="nc" id="L167">        final SteadyStateEvolutionState st = (SteadyStateEvolutionState) state;</span>
+        // set up the breeding pipelines
+<span class="nc" id="L169">        bp = new BreedingSource[st.population.subpops.size()];</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        for (int pop = 0; pop &lt; bp.length; pop++) {</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">            if (st.population.subpops.get(pop).species.pipe_prototype != null) { // If this algorithm uses a pipeline,</span>
+                                                                                 // make sure it produces the right type
+                                                                                 // of output
+<span class="nc" id="L174">                bp[pop] = (BreedingSource) st.population.subpops.get(pop).species.pipe_prototype.clone();</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                if (!bp[pop].produces(st, st.population, pop, 0))</span>
+<span class="nc" id="L176">                    st.output.error(&quot;The Breeding Source of subpopulation &quot; + pop</span>
+                            + &quot; does not produce individuals of the expected species &quot;
+<span class="nc" id="L178">                            + st.population.subpops.get(pop).species.getClass().getName()</span>
+                            + &quot; and with the expected Fitness class &quot;
+<span class="nc" id="L180">                            + st.population.subpops.get(pop).species.f_prototype.getClass().getName());</span>
+<span class="nc" id="L181">                bp[pop].fillStubs(state, null);</span>
+            }
+        }
+        // are they of the proper form?
+<span class="nc" id="L185">        sourcesAreProperForm(st, bp);</span>
+        // because I promised when calling sourcesAreProperForm
+<span class="nc" id="L187">        st.output.exitIfErrors();</span>
+
+        // warm them up
+<span class="nc bnc" id="L190" title="All 2 branches missed.">        for (int pop = 0; pop &lt; bp.length; pop++) {</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">            if (bp[pop] != null) {</span>
+<span class="nc" id="L192">                bp[pop].prepareToProduce(state, pop, 0);</span>
+<span class="nc" id="L193">                deselectors[pop].prepareToProduce(state, pop, 0);</span>
+            }
+        }
+<span class="nc" id="L196">    }</span>
+
+    public Individual breedIndividual(final EvolutionState state, int subpop, int thread) {
+        // this is inefficient but whatever...
+
+<span class="nc" id="L201">        ArrayList&lt;Individual&gt; newind = new ArrayList&lt;Individual&gt;();</span>
+        // breed a single individual
+<span class="nc" id="L203">        bp[subpop].produce(1, 1, subpop, newind, state, thread,</span>
+<span class="nc" id="L204">                state.population.subpops.get(subpop).species.buildMisc(state, subpop, thread));</span>
+<span class="nc" id="L205">        return newind.get(0);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

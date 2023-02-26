@@ -1,0 +1,19 @@
+# Target labels
+ Extra
+ opencv_dnn_superres
+ Module
+# Source files and their labels
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/dnn_superres/include/opencv2/dnn_superres.hpp
+ Extra
+ opencv_dnn_superres
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/dnn_superres/src/dnn_superres.cpp
+ Extra
+ opencv_dnn_superres
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/dnn_superres/src/precomp.hpp
+ Extra
+ opencv_dnn_superres
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/cvconfig.h
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/opencv2/opencv_modules.hpp

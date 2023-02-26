@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WindowManager.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.GeneralandFitness.jssim</a> &gt; <span class="el_source">WindowManager.java</span></div><h1>WindowManager.java</h1><pre class="source lang-java linenums">package ec.app.experiments.GeneralandFitness.jssim;
+
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.awt.image.ImageObserver;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.List;
+/**
+ * The MIT License (MIT)
+
+Copyright (c) 2014 rhys-e
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+ALL CREDIT GOES TO https://github.com/rhys-e/structural-similarity
+ */
+class WindowManager 
+{
+    private static final int WIN_SIZE = 8;
+
+    private final WindowContainer windowContainer;
+
+    public WindowManager(BufferedImage refImage,
+            BufferedImage comparisonImage) throws SsimException 
+<span class="nc" id="L44">    {</span>
+
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (refImage.getWidth() != comparisonImage.getWidth()</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                || refImage.getHeight() != comparisonImage.getHeight()) </span>
+        {
+<span class="nc" id="L49">            throw new SsimException(&quot;Image dimmensions are not the same&quot;);</span>
+        }
+        
+<span class="nc" id="L52">        int width = getNearestMultipleOf(refImage.getWidth(), WIN_SIZE);</span>
+<span class="nc" id="L53">        int height = getNearestMultipleOf(refImage.getHeight(), WIN_SIZE);</span>
+
+<span class="nc" id="L55">        refImage = rescaleImage(refImage, width, height);</span>
+<span class="nc" id="L56">        comparisonImage = rescaleImage(comparisonImage, width, height);</span>
+        
+        // all but 1 window should be 8x8 blocks (unless the image happens
+        // to evenly divide by 8x8, in which case, all windows will be 8x8)
+<span class="nc" id="L60">        final int numWinX = width / WIN_SIZE;</span>
+<span class="nc" id="L61">        final int numWinY = height / WIN_SIZE;</span>
+
+<span class="nc" id="L63">        final List&lt;Window&gt; refWindows = </span>
+<span class="nc" id="L64">                getSsimWindowsForImage(refImage, numWinX, numWinY);</span>
+        
+<span class="nc" id="L66">        final List&lt;Window&gt; compWindows = </span>
+<span class="nc" id="L67">                getSsimWindowsForImage(comparisonImage, numWinX, numWinY);</span>
+        
+<span class="nc" id="L69">        this.windowContainer = new WindowContainer(refWindows, compWindows);</span>
+<span class="nc" id="L70">    }</span>
+    
+    private int getNearestMultipleOf(int dimension, int multiple)
+    {
+<span class="nc" id="L74">        return Math.round(dimension / multiple) * multiple;</span>
+
+    }
+    
+    private BufferedImage rescaleImage(BufferedImage image, int width, int height)
+    {
+<span class="nc bnc" id="L80" title="All 4 branches missed.">        if (image.getWidth() == width &amp;&amp; image.getHeight() == height)</span>
+        {
+<span class="nc" id="L82">            return image;</span>
+        }
+        
+<span class="nc" id="L85">        BufferedImage newImage = new BufferedImage(width, height, image.getType());</span>
+
+<span class="nc" id="L87">        Graphics g = newImage.createGraphics();</span>
+<span class="nc" id="L88">        g.drawImage(image, 0, 0, width, height, null);</span>
+<span class="nc" id="L89">        g.dispose();</span>
+        
+<span class="nc" id="L91">        return newImage;</span>
+    }
+    
+    private List&lt;Window&gt; getSsimWindowsForImage(BufferedImage image,
+            int numXWindows, int numYWindows)
+    {
+<span class="nc" id="L97">        final List&lt;Window&gt; windows = new ArrayList&lt;Window&gt;();</span>
+        
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        for (int i = 0; i &lt; numXWindows; i++) </span>
+        {
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            for (int j = 0; j &lt; numYWindows; j++) </span>
+            {
+<span class="nc" id="L103">                windows.add(new Window(image, WIN_SIZE,</span>
+                        (i * WIN_SIZE), (j * WIN_SIZE)));
+            }
+        }
+        
+<span class="nc" id="L108">        return windows;</span>
+    }
+
+    public WindowContainer getWindowContainer()
+    {
+<span class="nc" id="L113">        return windowContainer;</span>
+    }
+    
+    public static class WindowContainer implements Iterable&lt;Pair&lt;Window&gt;&gt;
+    {
+        
+        private final Collection&lt;Window&gt; primary;
+        private final Collection&lt;Window&gt; secondary;
+        
+        private WindowContainer(Collection&lt;Window&gt; primary, Collection&lt;Window&gt; secondary) 
+                throws SsimException
+<span class="nc" id="L124">        {</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            if (primary.size() != secondary.size())</span>
+            {
+<span class="nc" id="L127">                throw new SsimException(&quot;&quot;);</span>
+            }
+            
+<span class="nc" id="L130">            this.primary = primary;</span>
+<span class="nc" id="L131">            this.secondary = secondary;</span>
+<span class="nc" id="L132">        }</span>
+        
+        @Override
+        public Iterator&lt;Pair&lt;Window&gt;&gt; iterator()
+        {
+<span class="nc" id="L137">            return new PairIterator&lt;Window&gt;(primary, secondary);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

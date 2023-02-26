@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>gnuplot3D.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets.wavelet_util</a> &gt; <span class="el_source">gnuplot3D.java</span></div><h1>gnuplot3D.java</h1><pre class="source lang-java linenums">
+package ec.app.experiments.WaveletExperiment.wavelets.wavelet_util;
+
+import java.io.*;
+
+/**
+&lt;p&gt;
+  Define the class gnuplot3D for the wavelet_util package.
+
+&lt;p&gt;
+  The class outputs a Haar wavelet spectrum array in a format
+  that can be read by gnuplot for 3D plotting.  This function
+  can be used to plot either Haar wavelet spectrums or
+  Haar wavelet coefficients.
+
+&lt;p&gt;
+  The constructor is given an array of Haar spectrum values and
+  a file name.  The Haar spectrum values will be written out
+  to the file so that they can be graphed.
+
+&lt;p&gt;
+  The length of the array must be 2&lt;sup&gt;N&lt;/sup&gt;.  The lengths
+  of the spectrums are 2&lt;sup&gt;N-1&lt;/sup&gt;, ... 2&lt;sup&gt;0&lt;/sup&gt;.
+  If the original data was
+&lt;pre&gt;
+{32.0, 10.0, 20.0, 38.0, 37.0, 28.0, 38.0, 34.0, 
+ 18.0, 24.0, 18.0,  9.0, 23.0, 24.0, 28.0, 34.0}
+&lt;/pre&gt;
+&lt;p&gt;
+The Haar spectrum will be:
+&lt;/p&gt;
+&lt;pre&gt;
+0.0
+25.9375
+29.625 22.25
+25.0 34.25 17.25 27.25
+21.0 29.0 32.5 36.0 21.0 13.5 23.5 31.0
+&lt;/pre&gt;
+&lt;p&gt;
+If the original data length was 2&lt;sup&gt;N&lt;/sup&gt;, then the total
+length of the spectrum data will be 2&lt;sup&gt;N&lt;/sup&gt;-1, so the
+first element is zeroed out in the case of a Haar spectrum.
+In the case of the wavelet coefficients, the first value will 
+be the average for the entire sample.  In either case this
+value will not be output.
+&lt;/p&gt;
+&lt;p&gt;
+The plot used to display the Haar wavelet spectrums is modeled after
+the plots shown in Robi Polikar's &lt;a
+href=&quot;http://engineering.rowan.edu/~polikar/WAVELETS/WTpart3.html&quot;&gt;Wavelet
+Tutorial, Part III&lt;/a&gt;.  Here the x-axis represents the offset in the
+data.  The y-axis represents the width of the Haar window (which will
+be a power of two) and the z-axis represents the spectrum value.
+&lt;/p&gt;
+
+&lt;p&gt;
+In order for gnuplot to display a 3D surface each line must have the
+same number of points.  The wavelet spectrum is graphed over the
+original rage.  The first spectrum repeats two values for each
+average or coefficient calculated.  The second spectrum repeats
+each value four times, the third spectrum eight times, etc...
+&lt;/p&gt;
+
+ */
+public class gnuplot3D extends plot {
+
+<span class="nc" id="L67">  String class_name() { return &quot;gnuplot3D&quot;; }</span>
+
+  /**
+
+    Output a Haar spectrum where the x-axis is the sample value
+    number, the y-axis is the log&lt;sub&gt;2&lt;/sub&gt; of the window width and
+    the z-axis is the value (e.g., average or average difference).
+
+   */
+  private void outputSpectrum( PrintWriter prStr, 
+			       double[] values,
+			       int end,
+			       int windowWidth ) {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">    if (end &gt; 1) {</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">      if (windowWidth &gt; 1)</span>
+<span class="nc" id="L82">	prStr.println();</span>
+
+<span class="nc" id="L84">      int l = binary.log2( windowWidth );</span>
+
+<span class="nc" id="L86">      int windowStart = 0;</span>
+<span class="nc" id="L87">      int windowEnd = windowWidth;</span>
+<span class="nc" id="L88">      int start = end &gt;&gt; 1;</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">      for (int i = start; i &lt; end; i++) {</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">	for (int j = windowStart; j &lt; windowEnd; j++) {</span>
+<span class="nc" id="L91">	  prStr.println( j + &quot;  &quot; +  l + &quot;  &quot; + values[ i ] );</span>
+	}
+<span class="nc" id="L93">	windowStart = windowEnd;</span>
+<span class="nc" id="L94">	windowEnd = windowEnd + windowWidth;</span>
+      } // for
+<span class="nc" id="L96">      end = start;</span>
+<span class="nc" id="L97">      windowWidth = windowWidth &lt;&lt; 1;  // windowWidth = windowWidth * 2</span>
+<span class="nc" id="L98">      outputSpectrum( prStr, values, end, windowWidth );</span>
+    }
+<span class="nc" id="L100">  } // outputSpectrum</span>
+
+
+<span class="nc" id="L103">  public gnuplot3D( double[] values, String path ) {</span>
+<span class="nc" id="L104">    PrintWriter prStr = OpenFile( path );</span>
+    
+<span class="nc bnc" id="L106" title="All 2 branches missed.">    if (prStr != null) {</span>
+<span class="nc" id="L107">      prStr.println(&quot;#&quot;);</span>
+<span class="nc" id="L108">      prStr.println(&quot;# Wavelet spectrum data formatted for gnuplot.&quot;);</span>
+<span class="nc" id="L109">      prStr.println(&quot;# To plot, use the command \&quot;splot '&lt;file&gt;'\&quot;&quot;);</span>
+<span class="nc" id="L110">      prStr.println(&quot;# were &lt;file&gt; is the file name.&quot;);      </span>
+<span class="nc" id="L111">      prStr.println(&quot;#&quot;);</span>
+<span class="nc" id="L112">      prStr.println(&quot;# {x, y, z} = point number, log2(windowWidth), value&quot;);</span>
+<span class="nc" id="L113">      prStr.println(&quot;#&quot;);</span>
+
+<span class="nc" id="L115">      int len = binary.nearestPower2( values.length );</span>
+<span class="nc" id="L116">      int windowWidth = 2;</span>
+<span class="nc" id="L117">      outputSpectrum( prStr, values, len, windowWidth );</span>
+<span class="nc" id="L118">      prStr.close();</span>
+    }
+<span class="nc" id="L120">  } // gnuplot3D</span>
+
+} // gnuplot3D
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

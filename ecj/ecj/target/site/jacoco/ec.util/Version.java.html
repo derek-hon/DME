@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Version.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">Version.java</span></div><h1>Version.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+import java.util.*;
+
+/* 
+ * Version.java
+ * 
+ * Created: Wed Aug 11 19:44:46 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Version is a static class which stores version information for this
+ * evolutionary computation system.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L26">public class Version</span>
+    {
+    public static final String name = &quot;ECJ&quot;;
+    public static final String version = &quot;27&quot;;
+    public static final String copyright = &quot;2019&quot;;
+    public static final String author = &quot;Sean Luke&quot;;
+    public static final String contributors = &quot;E. Scott, L. Panait, G. Balan, S. Paus, Z. Skolicki,&quot;;
+    public static final String contributors2 = &quot;R. Kicinger, E. Popovici, K. Sullivan, J. Harrison, J. Bassett,&quot;;
+    public static final String contributors3 = &quot;R. Hubley, A. Desai, A. Chircop, J. Compton, W. Haddon,&quot;;
+    public static final String contributors4 = &quot;S. Donnelly, B. Jamil, J. Zelibor, E. Kangas, F. Abidi,&quot;;
+    public static final String contributors5 = &quot;H. Mooers, J. O'Beirne, L. Manzoni, K. Talukder, S. McKay,&quot;;
+    public static final String contributors6 = &quot;J. McDermott, J. Zou, A. Rutherford, D. Freelan, E. Wei,&quot;;
+    public static final String contributors7 = &quot;S. Rajendran, A. Dhawan, B. Brumbac, J. Hilty, A. Kabir&quot;;
+    public static final String authorEmail0 = &quot;ecj-help&quot;;
+    public static final String authorEmail1 = &quot;cs.gmu.edu&quot;;
+    public static final String authorEmail2 = &quot;(better: join ECJ-INTEREST at URL above)&quot;;
+    public static final String authorURL = &quot;http://cs.gmu.edu/~eclab/projects/ecj/&quot;;
+    public static final String date = &quot;July 1, 2017&quot;;
+    public static final String minimumJavaVersion = &quot;1.5&quot;;
+
+    public static final String message()
+        {
+<span class="fc" id="L48">        Properties p = System.getProperties();</span>
+<span class="fc" id="L49">        String javaVersion = p.getProperty(&quot;java.version&quot;);</span>
+<span class="fc" id="L50">        String javaVM = p.getProperty(&quot;java.vm.name&quot;);</span>
+<span class="fc" id="L51">        String javaVMVersion = p.getProperty(&quot;java.vm.version&quot;);</span>
+<span class="pc bpc" id="L52" title="1 of 2 branches missed.">        if (javaVM!=null) javaVersion = javaVersion + &quot; / &quot; + javaVM;</span>
+<span class="pc bpc" id="L53" title="2 of 4 branches missed.">        if (javaVM!=null &amp;&amp; javaVMVersion!=null) javaVersion = javaVersion + &quot;-&quot; + javaVMVersion;</span>
+        
+    
+<span class="fc" id="L56">        return </span>
+            &quot;\n| &quot; + name + 
+            &quot;\n| An evolutionary computation system (version &quot; + version + &quot;)&quot; +
+            //&quot;\n| Copyright &quot; + copyright + */ &quot; By &quot; + author +
+            &quot;\n| By &quot; + author + 
+            &quot;\n| Contributors: &quot; + contributors +
+            &quot;\n|               &quot; + contributors2 +
+            &quot;\n|               &quot; + contributors3 +
+            &quot;\n|               &quot; + contributors4 +
+            &quot;\n|               &quot; + contributors5 +
+            &quot;\n|               &quot; + contributors6 +
+	    &quot;\n|               &quot; + contributors7 +
+            &quot;\n| URL: &quot; + authorURL +
+            &quot;\n| Mail: &quot; + authorEmail0 + &quot;@&quot; + authorEmail1 +
+            &quot;\n|       &quot; + authorEmail2 + 
+            &quot;\n| Date: &quot; + date +
+            &quot;\n| Current Java: &quot; + javaVersion +
+            &quot;\n| Required Minimum Java: &quot; + minimumJavaVersion +
+            &quot;\n\n&quot;;
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

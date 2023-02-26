@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WaveletDMEExpEL.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.Evaluations</a> &gt; <span class="el_source">WaveletDMEExpEL.java</span></div><h1>WaveletDMEExpEL.java</h1><pre class="source lang-java linenums">package ec.app.experiments.Evaluations;
+
+import ec.EvolutionState;
+import ec.distributedME.*;
+import ec.util.Parameter;
+import java.util.Arrays;
+import java.awt.image.BufferedImage;
+
+<span class="nc" id="L9">public class WaveletDMEExpEL extends BehaviourEvaluation {</span>
+
+    int ImageSize;
+<span class="nc" id="L12">    int[] values = null;</span>
+<span class="nc" id="L13">    double[][] pixelValues = null;</span>
+<span class="nc" id="L14">    BufferedImage img = null;</span>
+    private EvaluationFunctions functions;
+
+    public void setup(int[] values) {
+<span class="nc" id="L18">        functions = new EvaluationFunctions();</span>
+<span class="nc" id="L19">        this.values = values;</span>
+<span class="nc" id="L20">    }</span>
+
+    @Override
+    public void setup(int[][] pixels) {
+<span class="nc" id="L24">        functions = new EvaluationFunctions();</span>
+<span class="nc" id="L25">    }</span>
+
+    public void setup(BufferedImage img) {
+<span class="nc" id="L28">        functions = new EvaluationFunctions(img);</span>
+<span class="nc" id="L29">    }</span>
+
+    @Override
+    public double[] individualBehaviourCalculation(EvolutionState state, Elite ind) {
+        // state.output.fatal(Arrays.toString(values));
+        // state.output.message(&quot;[&quot; + functions.entropy(state, values) + &quot;, &quot; + functions.averageGray(values) + &quot;]&quot;);
+        
+<span class="nc" id="L36">        return new double[] {functions.entropy(state, ind.getPixels()), functions.averageLuminance(state, ind.getPixels())};</span>
+        // if (img != null){
+            
+        // }
+        // else {
+        //     int[] luminance = null;        
+        //     luminance = new int[values.length];
+    
+        //     for (int i = 0 ; i &lt; values.length ; i ++)
+        //         luminance[i] = (int) ((values[i] &gt;&gt; 16 &amp; 0xff) + (values[i] &gt;&gt; 8 &amp; 0xff) + (values[i] &gt;&gt; 0 &amp; 0xff)) / 3;
+        //         // luminance[i] = (int)(0.299 * (values[i] &gt;&gt; 16 &amp; 0xff) + 0.587 * (values[i] &gt;&gt; 8 &amp; 0xff) + 0.114 * (values[i] &gt;&gt; 0 &amp; 0xff));
+        //     // state.output.fatal(Arrays.toString(luminance));
+        //     return new double[] {functions.entropy(state, luminance), functions.averageLuminance(state, values)};
+        // }
+        
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

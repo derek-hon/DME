@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SingleStateEvolutionState.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.singlestate</a> &gt; <span class="el_source">SingleStateEvolutionState.java</span></div><h1>SingleStateEvolutionState.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.singlestate;
+
+import ec.*;
+import ec.util.*;
+
+<span class="nc" id="L12">public class SingleStateEvolutionState extends EvolutionState</span>
+    {
+    /** In how many iterations do we collect statistics */
+<span class="nc" id="L15">    public int statisticsModulo = 1;</span>
+    
+    /** In how many iterations do we perform an exchange */
+<span class="nc" id="L18">    public int exchangeModulo = 1;</span>
+    
+    public final static String P_STATISTICS_MODULO = &quot;stats-modulo&quot;;
+    public final static String P_EXCHANGE_MODULO = &quot;exchange-modulo&quot;;
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L25">        super.setup(state, base);</span>
+
+<span class="nc" id="L27">        Parameter p = new Parameter(P_STATISTICS_MODULO);</span>
+<span class="nc" id="L28">        statisticsModulo = parameters.getInt(p, null, 1);</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">        if (statisticsModulo == 0)</span>
+<span class="nc" id="L30">            output.fatal(&quot;The statistics modulo must be an integer &gt; 0.&quot;, p);</span>
+
+<span class="nc" id="L32">        p = new Parameter(P_EXCHANGE_MODULO);</span>
+<span class="nc" id="L33">        exchangeModulo = parameters.getInt(p, null, 1);</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        if (exchangeModulo == 0)</span>
+<span class="nc" id="L35">            output.fatal(&quot;The exchange modulo must be an integer &gt; 0.&quot;, p);</span>
+
+<span class="nc bnc" id="L37" title="All 4 branches missed.">        if (statisticsModulo &gt; exchangeModulo ||</span>
+            exchangeModulo % statisticsModulo != 0)
+<span class="nc" id="L39">            output.fatal(&quot;The exchange modulo should to be a multiple of the statistics modulo.&quot;, p);</span>
+
+<span class="nc" id="L41">        p = new Parameter(P_EXCHANGE_MODULO);</span>
+<span class="nc bnc" id="L42" title="All 4 branches missed.">        if (statisticsModulo &gt; checkpointModulo ||</span>
+            checkpointModulo % statisticsModulo != 0)
+<span class="nc" id="L44">            output.fatal(&quot;The checkpoint modulo should to be a multiple of the statistics modulo.&quot;, p);</span>
+<span class="nc" id="L45">        }</span>
+
+    public void startFresh()
+        {
+<span class="nc" id="L49">        output.message(&quot;Setting up&quot;);</span>
+<span class="nc" id="L50">        setup(this, null);  // a garbage Parameter</span>
+
+        // POPULATION INITIALIZATION
+<span class="nc" id="L53">        output.message(&quot;Initializing Generation 0&quot;);</span>
+<span class="nc" id="L54">        statistics.preInitializationStatistics(this);</span>
+<span class="nc" id="L55">        population = initializer.initialPopulation(this, 0); // unthreaded</span>
+<span class="nc" id="L56">        statistics.postInitializationStatistics(this);</span>
+
+        // Compute generations from evaluations if necessary
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (numEvaluations &gt; UNDEFINED)</span>
+            { 
+            // compute a generation's number of individuals
+<span class="nc" id="L62">            int generationSize = 0;</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            for (int sub = 0; sub &lt; population.subpops.size(); sub++)</span>
+                {
+<span class="nc" id="L65">                generationSize += population.subpops.get(sub).individuals.size();  // so our sum total 'generationSize' will be the initial total number of individuals</span>
+                }
+
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            if (numEvaluations &lt; generationSize)</span>
+                {
+<span class="nc" id="L70">                numEvaluations = generationSize;</span>
+<span class="nc" id="L71">                numGenerations = 1;</span>
+<span class="nc" id="L72">                output.warning(&quot;Using evaluations, but evaluations is less than the initial total population size (&quot;</span>
+                    + generationSize + &quot;).  Setting to the populatiion size.&quot;);
+                }
+            else
+                {
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                if (numEvaluations % generationSize != 0)</span>
+<span class="nc" id="L78">                    output.warning(</span>
+                        &quot;Using evaluations, but initial total population size does not divide evenly into it.  Modifying evaluations to a smaller value (&quot;
+                        + ((numEvaluations / generationSize) * generationSize) + &quot;) which divides evenly.&quot;);  // note integer division
+<span class="nc" id="L81">                numGenerations = (int) (numEvaluations / generationSize);  // note integer division</span>
+<span class="nc" id="L82">                numEvaluations = numGenerations * generationSize;</span>
+                }
+<span class="nc" id="L84">            output.message(&quot;Generations will be &quot; + numGenerations);</span>
+            }
+
+        // INITIALIZE CONTACTS -- done after initialization to allow
+        // a hook for the user to do things in Initializer before
+        // an attempt is made to connect to island models etc.
+<span class="nc" id="L90">        exchanger.initializeContacts(this);</span>
+<span class="nc" id="L91">        evaluator.initializeContacts(this);</span>
+<span class="nc" id="L92">        }</span>
+
+    public int evolve()
+        {
+<span class="nc" id="L96">        boolean isExchangeBorder = false;</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        boolean isStatisticsBorder = (generation % statisticsModulo == 0);</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (isStatisticsBorder)</span>
+            {
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            isExchangeBorder = (generation % exchangeModulo == 0);</span>
+            }
+
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (isStatisticsBorder)</span>
+<span class="nc" id="L104">            output.message(&quot;Generation &quot; + generation +&quot;\tEvaluations So Far &quot; + evaluations);</span>
+
+        // EVALUATION
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if (isStatisticsBorder)</span>
+<span class="nc" id="L108">            statistics.preEvaluationStatistics(this);</span>
+<span class="nc" id="L109">        evaluator.evaluatePopulation(this);</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        if (isStatisticsBorder)</span>
+<span class="nc" id="L111">            statistics.postEvaluationStatistics(this);</span>
+        
+        // SHOULD WE QUIT?
+<span class="nc" id="L114">        String runCompleteMessage = evaluator.runComplete(this);</span>
+<span class="nc bnc" id="L115" title="All 4 branches missed.">        if ((runCompleteMessage != null) &amp;&amp; quitOnRunComplete)</span>
+            {
+<span class="nc" id="L117">            output.message(runCompleteMessage);</span>
+<span class="nc" id="L118">            return R_SUCCESS;</span>
+            }
+
+        // SHOULD WE QUIT?
+<span class="nc bnc" id="L122" title="All 8 branches missed.">        if ((numGenerations != UNDEFINED &amp;&amp; generation &gt;= numGenerations-1) ||</span>
+            (numEvaluations != UNDEFINED &amp;&amp; evaluations &gt;= numEvaluations))
+            {
+<span class="nc" id="L125">            return R_FAILURE;</span>
+            }
+
+        // INCREMENT GENERATION AND CHECKPOINT
+<span class="nc" id="L129">        generation++;</span>
+
+        // PRE-BREEDING EXCHANGING
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (isExchangeBorder)</span>
+            {
+<span class="nc" id="L134">            statistics.prePreBreedingExchangeStatistics(this);</span>
+<span class="nc" id="L135">            population = exchanger.preBreedingExchangePopulation(this);</span>
+<span class="nc" id="L136">            statistics.postPreBreedingExchangeStatistics(this);</span>
+
+<span class="nc" id="L138">            String exchangerWantsToShutdown = exchanger.runComplete(this);</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">            if (exchangerWantsToShutdown != null)</span>
+                {
+<span class="nc" id="L141">                output.message(exchangerWantsToShutdown);</span>
+<span class="nc" id="L142">                return R_SUCCESS;</span>
+                }
+            }
+
+        // BREEDING
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (isStatisticsBorder)</span>
+<span class="nc" id="L148">            statistics.preBreedingStatistics(this);</span>
+<span class="nc" id="L149">        population = breeder.breedPopulation(this);</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (isStatisticsBorder)</span>
+<span class="nc" id="L151">            statistics.postBreedingStatistics(this);</span>
+
+        // POST-BREEDING EXCHANGING
+<span class="nc bnc" id="L154" title="All 2 branches missed.">        if (isExchangeBorder)</span>
+            {
+<span class="nc" id="L156">            statistics.prePostBreedingExchangeStatistics(this);</span>
+<span class="nc" id="L157">            population = exchanger.postBreedingExchangePopulation(this);</span>
+<span class="nc" id="L158">            statistics.postPostBreedingExchangeStatistics(this);</span>
+            }
+        
+<span class="nc bnc" id="L161" title="All 6 branches missed.">        if (isStatisticsBorder &amp;&amp; checkpoint &amp;&amp; (generation - 1) % checkpointModulo == 0)</span>
+            {
+<span class="nc" id="L163">            output.message(&quot;Checkpointing&quot;);</span>
+<span class="nc" id="L164">            statistics.preCheckpointStatistics(this);</span>
+<span class="nc" id="L165">            Checkpoint.setCheckpoint(this);</span>
+<span class="nc" id="L166">            statistics.postCheckpointStatistics(this);</span>
+            }
+
+<span class="nc" id="L169">        return R_NOTDONE;</span>
+        }
+
+    /**
+     * @param result
+     */
+    public void finish(int result)
+        {
+<span class="nc" id="L177">        output.message(&quot;Total Evaluations &quot; + evaluations);</span>
+<span class="nc" id="L178">        statistics.finalStatistics(this, result);</span>
+<span class="nc" id="L179">        finisher.finishPopulation(this, result);</span>
+<span class="nc" id="L180">        exchanger.closeContacts(this, result);</span>
+<span class="nc" id="L181">        evaluator.closeContacts(this, result);</span>
+<span class="nc" id="L182">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

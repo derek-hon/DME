@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ADFArgument.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">ADFArgument.java</span></div><h1>ADFArgument.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+/* 
+ * ADFArgument.java
+ * 
+ * Created: Tue Oct 26 16:14:09 1999
+ * By: Sean Luke
+ */
+
+/**
+ * An ADFArgument is a GPNode which represents an ADF's 
+ * &lt;i&gt;argument terminal&lt;/i&gt;, its counterpart which returns argument
+ * values in its associated function tree.  In lil-gp this is called an
+ * ARG node.
+ *
+ * &lt;p&gt;Obviously, if you have Argument Terminals in a tree, that tree must
+ * be only callable by ADFs and ADMs, otherwise the Argument Terminals
+ * won't have anything to return.  Furthermore, you must make sure that
+ * you don't have an Argument Terminal in a tree whose number is higher
+ * than the smallest arity (number of arguments) of a calling ADF or ADM.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;arg&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The related argument position for the ADF Argument Node in the associated ADF)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.adf-argument
+
+ * @see ec.gp.ADF
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L47">public class ADFArgument extends GPNode </span>
+    {
+    public static final String P_ADFARGUMENT = &quot;adf-argument&quot;;
+    public final static String P_ARGUMENT = &quot;arg&quot;;
+    public static final String P_FUNCTIONNAME = &quot;name&quot;;
+    public int argument;
+        
+    /** The &quot;function name&quot; of the ADFArgument, to distinguish it from other GP
+        functions you might provide.  */
+    public String name;
+<span class="nc" id="L57">    public String name() { return name; }</span>
+
+<span class="nc" id="L59">    public int expectedChildren() { return 0; }</span>
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L63">        return GPDefaults.base().push(P_ADFARGUMENT);</span>
+        }
+
+<span class="nc" id="L66">    public String toString() { return name(); }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L70">        super.setup(state,base);</span>
+        
+<span class="nc" id="L72">        Parameter def = defaultBase();</span>
+        
+<span class="nc" id="L74">        argument = state.parameters.getInt(base.push(P_ARGUMENT),def.push(P_ARGUMENT),0);</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (argument &lt; 0)</span>
+<span class="nc" id="L76">            state.output.fatal(&quot;Argument terminal must have a positive argument number.&quot;,</span>
+<span class="nc" id="L77">                base.push(P_ARGUMENT),def.push(P_ARGUMENT));</span>
+
+<span class="nc" id="L79">        name = state.parameters.getString(base.push(P_FUNCTIONNAME),def.push(P_FUNCTIONNAME));</span>
+<span class="nc bnc" id="L80" title="All 4 branches missed.">        if (name == null || name.equals(&quot;&quot;))</span>
+            {
+<span class="nc" id="L82">            name = &quot;ARG&quot; + argument;</span>
+<span class="nc" id="L83">            state.output.warning(&quot;ADFArgument node for argument &quot; + argument + &quot; has no function name.  Using the name &quot; + name(),</span>
+<span class="nc" id="L84">                base.push(P_FUNCTIONNAME),def.push(P_FUNCTIONNAME));</span>
+            }
+<span class="nc" id="L86">        }</span>
+
+    public void writeNode(final EvolutionState state, final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L90">        dataOutput.writeInt(argument);</span>
+<span class="nc" id="L91">        }</span>
+         
+ 
+    public void readNode(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L96">        argument = dataInput.readInt();</span>
+<span class="nc" id="L97">        }</span>
+
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+        // get the current context
+<span class="nc" id="L107">        ADFContext c = stack.top(0);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (c==null) // uh oh</span>
+<span class="nc" id="L109">            state.output.fatal(&quot;No context with which to evaluate ADFArgument terminal &quot; +  toStringForError() +  &quot;.  This often happens if you evaluate a tree by hand  which is supposed to only be an ADF's associated tree.&quot;);      </span>
+<span class="nc" id="L110">        c.evaluate(state,thread,input,stack,individual,problem,argument);</span>
+<span class="nc" id="L111">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,252 @@
+parent.0 = ../../gp/koza/koza.params
+
+stat = ec.thesisStatistics.BaselineStatistics
+
+eval.problem = ec.app.experiments.SSIMExperiment.Vanilla.ProceduralTextureFitness
+eval.problem.data = ec.app.experiments.GeneralandFitness.MultiData
+eval.problem.target = src/main/resources/ec/app/thesisExperiments/sunsetSmall.png
+
+evalthreads = 				4
+breedthreads = 				4
+
+seed.0=time
+seed.1=time
+seed.2=time
+seed.3=time
+
+vanilla=true
+eval.problem.render=true
+
+seed.1=time
+seed.2=time
+seed.3=time
+
+quit-on-run-complete = false
+generations = 200
+eval.problem.imagesize = 64
+
+stat.do-description = true
+stat.do-final = true
+stat.do-evaluation = true
+eval.problem.save-path = /SSIM/IM/
+stat.do-memory = true
+stat.do-time = true
+stat.modulus = 1
+
+eval.problem.min_x = -1
+eval.problem.max_x = 1
+eval.problem.min_y = -1
+eval.problem.max_y = 1
+
+select.tournament.size = 3
+
+pop.subpops 				            = 3
+
+pop.subpop.0                            = ec.Subpopulation
+pop.subpop.0.duplicate-retries          = 2
+pop.subpop.0.size                       = 500
+pop.subpop.0.species                    = ec.gp.GPSpecies
+pop.subpop.0.species.fitness            = ec.gp.koza.KozaFitness
+pop.subpop.0.species.ind                = ec.app.experiments.GeneralandFitness.TextureIndividual
+
+#(Gray) Each individual has a single tree
+#pop.subpop.0.species.ind.numtrees = 1
+#pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+#pop.subpop.0.species.ind.tree.0.tc = tc0
+
+#(RGB)
+pop.subpop.0.species.ind.numtrees = 3
+pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+pop.subpop.0.species.ind.tree.0.tc = tc0
+pop.subpop.0.species.ind.tree.1 = ec.gp.GPTree
+pop.subpop.0.species.ind.tree.1.tc = tc0
+pop.subpop.0.species.ind.tree.2 = ec.gp.GPTree
+pop.subpop.0.species.ind.tree.2.tc = tc0
+
+pop.subpop.0.species.pipe               = ec.breed.MultiBreedingPipeline
+pop.subpop.0.species.pipe.generate-max  = false
+pop.subpop.0.species.pipe.num-sources   = 2
+pop.subpop.0.species.pipe.source.0      = ec.gp.koza.CrossoverPipeline
+pop.subpop.0.species.pipe.source.0.prob = 0.9
+pop.subpop.0.species.pipe.source.1      = ec.gp.koza.MutationPipeline
+pop.subpop.0.species.pipe.source.1.prob = 0.3
+
+pop.subpop.1                            = ec.Subpopulation
+pop.subpop.1.duplicate-retries          = 2
+pop.subpop.1.size                       = 500
+pop.subpop.1.species                    = ec.gp.GPSpecies
+pop.subpop.1.species.fitness            = ec.gp.koza.KozaFitness
+pop.subpop.1.species.ind                = ec.app.experiments.GeneralandFitness.TextureIndividual
+
+#(Gray) Each individual has a single tree
+#pop.subpop.1.species.ind.numtrees = 1
+#pop.subpop.1.species.ind.tree.0 = ec.gp.GPTree
+#pop.subpop.1.species.ind.tree.0.tc = tc0
+
+#(RGB)
+pop.subpop.1.species.ind.numtrees = 3
+pop.subpop.1.species.ind.tree.0 = ec.gp.GPTree
+pop.subpop.1.species.ind.tree.0.tc = tc0
+pop.subpop.1.species.ind.tree.1 = ec.gp.GPTree
+pop.subpop.1.species.ind.tree.1.tc = tc0
+pop.subpop.1.species.ind.tree.2 = ec.gp.GPTree
+pop.subpop.1.species.ind.tree.2.tc = tc0
+
+pop.subpop.1.species.pipe               = ec.breed.MultiBreedingPipeline
+pop.subpop.1.species.pipe.generate-max  = false
+pop.subpop.1.species.pipe.num-sources   = 2
+pop.subpop.1.species.pipe.source.0      = ec.gp.koza.CrossoverPipeline
+pop.subpop.1.species.pipe.source.0.prob = 0.9
+pop.subpop.1.species.pipe.source.1      = ec.gp.koza.MutationPipeline
+pop.subpop.1.species.pipe.source.1.prob = 0.3
+
+pop.subpop.2                            = ec.Subpopulation
+pop.subpop.2.duplicate-retries          = 2
+pop.subpop.2.size                       = 500
+pop.subpop.2.species                    = ec.gp.GPSpecies
+pop.subpop.2.species.fitness            = ec.gp.koza.KozaFitness
+pop.subpop.2.species.ind                = ec.app.experiments.GeneralandFitness.TextureIndividual
+
+#(Gray) Each individual has a single tree
+#pop.subpop.1.species.ind.numtrees = 1
+#pop.subpop.1.species.ind.tree.0 = ec.gp.GPTree
+#pop.subpop.1.species.ind.tree.0.tc = tc0
+
+#(RGB)
+pop.subpop.2.species.ind.numtrees = 3
+pop.subpop.2.species.ind.tree.0 = ec.gp.GPTree
+pop.subpop.2.species.ind.tree.0.tc = tc0
+pop.subpop.2.species.ind.tree.1 = ec.gp.GPTree
+pop.subpop.2.species.ind.tree.1.tc = tc0
+pop.subpop.2.species.ind.tree.2 = ec.gp.GPTree
+pop.subpop.2.species.ind.tree.2.tc = tc0
+
+pop.subpop.2.species.pipe               = ec.breed.MultiBreedingPipeline
+pop.subpop.2.species.pipe.generate-max  = false
+pop.subpop.2.species.pipe.num-sources   = 2
+pop.subpop.2.species.pipe.source.0      = ec.gp.koza.CrossoverPipeline
+pop.subpop.2.species.pipe.source.0.prob = 0.9
+pop.subpop.2.species.pipe.source.1      = ec.gp.koza.MutationPipeline
+pop.subpop.2.species.pipe.source.1.prob = 0.3
+
+
+exch = ec.exchange.InterPopulationExchange
+
+exch.subpop.0.select = ec.select.TournamentSelection
+exch.subpop.0.mod = 4
+exch.subpop.0.start = 0
+exch.subpop.0.size = 5
+exch.subpop.0.num-dest = 1
+exch.subpop.0.dest.0 = 2
+
+exch.subpop.1.select = ec.select.TournamentSelection
+exch.subpop.1.mod = 4
+exch.subpop.1.start = 0
+exch.subpop.1.size = 5
+exch.subpop.1.num-dest = 1
+exch.subpop.1.dest.0 = 2
+
+exch.subpop.2.select = ec.select.TournamentSelection
+exch.subpop.2.mod = 201
+exch.subpop.2.start = 0
+exch.subpop.2.size = 1
+exch.subpop.2.num-dest = 0
+exch.subpop.2.dest.0 = 0
+
+
+# ======= Nodes =======
+# We have some functions.  They are:
+gp.fs.0.size = 13
+#
+# Direct Variables (2)
+gp.fs.0.func.0  = ec.app.experiments.Functions.Func_Variable$Pos_X
+gp.fs.0.func.0.nc  = nc0
+gp.fs.0.func.1  = ec.app.experiments.Functions.Func_Variable$Pos_Y
+gp.fs.0.func.1.nc  = nc0
+#
+# Math (8):
+gp.fs.0.func.2 = ec.app.experiments.Functions.Func_Math$Add
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = ec.app.experiments.Functions.Func_Math$Sub
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = ec.app.experiments.Functions.Func_Math$Mul
+gp.fs.0.func.4.nc = nc2
+gp.fs.0.func.5 = ec.app.experiments.Functions.Func_Math$Div
+gp.fs.0.func.5.nc = nc2
+gp.fs.0.func.6 = ec.app.experiments.Functions.Func_Math$Sin
+gp.fs.0.func.6.nc = nc1
+gp.fs.0.func.7 = ec.app.experiments.Functions.Func_Math$Cos
+gp.fs.0.func.7.nc = nc1
+gp.fs.0.func.8 = ec.app.experiments.Functions.Func_Math$Pow
+gp.fs.0.func.8.nc = nc2
+gp.fs.0.func.9 = ec.app.experiments.Functions.Func_Math$Log10
+gp.fs.0.func.9.nc = nc1
+#
+# Ephemerals (3)
+gp.fs.0.func.10 = ec.app.experiments.Functions.Func_Ephemeral$Eph_1
+gp.fs.0.func.10.nc = nc0
+gp.fs.0.func.11 = ec.app.experiments.Functions.Func_Ephemeral$Eph_10
+gp.fs.0.func.11.nc = nc0
+gp.fs.0.func.12 = ec.app.experiments.Functions.Func_Ephemeral$Eph_100
+gp.fs.0.func.12.nc = nc0
+
+# ======= Reproduction Params =======
+
+# Elitism would be kinda weird when there's only a handful of discrete fitness values
+# User can configure to permit a few of their favourites.
+breed.elite.0 = 1
+breed.elite.1 = 1
+breed.elite.2 = 1
+
+quit-on-run-complete=false
+
+# Crossover will use Tournament Selection, try only 1
+# time, have a max depth of 17, and use KozaNodeSelector
+gp.koza.xover.source.0 = ec.select.TournamentSelection
+gp.koza.xover.source.1 = same
+gp.koza.xover.ns.0 = ec.gp.koza.KozaNodeSelector
+gp.koza.xover.ns.1 = same
+gp.koza.xover.maxdepth = 17
+gp.koza.xover.tries = 1
+
+# Point Mutation will use Tournament Selection, try only 1
+# time, have a max depth of 17, and use KozaNodeSelector
+# and GROW for building.  Also, Point Mutation uses a GrowBuilder
+# by default, with a default of min-depth=max-depth=5
+# as shown a ways below
+gp.koza.mutate.source.0 = ec.select.TournamentSelection
+gp.koza.mutate.ns.0 = ec.gp.koza.KozaNodeSelector
+gp.koza.mutate.build.0 = ec.gp.koza.GrowBuilder
+gp.koza.mutate.maxdepth = 17
+gp.koza.mutate.tries = 1
+
+# The default tournament size for TournamentSelection is 7
+# That's pretty heavy.
+select.tournament.size = 3
+
+# Since GROW is only used for subtree mutation, ECJ uses
+# the Koza-standard subtree mutation GROW values for the
+# default for GROW as a whole.
+gp.koza.grow.min-depth = 5
+gp.koza.grow.max-depth = 5
+
+# Here we define the default values for KozaNodeSelection;
+# The default is 10% terminals, 90% nonterminals when possible,
+# 0% "always pick the root", 0% "pick any node"
+gp.koza.ns.terminals = 0.1
+gp.koza.ns.nonterminals = 0.9
+gp.koza.ns.root = 0.0
+
+# The tree uses an ec.gp.koza.HalfBuilder to create
+# itself initially.
+# HalfBuilder will pick GROW half the time and FULL
+# the other half, with a ramp from 2 to 6 inclusive.
+# with a grow probability of 0.5
+# By ramp we mean that it first picks a random number between
+# 2 and 6 inclusive.  This then becomes the *maximum* tree size
+# (for the FULL approach, it's the tree size of the tree, for
+# GROW, the tree can get no bigger than this)
+gp.tc.0.init = ec.gp.koza.HalfBuilder
+gp.koza.half.min-depth = 2
+gp.koza.half.max-depth = 6
+gp.koza.half.growp = 0.5

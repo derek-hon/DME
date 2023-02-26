@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InPlaceHaar.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets</a> &gt; <span class="el_source">InPlaceHaar.java</span></div><h1>InPlaceHaar.java</h1><pre class="source lang-java linenums">package ec.app.experiments.WaveletExperiment.wavelets;
+
+/**
+ * 1D haar
+ * https://github.com/VKEDCO/java/blob/master/haar/org.vkedco.wavelets.haar/OneDHaar.java
+ */
+<span class="nc" id="L7">public class InPlaceHaar {</span>
+<span class="nc" id="L8">    public final static double FSNORM = Math.sqrt(2);</span>
+<span class="nc" id="L9">    public final static double FDNORM = 1 / FSNORM;</span>
+
+<span class="nc" id="L11">    public final static double ISNORM = FDNORM;</span>
+<span class="nc" id="L12">    public final static double IDNORM = FSNORM;</span>
+
+    final static double ZERO = 0.00001;
+    final static int TOTAL_MAX_MAGNITUDE = 50;
+
+    public static double compareWavelet(double[] target, double[] solution) {
+<span class="nc" id="L18">        double score = 0.0, count = 0.0;</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">        for (int i = 0 ; i &lt; target.length ; i ++) {</span>
+<span class="nc bnc" id="L20" title="All 4 branches missed.">            if (target[i] != 128.0 || solution[i] != 128.0) {</span>
+<span class="nc bnc" id="L21" title="All 2 branches missed.">                if (target[i] == solution[i])</span>
+<span class="nc" id="L22">                    score ++;</span>
+<span class="nc" id="L23">                count ++;</span>
+            }
+        }
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        if (count &gt; ZERO)</span>
+<span class="nc" id="L27">            score /= count;</span>
+        else
+<span class="nc" id="L29">            score = 1.0;</span>
+<span class="nc bnc" id="L30" title="All 2 branches missed.">        if (score &lt; ZERO)</span>
+<span class="nc" id="L31">            score = 0.0;</span>
+<span class="nc" id="L32">        return score;</span>
+    }
+
+    public static boolean isPowerOf2(int n) {
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (n &lt; 1) {</span>
+<span class="nc" id="L37">            return false;</span>
+        } else {
+<span class="nc" id="L39">            double p_of_2 = (Math.log(n) / Math.log(2));</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">            return Math.abs(p_of_2 - (int) p_of_2) == 0;</span>
+        }
+    }
+
+    public static int largestPowerOf2NoGreaterThan(int i) {
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (isPowerOf2(i))</span>
+<span class="nc" id="L46">            return i;</span>
+        else {
+<span class="nc" id="L48">            int curr = i - 1;</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">            while (curr &gt; 0) {</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">                if (isPowerOf2(curr)) {</span>
+<span class="nc" id="L51">                    return curr;</span>
+                } else {
+<span class="nc" id="L53">                    --curr;</span>
+                }
+            }
+<span class="nc" id="L56">            return 0;</span>
+        }
+    }
+
+    public static double[] largestSubsignalOfPowerOf2(double[] signal) {
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (isPowerOf2(signal.length))</span>
+<span class="nc" id="L62">            return signal;</span>
+        else {
+<span class="nc" id="L64">            int i = largestPowerOf2NoGreaterThan(signal.length);</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">            if (i == 0)</span>
+<span class="nc" id="L66">                return null;</span>
+<span class="nc" id="L67">            double[] subsignal = new double[i];</span>
+<span class="nc" id="L68">            System.arraycopy(signal, 0, subsignal, 0, i);</span>
+<span class="nc" id="L69">            return subsignal;</span>
+        }
+    }
+
+    /**
+     * Adopted from Andrea Wiens code
+     * 
+     * @param coefficients
+     * @return
+     */
+    static void truncate(double[] coefficients) {
+        // double[] truncated = coefficients.clone();
+<span class="nc" id="L81">        int length = coefficients.length;</span>
+<span class="nc" id="L82">        int ind = 0;</span>
+
+<span class="nc" id="L84">        double lastBig = 2.0, big = -2.0;</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        for (int coef = 0; coef &lt; TOTAL_MAX_MAGNITUDE; coef++) {</span>
+<span class="nc" id="L86">            big = -2.0;</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            for (int index = 0; index &lt; length; index++) {</span>
+<span class="nc bnc" id="L88" title="All 4 branches missed.">                if (Math.abs(coefficients[index]) &lt;= lastBig &amp;&amp; Math.abs(coefficients[index]) &gt; big) {</span>
+<span class="nc" id="L89">                    big = Math.abs(coefficients[index]);</span>
+<span class="nc" id="L90">                    ind = index;</span>
+                }
+            }
+
+<span class="nc bnc" id="L94" title="All 6 branches missed.">            if (big &lt; -1.0 || (big &gt; -ZERO &amp;&amp; big &lt; ZERO))</span>
+<span class="nc" id="L95">                break;</span>
+
+<span class="nc" id="L97">            lastBig = big;</span>
+            // truncate current highest magnitude coefficient
+<span class="nc bnc" id="L99" title="All 2 branches missed.">            if (coefficients[ind] &lt; 0.0)</span>
+<span class="nc" id="L100">                coefficients[ind] = -2.0;</span>
+            else
+<span class="nc" id="L102">                coefficients[ind] = 2.0;</span>
+        }
+
+        // truncate all the coefficients
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        for (int index = 0; index &lt; length; index++) {</span>
+<span class="nc bnc" id="L107" title="All 4 branches missed.">            coefficients[index] = (coefficients[index] &lt; -1.0) ? -1.0 : ((coefficients[index] &gt; 1.0) ? 1.0 : 0.0);</span>
+        }
+<span class="nc" id="L109">    }</span>
+
+    // compute in-place fast haar wavelet transform.
+    public static void inPlaceFastHaarWaveletTransform(double[] sample) {
+<span class="nc bnc" id="L113" title="All 4 branches missed.">        if (sample.length == 0 || sample.length == 1) {</span>
+<span class="nc" id="L114">            return;</span>
+        }
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (isPowerOf2(sample.length) == false) {</span>
+<span class="nc" id="L117">            return;</span>
+        }
+<span class="nc" id="L119">        final int num_sweeps = (int) (Math.log(sample.length) / Math.log(2));</span>
+<span class="nc" id="L120">        inPlaceFastHaarWaveletTransformForNumIters(sample, num_sweeps);</span>
+        // truncate(sample);
+        // int length = sample.length;
+        // for (int index = 0 ; index &lt; length ; index ++)
+        //     sample[index] = (sample[index] &lt; 0.0) ? 0.0 : ((sample[index] &gt; 0.0) ? 255.0 : 128.0);
+<span class="nc" id="L125">    }</span>
+
+    // apply in-place fast haar wavelet transform for num_sweeps sweeps.
+    public static void inPlaceFastHaarWaveletTransformForNumIters(double[] sample, int num_iters) {
+<span class="nc bnc" id="L129" title="All 4 branches missed.">        if (sample.length == 0 || sample.length == 1) {</span>
+<span class="nc" id="L130">            return;</span>
+        }
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (isPowerOf2(sample.length) == false) {</span>
+<span class="nc" id="L133">            return;</span>
+        }
+<span class="nc" id="L135">        int I = 1; // index increment</span>
+<span class="nc" id="L136">        int GAP_SIZE = 2; // number of elements b/w averages</span>
+<span class="nc" id="L137">        int NUM_SAMPLE_VALS = sample.length; // number of values in the sample</span>
+<span class="nc" id="L138">        final int n = (int) (Math.log(NUM_SAMPLE_VALS) / Math.log(2));</span>
+<span class="nc bnc" id="L139" title="All 4 branches missed.">        if (num_iters &lt; 1 || num_iters &gt; n) {</span>
+<span class="nc" id="L140">            return;</span>
+        }
+<span class="nc" id="L142">        double a = 0;</span>
+<span class="nc" id="L143">        double c = 0;</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        for (int ITER_NUM = 1; ITER_NUM &lt;= num_iters; ITER_NUM++) {</span>
+<span class="nc" id="L145">            NUM_SAMPLE_VALS /= 2;</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">            for (int K = 0; K &lt; NUM_SAMPLE_VALS; K++) {</span>
+<span class="nc" id="L147">                a = (sample[GAP_SIZE * K] + sample[GAP_SIZE * K + I]) / 2;</span>
+<span class="nc" id="L148">                c = (sample[GAP_SIZE * K] - sample[GAP_SIZE * K + I]) / 2;</span>
+<span class="nc" id="L149">                sample[GAP_SIZE * K] = a;</span>
+<span class="nc" id="L150">                sample[GAP_SIZE * K + I] = c;</span>
+            }
+<span class="nc" id="L152">            I = GAP_SIZE;</span>
+<span class="nc" id="L153">            GAP_SIZE *= 2;</span>
+        }
+<span class="nc" id="L155">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

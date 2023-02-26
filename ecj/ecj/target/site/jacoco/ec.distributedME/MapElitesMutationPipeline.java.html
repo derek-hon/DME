@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MapElitesMutationPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">MapElitesMutationPipeline.java</span></div><h1>MapElitesMutationPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.distributedME;
+
+import ec.EvolutionState;
+import ec.util.Parameter;
+
+import ec.gp.GPNodeSelector;
+import ec.gp.koza.GPKozaDefaults;
+import ec.gp.GPNodeBuilder;
+import ec.gp.GPNode;
+import ec.gp.GPTree;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/**
+ * MapElitesMutationPipeline.java
+ *
+ * @see ec.gp.koza.MutationPipeline
+ * Modifications are the exact same as the Crossover Pipeline
+ * 
+ * Created: 25 January, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+<span class="nc" id="L31">public class MapElitesMutationPipeline extends MapElitesBreedingPipeline {</span>
+    private static final long serialVersionUID = 1;
+
+    public static final String P_NUM_TRIES = &quot;tries&quot;;
+    public static final String P_MAXDEPTH = &quot;maxdepth&quot;;
+    public static final String P_MAXSIZE = &quot;maxsize&quot;;
+    public static final String P_MUTATION = &quot;mutate&quot;;
+    public static final String P_BUILDER = &quot;build&quot;;
+    public static final String P_EQUALSIZE = &quot;equal&quot;;
+    public static final int INDS_PRODUCED = 1;
+    public static final int NUM_SOURCES = 1;
+    public static final int NO_SIZE_LIMIT = -1;
+
+    /** How the pipeline chooses a subtree to mutate */
+    public GPNodeSelector nodeselect;
+
+    /** How the pipeline builds a new subtree */
+    public GPNodeBuilder builder;
+
+    /**
+     * The number of times the pipeline tries to build a valid mutated tree before
+     * it gives up and just passes on the original
+     */
+    int numTries;
+
+    /** The maximum depth of a mutated tree */
+    int maxDepth;
+
+    /**
+     * The largest tree (measured as a nodecount) the pipeline is allowed to form.
+     */
+    public int maxSize;
+
+    /** Do we try to replace the subtree with another of the same size? */
+    boolean equalSize;
+
+    /** Is our tree fixed? If not, this is -1 */
+    int tree;
+
+    public Parameter defaultBase() {
+<span class="nc" id="L71">        return GPKozaDefaults.base().push(P_MUTATION);</span>
+    }
+
+    public int numSources() {
+<span class="nc" id="L75">        return NUM_SOURCES;</span>
+    }
+
+    public Object clone() {
+<span class="nc" id="L79">        MapElitesMutationPipeline c = (MapElitesMutationPipeline) (super.clone());</span>
+
+        // deep-cloned stuff
+<span class="nc" id="L82">        c.nodeselect = (GPNodeSelector) (nodeselect.clone());</span>
+
+<span class="nc" id="L84">        return c;</span>
+    }
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L88">        super.setup(state, base);</span>
+
+<span class="nc" id="L90">        Parameter def = defaultBase();</span>
+<span class="nc" id="L91">        Parameter p = base.push(P_NODESELECTOR).push(&quot;&quot; + 0);</span>
+<span class="nc" id="L92">        Parameter d = def.push(P_NODESELECTOR).push(&quot;&quot; + 0);</span>
+
+<span class="nc" id="L94">        nodeselect = (GPNodeSelector) (state.parameters.getInstanceForParameter(p, d, GPNodeSelector.class));</span>
+<span class="nc" id="L95">        nodeselect.setup(state, p);</span>
+
+<span class="nc" id="L97">        p = base.push(P_BUILDER).push(&quot;&quot; + 0);</span>
+<span class="nc" id="L98">        d = def.push(P_BUILDER).push(&quot;&quot; + 0);</span>
+
+<span class="nc" id="L100">        builder = (GPNodeBuilder) (state.parameters.getInstanceForParameter(p, d, GPNodeBuilder.class));</span>
+<span class="nc" id="L101">        builder.setup(state, p);</span>
+
+<span class="nc" id="L103">        numTries = state.parameters.getInt(base.push(P_NUM_TRIES), def.push(P_NUM_TRIES), 1);</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (numTries == 0)</span>
+<span class="nc" id="L105">            state.output.fatal(&quot;Mutation Pipeline has an invalid number of tries (it must be &gt;= 1).&quot;,</span>
+<span class="nc" id="L106">                    base.push(P_NUM_TRIES), def.push(P_NUM_TRIES));</span>
+
+<span class="nc" id="L108">        maxDepth = state.parameters.getInt(base.push(P_MAXDEPTH), def.push(P_MAXDEPTH), 1);</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (maxDepth == 0)</span>
+<span class="nc" id="L110">            state.output.fatal(&quot;The Mutation Pipeline &quot; + base + &quot;has an invalid maximum depth (it must be &gt;= 1).&quot;,</span>
+<span class="nc" id="L111">                    base.push(P_MAXDEPTH), def.push(P_MAXDEPTH));</span>
+
+<span class="nc" id="L113">        maxSize = NO_SIZE_LIMIT;</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_MAXSIZE), def.push(P_MAXSIZE))) {</span>
+<span class="nc" id="L115">            maxSize = state.parameters.getInt(base.push(P_MAXSIZE), def.push(P_MAXSIZE), 1);</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">            if (maxSize &lt; 1)</span>
+<span class="nc" id="L117">                state.output.fatal(&quot;Maximum tree size, if defined, must be &gt;= 1&quot;);</span>
+        }
+
+<span class="nc" id="L120">        equalSize = state.parameters.getBoolean(base.push(P_EQUALSIZE), def.push(P_EQUALSIZE), false);</span>
+
+<span class="nc" id="L122">        tree = TREE_UNFIXED;</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_TREE).push(&quot;&quot; + 0), def.push(P_TREE).push(&quot;&quot; + 0))) {</span>
+<span class="nc" id="L124">            tree = state.parameters.getInt(base.push(P_TREE).push(&quot;&quot; + 0), def.push(P_TREE).push(&quot;&quot; + 0), 0);</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            if (tree == -1)</span>
+<span class="nc" id="L126">                state.output.fatal(&quot;Tree fixed value, if defined, must be &gt;= 0&quot;);</span>
+        }
+<span class="nc" id="L128">    }</span>
+
+    /** Returns true if inner1 can feasibly be swapped into inner2's position */
+
+    public boolean verifyPoints(GPNode inner1, GPNode inner2) {
+        // We know they're swap-compatible since we generated inner1
+        // to be exactly that. So don't bother.
+
+        // next check to see if inner1 can fit in inner2's spot
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (inner1.depth() + inner2.atDepth() &gt; maxDepth)</span>
+<span class="nc" id="L138">            return false;</span>
+
+        // check for size
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if (maxSize != NO_SIZE_LIMIT) {</span>
+            // first easy check
+<span class="nc" id="L143">            int inner1size = inner1.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc" id="L144">            int inner2size = inner2.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">            if (inner1size &gt; inner2size) // need to test further</span>
+            {
+                // let's keep on going for the more complex test
+<span class="nc" id="L148">                GPNode root2 = ((GPTree) (inner2.rootParent())).child;</span>
+<span class="nc" id="L149">                int root2size = root2.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                if (root2size - inner2size + inner1size &gt; maxSize) // take root2, remove inner2 and swap in inner1. Is</span>
+                                                                   // it still small enough?
+<span class="nc" id="L152">                    return false;</span>
+            }
+        }
+
+        // checks done!
+<span class="nc" id="L157">        return true;</span>
+    }
+
+    public int produce(final int submap, final ArrayList&lt;Elite&gt; inds, final EvolutionState state,
+            final int thread, HashMap&lt;String, Object&gt; misc) {
+<span class="nc" id="L162">        int start = inds.size();</span>
+
+        // grab individuals from our source and stick 'em right into inds.
+        // we'll modify them from there
+<span class="nc" id="L166">        int n = sources[0].produce(submap, inds, state, thread, misc);</span>
+
+        // should we bother?
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood)) {</span>
+<span class="nc" id="L170">            return n;</span>
+        }
+
+<span class="nc" id="L173">        DistributedMEInitializer initializer = (DistributedMEInitializer) state.initializer;</span>
+            
+
+        // now let's mutate 'em
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        for (int q = start; q &lt; n + start; q++) {</span>
+<span class="nc" id="L178">            Elite i = (Elite) inds.get(q);</span>
+
+<span class="nc bnc" id="L180" title="All 6 branches missed.">            if (tree != TREE_UNFIXED &amp;&amp; (tree &lt; 0 || tree &gt;= i.trees.length))</span>
+                // uh oh
+<span class="nc" id="L182">                state.output.fatal(</span>
+                        &quot;GP Mutation Pipeline attempted to fix tree.0 to a value which was out of bounds of the array of the individual's trees.  Check the pipeline's fixed tree values -- they may be negative or greater than the number of trees in an individual&quot;);
+
+            int t;
+            // pick random tree
+<span class="nc bnc" id="L187" title="All 2 branches missed.">            if (tree == TREE_UNFIXED)</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">                if (i.trees.length &gt; 1)</span>
+<span class="nc" id="L189">                    t = state.random[thread].nextInt(i.trees.length);</span>
+                else
+<span class="nc" id="L191">                    t = 0;</span>
+            else
+<span class="nc" id="L193">                t = tree;</span>
+
+            // validity result...
+<span class="nc" id="L196">            boolean res = false;</span>
+
+            // prepare the nodeselector
+<span class="nc" id="L199">            nodeselect.reset();</span>
+
+            // pick a node
+
+<span class="nc" id="L203">            GPNode p1 = null; // the node we pick</span>
+<span class="nc" id="L204">            GPNode p2 = null;</span>
+
+<span class="nc bnc" id="L206" title="All 2 branches missed.">            for (int x = 0; x &lt; numTries; x++) {</span>
+                // pick a node in individual 1
+<span class="nc" id="L208">                p1 = nodeselect.pickNode(state, submap, thread, i, i.trees[t]);</span>
+
+                // generate a tree swap-compatible with p1's position
+
+<span class="nc" id="L212">                int size = GPNodeBuilder.NOSIZEGIVEN;</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">                if (equalSize)</span>
+<span class="nc" id="L214">                    size = p1.numNodes(GPNode.NODESEARCH_ALL);</span>
+
+<span class="nc" id="L216">                p2 = builder.newRootedTree(state, p1.parentType(initializer), thread, p1.parent,</span>
+<span class="nc" id="L217">                        i.trees[t].constraints(initializer).functionset, p1.argposition, size);</span>
+
+                // check for depth and swap-compatibility limits
+<span class="nc" id="L220">                res = verifyPoints(p2, p1); // p2 can fit in p1's spot -- the order is important!</span>
+
+                // did we get something that had both nodes verified?
+<span class="nc bnc" id="L223" title="All 2 branches missed.">                if (res)</span>
+<span class="nc" id="L224">                    break;</span>
+            }
+
+<span class="nc bnc" id="L227" title="All 2 branches missed.">            if (res) // we're in business</span>
+            {
+<span class="nc" id="L229">                p2.parent = p1.parent;</span>
+<span class="nc" id="L230">                p2.argposition = p1.argposition;</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                if (p2.parent instanceof GPNode)</span>
+<span class="nc" id="L232">                    ((GPNode) (p2.parent)).children[p2.argposition] = p2;</span>
+                else
+<span class="nc" id="L234">                    ((GPTree) (p2.parent)).child = p2;</span>
+<span class="nc" id="L235">                i.evaluated = false; // we've modified it</span>
+            }
+
+            // add the new individual, replacing its previous source
+<span class="nc" id="L239">            inds.set(q, i);</span>
+
+        }
+<span class="nc" id="L242">        return n;</span>
+    }
+
+    @Override
+    public void individualReplaced(EvolutionState state, int submap, int thread, int individual) {
+        // TODO Auto-generated method stub
+        
+<span class="nc" id="L249">    }</span>
+
+    @Override
+    public void sourcesAreProperForm(EvolutionState state) {
+        // TODO Auto-generated method stub
+        
+<span class="nc" id="L255">    }</span>
+
+    @Override
+    public void prepareToProduce(EvolutionState state, int submap, int thread) {
+        // TODO Auto-generated method stub
+        
+<span class="nc" id="L261">    }</span>
+
+    @Override
+    public void finishProducing(EvolutionState state, int submap, int thread) {
+        // TODO Auto-generated method stub
+        
+<span class="nc" id="L267">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

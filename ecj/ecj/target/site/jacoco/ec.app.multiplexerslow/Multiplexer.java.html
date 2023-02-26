@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Multiplexer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.multiplexerslow</a> &gt; <span class="el_source">Multiplexer.java</span></div><h1>Multiplexer.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.multiplexerslow;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+import java.util.ArrayList;
+
+/* 
+ * Multiplexer.java
+ * 
+ * Created: Mon Nov  1 15:46:19 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Multiplexer implements the family of &lt;i&gt;n&lt;/i&gt;-Multiplexer problems.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.app.multiplexer.MultiplexerData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the Multiplexer problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;bits&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;1, 2, or 3&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The number of address bits (1 == 3-multiplexer, 2 == 6-multiplexer, 3==11-multiplexer)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc bnc" id="L46" title="All 2 branches missed.">public class Multiplexer extends GPProblem implements SimpleProblemForm</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final int NUMINPUTS = 20;
+    public static final String P_NUMBITS = &quot;bits&quot;;
+
+    public int bits;  // number of bits in the data
+    public int amax; // maximum address value
+    public int dmax; // maximum data value
+    public int addressPart;  // the current address part
+    public int dataPart;     // the current data part
+
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L63">        super.setup(state,base);</span>
+
+        // not using any default base -- it's not safe
+
+        // verify our input is the right class (or subclasses from it)
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (!(input instanceof MultiplexerData))</span>
+<span class="nc" id="L69">            state.output.fatal(&quot;GPData class must subclass from &quot; + MultiplexerData.class,</span>
+<span class="nc" id="L70">                base.push(P_DATA), null);</span>
+
+        // I figure 3 bits is plenty -- otherwise we'd be dealing with
+        // REALLY big arrays!
+<span class="nc" id="L74">        bits = state.parameters.getIntWithMax(base.push(P_NUMBITS),null,1,3);</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (bits&lt;1)</span>
+<span class="nc" id="L76">            state.output.fatal(&quot;The number of bits for Multiplexer must be between 1 and 3 inclusive&quot;);</span>
+        
+<span class="nc" id="L78">        amax=1;</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        for(int x=0;x&lt;bits;x++) amax *=2;   // safer than Math.pow(...)</span>
+
+<span class="nc" id="L81">        dmax=1;</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        for(int x=0;x&lt;amax;x++) dmax *=2;   // safer than Math.pow(...)</span>
+<span class="nc" id="L83">        }</span>
+
+    @Override
+    public void evaluate(final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+<span class="nc" id="L93">            MultiplexerData input = (MultiplexerData)(this.input);</span>
+        
+<span class="nc" id="L95">            int sum = 0;</span>
+            
+            // We'll record the individual trials in case we want to use LexicaseSelection
+<span class="nc" id="L98">            final ArrayList&lt;Fitness&gt; trials = new ArrayList&lt;Fitness&gt;();</span>
+            
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            for(addressPart = 0; addressPart &lt; amax; addressPart++)</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">                for(dataPart = 0; dataPart &lt; dmax; dataPart++)</span>
+                    {
+<span class="nc" id="L103">                    ((GPIndividual)ind).trees[0].child.eval(</span>
+                        state,threadnum,input,stack,((GPIndividual)ind),this);
+<span class="nc" id="L105">                    final double trial = 1- (                  /* &quot;Not&quot; */</span>
+                        ((dataPart &gt;&gt;&gt; addressPart) &amp; 1) /* extracts the address-th 
+                                                            bit in data and moves 
+                                                            it to position 0, 
+                                                            clearing out all 
+                                                            other bits */
+                        ^                   /* &quot;Is Different from&quot; */
+                        (input.x &amp; 1));      /* A 1 if input.x is 
+                                                non-zero, else 0. */
+                    
+<span class="nc" id="L115">                    final SimpleFitness trialFitness = new SimpleFitness();</span>
+<span class="nc" id="L116">                    trialFitness.setFitness(state, trial, false);</span>
+<span class="nc" id="L117">                    trials.add(trialFitness);</span>
+<span class="nc" id="L118">                    sum += trial;</span>
+                    }
+                
+            // the fitness better be KozaFitness!
+<span class="nc" id="L122">            KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc bnc" id="L123" title="All 4 branches missed.">            assert(trials.size() == amax*dmax);</span>
+<span class="nc" id="L124">            f.trials = trials;</span>
+<span class="nc" id="L125">            f.setStandardizedFitness(state, (amax*dmax - sum));</span>
+<span class="nc" id="L126">            f.hits = sum;</span>
+<span class="nc" id="L127">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L129">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

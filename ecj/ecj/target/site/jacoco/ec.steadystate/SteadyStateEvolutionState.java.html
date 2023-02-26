@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SteadyStateEvolutionState.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.steadystate</a> &gt; <span class="el_source">SteadyStateEvolutionState.java</span></div><h1>SteadyStateEvolutionState.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.steadystate;
+import ec.*;
+import ec.util.Parameter;
+import ec.util.Checkpoint;
+//import ec.eval.MasterProblem;
+import java.util.*; 
+
+/* 
+ * SteadyStateEvolutionState.java
+ * 
+ */
+
+/**
+ * This subclass of EvolutionState implements basic Steady-State Evolution and (in distributed form)
+ * Asynchronous Evolution. The procedure is as follows.  We begin with an empty Population and one by
+ * one create new Indivdiuals and send them off to be evaluated.  In basic Steady-State Evolution the
+ * individuals are immediately evaluated and we wait for them; but in Asynchronous Evolution the individuals are evaluated
+ * for however long it takes and we don't wait for them to finish.  When individuals return they are
+ * added to the Population until it is full.  No duplicate individuals are allowed.
+ *
+ * &lt;p&gt;At this point the system switches to its &quot;steady state&quot;: individuals are bred from the population
+ * one by one, and sent off to be evaluated.  Once again, in basic Steady-State Evolution the
+ * individuals are immediately evaluated and we wait for them; but in Asynchronous Evolution the individuals are evaluated
+ * for however long it takes and we don't wait for them to finish.  When an individual returns, we
+ * mark an individual in the Population for death, then replace it with the new returning individual.
+ * Note that during the steady-state, Asynchronous Evolution could be still sending back some &quot;new&quot; individuals
+ * created during the initialization phase, not &quot;bred&quot; individuals.
+ *
+ * &lt;p&gt;The determination of how an individual is marked for death is done by the SteadyStateBreeder.
+ *
+ * &lt;p&gt;SteadyStateEvolutionState will run either for some N &quot;generations&quot; or for some M evaluations of
+ * individuals.   A &quot;generation&quot; is defined as a Population's worth of evaluations.   If you do not
+ * specify the number of evaluations (the M), then SteadyStateEvolutionState will use the standard
+ * generations parameter defined in EvolutionState.
+ *
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;evaluations&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(maximal number of evaluations to run.)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;steady.replacement-probability&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0 (default is 1.0)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(probability that an incoming individual will unilaterally replace the individual marked 
+ for death, as opposed to replacing it only if the incoming individual is superior in fitness)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ 
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+
+<span class="nc" id="L61">public class SteadyStateEvolutionState extends EvolutionState</span>
+    {
+    public static final String P_REPLACEMENT_PROBABILITY = &quot;replacement-probability&quot;;
+    public static final String P_EMPTY_AT_GEN = &quot;empty-at-generation-boundary&quot;;
+        
+    /** Did we just start a new generation? */
+    public boolean generationBoundary;
+    
+    /** how big is a generation? Set to the size of subpopulation 0 of the initial population. */
+    public int generationSize;
+    
+    /** When a new individual arrives, with what probability should it directly replace the existing
+        &quot;marked for death&quot; individual, as opposed to only replacing it if it's superior? */
+    public double replacementProbability;
+
+    /** If true, the population will be emptied after each &quot;generation,&quot; so no replacement or breeding occurrs.  This
+     * is used, for example, by Ant Colony algorithms, which have no notion of breeding.
+     */
+    public boolean emptyAtGenerationBoundary;
+
+        //int[] individualCount;
+        
+    /** Hash table to check for duplicate individuals */ 
+    HashMap[] individualHash; 
+        
+    /** Holds which subpopulation we are currently operating on */
+    int whichSubpop;
+    
+    /** First time calling evolve */
+    protected boolean firstTime;
+        
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L94">        super.setup(state,base);</span>
+                
+        // double check that we have valid evaluators and breeders and exchangers
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (!(breeder instanceof SteadyStateBreeder))</span>
+<span class="nc" id="L98">            state.output.error(&quot;You've chosen to use Steady-State Evolution, but your breeder is not of the class SteadyStateBreeder.&quot;,base);</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (!(evaluator instanceof SteadyStateEvaluator))</span>
+<span class="nc" id="L100">            state.output.error(&quot;You've chosen to use Steady-State Evolution, but your evaluator is not of the class SteadyStateEvaluator.&quot;,base);</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (!(exchanger instanceof SteadyStateExchangerForm))</span>
+<span class="nc" id="L102">            state.output.error(&quot;You've chosen to use Steady-State Evolution, but your exchanger does not implement the SteadyStateExchangerForm.&quot;,base);</span>
+        
+<span class="nc" id="L104">        checkStatistics(state, statistics, new Parameter(P_STATISTICS));</span>
+
+<span class="nc" id="L106">        emptyAtGenerationBoundary = parameters.getBoolean(SteadyStateDefaults.base().push(P_EMPTY_AT_GEN), null, false);</span>
+
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        if (parameters.exists(SteadyStateDefaults.base().push(P_REPLACEMENT_PROBABILITY),null))</span>
+            {
+<span class="nc" id="L110">            replacementProbability = parameters.getDoubleWithMax(SteadyStateDefaults.base().push(P_REPLACEMENT_PROBABILITY),null,0.0, 1.0);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if (replacementProbability &lt; 0.0) // uh oh</span>
+<span class="nc" id="L112">                state.output.error(&quot;Replacement probability must be between 0.0 and 1.0 inclusive.&quot;,</span>
+<span class="nc" id="L113">                    SteadyStateDefaults.base().push(P_REPLACEMENT_PROBABILITY), null);</span>
+            }
+        else
+            {
+<span class="nc" id="L117">            replacementProbability = 1.0;  // always replace</span>
+<span class="nc" id="L118">            state.output.message(&quot;Replacement probability not defined: using 1.0 (always replace)&quot;);</span>
+            }
+<span class="nc" id="L120">        }</span>
+    
+    // recursively prints out warnings for all statistics that are not
+    // of steadystate statistics form
+    void checkStatistics(final EvolutionState state, Statistics stat, final Parameter base)
+        {
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (!(stat instanceof SteadyStateStatisticsForm))</span>
+<span class="nc" id="L127">            state.output.warning(&quot;You've chosen to use Steady-State Evolution, but your statistics does not implement the SteadyStateStatisticsForm.&quot;,base);</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        for(int x=0;x&lt;stat.children.length;x++)</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            if (stat.children[x]!=null)</span>
+<span class="nc" id="L130">                checkStatistics(state, stat.children[x], base.push(&quot;child&quot;).push(&quot;&quot;+x));</span>
+<span class="nc" id="L131">        }</span>
+    
+    
+    /**
+     * 
+     */
+    public void startFresh() 
+        {
+<span class="nc" id="L139">        output.message(&quot;Setting up&quot;);</span>
+<span class="nc" id="L140">        setup(this,null);  // a garbage Parameter</span>
+
+        // POPULATION INITIALIZATION
+<span class="nc" id="L143">        output.message(&quot;Initializing Generation 0&quot;);</span>
+<span class="nc" id="L144">        statistics.preInitializationStatistics(this);</span>
+<span class="nc" id="L145">        population = initializer.setupPopulation(this, 0);  // unthreaded.  We're NOT initializing here, just setting up.</span>
+
+        // INITIALIZE VARIABLES
+<span class="nc" id="L148">        generationSize = 0;</span>
+<span class="nc" id="L149">        generationBoundary = false;</span>
+<span class="nc" id="L150">        firstTime = true; </span>
+<span class="nc" id="L151">        evaluations=0; </span>
+<span class="nc" id="L152">        whichSubpop=-1; </span>
+                
+<span class="nc" id="L154">        individualHash = new HashMap[population.subpops.size()];</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        for(int i = 0; i&lt; population.subpops.size(); i++) individualHash[i] = new HashMap();</span>
+        
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        for (int sub = 0; sub &lt; population.subpops.size(); sub++)</span>
+<span class="nc" id="L158">            generationSize += population.subpops.get(sub).initialSize;</span>
+
+<span class="nc bnc" id="L160" title="All 4 branches missed.">        if (numEvaluations &gt; UNDEFINED &amp;&amp; numEvaluations &lt; generationSize)</span>
+<span class="nc" id="L161">            output.fatal(&quot;Number of evaluations desired is smaller than the initial population of individuals&quot;);</span>
+
+        // INITIALIZE CONTACTS -- done after initialization to allow
+        // a hook for the user to do things in Initializer before
+        // an attempt is made to connect to island models etc.
+<span class="nc" id="L166">        exchanger.initializeContacts(this);</span>
+<span class="nc" id="L167">        evaluator.initializeContacts(this);</span>
+<span class="nc" id="L168">        }</span>
+
+
+    public int evolve()
+        {
+<span class="nc bnc" id="L173" title="All 4 branches missed.">        if (generationBoundary &amp;&amp; generation &gt; 0)</span>
+            {
+<span class="nc" id="L175">            output.message(&quot;Generation &quot; + generation +&quot;\tEvaluations So Far &quot; + evaluations);</span>
+<span class="nc" id="L176">            statistics.generationBoundaryStatistics(this); </span>
+            }
+                
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        if (firstTime) </span>
+            {
+<span class="nc bnc" id="L181" title="All 2 branches missed.">            if (statistics instanceof SteadyStateStatisticsForm)</span>
+<span class="nc" id="L182">                ((SteadyStateStatisticsForm)statistics).enteringInitialPopulationStatistics(this);</span>
+<span class="nc" id="L183">            statistics.postInitializationStatistics(this); </span>
+<span class="nc" id="L184">            ((SteadyStateBreeder)breeder).prepareToBreed(this, 0); // unthreaded </span>
+<span class="nc" id="L185">            ((SteadyStateEvaluator)evaluator).prepareToEvaluate(this, 0); // unthreaded </span>
+<span class="nc" id="L186">            firstTime=false; </span>
+            } 
+                
+<span class="nc" id="L189">        whichSubpop = (whichSubpop+1)% population.subpops.size();  // round robin selection</span>
+                
+        // is the current subpop full? 
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        boolean partiallyFullSubpop = (population.subpops.get(whichSubpop).individuals.size() &lt; population.subpops.get(whichSubpop).initialSize);</span>
+  
+        // MAIN EVOLVE LOOP 
+<span class="nc bnc" id="L195" title="All 2 branches missed.">        if (((SteadyStateEvaluator) evaluator).canEvaluate())   // are we ready to evaluate? </span>
+            {
+<span class="nc" id="L197">            Individual ind=null; </span>
+<span class="nc" id="L198">            int numDuplicateRetries = population.subpops.get(whichSubpop).numDuplicateRetries;</span>
+
+<span class="nc bnc" id="L200" title="All 2 branches missed.">            for (int tries=0; tries &lt;= numDuplicateRetries; tries++)  // see Subpopulation</span>
+                { 
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                if ( partiallyFullSubpop )   // is population full?</span>
+                    {
+<span class="nc" id="L204">                    ind = population.subpops.get(whichSubpop).species.newIndividual(this, 0);  // unthreaded</span>
+                    }
+                else  
+                    { 
+<span class="nc" id="L208">                    ind = ((SteadyStateBreeder)breeder).breedIndividual(this, whichSubpop,0); </span>
+<span class="nc" id="L209">                    statistics.individualsBredStatistics(this, new Individual[]{ind}); </span>
+                    }
+                                
+<span class="nc bnc" id="L212" title="All 2 branches missed.">                if (numDuplicateRetries &gt;= 1)  </span>
+                    { 
+<span class="nc" id="L214">                    Object o = individualHash[whichSubpop].get(ind); </span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                    if (o == null) </span>
+                        { 
+<span class="nc" id="L217">                        individualHash[whichSubpop].put(ind, ind); </span>
+<span class="nc" id="L218">                        break; </span>
+                        }
+                    }
+                } // tried to cut down the duplicates 
+                        
+            // evaluate the new individual
+<span class="nc" id="L224">            ((SteadyStateEvaluator)evaluator).evaluateIndividual(this, ind, whichSubpop);</span>
+            }
+        
+<span class="nc" id="L227">        Individual ind = ((SteadyStateEvaluator)evaluator).getNextEvaluatedIndividual(this);</span>
+<span class="nc" id="L228">        int whichIndIndex = -1;</span>
+<span class="nc" id="L229">        int whichSubpop = -1;</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        if (ind != null)   // do we have an evaluated individual? </span>
+            {
+            // COMPUTE GENERATION BOUNDARY
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            generationBoundary = (evaluations % generationSize == 0);</span>
+            
+<span class="nc bnc" id="L235" title="All 2 branches missed.">            if (generationBoundary)</span>
+                {
+<span class="nc" id="L237">                statistics.preEvaluationStatistics(this);</span>
+                }
+
+<span class="nc" id="L240">            int subpop = ((SteadyStateEvaluator)evaluator).getSubpopulationOfEvaluatedIndividual(); </span>
+<span class="nc" id="L241">            whichSubpop = subpop;</span>
+
+            // LOCAL STATE UPDATE (used by some algorithms like ACO to EDAS to update auxiliary state)
+<span class="nc" id="L244">            evaluator.postEvaluationLocalUpdate(this, ind, subpop);</span>
+                                             
+<span class="nc bnc" id="L246" title="All 2 branches missed.">            if ( partiallyFullSubpop ) // is subpopulation full? </span>
+                {
+<span class="nc" id="L248">                population.subpops.get(subpop).individuals.add(ind);</span>
+                                
+                // STATISTICS FOR GENERATION ZERO 
+<span class="nc bnc" id="L251" title="All 2 branches missed.">                if (population.subpops.get(subpop).individuals.size() == population.subpops.get(subpop).initialSize)</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">                    if (statistics instanceof SteadyStateStatisticsForm)</span>
+<span class="nc" id="L253">                        ((SteadyStateStatisticsForm)statistics).enteringSteadyStateStatistics(subpop, this); </span>
+                }
+            else 
+                { 
+                // mark individual for death 
+<span class="nc" id="L258">                int deadIndividualIndex = ((SteadyStateBreeder)breeder).deselectors[subpop].produce(subpop,this,0);</span>
+<span class="nc" id="L259">                Individual deadInd = population.subpops.get(subpop).individuals.get(deadIndividualIndex);</span>
+                
+                // maybe replace dead individual with new individual
+<span class="nc bnc" id="L262" title="All 2 branches missed.">                if (ind.fitness.betterThan(deadInd.fitness) ||         // it's better, we want it</span>
+<span class="nc bnc" id="L263" title="All 2 branches missed.">                    random[0].nextDouble() &lt; replacementProbability)      // it's not better but maybe we replace it directly anyway</span>
+                    {
+<span class="nc" id="L265">                    population.subpops.get(subpop).individuals.set(deadIndividualIndex, ind);</span>
+<span class="nc" id="L266">                    whichIndIndex = deadIndividualIndex;</span>
+                    }
+                                
+                // update duplicate hash table 
+<span class="nc" id="L270">                individualHash[subpop].remove(deadInd); </span>
+                                
+<span class="nc bnc" id="L272" title="All 2 branches missed.">                if (statistics instanceof SteadyStateStatisticsForm) </span>
+<span class="nc" id="L273">                    ((SteadyStateStatisticsForm)statistics).individualsEvaluatedStatistics(this, </span>
+                        new Individual[]{ind}, new Individual[]{deadInd}, new int[]{subpop}, new int[]{deadIndividualIndex}); 
+                }
+                                                
+<span class="nc bnc" id="L277" title="All 2 branches missed.">            if (generationBoundary)</span>
+                {
+<span class="nc" id="L279">                statistics.postEvaluationStatistics(this);</span>
+                }
+<span class="nc" id="L281">            }</span>
+        else
+            {
+<span class="nc" id="L284">            generationBoundary = false; </span>
+            }
+
+        // SHOULD WE QUIT?
+<span class="nc bnc" id="L288" title="All 4 branches missed.">        if (!partiallyFullSubpop &amp;&amp; </span>
+            ind != null &amp;&amp;
+<span class="nc bnc" id="L290" title="All 4 branches missed.">            ((SteadyStateEvaluator)evaluator).isIdealFitness(this, ind) &amp;&amp; </span>
+            quitOnRunComplete)
+            { 
+<span class="nc" id="L293">            output.message(&quot;Individual &quot; + whichIndIndex + &quot; of subpopulation &quot; + whichSubpop + &quot; has an ideal fitness.&quot;); </span>
+<span class="nc" id="L294">            finishEvaluationStatistics();</span>
+<span class="nc" id="L295">            return R_SUCCESS;</span>
+            }
+        
+<span class="nc bnc" id="L298" title="All 2 branches missed.">        if (evaluator.runComplete != null)</span>
+            {
+<span class="nc" id="L300">            output.message(evaluator.runComplete);</span>
+<span class="nc" id="L301">            finishEvaluationStatistics();</span>
+<span class="nc" id="L302">            return R_SUCCESS; </span>
+            }
+        
+<span class="nc bnc" id="L305" title="All 10 branches missed.">        if ((generationBoundary &amp;&amp; numGenerations != UNDEFINED &amp;&amp; generation &gt;= numGenerations - 1) ||</span>
+            (numEvaluations != UNDEFINED &amp;&amp; evaluations &gt;= numEvaluations))
+            {
+<span class="nc" id="L308">            finishEvaluationStatistics();</span>
+<span class="nc" id="L309">            return R_FAILURE;</span>
+            }
+            
+<span class="nc bnc" id="L312" title="All 2 branches missed.">        if (generationBoundary)</span>
+            {
+            // INCREMENT GENERATION AND CHECKPOINT
+<span class="nc" id="L315">            generation++;</span>
+
+            // PRE-BREEDING EXCHANGING
+<span class="nc" id="L318">            statistics.prePreBreedingExchangeStatistics(this);</span>
+<span class="nc" id="L319">            population = exchanger.preBreedingExchangePopulation(this);</span>
+<span class="nc" id="L320">            statistics.postPreBreedingExchangeStatistics(this);</span>
+<span class="nc" id="L321">            String exchangerWantsToShutdown = exchanger.runComplete(this);</span>
+<span class="nc bnc" id="L322" title="All 2 branches missed.">            if (exchangerWantsToShutdown!=null)</span>
+                { 
+<span class="nc" id="L324">                output.message(exchangerWantsToShutdown); </span>
+<span class="nc" id="L325">                finishEvaluationStatistics();</span>
+<span class="nc" id="L326">                return R_SUCCESS;</span>
+                }
+
+            // GLOBAL STATE UPDATE (used by some algorithms like ACO to EDAS to update auxiliary state)
+<span class="nc" id="L330">            evaluator.postEvaluationGlobalUpdate(this);</span>
+
+            // POST-BREEDING EXCHANGING
+<span class="nc" id="L333">            statistics.prePostBreedingExchangeStatistics(this);</span>
+<span class="nc" id="L334">            population = exchanger.postBreedingExchangePopulation(this);</span>
+<span class="nc" id="L335">            statistics.postPostBreedingExchangeStatistics(this);</span>
+
+            // CLEAR POPULATION
+<span class="nc" id="L338">            population = population.emptyClone();</span>
+            }
+
+<span class="nc bnc" id="L341" title="All 6 branches missed.">        if (checkpoint &amp;&amp; generationBoundary &amp;&amp; (generation - 1) % checkpointModulo == 0) </span>
+            {
+<span class="nc" id="L343">            output.message(&quot;Checkpointing&quot;);</span>
+<span class="nc" id="L344">            statistics.preCheckpointStatistics(this);</span>
+<span class="nc" id="L345">            Checkpoint.setCheckpoint(this);</span>
+<span class="nc" id="L346">            statistics.postCheckpointStatistics(this);</span>
+            }
+
+<span class="nc" id="L349">        return R_NOTDONE;</span>
+        }
+        
+    public void finishEvaluationStatistics()
+        {
+<span class="nc bnc" id="L354" title="All 2 branches missed.">        boolean generationBoundary = (evaluations % generationSize == 0);</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">        if (!generationBoundary)</span>
+            {
+<span class="nc" id="L357">            statistics.postEvaluationStatistics(this);</span>
+<span class="nc" id="L358">            output.message(&quot;Generation &quot; + generation + &quot; Was Partial&quot;);</span>
+            }
+<span class="nc" id="L360">        }</span>
+
+    public void finish(int result)
+        {
+<span class="nc" id="L364">        output.message(&quot;Total Evaluations &quot; + evaluations);</span>
+<span class="nc" id="L365">        ((SteadyStateBreeder)breeder).finishPipelines(this);</span>
+<span class="nc" id="L366">        statistics.finalStatistics(this,result);</span>
+<span class="nc" id="L367">        finisher.finishPopulation(this,result);</span>
+<span class="nc" id="L368">        exchanger.closeContacts(this,result);</span>
+<span class="nc" id="L369">        evaluator.closeContacts(this,result);</span>
+<span class="nc" id="L370">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

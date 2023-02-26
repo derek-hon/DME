@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NEATGene.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.neat</a> &gt; <span class="el_source">NEATGene.java</span></div><h1>NEATGene.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.neat;
+
+import java.text.*;
+import ec.*;
+import ec.util.*;
+import ec.vector.*;
+
+/**
+ * NEATGene is the combination of class Gene and class Link in original code. It
+ * is used to represent a single connection between two nodes (NEATNode) of a
+ * neural network, and extends the abstract Gene class to make use of its
+ * read/write utilities.
+ * 
+ * @author Ermo Wei and David Freelan
+ *
+ */
+<span class="nc" id="L22">public class NEATGene extends Gene</span>
+    {
+    public final static String P_GENE = &quot;gene&quot;;
+
+    /** The weight of link this gene is represent. */
+    public double weight;
+
+    /** The actual in node this gene connect to. */
+    public NEATNode inNode;
+
+    /** The actual out node this gene connect to. */
+    public NEATNode outNode;
+
+    /**
+     * The id of the in node, this is useful in reading a gene from file, we
+     * will use this id to find the actual node after we finish reading the
+     * genome file.
+     */
+    public int inNodeId;
+
+    /**
+     * The id of the in node, this is useful in reading a gene from file, we
+     * will use this id to find the actual node after we finish reading the
+     * genome file.
+     */
+    public int outNodeId;
+
+    /** Is the link this gene represent a recurrent link. */
+    public boolean isRecurrent;
+
+    /** Time delay of the link, used in network activation. */
+    public boolean timeDelay;
+
+    /** The innovation number of this link. */
+    public int innovationNumber;
+
+    /**
+     * The mutation number of this gene, Used to see how much mutation has
+     * changed.
+     */
+    public double mutationNumber;
+
+    /** Is the link this gene represent is enable in network activation. */
+    public boolean enable;
+
+    /**
+     * Is this gene frozen, a frozen gene's weight cannot get mutated in
+     * breeding procedure.
+     */
+    public boolean frozen;
+
+    /**
+     * The setup method initializes a &quot;meaningless&quot; gene that does not specify
+     * any connection.
+     */
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L79">        weight = 0.0;</span>
+        // node id 1-indexed
+<span class="nc" id="L81">        inNodeId = 0;</span>
+<span class="nc" id="L82">        outNodeId = 0;</span>
+<span class="nc" id="L83">        inNode = null;</span>
+<span class="nc" id="L84">        outNode = null;</span>
+<span class="nc" id="L85">        isRecurrent = false;</span>
+<span class="nc" id="L86">        innovationNumber = 0;</span>
+<span class="nc" id="L87">        mutationNumber = 0.0;</span>
+<span class="nc" id="L88">        timeDelay = false;</span>
+<span class="nc" id="L89">        enable = true;</span>
+<span class="nc" id="L90">        frozen = false;</span>
+<span class="nc" id="L91">        }</span>
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L95">        return NEATDefaults.base().push(P_GENE);</span>
+        }
+
+    @Override
+    public void reset(EvolutionState state, int thread)
+        {
+        // frozen and timeDelay are not read from template genome, we set it
+        // here
+<span class="nc" id="L103">        frozen = false;</span>
+<span class="nc" id="L104">        timeDelay = false;</span>
+<span class="nc" id="L105">        }</span>
+
+    /** Reset the gene with given parameters. */
+    public void reset(double w, int iNodeId, int oNodeId, boolean recur, int innov, double mutNum)
+        {
+        // Gene::Gene(double w, NNode *inode, NNode *onode, bool recur, double
+        // innov, double mnum)
+<span class="nc" id="L112">        weight = w;</span>
+<span class="nc" id="L113">        inNodeId = iNodeId;</span>
+<span class="nc" id="L114">        outNodeId = oNodeId;</span>
+<span class="nc" id="L115">        inNode = null;</span>
+<span class="nc" id="L116">        outNode = null;</span>
+<span class="nc" id="L117">        isRecurrent = recur;</span>
+<span class="nc" id="L118">        innovationNumber = innov;</span>
+<span class="nc" id="L119">        mutationNumber = mutNum;</span>
+<span class="nc" id="L120">        timeDelay = false;</span>
+<span class="nc" id="L121">        enable = true;</span>
+<span class="nc" id="L122">        frozen = false;</span>
+<span class="nc" id="L123">        }</span>
+
+    @Override
+    public Object clone()
+        {
+        // Gene::Gene(Gene *g,Trait *tp,NNode *inode,NNode *onode)
+        // we do not clone the inNode and outNode instance
+<span class="nc" id="L130">        NEATGene myobj = (NEATGene) (super.clone());</span>
+<span class="nc" id="L131">        myobj.weight = weight;</span>
+<span class="nc" id="L132">        myobj.isRecurrent = isRecurrent;</span>
+<span class="nc" id="L133">        myobj.inNodeId = inNodeId;</span>
+<span class="nc" id="L134">        myobj.outNodeId = outNodeId;</span>
+<span class="nc" id="L135">        myobj.innovationNumber = innovationNumber;</span>
+<span class="nc" id="L136">        myobj.mutationNumber = mutationNumber;</span>
+<span class="nc" id="L137">        myobj.enable = enable;</span>
+<span class="nc" id="L138">        myobj.frozen = frozen;</span>
+<span class="nc" id="L139">        myobj.timeDelay = timeDelay;</span>
+
+<span class="nc" id="L141">        return myobj;</span>
+        }
+
+    public String printGeneToStringForHumans()
+        {
+<span class="nc" id="L146">        return printGeneToString();</span>
+        }
+
+    /**
+     * This method convert the gene in to human readable format. It can be
+     * useful in debugging.
+     */
+    public String toString()
+        {
+<span class="nc" id="L155">        StringBuffer stringBuffer = new StringBuffer();</span>
+<span class="nc" id="L156">        String mask03 = &quot; 0.00000000000000000;-0.00000000000000000&quot;;</span>
+<span class="nc" id="L157">        DecimalFormat fmt03 = new DecimalFormat(mask03);</span>
+
+<span class="nc" id="L159">        String mask5 = &quot; 0000&quot;;</span>
+<span class="nc" id="L160">        DecimalFormat fmt5 = new DecimalFormat(mask5);</span>
+
+<span class="nc" id="L162">        stringBuffer.append(&quot;\n [Link (&quot; + fmt5.format(inNode.nodeId));</span>
+<span class="nc" id="L163">        stringBuffer.append(&quot;,&quot; + fmt5.format(outNode.nodeId));</span>
+<span class="nc" id="L164">        stringBuffer.append(&quot;]  innov (&quot; + fmt5.format(innovationNumber));</span>
+
+<span class="nc" id="L166">        stringBuffer.append(&quot;, mut=&quot; + fmt03.format(mutationNumber) + &quot;)&quot;);</span>
+<span class="nc" id="L167">        stringBuffer.append(&quot; Weight &quot; + fmt03.format(weight));</span>
+
+       
+
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        if (!enable)</span>
+<span class="nc" id="L172">            stringBuffer.append(&quot; -DISABLED-&quot;);</span>
+
+<span class="nc bnc" id="L174" title="All 2 branches missed.">        if (isRecurrent)</span>
+<span class="nc" id="L175">            stringBuffer.append(&quot; -RECUR-&quot;);</span>
+
+<span class="nc" id="L177">        return stringBuffer.toString();</span>
+        }
+
+    /**
+     * This method is used to output a gene that is same as the format in start
+     * genome file.
+     */
+    public String printGeneToString()
+        {
+<span class="nc" id="L186">        StringBuilder stringBuilder = new StringBuilder();</span>
+<span class="nc" id="L187">        stringBuilder.append(Code.encode(inNode.nodeId));</span>
+<span class="nc" id="L188">        stringBuilder.append(Code.encode(outNode.nodeId));</span>
+<span class="nc" id="L189">        stringBuilder.append(Code.encode(weight));</span>
+<span class="nc" id="L190">        stringBuilder.append(Code.encode(isRecurrent));</span>
+<span class="nc" id="L191">        stringBuilder.append(Code.encode(innovationNumber));</span>
+<span class="nc" id="L192">        stringBuilder.append(Code.encode(mutationNumber));</span>
+<span class="nc" id="L193">        stringBuilder.append(Code.encode(enable));</span>
+
+<span class="nc" id="L195">        return stringBuilder.toString();</span>
+        }
+
+    /**
+     * This method is used to read a gene in start genome from file. Example :
+     * i1|i4|d0|0.0|Fi1|d0|0.0|T have these parts : i1 i4 d0|0.0 F i1 d0|0.0 T
+     * which are: inNode outNode weight isRecurrent innovationNumber
+     * mutationNumber enable
+     */
+    public void readGeneFromString(String string, EvolutionState state)
+        {
+        // Gene::Gene(const char *argline, std::vector&lt;Trait*&gt; &amp;traits,
+        // std::vector&lt;NNode*&gt; &amp;nodes)
+<span class="nc" id="L208">        DecodeReturn dr = new DecodeReturn(string);</span>
+<span class="nc" id="L209">        Code.decode(dr);</span>
+<span class="nc" id="L210">        inNodeId = (int) dr.l;</span>
+<span class="nc" id="L211">        Code.decode(dr);</span>
+<span class="nc" id="L212">        outNodeId = (int) dr.l;</span>
+<span class="nc" id="L213">        Code.decode(dr);</span>
+<span class="nc" id="L214">        weight = dr.d;</span>
+<span class="nc" id="L215">        Code.decode(dr);</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        isRecurrent = (dr.l == (long) 1);</span>
+<span class="nc" id="L217">        Code.decode(dr);</span>
+<span class="nc" id="L218">        innovationNumber = (int) dr.l;</span>
+<span class="nc" id="L219">        Code.decode(dr);</span>
+<span class="nc" id="L220">        mutationNumber = dr.d;</span>
+<span class="nc" id="L221">        Code.decode(dr);</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        enable = (dr.l == (long) 1);</span>
+<span class="nc" id="L223">        }</span>
+
+    /**
+     * &quot;Placeholder&quot; method for generating a hashcode. The algorithm is stolen
+     * from GPIndividual and modified a bit to use NEATGene's variables. It is
+     * by no means &quot;good&quot; and is subject for improvement.
+     */
+    public int hashCode()
+        {
+<span class="nc" id="L232">        int hash = innovationNumber;</span>
+<span class="nc" id="L233">        hash = (hash * 31 + 17 + inNodeId);</span>
+<span class="nc" id="L234">        hash = (hash * 31 + 17 + outNodeId);</span>
+<span class="nc" id="L235">        hash = (hash * 31 + 17 + Float.floatToIntBits((float)weight));</span>
+<span class="nc" id="L236">        hash = (hash * 31 + 17 + Float.floatToIntBits((float)mutationNumber));</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        if (enable) hash = (hash * 31 + 17);</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (isRecurrent) hash = (hash * 31 + 13);  // different value</span>
+<span class="nc" id="L239">        return hash;</span>
+        }
+
+    @Override
+    public boolean equals(Object o)
+        {
+<span class="nc" id="L245">        NEATGene g = (NEATGene) o;</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        if (inNodeId != g.inNodeId)</span>
+<span class="nc" id="L247">            return false;</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (outNodeId != g.outNodeId)</span>
+<span class="nc" id="L249">            return false;</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        if (weight != g.weight)</span>
+<span class="nc" id="L251">            return false;</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">        if (isRecurrent != g.isRecurrent)</span>
+<span class="nc" id="L253">            return false;</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        if (innovationNumber != g.innovationNumber)</span>
+<span class="nc" id="L255">            return false;</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        if (mutationNumber != g.mutationNumber)</span>
+<span class="nc" id="L257">            return false;</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        return enable == g.enable;</span>
+
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

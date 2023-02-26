@@ -1,0 +1,398 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GeneVectorIndividual.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector</a> &gt; <span class="el_source">GeneVectorIndividual.java</span></div><h1>GeneVectorIndividual.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.vector;
+
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+/*
+ * GeneVectorIndividual.java
+ * Created: Thu Mar 22 13:13:20 EST 2001
+ */
+
+/**
+ * GeneVectorIndividual is a VectorIndividual whose genome is an array of Genes.
+ * The default mutation method calls the mutate() method on each gene independently
+ * with &lt;tt&gt;species.mutationProbability&lt;/tt&gt;.  Initialization calls reset(), which
+ * should call reset() on each gene.  Do not expect that the genes will actually
+ * exist during initialization -- see the default implementation of reset() as an example
+ * for how to handle this.
+ *
+
+ * &lt;P&gt;&lt;b&gt;From ec.Individual:&lt;/b&gt;  
+ *
+ * &lt;p&gt;In addition to serialization for checkpointing, Individuals may read and write themselves to streams in three ways.
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;writeIndividual(...,DataOutput)/readIndividual(...,DataInput)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This method
+ * transmits or receives an individual in binary.  It is the most efficient approach to sending
+ * individuals over networks, etc.  These methods write the evaluated flag and the fitness, then
+ * call &lt;b&gt;readGenotype/writeGenotype&lt;/b&gt;, which you must implement to write those parts of your 
+ * Individual special to your functions-- the default versions of readGenotype/writeGenotype throw errors.
+ * You don't need to implement them if you don't plan on using read/writeIndividual.
+ *
+ * &lt;li&gt;&lt;b&gt;printIndividual(...,PrintWriter)/readIndividual(...,LineNumberReader)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach transmits or receives an indivdual in text encoded such that the individual is largely readable
+ * by humans but can be read back in 100% by ECJ as well.  To do this, these methods will encode numbers
+ * using the &lt;tt&gt;ec.util.Code&lt;/tt&gt; class.  These methods are mostly used to write out populations to
+ * files for inspection, slight modification, then reading back in later on.  &lt;b&gt;readIndividual&lt;/b&gt; reads
+ * in the fitness and the evaluation flag, then calls &lt;b&gt;parseGenotype&lt;/b&gt; to read in the remaining individual.
+ * You are responsible for implementing parseGenotype: the Code class is there to help you.
+ * &lt;b&gt;printIndividual&lt;/b&gt; writes out the fitness and evaluation flag, then calls &lt;b&gt;genotypeToString&lt;/b&gt; 
+ * and printlns the resultant string. You are responsible for implementing the genotypeToString method in such
+ * a way that parseGenotype can read back in the individual println'd with genotypeToString.  The default form
+ * of genotypeToString simply calls &lt;b&gt;toString&lt;/b&gt;, which you may override instead if you like.  The default
+ * form of &lt;b&gt;parseGenotype&lt;/b&gt; throws an error.  You are not required to implement these methods, but without
+ * them you will not be able to write individuals to files in a simultaneously computer- and human-readable fashion.
+ *
+ * &lt;li&gt;&lt;b&gt;printIndividualForHumans(...,PrintWriter)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach prints an individual in a fashion intended for human consumption only.
+ * &lt;b&gt;printIndividualForHumans&lt;/b&gt; writes out the fitness and evaluation flag, then calls &lt;b&gt;genotypeToStringForHumans&lt;/b&gt; 
+ * and printlns the resultant string. You are responsible for implementing the genotypeToStringForHumans method.
+ * The default form of genotypeToStringForHumans simply calls &lt;b&gt;toString&lt;/b&gt;, which you may override instead if you like
+ * (though note that genotypeToString's default also calls toString).  You should handle one of these methods properly
+ * to ensure individuals can be printed by ECJ.
+ * &lt;/ul&gt;
+
+ * &lt;p&gt;In general, the various readers and writers do three things: they tell the Fitness to read/write itself,
+ * they read/write the evaluated flag, and they read/write the gene array.  If you add instance variables to
+ * a VectorIndividual or subclass, you'll need to read/write those variables as well.
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ vector.gene-vect-ind
+
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+<span class="nc" id="L73">public class GeneVectorIndividual extends VectorIndividual</span>
+    {
+    public static final String P_GENEVECTORINDIVIDUAL = &quot;gene-vect-ind&quot;;
+    public Gene[] genome;
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L80">        return VectorDefaults.base().push(P_GENEVECTORINDIVIDUAL);</span>
+        }
+
+    public Object clone()
+        {
+<span class="nc" id="L85">        GeneVectorIndividual myobj = (GeneVectorIndividual) (super.clone());</span>
+
+        // must clone the genome
+<span class="nc" id="L88">        myobj.genome = (Gene[])(genome.clone());</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        for(int x=0;x&lt;genome.length;x++)</span>
+<span class="nc" id="L90">            myobj.genome[x] = (Gene)(genome[x].clone());</span>
+        
+<span class="nc" id="L92">        return myobj;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L97">        super.setup(state,base);  // actually unnecessary (Individual.setup() is empty)</span>
+
+        // since VectorSpecies set its constraint values BEFORE it called
+        // super.setup(...) [which in turn called our setup(...)], we know that
+        // stuff like genomeSize has already been set...
+        
+<span class="nc" id="L103">        Parameter def = defaultBase();</span>
+        
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        if (!(species instanceof GeneVectorSpecies)) </span>
+<span class="nc" id="L106">            state.output.fatal(&quot;GeneVectorIndividual requires a GeneVectorSpecies&quot;, base, def);</span>
+<span class="nc" id="L107">        GeneVectorSpecies s = (GeneVectorSpecies) species;</span>
+        
+        // note that genome isn't initialized with any genes yet -- they're all null.
+        // reset() needs
+<span class="nc" id="L111">        genome = new Gene[s.genomeSize];</span>
+<span class="nc" id="L112">        reset(state,0);</span>
+<span class="nc" id="L113">        }</span>
+        
+    public void defaultCrossover(EvolutionState state, int thread, VectorIndividual ind)
+        {
+<span class="nc" id="L117">        GeneVectorSpecies s = (GeneVectorSpecies) species;</span>
+<span class="nc" id="L118">        GeneVectorIndividual i = (GeneVectorIndividual) ind;</span>
+        Gene tmp;
+        int point;
+
+<span class="nc" id="L122">        int len = Math.min(genome.length, i.genome.length);</span>
+<span class="nc bnc" id="L123" title="All 4 branches missed.">        if (len != genome.length || len != i.genome.length)</span>
+<span class="nc" id="L124">            state.output.warnOnce(&quot;Genome lengths are not the same.  Vector crossover will only be done in overlapping region.&quot;);</span>
+
+<span class="nc bnc" id="L126" title="All 6 branches missed.">        switch(s.crossoverType)</span>
+            {
+            case VectorSpecies.C_ONE_POINT:
+                //                point = state.random[thread].nextInt((len / s.chunksize)+1);
+                // we want to go from 0 ... len-1 
+                // so that there is only ONE case of NO-OP crossover, not TWO
+<span class="nc" id="L132">                point = state.random[thread].nextInt((len / s.chunksize));</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                for(int x=0;x&lt;point*s.chunksize;x++)</span>
+                    { 
+<span class="nc" id="L135">                    tmp = i.genome[x];</span>
+<span class="nc" id="L136">                    i.genome[x] = genome[x]; </span>
+<span class="nc" id="L137">                    genome[x] = tmp; </span>
+                    }
+<span class="nc" id="L139">                break;</span>
+            case VectorSpecies.C_ONE_POINT_NO_NOP:
+<span class="nc" id="L141">                point = state.random[thread].nextInt((len / s.chunksize) - 1) + 1;  // so it goes from 1 .. len-1</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                for(int x=0;x&lt;point*s.chunksize;x++)</span>
+                    { 
+<span class="nc" id="L144">                    tmp = i.genome[x];</span>
+<span class="nc" id="L145">                    i.genome[x] = genome[x]; </span>
+<span class="nc" id="L146">                    genome[x] = tmp; </span>
+                    }
+<span class="nc" id="L148">                break;</span>
+            case VectorSpecies.C_TWO_POINT: 
+                {
+                //                int point0 = state.random[thread].nextInt((len / s.chunksize)+1);
+                //                point = state.random[thread].nextInt((len / s.chunksize)+1);
+                // we want to go from 0 to len-1
+                // so that the only NO-OP crossover possible is point == point0
+                // example; len = 4
+                // possibilities: a=0 b=0       NOP                             [0123]
+                //                                a=0 b=1       swap 0                  [for 1, 2, 3]
+                //                                a=0 b=2       swap 0, 1               [for 2, 3]
+                //                                a=0 b=3       swap 0, 1, 2    [for 3]
+                //                                a=1 b=1       NOP                             [1230]
+                //                                a=1 b=2       swap 1                  [for 2, 3, 0]
+                //                                a=1 b=3       swap 1, 2               [for 3, 0]
+                //                                a=2 b=2       NOP                             [2301]
+                //                                a=2 b=3       swap 2                  [for 3, 0, 1]
+                //                                a=3 b=3   NOP                         [3012]
+                // All intervals: 0, 01, 012, 0123, 1, 12, 123, 1230, 2, 23, 230, 2301, 3, 30, 301, 3012
+<span class="nc" id="L167">                point = state.random[thread].nextInt((len / s.chunksize));</span>
+<span class="nc" id="L168">                int point0 = state.random[thread].nextInt((len / s.chunksize));</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">                if (point0 &gt; point) { int p = point0; point0 = point; point = p; }</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">                for(int x=point0*s.chunksize;x&lt;point*s.chunksize;x++)</span>
+                    {
+<span class="nc" id="L172">                    tmp = i.genome[x];</span>
+<span class="nc" id="L173">                    i.genome[x] = genome[x];</span>
+<span class="nc" id="L174">                    genome[x] = tmp;</span>
+                    }
+                }
+<span class="nc" id="L177">            break;</span>
+            case VectorSpecies.C_TWO_POINT_NO_NOP: 
+                {
+<span class="nc" id="L180">                point = state.random[thread].nextInt((len / s.chunksize));</span>
+<span class="nc" id="L181">                int point0 = 0;</span>
+<span class="nc" id="L182">                do { point0 = state.random[thread].nextInt((len / s.chunksize)); }</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">                while (point0 == point);  // NOP</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">                if (point0 &gt; point) { int p = point0; point0 = point; point = p; }</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">                for(int x=point0*s.chunksize;x&lt;point*s.chunksize;x++)</span>
+                    {
+<span class="nc" id="L187">                    tmp = i.genome[x];</span>
+<span class="nc" id="L188">                    i.genome[x] = genome[x];</span>
+<span class="nc" id="L189">                    genome[x] = tmp;</span>
+                    }
+                }
+<span class="nc" id="L192">            break;</span>
+            case VectorSpecies.C_ANY_POINT:
+<span class="nc bnc" id="L194" title="All 2 branches missed.">                for(int x=0;x&lt;len/s.chunksize;x++) </span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">                    if (state.random[thread].nextBoolean(s.crossoverProbability))</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">                        for(int y=x*s.chunksize;y&lt;(x+1)*s.chunksize;y++)</span>
+                            {
+<span class="nc" id="L198">                            tmp = i.genome[y];</span>
+<span class="nc" id="L199">                            i.genome[y] = genome[y];</span>
+<span class="nc" id="L200">                            genome[y] = tmp;</span>
+                            }
+                break;
+            }
+<span class="nc" id="L204">        }</span>
+
+    /** Splits the genome into n pieces, according to points, which *must* be sorted. 
+        pieces.length must be 1 + points.length */
+    public void split(int[] points, Object[] pieces)
+        {
+        int point0, point1;
+<span class="nc" id="L211">        point0 = 0; point1 = points[0];</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">        for(int x=0;x&lt;pieces.length;x++)</span>
+            {
+<span class="nc" id="L214">            pieces[x] = new Gene[point1-point0];</span>
+<span class="nc" id="L215">            System.arraycopy(genome,point0,pieces[x],0,point1-point0);</span>
+<span class="nc" id="L216">            point0 = point1;</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">            if (x &gt;=pieces.length-2)</span>
+<span class="nc" id="L218">                point1 = genome.length;</span>
+<span class="nc" id="L219">            else point1 = points[x+1];</span>
+            }
+<span class="nc" id="L221">        }</span>
+    
+    /** Joins the n pieces and sets the genome to their concatenation.*/
+    public void join(Object[] pieces)
+        {
+<span class="nc" id="L226">        int sum=0;</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        for(int x=0;x&lt;pieces.length;x++)</span>
+<span class="nc" id="L228">            sum += ((Gene[])(pieces[x])).length;</span>
+        
+<span class="nc" id="L230">        int runningsum = 0;</span>
+<span class="nc" id="L231">        Gene[] newgenome = new Gene[sum];</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        for(int x=0;x&lt;pieces.length;x++)</span>
+            {
+<span class="nc" id="L234">            System.arraycopy(pieces[x], 0, newgenome, runningsum, ((Gene[])(pieces[x])).length);</span>
+<span class="nc" id="L235">            runningsum += ((Gene[])(pieces[x])).length;</span>
+            }
+        // set genome
+<span class="nc" id="L238">        genome = newgenome;</span>
+<span class="nc" id="L239">        }</span>
+
+    /** Destructively mutates the individual in some default manner.  The default form
+        simply randomizes genes to a uniform distribution from the min and max of the gene values. */
+    public void defaultMutate(EvolutionState state, int thread)
+        {
+<span class="nc" id="L245">        GeneVectorSpecies s = (GeneVectorSpecies) species;</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        for(int x=0;x&lt;genome.length;x++)</span>
+            {
+<span class="nc bnc" id="L248" title="All 2 branches missed.">            if (state.random[thread].nextBoolean(s.mutationProbability(x)))</span>
+                {
+<span class="nc bnc" id="L250" title="All 2 branches missed.">                if (s.duplicateRetries(x) &lt;= 0)  // a little optimization</span>
+                    {
+<span class="nc" id="L252">                    genome[x].mutate(state,thread);</span>
+                    }
+                else    // argh
+                    {
+<span class="nc" id="L256">                    Gene old = (Gene)(genome[x].clone());</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                    for(int retries = 0; retries &lt; s.duplicateRetries(x) + 1; retries++)</span>
+                        {
+<span class="nc" id="L259">                        genome[x].mutate(state,thread);</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">                        if (!genome[x].equals(old)) break;</span>
+<span class="nc" id="L261">                        else genome[x] = old;  // try again.  Note that we're copying back just in case.</span>
+                        }
+                        
+                    }
+                }
+            }
+<span class="nc" id="L267">        }</span>
+
+    /** Initializes the individual by calling reset(...) on each gene. */
+    public void reset(EvolutionState state, int thread)
+        {
+<span class="nc" id="L272">        GeneVectorSpecies s = (GeneVectorSpecies) species;</span>
+
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        for(int x=0;x&lt;genome.length;x++)</span>
+            {
+            // first create the gene if it doesn't exist
+<span class="nc bnc" id="L277" title="All 2 branches missed.">            if (genome[x]==null) genome[x] = (Gene)(s.genePrototype.clone());</span>
+            // now reset it
+<span class="nc" id="L279">            genome[x].reset(state,thread);</span>
+            }
+
+<span class="nc" id="L282">        }</span>
+
+    public int hashCode()
+        {
+        // stolen from GPIndividual.  It's a decent algorithm.
+<span class="nc" id="L287">        int hash = this.getClass().hashCode();</span>
+
+<span class="nc bnc" id="L289" title="All 2 branches missed.">        for(int x=0;x&lt;genome.length;x++)</span>
+<span class="nc" id="L290">            hash = ( hash &lt;&lt; 1 | hash &gt;&gt;&gt; 31 ) ^ genome[x].hashCode();</span>
+
+<span class="nc" id="L292">        return hash;</span>
+        }
+
+    public String genotypeToStringForHumans()
+        {
+<span class="nc" id="L297">        StringBuilder s = new StringBuilder();</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">        for( int i = 0 ; i &lt; genome.length ; i++ )</span>
+<span class="nc bnc" id="L299" title="All 2 branches missed.">            { if (i &gt; 0) s.append(&quot; &quot;); s.append(genome[i].printGeneToStringForHumans()); }</span>
+<span class="nc" id="L300">        return s.toString();</span>
+        }
+        
+    public String genotypeToString()
+        {
+<span class="nc" id="L305">        StringBuilder s = new StringBuilder();</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">        for( int i = 0 ; i &lt; genome.length ; i++ )</span>
+<span class="nc" id="L307">            { s.append(&quot; &quot;); s.append(genome[i].printGeneToString()); }</span>
+<span class="nc" id="L308">        return s.toString();</span>
+        }
+
+    protected void parseGenotype(final EvolutionState state,
+        final LineNumberReader reader) throws IOException
+        {
+        // read in the next line.  The first item is the number of genes
+<span class="nc" id="L315">        String s = reader.readLine();</span>
+
+<span class="nc" id="L317">        DecodeReturn d = new DecodeReturn(s);</span>
+<span class="nc" id="L318">        Code.decode( d );</span>
+<span class="nc bnc" id="L319" title="All 2 branches missed.">        if (d.type != DecodeReturn.T_INTEGER)  // uh oh</span>
+<span class="nc" id="L320">            state.output.fatal(&quot;Individual with genome:\n&quot; + s + &quot;\n... does not have an integer at the beginning indicating the genome count.&quot;);</span>
+<span class="nc" id="L321">        int lll = (int)(d.l);</span>
+
+<span class="nc" id="L323">        genome = new Gene[ lll ];</span>
+
+<span class="nc" id="L325">        GeneVectorSpecies _species = (GeneVectorSpecies) species;</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">        for( int i = 0 ; i &lt; genome.length ; i++ )</span>
+            {
+<span class="nc" id="L328">            genome[i] = (Gene)(_species.genePrototype.clone());</span>
+<span class="nc" id="L329">            genome[i].readGene(state,reader);</span>
+            }
+<span class="nc" id="L331">        }</span>
+
+    public boolean equals(Object ind)
+        {
+<span class="nc bnc" id="L335" title="All 2 branches missed.">        if (ind == null) return false;</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">        if (!(this.getClass().equals(ind.getClass()))) return false;</span>
+<span class="nc" id="L337">        GeneVectorIndividual i = (GeneVectorIndividual)ind;</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        if( genome.length != i.genome.length )</span>
+<span class="nc" id="L339">            return false;</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">        for( int j = 0 ; j &lt; genome.length ; j++ )</span>
+<span class="nc bnc" id="L341" title="All 2 branches missed.">            if( !(genome[j].equals(i.genome[j])))</span>
+<span class="nc" id="L342">                return false;</span>
+<span class="nc" id="L343">        return true;</span>
+        }
+
+    public Object getGenome()
+<span class="nc" id="L347">        { return genome; }</span>
+    public void setGenome(Object gen)
+<span class="nc" id="L349">        { genome = (Gene[]) gen; }</span>
+    public int genomeLength()
+<span class="nc" id="L351">        { return genome.length; }</span>
+
+    // clone all the genes
+    public void cloneGenes(Object piece)
+        {
+<span class="nc" id="L356">        Gene[] genes = (Gene[]) piece;</span>
+<span class="nc bnc" id="L357" title="All 2 branches missed.">        for(int i = 0 ; i &lt; genes.length; i++)</span>
+            {
+<span class="nc bnc" id="L359" title="All 2 branches missed.">            if (genes[i] != null) genes[i] = (Gene)(genes[i].clone());</span>
+            }
+<span class="nc" id="L361">        }</span>
+    
+    public void writeGenotype(final EvolutionState state,
+        final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L366">        dataOutput.writeInt(genome.length);</span>
+<span class="nc bnc" id="L367" title="All 2 branches missed.">        for(int x=0;x&lt;genome.length;x++)</span>
+<span class="nc" id="L368">            genome[x].writeGene(state,dataOutput);</span>
+<span class="nc" id="L369">        }</span>
+
+    public void setGenomeLength(int len)
+        {
+<span class="nc" id="L373">        GeneVectorSpecies s = (GeneVectorSpecies) species;</span>
+<span class="nc" id="L374">        Gene[] newGenome = new Gene[len];</span>
+<span class="nc" id="L375">        System.arraycopy(genome, 0, newGenome, 0, </span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">            genome.length &lt; newGenome.length ? genome.length : newGenome.length);</span>
+<span class="nc bnc" id="L377" title="All 2 branches missed.">        for(int x=genome.length; x&lt; newGenome.length; x++)</span>
+<span class="nc" id="L378">            newGenome[x] = (Gene)(s.genePrototype.clone());  // not reset</span>
+<span class="nc" id="L379">        genome = newGenome;</span>
+<span class="nc" id="L380">        }</span>
+
+    public void readGenotype(final EvolutionState state,
+        final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L385">        int len = dataInput.readInt();</span>
+<span class="nc bnc" id="L386" title="All 4 branches missed.">        if (genome==null || genome.length != len)</span>
+<span class="nc" id="L387">            genome = new Gene[len];</span>
+<span class="nc" id="L388">        GeneVectorSpecies _species = (GeneVectorSpecies) species;</span>
+
+<span class="nc bnc" id="L390" title="All 2 branches missed.">        for(int x=0;x&lt;genome.length;x++)</span>
+            {
+<span class="nc" id="L392">            genome[x] = (Gene)(_species.genePrototype.clone());</span>
+<span class="nc" id="L393">            genome[x].readGene(state,dataInput);</span>
+            }
+<span class="nc" id="L395">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

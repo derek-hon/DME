@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Right.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.ant.func</a> &gt; <span class="el_source">Right.java</span></div><h1>Right.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.ant.func;
+import ec.*;
+import ec.app.ant.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * Right.java
+ * 
+ * Created: Wed Nov  3 18:26:37 1999
+ * By: Sean Luke
+ */
+
+/**
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+
+<span class="nc" id="L27">public class Right extends GPNode implements EvalPrint</span>
+    {
+<span class="nc" id="L29">    public String toString() { return &quot;right&quot;; }</span>
+
+    /*
+      public void checkConstraints(final EvolutionState state,
+      final int tree,
+      final GPIndividual typicalIndividual,
+      final Parameter individualBase)
+      {
+      super.checkConstraints(state,tree,typicalIndividual,individualBase);
+      if (children.length!=0)
+      state.output.error(&quot;Incorrect number of children for node &quot; + 
+      toStringForError() + &quot; at &quot; +
+      individualBase);
+      }
+    */
+<span class="nc" id="L44">    public int expectedChildren() { return 0; }</span>
+
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+<span class="nc" id="L53">        Ant p = (Ant)problem;</span>
+<span class="nc bnc" id="L54" title="All 5 branches missed.">        switch (p.orientation)</span>
+            {
+            case Ant.O_UP:
+<span class="nc" id="L57">                p.orientation = Ant.O_RIGHT; </span>
+<span class="nc" id="L58">                break;</span>
+            case Ant.O_LEFT:
+<span class="nc" id="L60">                p.orientation = Ant.O_UP;</span>
+<span class="nc" id="L61">                break;</span>
+            case Ant.O_DOWN:
+<span class="nc" id="L63">                p.orientation = Ant.O_LEFT;</span>
+<span class="nc" id="L64">                break;</span>
+            case Ant.O_RIGHT:
+<span class="nc" id="L66">                p.orientation = Ant.O_DOWN;</span>
+<span class="nc" id="L67">                break;</span>
+            default:  // whoa!
+<span class="nc" id="L69">                state.output.fatal(&quot;Whoa, somehow I got a bad orientation! (&quot; + p.orientation + &quot;)&quot;);</span>
+                break;
+            }
+<span class="nc" id="L72">        p.moves++;</span>
+<span class="nc" id="L73">        }</span>
+
+    public void evalPrint(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem,
+        final int[][] map2)
+        {
+<span class="nc" id="L83">        eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L84">        }</span>
+    }
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

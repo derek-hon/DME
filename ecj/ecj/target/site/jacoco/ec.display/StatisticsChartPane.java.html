@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StatisticsChartPane.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.display</a> &gt; <span class="el_source">StatisticsChartPane.java</span></div><h1>StatisticsChartPane.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Paus
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+/*
+ * Created on Apr 17, 2005 11:20:52 AM
+ * 
+ * By: spaus
+ */
+package ec.display;
+
+import java.awt.Color;
+
+import javax.swing.JTabbedPane;
+
+
+import org.jfree.chart.ChartPanel;
+import org.jfree.chart.JFreeChart;
+
+import ec.EvolutionState;
+import ec.Setup;
+import ec.Statistics;
+import ec.display.chart.ChartableStatistics;
+import ec.display.chart.StatisticsChartPaneTab;
+import ec.util.Parameter;
+
+/**
+ * @author spaus
+ */
+public class StatisticsChartPane
+    extends JTabbedPane
+    implements Setup
+    {
+    public int numCharts;
+    
+    /**
+     * 
+     */
+    public StatisticsChartPane()
+        {
+<span class="nc" id="L44">        super();</span>
+<span class="nc" id="L45">        initialize();</span>
+<span class="nc" id="L46">        }</span>
+    
+    /**
+     * @param tabPlacement
+     */
+    public StatisticsChartPane(int tabPlacement)
+        {
+<span class="nc" id="L53">        super(tabPlacement);</span>
+<span class="nc" id="L54">        initialize();</span>
+<span class="nc" id="L55">        }</span>
+    
+    /**
+     * @param tabPlacement
+     * @param tabLayoutPolicy
+     */
+    public StatisticsChartPane(int tabPlacement, int tabLayoutPolicy)
+        {
+<span class="nc" id="L63">        super(tabPlacement, tabLayoutPolicy);</span>
+<span class="nc" id="L64">        initialize();</span>
+<span class="nc" id="L65">        }</span>
+    
+    private void createCharts(Statistics statistics)
+        {
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if (statistics instanceof ChartableStatistics)</span>
+            {
+<span class="nc" id="L71">            ChartableStatistics chartStats = (ChartableStatistics)statistics;</span>
+            
+<span class="nc" id="L73">            JFreeChart chart = chartStats.makeChart();</span>
+
+<span class="nc" id="L75">            chart.setBackgroundPaint(Color.white);</span>
+<span class="nc" id="L76">            ChartPanel chartPanel = new ChartPanel(chart);</span>
+<span class="nc" id="L77">            StatisticsChartPaneTab chartPaneTab = new StatisticsChartPaneTab(chartPanel);</span>
+<span class="nc" id="L78">            this.addTab(&quot;Chart &quot;+(numCharts++),chartPaneTab);</span>
+            }
+        
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        if (statistics.children != null)</span>
+            {
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            for (int i = 0; i &lt; statistics.children.length; ++i)</span>
+<span class="nc" id="L84">                createCharts(statistics.children[i]);</span>
+            }
+<span class="nc" id="L86">        }</span>
+    
+    /* (non-Javadoc)
+     * @see ec.Setup#setup(ec.EvolutionState, ec.util.Parameter)
+     */
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L93">        numCharts = 0;</span>
+<span class="nc" id="L94">        createCharts(state.statistics);</span>
+<span class="nc" id="L95">        }</span>
+    
+    /**
+     * This method initializes this
+     * 
+     * @return void
+     */
+    private  void initialize()
+        {
+<span class="nc" id="L104">        this.setSize(300,200);</span>
+<span class="nc" id="L105">        this.addContainerListener(new java.awt.event.ContainerAdapter()</span>
+<span class="nc" id="L106">            { </span>
+            public void componentRemoved(java.awt.event.ContainerEvent e)
+                {    
+<span class="nc" id="L109">                StatisticsChartPane pane = (StatisticsChartPane)e.getSource();</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">                if (pane.getTabCount() &lt; 1)</span>
+                    {
+<span class="nc" id="L112">                    pane.getParent().remove(pane);</span>
+                    }
+<span class="nc" id="L114">                }</span>
+            });
+<span class="nc" id="L116">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProportionateComponentSelector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co.ant</a> &gt; <span class="el_source">ProportionateComponentSelector.java</span></div><h1>ProportionateComponentSelector.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co.ant;
+
+import ec.EvolutionState;
+import ec.Setup;
+import ec.co.Component;
+import ec.util.Parameter;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Provides a function that chooses a &lt;code&gt;Component&lt;/code&gt; stochastically in the style of
+ * Ant System.  Each component's probability of being chosen is proportional to
+ * the product of its phereomone concentration and its heuristic desirability, each
+ * weighted according to an exponential scaling factor (&lt;code&gt;alpha&lt;/code&gt; and &lt;code&gt;beta&lt;/code&gt;,
+ * respectively).
+ * 
+ * @author Eric O. Scott
+ */
+<span class="nc bnc" id="L24" title="All 2 branches missed.">public class ProportionateComponentSelector implements ComponentSelector, Setup {</span>
+    public final static String P_ALPHA = &quot;alpha&quot;;
+    public final static String P_BETA = &quot;beta&quot;;
+    private double alpha;
+    private double beta;
+    
+    public double getAlpha()
+    {
+<span class="nc" id="L32">        return alpha;</span>
+    }
+    
+    public double getBeta()
+    {
+<span class="nc" id="L37">        return beta;</span>
+    }
+    
+<span class="nc" id="L40">    public ProportionateComponentSelector() { }</span>
+    
+    public ProportionateComponentSelector(final double alpha, final double beta)
+<span class="nc" id="L43">    {</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (!Double.isFinite(alpha))</span>
+<span class="nc" id="L45">            throw new IllegalArgumentException(String.format(&quot;%s: alpha is %f, but must be finite.&quot;, this.getClass().getSimpleName(), alpha));</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        if (!Double.isFinite(beta))</span>
+<span class="nc" id="L47">            throw new IllegalArgumentException(String.format(&quot;%s: beta is %f, but must be finite.&quot;, this.getClass().getSimpleName(), beta));</span>
+<span class="nc" id="L48">        this.alpha = alpha;</span>
+<span class="nc" id="L49">        this.beta = beta;</span>
+<span class="nc bnc" id="L50" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L51">    }</span>
+    
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc bnc" id="L55" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L56" title="All 4 branches missed.">        assert(base != null);</span>
+<span class="nc" id="L57">        alpha = state.parameters.getDouble(base.push(P_ALPHA), null, 0);</span>
+<span class="nc" id="L58">        beta = state.parameters.getDouble(base.push(P_BETA), null, 0);</span>
+<span class="nc bnc" id="L59" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L60">    }</span>
+
+    @Override
+    public Component choose(final EvolutionState state, final List&lt;Component&gt; components, final PheromoneTable pheromones, final int thread) {
+<span class="nc bnc" id="L64" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L65" title="All 4 branches missed.">        assert(state.random != null);</span>
+<span class="nc bnc" id="L66" title="All 4 branches missed.">        assert(components != null);</span>
+<span class="nc bnc" id="L67" title="All 4 branches missed.">        assert(!components.isEmpty());</span>
+<span class="nc bnc" id="L68" title="All 4 branches missed.">        assert(pheromones != null);</span>
+<span class="nc bnc" id="L69" title="All 4 branches missed.">        assert(thread &gt;= 0);</span>
+        
+<span class="nc" id="L71">        double denominator = 0.0;</span>
+<span class="nc" id="L72">        final List&lt;Double&gt; scores = new ArrayList&lt;Double&gt;();</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        for (final Component c : components)</span>
+        {
+<span class="nc" id="L75">            final double tau = pheromones.get(state, c, thread);</span>
+<span class="nc" id="L76">            final double eta = c.desirability();</span>
+<span class="nc" id="L77">            final double score = Math.pow(tau, alpha)*Math.pow(eta, beta);</span>
+<span class="nc" id="L78">            scores.add(score);</span>
+<span class="nc" id="L79">            denominator += score;</span>
+<span class="nc" id="L80">        }</span>
+<span class="nc bnc" id="L81" title="All 4 branches missed.">        assert(!Double.isInfinite(denominator));</span>
+<span class="nc bnc" id="L82" title="All 4 branches missed.">        assert(!Double.isNaN(denominator));</span>
+<span class="nc bnc" id="L83" title="All 4 branches missed.">        assert(denominator &gt;= 0);</span>
+        
+<span class="nc" id="L85">        final double dart = state.random[thread].nextDouble();</span>
+<span class="nc" id="L86">        int i = 0;</span>
+<span class="nc" id="L87">        double val = scores.get(0)/denominator;</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        while (val &lt; dart)</span>
+<span class="nc" id="L89">            val += scores.get(++i)/denominator;</span>
+<span class="nc bnc" id="L90" title="All 4 branches missed.">        assert(i &lt; components.size());</span>
+<span class="nc bnc" id="L91" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L92">        return components.get(i);</span>
+    }
+    
+    public final boolean repOK()
+    {
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        return P_ALPHA != null</span>
+<span class="nc bnc" id="L98" title="All 4 branches missed.">                &amp;&amp; !P_ALPHA.isEmpty()</span>
+                &amp;&amp; P_BETA != null
+<span class="nc bnc" id="L100" title="All 2 branches missed.">                &amp;&amp; !P_BETA.isEmpty()</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">                &amp;&amp; !Double.isInfinite(alpha)</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                &amp;&amp; !Double.isNaN(alpha)</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">                &amp;&amp; !Double.isInfinite(beta)</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">                &amp;&amp; !Double.isNaN(beta);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

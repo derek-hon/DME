@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PBILSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.pbil</a> &gt; <span class="el_source">PBILSpecies.java</span></div><h1>PBILSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sunil Kumar Rajendran
+  With modifications by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.eda.pbil;
+import ec.*;
+import ec.vector.*;
+import ec.util.*;
+import java.util.*;
+import java.util.Collections;
+
+
+/* 
+ * PBILSpecies.java
+ * 
+ * Created: Wed Jan 10 16:30:00 EDT 2018
+ * By: Sunil Kumar Rajendran
+ */
+
+/**
+ * PBILSpecies is an IntegerVectorSpecies which implements a faithful version of the
+ * PBIL algorithm.  The class has two basic methods.  The newIndividual(...)
+ * method generates a new random individual underneath the current PBIL marginal
+ * distribution.  The updateDistribution(...) method revises the marginal 
+ * distribution to reflect the fitness results of the population.
+ * 
+ * &lt;p&gt;PBILSpecies must be used in combination with PBILBreeder, which will
+ * call it at appropriate times to revise the distribution and to generate a new
+ * subpopulation of individuals.  Since the initial population is built based on
+ * the marginal distributions, SimpleInitializer is used to generate the initial 
+ * population. 
+ *
+ * &lt;p&gt;PBILSpecies &lt;b&gt;needs the population size and also truncation size&lt;/b&gt;. The
+ * truncation size which is the 'b' parameter, denotes how many fittest 
+ * individuals to pick out from the generated population of individuals. 
+ * It also needs the genome size and the minimum and maximum values of the genes. 
+ * The size of the range of min and max gene values should be specified for each 
+ * gene in the parameters file. 
+ *
+ * &lt;p&gt;PBILSpecies also uses the learning rate 'alpha' based on which it decides 
+ * the amount of old distribution to be retained and how much of the new 
+ * distribution to be added. 'alpha' and 'b' values are printed out when running
+ * so the user may see what values it used for that given run.  
+ *
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;alpha&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Floating-point value ranging from 0 to 1.0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the learning rate parameter)&lt;br&gt; 
+ If not provided, this defaults to 0.05.
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;popsize&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Integer &gt; 0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(pop.subpop.0.size population size)&lt;br&gt;
+ This parameter must be provided.
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;b&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Integer ranging from 1 to popsize &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(b truncated population size)&lt;br&gt;
+ This parameter must be provided.
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;n&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Integer &gt; 1&lt;/td&gt;
+ &lt;td valign=top&gt;(n genome size)&lt;br&gt;
+ This parameter must be provided. 
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ eda.pbil.species
+
+
+ * @author Sunil Kumar Rajendran
+ * @version 1.0 
+ */
+
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">public class PBILSpecies extends IntegerVectorSpecies</span>
+    {
+    public static final String P_PBIL_SPECIES = &quot;pbil.species&quot;;
+    
+    public static final String P_ALPHA = &quot;alpha&quot;;
+    public static final String P_B = &quot;b&quot;;
+   
+    public double alpha;
+    public int b;
+    
+    private List&lt;double[]&gt; distributions;
+    
+    public double[] getMarginalDistribution(final int gene)
+        {
+<span class="pc bpc" id="L101" title="2 of 4 branches missed.">        assert(gene &gt;= 0);</span>
+<span class="pc bpc" id="L102" title="2 of 4 branches missed.">        assert(gene &lt; distributions.size());</span>
+<span class="fc" id="L103">        return Arrays.copyOf(distributions.get(gene), distributions.get(gene).length);</span>
+        }
+   
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="pc bpc" id="L108" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L109" title="2 of 4 branches missed.">        assert(base != null);</span>
+<span class="fc" id="L110">        super.setup(state, base);</span>
+<span class="fc" id="L111">        Parameter def = defaultBase();</span>
+<span class="fc" id="L112">        Parameter subpopDefaultBase =  ECDefaults.base().push(Subpopulation.P_SUBPOPULATION);</span>
+                
+        //display minGene and maxGene values for each gene
+<span class="fc bfc" id="L115" title="All 2 branches covered.">        for(int i =0;i&lt;genomeSize;i++)</span>
+            {
+<span class="fc" id="L117">            state.output.message(&quot;minGene &quot; + i + &quot; = &quot; + minGene[i]);</span>
+<span class="fc" id="L118">            state.output.message(&quot;maxGene &quot; + i + &quot; = &quot; + maxGene[i]);</span>
+            }
+        
+<span class="fc" id="L121">        alpha = state.parameters.getDouble(base.push(P_ALPHA), subpopDefaultBase);</span>
+<span class="fc bfc" id="L122" title="All 6 branches covered.">        if ((alpha &lt; 0) | (alpha &gt; 1))</span>
+<span class="nc" id="L123">            state.output.fatal(String.format(&quot;%s: the %s parameter is %f, but must be a valid number in the range 0 to 1&quot;, this.getClass().getSimpleName(), base.push(P_ALPHA), alpha), base.push(P_ALPHA), def.push(P_ALPHA));</span>
+        
+<span class="fc" id="L125">        b = state.parameters.getInt(base.push(P_B), def.push(P_B), 1);</span>
+<span class="fc bfc" id="L126" title="All 2 branches covered.">        if (b &lt; 1)</span>
+<span class="nc" id="L127">            state.output.fatal(String.format(&quot;%s: the %s parameter must be a positive integer.&quot;, this.getClass().getSimpleName(), base.push(P_B)), base.push(P_B), def.push(P_B));</span>
+
+<span class="fc" id="L129">        distributions = new ArrayList&lt;double[]&gt;();  </span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        for(int i=0;i&lt;genomeSize;i++)</span>
+            {
+<span class="fc" id="L132">            double[] marginalDist=new double[(int)maxGene[i]-(int)minGene[i]+1];</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">            for(int j = 0; j &lt;maxGene[i]-minGene[i]+1; j++)</span>
+                {
+<span class="fc" id="L135">                marginalDist[j] = 1.0d / (maxGene[i]-minGene[i]+1);</span>
+                }
+<span class="fc" id="L137">            distributions.add(marginalDist);</span>
+            }
+     
+<span class="fc" id="L140">        state.output.message(&quot;alpha: &quot; + alpha);</span>
+<span class="fc" id="L141">        state.output.message(&quot;b:     &quot; + b);</span>
+<span class="pc bpc" id="L142" title="2 of 4 branches missed.">        assert(distributions.size() == genomeSize);</span>
+<span class="fc" id="L143">        }</span>
+
+
+
+    public Object clone()
+        {
+        // clone the distribution and other variables here
+<span class="nc" id="L150">        PBILSpecies myobj = (PBILSpecies) (super.clone());</span>
+            
+<span class="nc" id="L152">        return myobj;</span>
+        } 
+
+
+    
+    public Individual newIndividual(final EvolutionState state, int thread)
+        {
+<span class="fc" id="L159">        Individual newind = super.newIndividual(state, thread);</span>
+<span class="fc" id="L160">        MersenneTwisterFast random = state.random[thread];</span>
+        double rand;
+
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">        if (!(newind instanceof IntegerVectorIndividual))  </span>
+<span class="nc" id="L164">            state.output.fatal(&quot;To use PBILSpecies, the species must be initialized with a IntegerVectorIndividual.  But it contains a &quot; + newind);</span>
+        
+<span class="fc" id="L166">        IntegerVectorIndividual ivind = (IntegerVectorIndividual)(newind);</span>
+<span class="fc" id="L167">        List&lt;double[]&gt; temp=new ArrayList&lt;double[]&gt;();</span>
+
+<span class="fc bfc" id="L169" title="All 2 branches covered.">        for(int i=0;i&lt;genomeSize;i++)</span>
+            {
+<span class="fc" id="L171">            temp.add(distributions.get(i));</span>
+            }
+
+        //for every gene value slot in the individual, checks the most probable 
+        //gene value using the generated random number
+<span class="fc bfc" id="L176" title="All 2 branches covered.">        for(int i=0;i&lt;genomeSize;i++)</span>
+            { 
+<span class="fc" id="L178">            rand = random.nextDouble();</span>
+<span class="fc" id="L179">            boolean q = true;</span>
+<span class="fc" id="L180">            double cB = 0;</span>
+<span class="pc bpc" id="L181" title="1 of 2 branches missed.">            for(int j=0;j&lt;maxGene[i]-minGene[i]+1;j++)</span>
+                { 
+<span class="fc bfc" id="L183" title="All 2 branches covered.">                if(q)</span>
+                    { 
+<span class="fc" id="L185">                    cB = temp.get(i)[j];</span>
+                    }
+<span class="fc bfc" id="L187" title="All 2 branches covered.">                if(rand&lt;cB)</span>
+                    {
+<span class="fc" id="L189">                    ivind.genome[i] = j + (int)minGene[i];</span>
+<span class="fc" id="L190">                    break;</span>
+                    }
+<span class="pc bpc" id="L192" title="1 of 2 branches missed.">                else if(j&lt;maxGene[i]-minGene[i])</span>
+                    {
+<span class="fc" id="L194">                    cB = cB + temp.get(i)[j+1];</span>
+<span class="fc" id="L195">                    q = false; </span>
+                    }
+                }
+            }
+
+<span class="fc" id="L200">        return ivind ;</span>
+        }
+
+    
+
+    /** Revises the PBIL distribution to reflect the current fitness results in the provided subpopulation. */
+    public void updateDistribution(final EvolutionState state, final Subpopulation subpop)
+        {
+        
+<span class="fc" id="L209">        Collections.sort(subpop.individuals);</span>
+<span class="fc" id="L210">        List&lt;double[]&gt; Nj=new ArrayList&lt;double[]&gt;();</span>
+<span class="fc" id="L211">        int arz[][]=new int[b][genomeSize];</span>
+        
+        //truncation selection of 'b' fittest individuals
+<span class="fc bfc" id="L214" title="All 2 branches covered.">        for(int i=0;i&lt;b;i++)</span>
+            {
+<span class="fc" id="L216">            IntegerVectorIndividual ivind = (IntegerVectorIndividual)(subpop.individuals.get(i));</span>
+<span class="fc" id="L217">            arz[i]=ivind.genome;</span>
+            }
+        
+        //creates a new marginal distribution for the new population arz
+<span class="fc bfc" id="L221" title="All 2 branches covered.">        for(int i=0;i&lt;genomeSize;i++)</span>
+            {
+<span class="fc" id="L223">            double Nj_temp[]=new double[(int)(maxGene[i]-minGene[i]+1)];</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">            for(int j = 0; j&lt;maxGene[i]-minGene[i]+1; j++)</span>
+                {
+<span class="fc" id="L226">                Nj_temp[j]=marginalDist(i,j,arz);</span>
+                }
+<span class="fc" id="L228">            Nj.add(Nj_temp);</span>
+            }
+        
+        //ignore part of current distribution and roll in part of new 
+        //probabilities
+<span class="fc bfc" id="L233" title="All 2 branches covered.">        for(int i=0;i&lt;genomeSize;i++)</span>
+            {
+<span class="fc" id="L235">            double[] tempDist = distributions.get(i);</span>
+<span class="fc" id="L236">            double[] tempNewDist = Nj.get(i);</span>
+                
+<span class="fc bfc" id="L238" title="All 2 branches covered.">            for(int j=0;j&lt;maxGene[i]-minGene[i]+1;j++)</span>
+                {
+<span class="fc" id="L240">                tempDist[j] *= (1-alpha);</span>
+<span class="fc" id="L241">                tempNewDist[j] *= (alpha);</span>
+<span class="fc" id="L242">                tempDist[j] += tempNewDist[j];</span>
+                }
+                
+<span class="fc" id="L245">            distributions.set(i,tempDist);</span>
+            }
+<span class="fc" id="L247">        }</span>
+    
+    private double marginalDist(int i,int k, int arz[][])
+        {
+<span class="fc" id="L251">        double count=0;</span>
+        
+        //Given the current gene value of a gene in the new population, 
+        //returns the number of individuals that possess that gene value.
+<span class="fc bfc" id="L255" title="All 2 branches covered.">        for(int j=0;j&lt;b;j++)</span>
+            {
+<span class="fc bfc" id="L257" title="All 2 branches covered.">            if(arz[j][i]==(k+(int)minGene[i]))</span>
+                {
+<span class="fc" id="L259">                count++;</span>
+                }
+            }
+<span class="fc" id="L262">        return count/b;</span>
+        }
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

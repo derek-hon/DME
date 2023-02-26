@@ -1,0 +1,43 @@
+# Target labels
+ Extra
+ opencv_fuzzy
+ Module
+# Source files and their labels
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/include/opencv2/fuzzy.hpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/include/opencv2/fuzzy/fuzzy_F0_math.hpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/include/opencv2/fuzzy/fuzzy_F1_math.hpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/include/opencv2/fuzzy/fuzzy_image.hpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/include/opencv2/fuzzy/types.hpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/src/fuzzy_F0_math.cpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/src/fuzzy_F1_math.cpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/src/fuzzy_image.cpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/fuzzy/src/precomp.hpp
+ Extra
+ opencv_fuzzy
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/cvconfig.h
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/opencv2/opencv_modules.hpp

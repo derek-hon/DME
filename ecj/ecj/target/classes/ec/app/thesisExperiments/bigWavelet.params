@@ -1,0 +1,188 @@
+parent.0 = ../../distributedME/distributedME.params
+
+exch = ec.distributedME.SimpleDistributedMEExchanger
+
+eval.problem = ec.app.experiments.WaveletExperiment.DME.ProceduralTextureFitness
+eval.problem.data = ec.app.experiments.GeneralandFitness.MultiData
+eval.problem.target = src/main/resources/ec/app/thesisExperiments/smileSmall.png
+
+evalthreads = 				4
+breedthreads = 				4
+
+seed.0=time
+seed.1=time
+seed.2=time
+seed.3=time
+
+map.imagesize = 256
+eval.problem.fit-threads =    64
+eval.problem.imagesize = 64
+eval.problem.render=true
+
+
+stat = ec.thesisStatistics.BaselineMEStatistics
+
+evaluations                 = 300000
+distributed = true
+colours=true
+
+eval.problem.min_x = -1
+eval.problem.max_x = 1
+eval.problem.min_y = -1
+eval.problem.max_y = 1
+do-description = true
+stat.do-final = true
+stat.do-evaluation = true
+eval.problem.save-path = /bigWavelet/ME/
+stat.do-memory = true
+stat.do-time = true
+stat.do-message = true
+stat.modulus = 1500
+quit-on-run-complete=false
+
+mapelites.starting-individuals = 0.6
+
+map.submaps = 1
+
+map.submap.0             = ec.distributedME.EliteMap
+map.submap.0.name        = Mean_Red_Mean_Green_Mean_Blue
+map.submap.0.behaviours  = 3
+map.submap.0.behaviour.0 = ec.distributedME.Behaviours
+map.submap.0.behaviour.0.name = Red
+map.submap.0.behaviour.0.intervals = 7
+map.submap.0.behaviour.0.interval.0.ubound = 36
+map.submap.0.behaviour.0.interval.1.ubound = 72
+map.submap.0.behaviour.0.interval.2.ubound = 108
+map.submap.0.behaviour.0.interval.3.ubound = 144
+map.submap.0.behaviour.0.interval.4.ubound = 180
+map.submap.0.behaviour.0.interval.5.ubound = 216
+map.submap.0.behaviour.0.interval.6.ubound = 255
+map.submap.0.behaviour.1 = ec.distributedME.Behaviours
+map.submap.0.behaviour.1.name = Green
+map.submap.0.behaviour.1.intervals = 7
+map.submap.0.behaviour.1.interval.0.ubound = 36
+map.submap.0.behaviour.1.interval.1.ubound = 72
+map.submap.0.behaviour.1.interval.2.ubound = 108
+map.submap.0.behaviour.1.interval.3.ubound = 144
+map.submap.0.behaviour.1.interval.4.ubound = 180
+map.submap.0.behaviour.1.interval.5.ubound = 216
+map.submap.0.behaviour.1.interval.6.ubound = 255
+map.submap.0.behaviour.2 = ec.distributedME.Behaviours
+map.submap.0.behaviour.2.name = Blue
+map.submap.0.behaviour.2.intervals = 7
+map.submap.0.behaviour.2.interval.0.ubound = 36
+map.submap.0.behaviour.2.interval.1.ubound = 72
+map.submap.0.behaviour.2.interval.2.ubound = 108
+map.submap.0.behaviour.2.interval.3.ubound = 144
+map.submap.0.behaviour.2.interval.4.ubound = 180
+map.submap.0.behaviour.2.interval.5.ubound = 216
+map.submap.0.behaviour.2.interval.6.ubound = 255
+map.submap.0.behaviour-source = ec.app.experiments.Evaluations.MeanRedMeanGreenMeanBlueEvaluation
+map.submap.0.species.fitness = ec.gp.koza.KozaFitness
+map.submap.0.species = ec.distributedME.MapElitesGPSpecies
+map.submap.0.species.ind = ec.app.experiments.GeneralandFitness.TextureElite
+map.submap.0.species.fitness = ec.gp.koza.KozaFitness
+map.submap.0.species.pipe = ec.distributedME.MapElitesMultiBreedingPipeline
+map.submap.0.species.ind.numtrees = 3
+map.submap.0.species.ind.tree.0 = ec.gp.GPTree
+map.submap.0.species.ind.tree.0.tc = tc0
+map.submap.0.species.ind.tree.1 = ec.gp.GPTree
+map.submap.0.species.ind.tree.1.tc = tc0
+map.submap.0.species.ind.tree.2 = ec.gp.GPTree
+map.submap.0.species.ind.tree.2.tc = tc0
+map.submap.0.species.pipe.num-sources = 2
+map.submap.0.species.pipe.source.0 = ec.distributedME.MapElitesCrossoverPipeline
+map.submap.0.species.pipe.source.0.prob = 0.9
+map.submap.0.species.pipe.source.0.source.0 = ec.distributedME.DistributedMERandomSelection
+map.submap.0.species.pipe.source.0.source.1 = same
+map.submap.0.species.pipe.source.1 = ec.distributedME.MapElitesMutationPipeline
+map.submap.0.species.pipe.source.1.prob = 0.3
+map.submap.0.species.pipe.source.1.source.0 = ec.distributedME.DistributedMERandomSelection
+
+
+# ======= Nodes =======
+# We have some functions.  They are:
+gp.fs.0.size = 13
+#
+# Direct Variables (2)
+gp.fs.0.func.0  = ec.app.experiments.Functions.Func_Variable$Pos_X
+gp.fs.0.func.0.nc  = nc0
+gp.fs.0.func.1  = ec.app.experiments.Functions.Func_Variable$Pos_Y
+gp.fs.0.func.1.nc  = nc0
+#
+# Math (8):
+gp.fs.0.func.2 = ec.app.experiments.Functions.Func_Math$Add
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = ec.app.experiments.Functions.Func_Math$Sub
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = ec.app.experiments.Functions.Func_Math$Mul
+gp.fs.0.func.4.nc = nc2
+gp.fs.0.func.5 = ec.app.experiments.Functions.Func_Math$Div
+gp.fs.0.func.5.nc = nc2
+gp.fs.0.func.6 = ec.app.experiments.Functions.Func_Math$Sin
+gp.fs.0.func.6.nc = nc1
+gp.fs.0.func.7 = ec.app.experiments.Functions.Func_Math$Cos
+gp.fs.0.func.7.nc = nc1
+gp.fs.0.func.8 = ec.app.experiments.Functions.Func_Math$Pow
+gp.fs.0.func.8.nc = nc2
+gp.fs.0.func.9 = ec.app.experiments.Functions.Func_Math$Log10
+gp.fs.0.func.9.nc = nc1
+#
+# Ephemerals (3)
+gp.fs.0.func.10 = ec.app.experiments.Functions.Func_Ephemeral$Eph_1
+gp.fs.0.func.10.nc = nc0
+gp.fs.0.func.11 = ec.app.experiments.Functions.Func_Ephemeral$Eph_10
+gp.fs.0.func.11.nc = nc0
+gp.fs.0.func.12 = ec.app.experiments.Functions.Func_Ephemeral$Eph_100
+gp.fs.0.func.12.nc = nc0
+
+# Crossover will use Tournament Selection, try only 1
+# time, have a max depth of 17, and use KozaNodeSelector
+gp.koza.xover.source.0 = ec.select.TournamentSelection
+gp.koza.xover.source.1 = same
+gp.koza.xover.ns.0 = ec.gp.koza.KozaNodeSelector
+gp.koza.xover.ns.1 = same
+gp.koza.xover.maxdepth = 17
+gp.koza.xover.tries = 1
+
+# Point Mutation will use Tournament Selection, try only 1
+# time, have a max depth of 17, and use KozaNodeSelector
+# and GROW for building.  Also, Point Mutation uses a GrowBuilder
+# by default, with a default of min-depth=max-depth=5
+# as shown a ways below
+gp.koza.mutate.source.0 = ec.select.TournamentSelection
+gp.koza.mutate.ns.0 = ec.gp.koza.KozaNodeSelector
+gp.koza.mutate.build.0 = ec.gp.koza.GrowBuilder
+gp.koza.mutate.maxdepth = 17
+gp.koza.mutate.tries = 1
+
+# The default tournament size for TournamentSelection is 7
+# That's pretty heavy.
+select.tournament.size = 3
+
+# Since GROW is only used for subtree mutation, ECJ uses
+# the Koza-standard subtree mutation GROW values for the
+# default for GROW as a whole.
+gp.koza.grow.min-depth = 5
+gp.koza.grow.max-depth = 5
+
+# Here we define the default values for KozaNodeSelection;
+# The default is 10% terminals, 90% nonterminals when possible,
+# 0% "always pick the root", 0% "pick any node"
+gp.koza.ns.terminals = 0.1
+gp.koza.ns.nonterminals = 0.9
+gp.koza.ns.root = 0.0
+
+# The tree uses an ec.gp.koza.HalfBuilder to create
+# itself initially.
+# HalfBuilder will pick GROW half the time and FULL
+# the other half, with a ramp from 2 to 6 inclusive.
+# with a grow probability of 0.5
+# By ramp we mean that it first picks a random number between
+# 2 and 6 inclusive.  This then becomes the *maximum* tree size
+# (for the FULL approach, it's the tree size of the tree, for
+# GROW, the tree can get no bigger than this)
+gp.tc.0.init = ec.gp.koza.HalfBuilder
+gp.koza.half.min-depth = 2
+gp.koza.half.max-depth = 6
+gp.koza.half.growp = 0.5

@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GreedyOverselection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">GreedyOverselection.java</span></div><h1>GreedyOverselection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.select;
+import java.util.ArrayList;
+
+import ec.*;
+import ec.util.*;
+
+/* 
+ * GreedyOverselection.java
+ * 
+ * Created: Thu Feb 10 17:39:03 2000
+ * By: Sean Luke
+ */
+
+/**
+ * GreedyOverselection is a SelectionMethod which implements Koza-style
+ * fitness-proportionate greedy overselection.  Not appropriate for
+ * multiobjective fitnesses.
+ *
+ * &lt;p&gt; This selection method first 
+ * divides individuals in a population into two groups: the &quot;good&quot; 
+ * (&quot;top&quot;) group, and the &quot;bad&quot; (&quot;bottom&quot;) group.  The best &lt;i&gt;top&lt;/i&gt;
+ * percent of individuals in the population go into the good group.
+ * The rest go into the &quot;bad&quot; group.  With a certain probability (determined
+ * by the &lt;i&gt;gets&lt;/i&gt; setting), an individual will be picked out of the
+ * &quot;good&quot; group.  Once we have determined which group the individual
+ * will be selected from, the individual is picked using fitness proportionate
+ * selection in that group, that is, the likelihood he is picked is 
+ * proportionate to his fitness relative to the fitnesses of others in his
+ * group.
+ *
+ * &lt;p&gt; All this is expensive to
+ * set up and bring down, so it's not appropriate for steady-state evolution.
+ * If you're not familiar with the relative advantages of 
+ * selection methods and just want a good one,
+ * use TournamentSelection instead. 
+ *
+ * &lt;p&gt;&lt;b&gt;&lt;font color=red&gt;
+ * Note: Fitnesses must be non-negative.  0 is assumed to be the worst fitness.
+ * &lt;/font&gt;&lt;/b&gt;
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;top&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the percentage of the population going into the &quot;good&quot; (top) group)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;gets&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the likelihood that an individual will be picked from the &quot;good&quot; group)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.greedy
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L67">public class GreedyOverselection extends SelectionMethod</span>
+    {
+    public double[] sortedFitOver;
+    public double[] sortedFitUnder;
+    /** Sorted population -- since I *have* to use an int-sized
+        individual (short gives me only 16K), 
+        I might as well just have pointers to the
+        population itself.  :-( */
+    public int[] sortedPop;
+
+    public static final String P_GREEDY = &quot;greedy&quot;;
+    public static final String P_TOP = &quot;top&quot;;
+    public static final String P_GETS = &quot;gets&quot;;
+
+    public double top_n_percent;
+    public double gets_n_percent;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L86">        return SelectDefaults.base().push(P_GREEDY);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L91">        super.setup(state,base);</span>
+        
+<span class="nc" id="L93">        Parameter def = defaultBase();</span>
+        
+<span class="nc" id="L95">        top_n_percent =</span>
+<span class="nc" id="L96">            state.parameters.getDoubleWithMax(base.push(P_TOP),def.push(P_TOP),0.0,1.0);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (top_n_percent &lt; 0.0)</span>
+<span class="nc" id="L98">            state.output.fatal(&quot;Top-n-percent must be between 0.0 and 1.0&quot;, base.push(P_TOP),def.push(P_TOP));</span>
+        
+<span class="nc" id="L100">        gets_n_percent =</span>
+<span class="nc" id="L101">            state.parameters.getDoubleWithMax(base.push(P_GETS),def.push(P_GETS),0.0,1.0);</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (gets_n_percent &lt; 0.0)</span>
+<span class="nc" id="L103">            state.output.fatal(&quot;Gets-n-percent must be between 0.0 and 1.0&quot;, base.push(P_GETS),def.push(P_GETS));</span>
+        
+<span class="nc" id="L105">        }</span>
+    
+    
+    // don't need clone etc. -- I'll never clone with my arrays intact
+    
+    public void prepareToProduce(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L114">        super.prepareToProduce(s, subpopulation, thread);</span>
+
+        // load sortedPop integers
+<span class="nc" id="L117">        final ArrayList&lt;Individual&gt; i = s.population.subpops.get(subpopulation).individuals;</span>
+
+<span class="nc" id="L119">        sortedPop = new int[i.size()];</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        for(int x=0;x&lt;sortedPop.length;x++) sortedPop[x] = x;</span>
+        
+        // sort sortedPop in increasing fitness order
+<span class="nc" id="L123">        QuickSort.qsort(sortedPop, </span>
+            new SortComparatorL()
+<span class="nc" id="L125">                {</span>
+                public boolean lt(long a, long b)
+                    {
+<span class="nc" id="L128">                    return ((Individual)(i.get((int)b))).fitness.betterThan(</span>
+<span class="nc" id="L129">                        ((Individual)(i.get((int)a))).fitness);</span>
+                    }
+
+                public boolean gt(long a, long b)
+                    {
+<span class="nc" id="L134">                    return ((Individual)(i.get((int)a))).fitness.betterThan(</span>
+<span class="nc" id="L135">                        ((Individual)(i.get((int)b))).fitness);</span>
+                    }
+                });
+        
+        
+        
+        
+        // determine my boundary -- must be at least 1 and must leave 1 over
+<span class="nc" id="L143">        int boundary = (int)(sortedPop.length * top_n_percent);</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (boundary == 0) boundary = 1;</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">        if (boundary == sortedPop.length) boundary = sortedPop.length-1;</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">        if (boundary == 0) // uh oh</span>
+<span class="nc" id="L147">            s.output.fatal(&quot;Greedy Overselection can only be done with a population of size 2 or more (offending subpopulation #&quot; + subpopulation + &quot;)&quot;);</span>
+        
+        // load sortedFitOver
+<span class="nc" id="L150">        sortedFitOver = new double[boundary];</span>
+<span class="nc" id="L151">        int y=0;</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        for(int x=sortedPop.length-boundary;x&lt;sortedPop.length;x++)</span>
+            {
+<span class="nc" id="L154">            sortedFitOver[y] = (i.get(sortedPop[x])).fitness.fitness();</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">            if (sortedFitOver[y] &lt; 0) // uh oh</span>
+<span class="nc" id="L156">                s.output.fatal(&quot;Discovered a negative fitness value.  Greedy Overselection requires that all fitness values be non-negative (offending subpopulation #&quot; + subpopulation + &quot;)&quot;);</span>
+<span class="nc" id="L157">            y++;</span>
+            }
+        
+        // load sortedFitUnder
+<span class="nc" id="L161">        sortedFitUnder = new double[sortedPop.length-boundary];</span>
+<span class="nc" id="L162">        y=0;</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">        for(int x=0;x&lt;sortedPop.length-boundary;x++)</span>
+            {
+<span class="nc" id="L165">            sortedFitUnder[y] = (i.get(sortedPop[x])).fitness.fitness();</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            if (sortedFitUnder[y] &lt; 0) // uh oh</span>
+<span class="nc" id="L167">                s.output.fatal(&quot;Discovered a negative fitness value.  Greedy Overselection requires that all fitness values be non-negative (offending subpopulation #&quot; + subpopulation + &quot;)&quot;);</span>
+<span class="nc" id="L168">            y++;</span>
+            }
+
+        // organize the distributions.  All zeros in fitness is fine
+<span class="nc" id="L172">        RandomChoice.organizeDistribution(sortedFitUnder, true);</span>
+<span class="nc" id="L173">        RandomChoice.organizeDistribution(sortedFitOver, true);</span>
+<span class="nc" id="L174">        }</span>
+
+    public int produce(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+        // pick a coin toss
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        if (state.random[thread].nextBoolean(gets_n_percent))</span>
+            // over -- sortedFitUnder.length to sortedPop.length
+<span class="nc" id="L183">            return sortedPop[</span>
+<span class="nc" id="L184">                sortedFitUnder.length + RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L185">                    sortedFitOver,state.random[thread].nextDouble())];</span>
+        else
+            // under -- 0 to sortedFitUnder.length
+<span class="nc" id="L188">            return sortedPop[RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L189">                    sortedFitUnder,state.random[thread].nextDouble())];</span>
+        }
+
+    public void finishProducing(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L196">        super.finishProducing(s, subpopulation, thread);</span>
+        
+        // release the distributions so we can quickly 
+        // garbage-collect them if necessary
+<span class="nc" id="L200">        sortedFitUnder = null;</span>
+<span class="nc" id="L201">        sortedFitOver = null;</span>
+<span class="nc" id="L202">        sortedPop = null;</span>
+<span class="nc" id="L203">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

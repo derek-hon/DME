@@ -1,0 +1,823 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MersenneTwister.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">MersenneTwister.java</span></div><h1>MersenneTwister.java</h1><pre class="source lang-java linenums">package ec.util;
+
+import java.io.*;
+
+/** 
+ * &lt;h3&gt;MersenneTwister and MersenneTwisterFast&lt;/h3&gt;
+ * &lt;p&gt;&lt;b&gt;Version 22&lt;/b&gt;, based on version MT199937(99/10/29)
+ * of the Mersenne Twister algorithm found at 
+ * &lt;a href=&quot;http://www.math.keio.ac.jp/matumoto/emt.html&quot;&gt;
+ * The Mersenne Twister Home Page&lt;/a&gt;, with the initialization
+ * improved using the new 2002/1/26 initialization algorithm
+ * By Sean Luke, October 2004.
+ * 
+ * &lt;p&gt;&lt;b&gt;MersenneTwister&lt;/b&gt; is a drop-in subclass replacement
+ * for java.util.Random.  It is properly synchronized and
+ * can be used in a multithreaded environment.  On modern VMs such
+ * as HotSpot, it is approximately 1/3 slower than java.util.Random.
+ *
+ * &lt;p&gt;&lt;b&gt;MersenneTwisterFast&lt;/b&gt; is not a subclass of java.util.Random.  It has
+ * the same public methods as Random does, however, and it is
+ * algorithmically identical to MersenneTwister.  MersenneTwisterFast
+ * has hard-code inlined all of its methods directly, and made all of them
+ * final (well, the ones of consequence anyway).  Further, these
+ * methods are &lt;i&gt;not&lt;/i&gt; synchronized, so the same MersenneTwisterFast
+ * instance cannot be shared by multiple threads.  But all this helps
+ * MersenneTwisterFast achieve well over twice the speed of MersenneTwister.
+ * java.util.Random is about 1/3 slower than MersenneTwisterFast.
+ *
+ * &lt;h3&gt;About the Mersenne Twister&lt;/h3&gt;
+ * &lt;p&gt;This is a Java version of the C-program for MT19937: Integer version.
+ * The MT19937 algorithm was created by Makoto Matsumoto and Takuji Nishimura,
+ * who ask: &quot;When you use this, send an email to: matumoto@math.keio.ac.jp
+ * with an appropriate reference to your work&quot;.  Indicate that this
+ * is a translation of their algorithm into Java.
+ *
+ * &lt;p&gt;&lt;b&gt;Reference. &lt;/b&gt;
+ * Makato Matsumoto and Takuji Nishimura,
+ * &quot;Mersenne Twister: A 623-Dimensionally Equidistributed Uniform
+ * Pseudo-Random Number Generator&quot;,
+ * &lt;i&gt;ACM Transactions on Modeling and. Computer Simulation,&lt;/i&gt;
+ * Vol. 8, No. 1, January 1998, pp 3--30.
+ *
+ * &lt;h3&gt;About this Version&lt;/h3&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Changes since V21:&lt;/b&gt; Minor documentation HTML fixes. 
+ *
+ * &lt;p&gt;&lt;b&gt;Changes since V20:&lt;/b&gt; Added clearGuassian().  Modified stateEquals()
+ * to be synchronizd on both objects for MersenneTwister, and changed its 
+ * documentation.  Added synchronization to both setSeed() methods, to 
+ * writeState(), and to readState() in MersenneTwister.  Removed synchronization
+ * from readObject() in MersenneTwister. 
+ *
+ * &lt;p&gt;&lt;b&gt;Changes since V19:&lt;/b&gt; nextFloat(boolean, boolean) now returns float,
+ * not double.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes since V18:&lt;/b&gt; Removed old final declarations, which used to
+ * potentially speed up the code, but no longer.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes since V17:&lt;/b&gt; Removed vestigial references to &amp;amp;= 0xffffffff
+ * which stemmed from the original C code.  The C code could not guarantee that
+ * ints were 32 bit, hence the masks.  The vestigial references in the Java
+ * code were likely optimized out anyway.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes since V16:&lt;/b&gt; Added nextDouble(includeZero, includeOne) and
+ * nextFloat(includeZero, includeOne) to allow for half-open, fully-closed, and
+ * fully-open intervals.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V15:&lt;/b&gt; Added serialVersionUID to quiet compiler warnings
+ * from Sun's overly verbose compilers as of JDK 1.5.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V14:&lt;/b&gt; made strictfp, with StrictMath.log and StrictMath.sqrt
+ * in nextGaussian instead of Math.log and Math.sqrt.  This is largely just to be safe,
+ * as it presently makes no difference in the speed, correctness, or results of the
+ * algorithm.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V13:&lt;/b&gt; clone() method CloneNotSupportedException removed.  
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V12:&lt;/b&gt; clone() method added.  
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V11:&lt;/b&gt; stateEquals(...) method added.  MersenneTwisterFast
+ * is equal to other MersenneTwisterFasts with identical state; likewise
+ * MersenneTwister is equal to other MersenneTwister with identical state.
+ * This isn't equals(...) because that requires a contract of immutability
+ * to compare by value.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V10:&lt;/b&gt; A documentation error suggested that
+ * setSeed(int[]) required an int[] array 624 long.  In fact, the array
+ * can be any non-zero length.  The new version also checks for this fact.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V9:&lt;/b&gt; readState(stream) and writeState(stream)
+ * provided.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V8:&lt;/b&gt; setSeed(int) was only using the first 28 bits
+ * of the seed; it should have been 32 bits.  For small-number seeds the
+ * behavior is identical.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V7:&lt;/b&gt; A documentation error in MersenneTwisterFast
+ * (but not MersenneTwister) stated that nextDouble selects uniformly from
+ * the full-open interval [0,1].  It does not.  nextDouble's contract is
+ * identical across MersenneTwisterFast, MersenneTwister, and java.util.Random,
+ * namely, selection in the half-open interval [0,1).  That is, 1.0 should
+ * not be returned.  A similar contract exists in nextFloat.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V6:&lt;/b&gt; License has changed from LGPL to BSD.
+ * New timing information to compare against
+ * java.util.Random.  Recent versions of HotSpot have helped Random increase
+ * in speed to the point where it is faster than MersenneTwister but slower
+ * than MersenneTwisterFast (which should be the case, as it's a less complex
+ * algorithm but is synchronized).
+ * 
+ * &lt;p&gt;&lt;b&gt;Changes Since V5:&lt;/b&gt; New empty constructor made to work the same
+ * as java.util.Random -- namely, it seeds based on the current time in
+ * milliseconds.
+ *
+ * &lt;p&gt;&lt;b&gt;Changes Since V4:&lt;/b&gt; New initialization algorithms.  See
+ * (see &lt;a href=&quot;http://www.math.keio.ac.jp/matumoto/MT2002/emt19937ar.html&quot;&gt;
+ * http://www.math.keio.ac.jp/matumoto/MT2002/emt19937ar.html&lt;/a&gt;)
+ *
+ * &lt;p&gt;The MersenneTwister code is based on standard MT19937 C/C++ 
+ * code by Takuji Nishimura,
+ * with suggestions from Topher Cooper and Marc Rieffel, July 1997.
+ * The code was originally translated into Java by Michael Lecuyer,
+ * January 1999, and the original code is Copyright (c) 1999 by Michael Lecuyer.
+ *
+ * &lt;h3&gt;Java notes&lt;/h3&gt;
+ * 
+ * &lt;p&gt;This implementation implements the bug fixes made
+ * in Java 1.2's version of Random, which means it can be used with
+ * earlier versions of Java.  See 
+ * &lt;a href=&quot;http://www.javasoft.com/products/jdk/1.2/docs/api/java/util/Random.html&quot;&gt;
+ * the JDK 1.2 java.util.Random documentation&lt;/a&gt; for further documentation
+ * on the random-number generation contracts made.  Additionally, there's
+ * an undocumented bug in the JDK java.util.Random.nextBytes() method,
+ * which this code fixes.
+ *
+ * &lt;p&gt; Just like java.util.Random, this
+ * generator accepts a long seed but doesn't use all of it.  java.util.Random
+ * uses 48 bits.  The Mersenne Twister instead uses 32 bits (int size).
+ * So it's best if your seed does not exceed the int range.
+ *
+ * &lt;p&gt;MersenneTwister can be used reliably 
+ * on JDK version 1.1.5 or above.  Earlier Java versions have serious bugs in
+ * java.util.Random; only MersenneTwisterFast (and not MersenneTwister nor
+ * java.util.Random) should be used with them.
+ *
+ * &lt;h3&gt;License&lt;/h3&gt;
+ *
+ * Copyright (c) 2003 by Sean Luke. &lt;br&gt;
+ * Portions copyright (c) 1993 by Michael Lecuyer. &lt;br&gt;
+ * All rights reserved. &lt;br&gt;
+ *
+ * &lt;p&gt;Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * &lt;ul&gt;
+ * &lt;li&gt; Redistributions of source code must retain the above copyright notice, 
+ * this list of conditions and the following disclaimer.
+ * &lt;li&gt; Redistributions in binary form must reproduce the above copyright notice, 
+ * this list of conditions and the following disclaimer in the documentation 
+ * and/or other materials provided with the distribution.
+ * &lt;li&gt; Neither the name of the copyright owners, their employers, nor the 
+ * names of its contributors may be used to endorse or promote products 
+ * derived from this software without specific prior written permission.
+ * &lt;/ul&gt;
+ * &lt;p&gt;THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot; 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+ * DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNERS OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
+ *
+ @version 22
+*/
+
+public strictfp class MersenneTwister extends java.util.Random implements Serializable, Cloneable
+    {
+    // Serialization
+    private static final long serialVersionUID = -4035832775130174188L;  // locked as of Version 15
+
+    // Period parameters
+    private static final int N = 624;
+    private static final int M = 397;
+    private static final int MATRIX_A = 0x9908b0df;   //    private static final * constant vector a
+    private static final int UPPER_MASK = 0x80000000; // most significant w-r bits
+    private static final int LOWER_MASK = 0x7fffffff; // least significant r bits
+
+    // Tempering parameters
+    private static final int TEMPERING_MASK_B = 0x9d2c5680;
+    private static final int TEMPERING_MASK_C = 0xefc60000;
+    
+    private int mt[]; // the array for the state vector
+    private int mti; // mti==N+1 means mt[N] is not initialized
+    private int mag01[];
+    
+    // a good initial seed (of int size, though stored in a long)
+    //private static final long GOOD_SEED = 4357;
+
+    /* implemented here because there's a bug in Random's implementation
+       of the Gaussian code (divide by zero, and log(0), ugh!), yet its
+       gaussian variables are private so we can't access them here.  :-( */
+
+    private double __nextNextGaussian;
+    private boolean __haveNextNextGaussian;
+
+    /* We're overriding all internal data, to my knowledge, so this should be okay */
+    public Object clone()
+        {
+        try
+            {
+<span class="nc" id="L214">            MersenneTwister f = (MersenneTwister)(super.clone());</span>
+<span class="nc" id="L215">            f.mt = (int[])(mt.clone());</span>
+<span class="nc" id="L216">            f.mag01 = (int[])(mag01.clone());</span>
+<span class="nc" id="L217">            return f;</span>
+            }
+<span class="nc" id="L219">        catch (CloneNotSupportedException e) { throw new InternalError(); } // should never happen</span>
+        }
+
+    /** Returns true if the MersenneTwister's current internal state is equal to another MersenneTwister. 
+        This is roughly the same as equals(other), except that it compares based on value but does not
+        guarantee the contract of immutability (obviously random number generators are immutable).
+        Note that this does NOT check to see if the internal gaussian storage is the same
+        for both.  You can guarantee that the internal gaussian storage is the same (and so the
+        nextGaussian() methods will return the same values) by calling clearGaussian() on both
+        objects. */
+    public synchronized boolean stateEquals(MersenneTwister other)
+        {
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        if (other == this) return true;</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        if (other == null)return false;</span>
+<span class="nc" id="L233">        synchronized(other)</span>
+            {
+<span class="nc bnc" id="L235" title="All 2 branches missed.">            if (mti != other.mti) return false;</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">            for(int x=0;x&lt;mag01.length;x++)</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">                if (mag01[x] != other.mag01[x]) return false;</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">            for(int x=0;x&lt;mt.length;x++)</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">                if (mt[x] != other.mt[x]) return false;</span>
+<span class="nc" id="L240">            return true;</span>
+            }
+        }
+
+    /** Reads the entire state of the MersenneTwister RNG from the stream */
+    public synchronized void readState(DataInputStream stream) throws IOException
+        {
+<span class="nc" id="L247">        int len = mt.length;</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        for(int x=0;x&lt;len;x++) mt[x] = stream.readInt();</span>
+        
+<span class="nc" id="L250">        len = mag01.length;</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">        for(int x=0;x&lt;len;x++) mag01[x] = stream.readInt();</span>
+        
+<span class="nc" id="L253">        mti = stream.readInt();</span>
+<span class="nc" id="L254">        __nextNextGaussian = stream.readDouble();</span>
+<span class="nc" id="L255">        __haveNextNextGaussian = stream.readBoolean();</span>
+<span class="nc" id="L256">        }</span>
+        
+    /** Writes the entire state of the MersenneTwister RNG to the stream */
+    public synchronized void writeState(DataOutputStream stream) throws IOException
+        {
+<span class="nc" id="L261">        int len = mt.length;</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        for(int x=0;x&lt;len;x++) stream.writeInt(mt[x]);</span>
+        
+<span class="nc" id="L264">        len = mag01.length;</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        for(int x=0;x&lt;len;x++) stream.writeInt(mag01[x]);</span>
+        
+<span class="nc" id="L267">        stream.writeInt(mti);</span>
+<span class="nc" id="L268">        stream.writeDouble(__nextNextGaussian);</span>
+<span class="nc" id="L269">        stream.writeBoolean(__haveNextNextGaussian);</span>
+<span class="nc" id="L270">        }</span>
+
+
+    /**
+     * Constructor using the default seed.
+     */
+    public MersenneTwister()
+        {
+<span class="nc" id="L278">        this(System.currentTimeMillis());</span>
+<span class="nc" id="L279">        }</span>
+    
+    /**
+     * Constructor using a given seed.  Though you pass this seed in
+     * as a long, it's best to make sure it's actually an integer.
+     */
+    public MersenneTwister(long seed)
+        {
+<span class="nc" id="L287">        super(seed);    /* just in case */</span>
+<span class="nc" id="L288">        setSeed(seed);</span>
+<span class="nc" id="L289">        }</span>
+    
+    /**
+     * Constructor using an array of integers as seed.
+     * Your array must have a non-zero length.  Only the first 624 integers
+     * in the array are used; if the array is shorter than this then
+     * integers are repeatedly used in a wrap-around fashion.
+     */
+    public MersenneTwister(int[] array)
+        {
+<span class="nc" id="L299">        super(System.currentTimeMillis());    /* pick something at random just in case */</span>
+<span class="nc" id="L300">        setSeed(array);</span>
+<span class="nc" id="L301">        }</span>
+
+    /**
+     * Initalize the pseudo random number generator.  Don't
+     * pass in a long that's bigger than an int (Mersenne Twister
+     * only uses the first 32 bits for its seed).   
+     */
+
+    synchronized public void setSeed(long seed)
+        {
+        // it's always good style to call super
+<span class="nc" id="L312">        super.setSeed(seed);</span>
+
+        // Due to a bug in java.util.Random clear up to 1.2, we're
+        // doing our own Gaussian variable.
+<span class="nc" id="L316">        __haveNextNextGaussian = false;</span>
+
+<span class="nc" id="L318">        mt = new int[N];</span>
+        
+<span class="nc" id="L320">        mag01 = new int[2];</span>
+<span class="nc" id="L321">        mag01[0] = 0x0;</span>
+<span class="nc" id="L322">        mag01[1] = MATRIX_A;</span>
+
+<span class="nc" id="L324">        mt[0]= (int)(seed &amp; 0xffffffff);</span>
+<span class="nc" id="L325">        mt[0] = (int) seed;</span>
+<span class="nc bnc" id="L326" title="All 2 branches missed.">        for (mti=1; mti&lt;N; mti++) </span>
+            {
+<span class="nc" id="L328">            mt[mti] = </span>
+                (1812433253 * (mt[mti-1] ^ (mt[mti-1] &gt;&gt;&gt; 30)) + mti); 
+            /* See Knuth TAOCP Vol2. 3rd Ed. P.106 for multiplier. */
+            /* In the previous versions, MSBs of the seed affect   */
+            /* only MSBs of the array mt[].                        */
+            /* 2002/01/09 modified by Makoto Matsumoto             */
+            // mt[mti] &amp;= 0xffffffff;
+            /* for &gt;32 bit machines */
+            }
+<span class="nc" id="L337">        }</span>
+
+
+    /**
+     * Sets the seed of the MersenneTwister using an array of integers.
+     * Your array must have a non-zero length.  Only the first 624 integers
+     * in the array are used; if the array is shorter than this then
+     * integers are repeatedly used in a wrap-around fashion.
+     */
+
+    synchronized public void setSeed(int[] array)
+        {
+<span class="nc bnc" id="L349" title="All 2 branches missed.">        if (array.length == 0)</span>
+<span class="nc" id="L350">            throw new IllegalArgumentException(&quot;Array length must be greater than zero&quot;);</span>
+        int i, j, k;
+<span class="nc" id="L352">        setSeed(19650218);</span>
+<span class="nc" id="L353">        i=1; j=0;</span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">        k = (N&gt;array.length ? N : array.length);</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">        for (; k!=0; k--) </span>
+            {
+<span class="nc" id="L357">            mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] &gt;&gt;&gt; 30)) * 1664525)) + array[j] + j; /* non linear */</span>
+            // mt[i] &amp;= 0xffffffff; /* for WORDSIZE &gt; 32 machines */
+<span class="nc" id="L359">            i++;</span>
+<span class="nc" id="L360">            j++;</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">            if (i&gt;=N) { mt[0] = mt[N-1]; i=1; }</span>
+<span class="nc bnc" id="L362" title="All 2 branches missed.">            if (j&gt;=array.length) j=0;</span>
+            }
+<span class="nc bnc" id="L364" title="All 2 branches missed.">        for (k=N-1; k!=0; k--) </span>
+            {
+<span class="nc" id="L366">            mt[i] = (mt[i] ^ ((mt[i-1] ^ (mt[i-1] &gt;&gt;&gt; 30)) * 1566083941)) - i; /* non linear */</span>
+            // mt[i] &amp;= 0xffffffff; /* for WORDSIZE &gt; 32 machines */
+<span class="nc" id="L368">            i++;</span>
+<span class="nc bnc" id="L369" title="All 2 branches missed.">            if (i&gt;=N) </span>
+                {
+<span class="nc" id="L371">                mt[0] = mt[N-1]; i=1; </span>
+                }
+            }
+<span class="nc" id="L374">        mt[0] = 0x80000000; /* MSB is 1; assuring non-zero initial array */ </span>
+<span class="nc" id="L375">        }</span>
+
+
+
+    /**
+     * Returns an integer with &lt;i&gt;bits&lt;/i&gt; bits filled with a random number.
+     */
+    synchronized protected int next(int bits)
+        {
+        int y;
+        
+<span class="nc bnc" id="L386" title="All 2 branches missed.">        if (mti &gt;= N)   // generate N words at one time</span>
+            {
+            int kk;
+<span class="nc" id="L389">            final int[] mt = this.mt; // locals are slightly faster </span>
+<span class="nc" id="L390">            final int[] mag01 = this.mag01; // locals are slightly faster </span>
+            
+<span class="nc bnc" id="L392" title="All 2 branches missed.">            for (kk = 0; kk &lt; N - M; kk++)</span>
+                {
+<span class="nc" id="L394">                y = (mt[kk] &amp; UPPER_MASK) | (mt[kk+1] &amp; LOWER_MASK);</span>
+<span class="nc" id="L395">                mt[kk] = mt[kk+M] ^ (y &gt;&gt;&gt; 1) ^ mag01[y &amp; 0x1];</span>
+                }
+<span class="nc bnc" id="L397" title="All 2 branches missed.">            for (; kk &lt; N-1; kk++)</span>
+                {
+<span class="nc" id="L399">                y = (mt[kk] &amp; UPPER_MASK) | (mt[kk+1] &amp; LOWER_MASK);</span>
+<span class="nc" id="L400">                mt[kk] = mt[kk+(M-N)] ^ (y &gt;&gt;&gt; 1) ^ mag01[y &amp; 0x1];</span>
+                }
+<span class="nc" id="L402">            y = (mt[N-1] &amp; UPPER_MASK) | (mt[0] &amp; LOWER_MASK);</span>
+<span class="nc" id="L403">            mt[N-1] = mt[M-1] ^ (y &gt;&gt;&gt; 1) ^ mag01[y &amp; 0x1];</span>
+
+<span class="nc" id="L405">            mti = 0;</span>
+            }
+  
+<span class="nc" id="L408">        y = mt[mti++];</span>
+<span class="nc" id="L409">        y ^= y &gt;&gt;&gt; 11;                          // TEMPERING_SHIFT_U(y)</span>
+<span class="nc" id="L410">        y ^= (y &lt;&lt; 7) &amp; TEMPERING_MASK_B;       // TEMPERING_SHIFT_S(y)</span>
+<span class="nc" id="L411">        y ^= (y &lt;&lt; 15) &amp; TEMPERING_MASK_C;      // TEMPERING_SHIFT_T(y)</span>
+<span class="nc" id="L412">        y ^= (y &gt;&gt;&gt; 18);                        // TEMPERING_SHIFT_L(y)</span>
+
+<span class="nc" id="L414">        return y &gt;&gt;&gt; (32 - bits);    // hope that's right!</span>
+        }
+    
+    /* If you've got a truly old version of Java, you can omit these
+       two next methods. */
+
+    private synchronized void writeObject(ObjectOutputStream out)
+        throws IOException
+        {
+        // just so we're synchronized.
+<span class="nc" id="L424">        out.defaultWriteObject();</span>
+<span class="nc" id="L425">        }</span>
+
+    private void readObject (ObjectInputStream in)   // readObject never needs to be Synchronized
+        throws IOException, ClassNotFoundException
+        {
+<span class="nc" id="L430">        in.defaultReadObject();</span>
+<span class="nc" id="L431">        }    </span>
+
+    /** This method is missing from jdk 1.0.x and below.  JDK 1.1
+        includes this for us, but what the heck.*/
+<span class="nc bnc" id="L435" title="All 2 branches missed.">    public boolean nextBoolean() {return next(1) != 0;}</span>
+
+    /** This generates a coin flip with a probability &lt;tt&gt;probability&lt;/tt&gt;
+        of returning true, else returning false. &lt;tt&gt;probability&lt;/tt&gt; must
+        be between 0.0 and 1.0, inclusive.  Not as precise a random real
+        event as nextBoolean(double), but twice as fast. To explicitly
+        use this, remember you may need to cast to float first. */
+
+    public boolean nextBoolean (float probability)
+        {
+<span class="nc bnc" id="L445" title="All 4 branches missed.">        if (probability &lt; 0.0f || probability &gt; 1.0f)</span>
+<span class="nc" id="L446">            throw new IllegalArgumentException (&quot;probability must be between 0.0 and 1.0 inclusive.&quot;);</span>
+<span class="nc bnc" id="L447" title="All 2 branches missed.">        if (probability==0.0f) return false;            // fix half-open issues</span>
+<span class="nc bnc" id="L448" title="All 2 branches missed.">        else if (probability==1.0f) return true;        // fix half-open issues</span>
+<span class="nc bnc" id="L449" title="All 2 branches missed.">        return nextFloat() &lt; probability; </span>
+        }
+
+    /** This generates a coin flip with a probability &lt;tt&gt;probability&lt;/tt&gt;
+        of returning true, else returning false. &lt;tt&gt;probability&lt;/tt&gt; must
+        be between 0.0 and 1.0, inclusive. */
+
+    public boolean nextBoolean (double probability)
+        {
+<span class="nc bnc" id="L458" title="All 4 branches missed.">        if (probability &lt; 0.0 || probability &gt; 1.0)</span>
+<span class="nc" id="L459">            throw new IllegalArgumentException (&quot;probability must be between 0.0 and 1.0 inclusive.&quot;);</span>
+<span class="nc bnc" id="L460" title="All 2 branches missed.">        if (probability==0.0) return false;             // fix half-open issues</span>
+<span class="nc bnc" id="L461" title="All 2 branches missed.">        else if (probability==1.0) return true; // fix half-open issues</span>
+<span class="nc bnc" id="L462" title="All 2 branches missed.">        return nextDouble() &lt; probability; </span>
+        }
+        
+    /** This method is missing from JDK 1.1 and below.  JDK 1.2
+        includes this for us, but what the heck. */
+
+    public int nextInt(int n) 
+        {
+<span class="nc bnc" id="L470" title="All 2 branches missed.">        if (n&lt;=0)</span>
+<span class="nc" id="L471">            throw new IllegalArgumentException(&quot;n must be positive, got: &quot; + n);</span>
+        
+<span class="nc bnc" id="L473" title="All 2 branches missed.">        if ((n &amp; -n) == n)</span>
+<span class="nc" id="L474">            return (int)((n * (long)next(31)) &gt;&gt; 31);</span>
+        
+        int bits, val;
+        do 
+            {
+<span class="nc" id="L479">            bits = next(31);</span>
+<span class="nc" id="L480">            val = bits % n;</span>
+            } 
+<span class="nc bnc" id="L482" title="All 2 branches missed.">        while(bits - val + (n-1) &lt; 0);</span>
+<span class="nc" id="L483">        return val;</span>
+        }
+
+    /** This method is for completness' sake. 
+        Returns a long drawn uniformly from 0 to n-1.  Suffice it to say,
+        n must be greater than 0, or an IllegalArgumentException is raised. */
+    
+    public long nextLong(long n) 
+        {
+<span class="nc bnc" id="L492" title="All 2 branches missed.">        if (n&lt;=0)</span>
+<span class="nc" id="L493">            throw new IllegalArgumentException(&quot;n must be positive, got: &quot; + n);</span>
+        
+        long bits, val;
+        do 
+            {
+<span class="nc" id="L498">            bits = (nextLong() &gt;&gt;&gt; 1);</span>
+<span class="nc" id="L499">            val = bits % n;</span>
+            } 
+<span class="nc bnc" id="L501" title="All 2 branches missed.">        while(bits - val + (n-1) &lt; 0);</span>
+<span class="nc" id="L502">        return val;</span>
+        }
+
+
+    /** A bug fix for versions of JDK 1.1 and below.  JDK 1.2 fixes
+        this for us, but what the heck. */
+    public double nextDouble()
+        {
+<span class="nc" id="L510">        return (((long)next(26) &lt;&lt; 27) + next(27))</span>
+            / (double)(1L &lt;&lt; 53);
+        }
+
+    /** Returns a double in the range from 0.0 to 1.0, possibly inclusive of 0.0 and 1.0 themselves.  Thus:
+
+        &lt;table border=0&gt;
+        &lt;tr&gt;&lt;th&gt;Expression&lt;/th&gt;&lt;th&gt;Interval&lt;/th&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;nextDouble(false, false)&lt;/td&gt;&lt;td&gt;(0.0, 1.0)&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;nextDouble(true, false)&lt;/td&gt;&lt;td&gt;[0.0, 1.0)&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;nextDouble(false, true)&lt;/td&gt;&lt;td&gt;(0.0, 1.0]&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;nextDouble(true, true)&lt;/td&gt;&lt;td&gt;[0.0, 1.0]&lt;/td&gt;&lt;/tr&gt;
+        &lt;caption&gt;Table of intervals&lt;/caption&gt;
+        &lt;/table&gt;
+        
+        &lt;p&gt;This version preserves all possible random values in the double range.
+    */
+    public double nextDouble(boolean includeZero, boolean includeOne)
+        {
+<span class="nc" id="L529">        double d = 0.0;</span>
+        do
+            {
+<span class="nc" id="L532">            d = nextDouble();                           // grab a value, initially from half-open [0.0, 1.0)</span>
+<span class="nc bnc" id="L533" title="All 4 branches missed.">            if (includeOne &amp;&amp; nextBoolean()) d += 1.0;  // if includeOne, with 1/2 probability, push to [1.0, 2.0)</span>
+            } 
+<span class="nc bnc" id="L535" title="All 6 branches missed.">        while ( (d &gt; 1.0) ||                            // everything above 1.0 is always invalid</span>
+            (!includeZero &amp;&amp; d == 0.0));            // if we're not including zero, 0.0 is invalid
+<span class="nc" id="L537">        return d;</span>
+        }
+
+    /** A bug fix for versions of JDK 1.1 and below.  JDK 1.2 fixes
+        this for us, but what the heck. */
+
+    public float nextFloat()
+        {
+<span class="nc" id="L545">        return next(24) / ((float)(1 &lt;&lt; 24));</span>
+        }
+
+
+
+    /** Returns a float in the range from 0.0f to 1.0f, possibly inclusive of 0.0f and 1.0f themselves.  Thus:
+
+        &lt;table border=0&gt;
+        &lt;tr&gt;&lt;th&gt;Expression&lt;/th&gt;&lt;th&gt;Interval&lt;/th&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;nextFloat(false, false)&lt;/td&gt;&lt;td&gt;(0.0f, 1.0f)&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;nextFloat(true, false)&lt;/td&gt;&lt;td&gt;[0.0f, 1.0f)&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;nextFloat(false, true)&lt;/td&gt;&lt;td&gt;(0.0f, 1.0f]&lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;&lt;td&gt;nextFloat(true, true)&lt;/td&gt;&lt;td&gt;[0.0f, 1.0f]&lt;/td&gt;&lt;/tr&gt;
+        &lt;caption&gt;Table of intervals&lt;/caption&gt;
+        &lt;/table&gt;
+        
+        &lt;p&gt;This version preserves all possible random values in the float range.
+    */
+    public float nextFloat(boolean includeZero, boolean includeOne)
+        {
+<span class="nc" id="L565">        float d = 0.0f;</span>
+        do
+            {
+<span class="nc" id="L568">            d = nextFloat();                            // grab a value, initially from half-open [0.0f, 1.0f)</span>
+<span class="nc bnc" id="L569" title="All 4 branches missed.">            if (includeOne &amp;&amp; nextBoolean()) d += 1.0f; // if includeOne, with 1/2 probability, push to [1.0f, 2.0f)</span>
+            } 
+<span class="nc bnc" id="L571" title="All 6 branches missed.">        while ( (d &gt; 1.0f) ||                           // everything above 1.0f is always invalid</span>
+            (!includeZero &amp;&amp; d == 0.0f));           // if we're not including zero, 0.0f is invalid
+<span class="nc" id="L573">        return d;</span>
+        }
+
+
+
+    /** A bug fix for all versions of the JDK.  The JDK appears to
+        use all four bytes in an integer as independent byte values!
+        Totally wrong. I've submitted a bug report. */
+
+    public void nextBytes(byte[] bytes)    
+        {
+<span class="nc bnc" id="L584" title="All 2 branches missed.">        for (int x=0;x&lt;bytes.length;x++) bytes[x] = (byte)next(8);</span>
+<span class="nc" id="L585">        }</span>
+
+    /** For completeness' sake, though it's not in java.util.Random.  */
+    
+    public char nextChar()
+        {
+        // chars are 16-bit UniCode values
+<span class="nc" id="L592">        return (char)(next(16));</span>
+        }
+
+    /** For completeness' sake, though it's not in java.util.Random. */
+    
+    public short nextShort()
+        {
+<span class="nc" id="L599">        return (short)(next(16));</span>
+        }
+
+    /** For completeness' sake, though it's not in java.util.Random.  */
+
+    public byte nextByte()
+        {
+<span class="nc" id="L606">        return (byte)(next(8));</span>
+        }
+
+    /** 
+        Clears the internal gaussian variable from the RNG.  You only need to do this
+        in the rare case that you need to guarantee that two RNGs have identical internal
+        state.  Otherwise, disregard this method. See stateEquals(other).
+    */
+<span class="nc" id="L614">    public synchronized void clearGaussian() { __haveNextNextGaussian = false; }</span>
+
+    /** A bug fix for all JDK code including 1.2.  nextGaussian can theoretically
+        ask for the log of 0 and divide it by 0! See Java bug 
+        &lt;a href=&quot;http://developer.java.sun.com/developer/bugParade/bugs/4254501.html&quot;&gt;
+        http://developer.java.sun.com/developer/bugParade/bugs/4254501.html&lt;/a&gt;
+    */
+
+    synchronized public double nextGaussian() 
+        {
+<span class="nc bnc" id="L624" title="All 2 branches missed.">        if (__haveNextNextGaussian) </span>
+            {
+<span class="nc" id="L626">            __haveNextNextGaussian = false;</span>
+<span class="nc" id="L627">            return __nextNextGaussian;</span>
+            }
+        else 
+            {
+            double v1, v2, s;
+            do 
+                { 
+<span class="nc" id="L634">                v1 = 2 * nextDouble() - 1; // between -1.0 and 1.0</span>
+<span class="nc" id="L635">                v2 = 2 * nextDouble() - 1; // between -1.0 and 1.0</span>
+<span class="nc" id="L636">                s = v1 * v1 + v2 * v2;</span>
+<span class="nc bnc" id="L637" title="All 4 branches missed.">                } while (s &gt;= 1 || s==0 );</span>
+<span class="nc" id="L638">            double multiplier = StrictMath.sqrt(-2 * StrictMath.log(s)/s);</span>
+<span class="nc" id="L639">            __nextNextGaussian = v2 * multiplier;</span>
+<span class="nc" id="L640">            __haveNextNextGaussian = true;</span>
+<span class="nc" id="L641">            return v1 * multiplier;</span>
+            }
+        }
+    
+    /**
+     * Tests the code.
+     */
+    public static void main(String args[])
+        { 
+        int j;
+
+        MersenneTwister r;
+
+        // CORRECTNESS TEST
+        // COMPARE WITH http://www.math.keio.ac.jp/matumoto/CODES/MT2002/mt19937ar.out
+        
+<span class="nc" id="L657">        r = new MersenneTwister(new int[]{0x123, 0x234, 0x345, 0x456});</span>
+<span class="nc" id="L658">        System.out.println(&quot;Output of MersenneTwister with new (2002/1/26) seeding mechanism&quot;);</span>
+<span class="nc bnc" id="L659" title="All 2 branches missed.">        for (j=0;j&lt;1000;j++)</span>
+            {
+            // first, convert the int from signed to &quot;unsigned&quot;
+<span class="nc" id="L662">            long l = (long)r.nextInt();</span>
+<span class="nc bnc" id="L663" title="All 2 branches missed.">            if (l &lt; 0 ) l += 4294967296L;  // max int value</span>
+<span class="nc" id="L664">            String s = String.valueOf(l);</span>
+<span class="nc bnc" id="L665" title="All 2 branches missed.">            while(s.length() &lt; 10) s = &quot; &quot; + s;  // buffer</span>
+<span class="nc" id="L666">            System.out.print(s + &quot; &quot;);</span>
+<span class="nc bnc" id="L667" title="All 2 branches missed.">            if (j%5==4) System.out.println();       </span>
+            }
+
+        // SPEED TEST
+
+<span class="nc" id="L672">        final long SEED = 4357L;</span>
+
+        int xx; long ms;
+<span class="nc" id="L675">        System.out.println(&quot;\nTime to test grabbing 100000000 ints&quot;);</span>
+          
+<span class="nc" id="L677">        r = new MersenneTwister(SEED);</span>
+<span class="nc" id="L678">        ms = System.currentTimeMillis();</span>
+<span class="nc" id="L679">        xx=0;</span>
+<span class="nc bnc" id="L680" title="All 2 branches missed.">        for (j = 0; j &lt; 100000000; j++)</span>
+<span class="nc" id="L681">            xx += r.nextInt();</span>
+<span class="nc" id="L682">        System.out.println(&quot;Mersenne Twister: &quot; + (System.currentTimeMillis()-ms) + &quot;          Ignore this: &quot; + xx);</span>
+
+<span class="nc" id="L684">        System.out.println(&quot;To compare this with java.util.Random, run this same test on MersenneTwisterFast.&quot;);</span>
+<span class="nc" id="L685">        System.out.println(&quot;The comparison with Random is removed from MersenneTwister because it is a proper&quot;);</span>
+<span class="nc" id="L686">        System.out.println(&quot;subclass of Random and this unfairly makes some of Random's methods un-inlinable,&quot;);</span>
+<span class="nc" id="L687">        System.out.println(&quot;so it would make Random look worse than it is.&quot;);</span>
+
+        // TEST TO COMPARE TYPE CONVERSION BETWEEN
+        // MersenneTwisterFast.java AND MersenneTwister.java
+
+        
+<span class="nc" id="L693">        System.out.println(&quot;\nGrab the first 1000 booleans&quot;);</span>
+<span class="nc" id="L694">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L695" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L697">            System.out.print(r.nextBoolean() + &quot; &quot;);</span>
+<span class="nc bnc" id="L698" title="All 2 branches missed.">            if (j%8==7) System.out.println();</span>
+            }
+<span class="nc bnc" id="L700" title="All 2 branches missed.">        if (!(j%8==7)) System.out.println();</span>
+          
+<span class="nc" id="L702">        System.out.println(&quot;\nGrab 1000 booleans of increasing probability using nextBoolean(double)&quot;);</span>
+<span class="nc" id="L703">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L704" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L706">            System.out.print(r.nextBoolean((double)(j/999.0)) + &quot; &quot;);</span>
+<span class="nc bnc" id="L707" title="All 2 branches missed.">            if (j%8==7) System.out.println();</span>
+            }
+<span class="nc bnc" id="L709" title="All 2 branches missed.">        if (!(j%8==7)) System.out.println();</span>
+          
+<span class="nc" id="L711">        System.out.println(&quot;\nGrab 1000 booleans of increasing probability using nextBoolean(float)&quot;);</span>
+<span class="nc" id="L712">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L713" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L715">            System.out.print(r.nextBoolean((float)(j/999.0f)) + &quot; &quot;);</span>
+<span class="nc bnc" id="L716" title="All 2 branches missed.">            if (j%8==7) System.out.println();</span>
+            }
+<span class="nc bnc" id="L718" title="All 2 branches missed.">        if (!(j%8==7)) System.out.println();</span>
+          
+<span class="nc" id="L720">        byte[] bytes = new byte[1000];</span>
+<span class="nc" id="L721">        System.out.println(&quot;\nGrab the first 1000 bytes using nextBytes&quot;);</span>
+<span class="nc" id="L722">        r = new MersenneTwister(SEED);</span>
+<span class="nc" id="L723">        r.nextBytes(bytes);</span>
+<span class="nc bnc" id="L724" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L726">            System.out.print(bytes[j] + &quot; &quot;);</span>
+<span class="nc bnc" id="L727" title="All 2 branches missed.">            if (j%16==15) System.out.println();</span>
+            }
+<span class="nc bnc" id="L729" title="All 2 branches missed.">        if (!(j%16==15)) System.out.println();</span>
+        
+        byte b;
+<span class="nc" id="L732">        System.out.println(&quot;\nGrab the first 1000 bytes -- must be same as nextBytes&quot;);</span>
+<span class="nc" id="L733">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L734" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L736">            System.out.print((b = r.nextByte()) + &quot; &quot;);</span>
+<span class="nc bnc" id="L737" title="All 2 branches missed.">            if (b!=bytes[j]) System.out.print(&quot;BAD &quot;);</span>
+<span class="nc bnc" id="L738" title="All 2 branches missed.">            if (j%16==15) System.out.println();</span>
+            }
+<span class="nc bnc" id="L740" title="All 2 branches missed.">        if (!(j%16==15)) System.out.println();</span>
+
+<span class="nc" id="L742">        System.out.println(&quot;\nGrab the first 1000 shorts&quot;);</span>
+<span class="nc" id="L743">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L744" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L746">            System.out.print(r.nextShort() + &quot; &quot;);</span>
+<span class="nc bnc" id="L747" title="All 2 branches missed.">            if (j%8==7) System.out.println();</span>
+            }
+<span class="nc bnc" id="L749" title="All 2 branches missed.">        if (!(j%8==7)) System.out.println();</span>
+
+<span class="nc" id="L751">        System.out.println(&quot;\nGrab the first 1000 ints&quot;);</span>
+<span class="nc" id="L752">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L753" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L755">            System.out.print(r.nextInt() + &quot; &quot;);</span>
+<span class="nc bnc" id="L756" title="All 2 branches missed.">            if (j%4==3) System.out.println();</span>
+            }
+<span class="nc bnc" id="L758" title="All 2 branches missed.">        if (!(j%4==3)) System.out.println();</span>
+
+<span class="nc" id="L760">        System.out.println(&quot;\nGrab the first 1000 ints of different sizes&quot;);</span>
+<span class="nc" id="L761">        r = new MersenneTwister(SEED);</span>
+<span class="nc" id="L762">        int max = 1;</span>
+<span class="nc bnc" id="L763" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L765">            System.out.print(r.nextInt(max) + &quot; &quot;);</span>
+<span class="nc" id="L766">            max *= 2;</span>
+<span class="nc bnc" id="L767" title="All 2 branches missed.">            if (max &lt;= 0) max = 1;</span>
+<span class="nc bnc" id="L768" title="All 2 branches missed.">            if (j%4==3) System.out.println();</span>
+            }
+<span class="nc bnc" id="L770" title="All 2 branches missed.">        if (!(j%4==3)) System.out.println();</span>
+
+<span class="nc" id="L772">        System.out.println(&quot;\nGrab the first 1000 longs&quot;);</span>
+<span class="nc" id="L773">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L774" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L776">            System.out.print(r.nextLong() + &quot; &quot;);</span>
+<span class="nc bnc" id="L777" title="All 2 branches missed.">            if (j%3==2) System.out.println();</span>
+            }
+<span class="nc bnc" id="L779" title="All 2 branches missed.">        if (!(j%3==2)) System.out.println();</span>
+
+<span class="nc" id="L781">        System.out.println(&quot;\nGrab the first 1000 longs of different sizes&quot;);</span>
+<span class="nc" id="L782">        r = new MersenneTwister(SEED);</span>
+<span class="nc" id="L783">        long max2 = 1;</span>
+<span class="nc bnc" id="L784" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L786">            System.out.print(r.nextLong(max2) + &quot; &quot;);</span>
+<span class="nc" id="L787">            max2 *= 2;</span>
+<span class="nc bnc" id="L788" title="All 2 branches missed.">            if (max2 &lt;= 0) max2 = 1;</span>
+<span class="nc bnc" id="L789" title="All 2 branches missed.">            if (j%4==3) System.out.println();</span>
+            }
+<span class="nc bnc" id="L791" title="All 2 branches missed.">        if (!(j%4==3)) System.out.println();</span>
+          
+<span class="nc" id="L793">        System.out.println(&quot;\nGrab the first 1000 floats&quot;);</span>
+<span class="nc" id="L794">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L795" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L797">            System.out.print(r.nextFloat() + &quot; &quot;);</span>
+<span class="nc bnc" id="L798" title="All 2 branches missed.">            if (j%4==3) System.out.println();</span>
+            }
+<span class="nc bnc" id="L800" title="All 2 branches missed.">        if (!(j%4==3)) System.out.println();</span>
+
+<span class="nc" id="L802">        System.out.println(&quot;\nGrab the first 1000 doubles&quot;);</span>
+<span class="nc" id="L803">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L804" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L806">            System.out.print(r.nextDouble() + &quot; &quot;);</span>
+<span class="nc bnc" id="L807" title="All 2 branches missed.">            if (j%3==2) System.out.println();</span>
+            }
+<span class="nc bnc" id="L809" title="All 2 branches missed.">        if (!(j%3==2)) System.out.println();</span>
+
+<span class="nc" id="L811">        System.out.println(&quot;\nGrab the first 1000 gaussian doubles&quot;);</span>
+<span class="nc" id="L812">        r = new MersenneTwister(SEED);</span>
+<span class="nc bnc" id="L813" title="All 2 branches missed.">        for (j = 0; j &lt; 1000; j++)</span>
+            {
+<span class="nc" id="L815">            System.out.print(r.nextGaussian() + &quot; &quot;);</span>
+<span class="nc bnc" id="L816" title="All 2 branches missed.">            if (j%3==2) System.out.println();</span>
+            }
+<span class="nc bnc" id="L818" title="All 2 branches missed.">        if (!(j%3==2)) System.out.println();</span>
+        
+<span class="nc" id="L820">        }</span>
+    
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

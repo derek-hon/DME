@@ -1,0 +1,659 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Particle.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.pso</a> &gt; <span class="el_source">Particle.java</span></div><h1>Particle.java</h1><pre class="source lang-java linenums">package ec.pso ;
+
+import ec.* ;
+import ec.vector.*;
+import ec.util.*;
+import java.util.* ;
+import java.io.*;
+
+/*
+ * Particle.java
+ * Created: Thu May  2 17:09:40 EDT 2013
+ */
+
+/**
+ * Particle is a DoubleVectorIndividual with additional statistical information
+ * necessary to perform Particle Swarm Optimization.  Specifically, it has a 
+ * VELOCITY, a NEIGHBORHOOD of indexes of individuals, a NEIGHBORHOOD BEST genome
+ * and fitness, and a PERSONAL BEST genome and fitness.  These elements, plus the
+ * GLOBAL BEST genome and fitness found in PSOBreeder, are used to collectively
+ * update the particle's location in space.
+ *
+ * &lt;p&gt; Particle updates its location in two steps.  First, it gathers current
+ * neighborhood and personal best statistics via the update(...) method.  Then
+ * it updates the particle's velocity and location (genome) according to these
+ * statistics in the tweak(...) method.  Notice that neither of these methods is
+ * the defaultMutate(...) method used in DoubleVectorIndividual: this means that
+ * in *theory* you could rig up Particles to also be mutated if you thought that
+ * was a good reason.
+ * 
+ * &lt;p&gt; Many of the parameters passed into the tweak(...) method are based on
+ * weights determined by the PSOBreeder.
+ *
+ * @author Khaled Ahsan Talukder
+ */
+
+
+<span class="nc" id="L37">public class Particle extends DoubleVectorIndividual</span>
+    {
+    public static final String AUXILLARY_PREAMBLE = &quot;Auxillary: &quot;;
+        
+    // my velocity
+    public double[] velocity ;
+        
+    // the individuals in my neighborhood
+<span class="nc" id="L45">    public int[] neighborhood = null ;</span>
+
+    // the best genome and fitness members of my neighborhood ever achieved
+<span class="nc" id="L48">    public double[] neighborhoodBestGenome = null;</span>
+<span class="nc" id="L49">    public Fitness neighborhoodBestFitness = null;</span>
+
+    // the best genome and fitness *I* personally ever achieved
+<span class="nc" id="L52">    public double[] personalBestGenome = null;</span>
+<span class="nc" id="L53">    public Fitness personalBestFitness = null;</span>
+
+    public int hashCode()
+        {
+<span class="nc" id="L57">        int hash = super.hashCode();</span>
+        // no need to change anything I think
+<span class="nc" id="L59">        return hash;</span>
+        }
+
+
+    public boolean equals(Object ind)
+        {
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (!super.equals(ind)) return false;</span>
+<span class="nc" id="L66">        Particle i = (Particle) ind;</span>
+
+<span class="nc bnc" id="L68" title="All 8 branches missed.">        if ((velocity == null &amp;&amp; i.velocity != null) ||</span>
+            (velocity != null &amp;&amp; i.velocity == null))
+<span class="nc" id="L70">            return false;</span>
+                        
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (velocity != null)</span>
+            {
+<span class="nc bnc" id="L74" title="All 2 branches missed.">            if (velocity.length != i.velocity.length)</span>
+<span class="nc" id="L75">                return false;</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            for (int j = 0; j &lt; velocity.length; j++)</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                if (velocity[j] != i.velocity[j])</span>
+<span class="nc" id="L78">                    return false;</span>
+            }
+                        
+<span class="nc bnc" id="L81" title="All 8 branches missed.">        if ((neighborhood == null &amp;&amp; i.neighborhood != null) ||</span>
+            (neighborhood != null &amp;&amp; i.neighborhood == null))
+<span class="nc" id="L83">            return false;</span>
+                        
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (neighborhood != null)</span>
+            {
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            if (neighborhood.length != i.neighborhood.length)</span>
+<span class="nc" id="L88">                return false;</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">            for (int j = 0; j &lt; neighborhood.length; j++)</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">                if (neighborhood[j] != i.neighborhood[j])</span>
+<span class="nc" id="L91">                    return false;</span>
+            }
+
+<span class="nc bnc" id="L94" title="All 8 branches missed.">        if ((neighborhoodBestGenome == null &amp;&amp; i.neighborhoodBestGenome != null) ||</span>
+            (neighborhoodBestGenome != null &amp;&amp; i.neighborhoodBestGenome == null))
+<span class="nc" id="L96">            return false;</span>
+                        
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (neighborhoodBestGenome != null)</span>
+            {
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            if (neighborhoodBestGenome.length != i.neighborhoodBestGenome.length)</span>
+<span class="nc" id="L101">                return false;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            for (int j = 0; j &lt; neighborhoodBestGenome.length; j++)</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">                if (neighborhoodBestGenome[j] != i.neighborhoodBestGenome[j])</span>
+<span class="nc" id="L104">                    return false;</span>
+            }
+                        
+<span class="nc bnc" id="L107" title="All 8 branches missed.">        if ((neighborhoodBestFitness == null &amp;&amp; i.neighborhoodBestFitness != null) ||</span>
+            (neighborhoodBestFitness != null &amp;&amp; i.neighborhoodBestFitness == null))
+<span class="nc" id="L109">            return false;</span>
+                        
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if (neighborhoodBestFitness != null)</span>
+            {
+<span class="nc bnc" id="L113" title="All 2 branches missed.">            if (!neighborhoodBestFitness.equals(i.neighborhoodBestFitness))</span>
+<span class="nc" id="L114">                return false;</span>
+            }
+
+<span class="nc bnc" id="L117" title="All 8 branches missed.">        if ((personalBestGenome == null &amp;&amp; i.personalBestGenome != null) ||</span>
+            (personalBestGenome != null &amp;&amp; i.personalBestGenome == null))
+<span class="nc" id="L119">            return false;</span>
+                        
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (personalBestGenome != null)</span>
+            {
+<span class="nc bnc" id="L123" title="All 2 branches missed.">            if (personalBestGenome.length != i.personalBestGenome.length)</span>
+<span class="nc" id="L124">                return false;</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            for (int j = 0; j &lt; personalBestGenome.length; j++)</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">                if (personalBestGenome[j] != i.personalBestGenome[j])</span>
+<span class="nc" id="L127">                    return false;</span>
+            }
+
+<span class="nc bnc" id="L130" title="All 8 branches missed.">        if ((personalBestFitness == null &amp;&amp; i.personalBestFitness != null) ||</span>
+            (personalBestFitness != null &amp;&amp; i.personalBestFitness == null))
+<span class="nc" id="L132">            return false;</span>
+                        
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (personalBestFitness != null)</span>
+            {
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            if (!personalBestFitness.equals(i.personalBestFitness))</span>
+<span class="nc" id="L137">                return false;</span>
+            }
+
+<span class="nc" id="L140">        return true;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L145">        super.setup(state, base);</span>
+<span class="nc" id="L146">        velocity = new double[genome.length] ;</span>
+<span class="nc" id="L147">        }</span>
+        
+
+    public Object clone()
+        {
+<span class="nc" id="L152">        Particle myobj = (Particle) (super.clone());</span>
+        // must clone the velocity and neighborhood pattern if they exist
+<span class="nc bnc" id="L154" title="All 2 branches missed.">        if (velocity != null) velocity = (double[])(velocity.clone());</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        if (neighborhood != null) neighborhood = (int[])(neighborhood.clone());</span>
+<span class="nc" id="L156">        return myobj;</span>
+        }
+
+    public void update(final EvolutionState state, int subpop, int myindex, int thread)
+        {
+        // update personal best
+<span class="nc bnc" id="L162" title="All 4 branches missed.">        if (personalBestFitness == null || fitness.betterThan(personalBestFitness))</span>
+            {
+<span class="nc" id="L164">            personalBestFitness = (Fitness)(fitness.clone());</span>
+<span class="nc" id="L165">            personalBestGenome = (double[])(genome.clone());</span>
+            }
+        
+        // initialize neighborhood if it's not been created yet
+<span class="nc" id="L169">        PSOBreeder psob = (PSOBreeder)(state.breeder);</span>
+<span class="nc bnc" id="L170" title="All 4 branches missed.">        if (neighborhood == null || psob.neighborhood == psob.C_NEIGHBORHOOD_RANDOM_EACH_TIME)</span>
+            {
+<span class="nc bnc" id="L172" title="All 2 branches missed.">            if (psob.neighborhood == psob.C_NEIGHBORHOOD_RANDOM) // &quot;random&quot; scheme is the only thing that is available for now</span>
+<span class="nc" id="L173">                neighborhood = createRandomPattern(myindex, psob.includeSelf, </span>
+<span class="nc" id="L174">                    state.population.subpops.get(subpop).individuals.size(), psob.neighborhoodSize, state, thread);</span>
+<span class="nc bnc" id="L175" title="All 4 branches missed.">            else if (psob.neighborhood == psob.C_NEIGHBORHOOD_TOROIDAL || psob.neighborhood == psob.C_NEIGHBORHOOD_RANDOM_EACH_TIME)</span>
+<span class="nc" id="L176">                neighborhood = createToroidalPattern(myindex, psob.includeSelf,</span>
+<span class="nc" id="L177">                    state.population.subpops.get(subpop).individuals.size(), psob.neighborhoodSize);</span>
+            else // huh?
+<span class="nc" id="L179">                state.output.fatal(&quot;internal error: invalid PSO neighborhood style: &quot; + psob.neighborhood);</span>
+            }
+
+        // identify neighborhood best
+<span class="nc" id="L183">        neighborhoodBestFitness = fitness;  // initially me</span>
+<span class="nc" id="L184">        neighborhoodBestGenome = genome;</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        for(int i = 0 ; i &lt; neighborhood.length ; i++)</span>
+            {
+<span class="nc" id="L187">            int ind = neighborhood[i] ;</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">            if (state.population.subpops.get(subpop).individuals.get(ind).fitness.betterThan(fitness))</span>
+                {
+<span class="nc" id="L190">                neighborhoodBestFitness = state.population.subpops.get(subpop).individuals.get(ind).fitness;</span>
+<span class="nc" id="L191">                neighborhoodBestGenome = ((DoubleVectorIndividual)(state.population.subpops.get(subpop).individuals.get(ind))).genome;</span>
+                }
+            }
+                
+        // clone neighborhood best
+<span class="nc" id="L196">        neighborhoodBestFitness = (Fitness)(neighborhoodBestFitness.clone());</span>
+<span class="nc" id="L197">        neighborhoodBestGenome = (double[])(neighborhoodBestGenome.clone());</span>
+<span class="nc" id="L198">        }</span>
+
+    // velocityCoeff:       cognitive/confidence coefficient for the velocity
+    // personalCoeff:       cognitive/confidence coefficient for self
+    // informantCoeff:      cognitive/confidence coefficient for informants/neighbours
+    // globalCoeff:         cognitive/confidence coefficient for global best, this is not done in the standard PSO
+    public void tweak(
+        EvolutionState state,  double[] globalBest,
+        double velocityCoeff, double personalCoeff, 
+        double informantCoeff, double globalCoeff, 
+        int thread)
+        {
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        for(int x = 0 ; x &lt; genomeLength() ; x++)</span>
+            {
+<span class="nc" id="L212">            double xCurrent = genome[x] ;</span>
+<span class="nc" id="L213">            double xPersonal = personalBestGenome[x] ;</span>
+<span class="nc" id="L214">            double xNeighbour = neighborhoodBestGenome[x] ;</span>
+<span class="nc" id="L215">            double xGlobal = globalBest[x] ;</span>
+<span class="nc" id="L216">            double beta = state.random[thread].nextDouble() * personalCoeff ;</span>
+<span class="nc" id="L217">            double gamma = state.random[thread].nextDouble() * informantCoeff ;</span>
+<span class="nc" id="L218">            double delta = state.random[thread].nextDouble() * globalCoeff ;</span>
+
+<span class="nc" id="L220">            double newVelocity = (velocityCoeff * velocity[x]) + (beta * (xPersonal - xCurrent)) + (gamma * (xNeighbour - xCurrent)) + (delta * (xGlobal - xCurrent)) ;</span>
+<span class="nc" id="L221">            velocity[x] = newVelocity ;</span>
+<span class="nc" id="L222">            genome[x] += newVelocity ;</span>
+            }
+                
+<span class="nc" id="L225">        evaluated = false ;</span>
+        
+        // printIndividual(state, 0);
+        
+<span class="nc" id="L229">        }</span>
+
+    // Creates a toroidal neighborhood pattern for the individual
+    int[] createRandomPattern(int myIndex, boolean includeSelf, int popsize, int neighborhoodSize, EvolutionState state, int threadnum)
+        {
+<span class="nc" id="L234">        MersenneTwisterFast mtf = state.random[threadnum];</span>
+<span class="nc" id="L235">        HashSet already = new HashSet();</span>
+<span class="nc" id="L236">        int[] neighbors = null;</span>
+        
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (includeSelf)</span>
+            {
+<span class="nc" id="L240">            neighbors = new int[neighborhoodSize + 1];</span>
+<span class="nc" id="L241">            neighbors[neighborhoodSize] = myIndex;  // put me at the top</span>
+<span class="nc" id="L242">            already.add(Integer.valueOf(myIndex));</span>
+            }
+        else
+<span class="nc" id="L245">            neighbors = new int[neighborhoodSize];</span>
+        
+<span class="nc" id="L247">        Integer n = null;</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        for(int i = 0; i &lt; neighborhoodSize; i++)</span>
+            {
+            do
+                {
+<span class="nc" id="L252">                neighbors[i] = mtf.nextInt(popsize);</span>
+<span class="nc" id="L253">                n = Integer.valueOf(neighbors[i]);</span>
+                }
+<span class="nc bnc" id="L255" title="All 2 branches missed.">            while (already.contains(n));</span>
+<span class="nc" id="L256">            already.add(n);</span>
+            }
+<span class="nc" id="L258">        return neighbors;</span>
+
+        }
+
+    // Creates a toroidal neighborhood pattern for the individual indexed by 'myindex'
+    int[] createToroidalPattern(int myindex, boolean includeSelf, int popsize, int neighborhoodSize)
+        {
+<span class="nc" id="L265">        int[] neighbors = null;</span>
+
+<span class="nc bnc" id="L267" title="All 2 branches missed.">        if (includeSelf)</span>
+            {
+<span class="nc" id="L269">            neighbors = new int[neighborhoodSize + 1];</span>
+<span class="nc" id="L270">            neighbors[neighborhoodSize] = myindex;  // put me at the top</span>
+            }
+        else
+<span class="nc" id="L273">            neighbors = new int[neighborhoodSize];</span>
+        
+<span class="nc" id="L275">        int pos = 0;</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">        for(int i = myindex - neighborhoodSize / 2; i &lt; myindex; i++)</span>
+            {
+<span class="nc" id="L278">            neighbors[pos++] = ((i % popsize) + popsize) % popsize;</span>
+            }
+                
+<span class="nc bnc" id="L281" title="All 2 branches missed.">        for(int i = myindex + 1; i &lt; neighborhoodSize - (neighborhoodSize / 2) + 1; i++)</span>
+            {
+<span class="nc" id="L283">            neighbors[pos++] = ((i % popsize) + popsize) % popsize;</span>
+            }
+
+<span class="nc" id="L286">        return neighbors;</span>
+        }
+        
+        
+        
+        
+    /// The following methods handle modifying the auxillary data when the
+    /// genome is messed around with.
+    
+    void resetAuxillaryInformation()
+        {
+<span class="nc" id="L297">        neighborhood = null;</span>
+<span class="nc" id="L298">        neighborhoodBestGenome = null;</span>
+<span class="nc" id="L299">        neighborhoodBestFitness = null;</span>
+<span class="nc" id="L300">        personalBestGenome = null;</span>
+<span class="nc" id="L301">        personalBestFitness = null;</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        for(int i = 0; i &lt; velocity.length; i++)</span>
+<span class="nc" id="L303">            velocity[i] = 0.0;</span>
+<span class="nc" id="L304">        }</span>
+        
+    public void reset(EvolutionState state, int thread)
+        {
+<span class="nc" id="L308">        super.reset(state, thread);</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">        if (genome.length != velocity.length)</span>
+<span class="nc" id="L310">            velocity = new double[genome.length];</span>
+<span class="nc" id="L311">        resetAuxillaryInformation();</span>
+<span class="nc" id="L312">        }</span>
+    
+    // This would be exceptionally weird to use in a PSO context, but for
+    // consistency's sake...
+    public void setGenomeLength(int len)
+        {
+<span class="nc" id="L318">        super.setGenomeLength(len);</span>
+        
+        // we always reset regardless of whether the length is the same
+<span class="nc bnc" id="L321" title="All 2 branches missed.">        if (genome.length != velocity.length)</span>
+<span class="nc" id="L322">            velocity = new double[genome.length];</span>
+<span class="nc" id="L323">        resetAuxillaryInformation();</span>
+<span class="nc" id="L324">        }</span>
+        
+    // This would be exceptionally weird to use in a PSO context, but for
+    // consistency's sake...
+    public void setGenome(Object gen)
+        {
+<span class="nc" id="L330">        super.setGenome(gen);</span>
+        
+        // we always reset regardless of whether the length is the same
+<span class="nc bnc" id="L333" title="All 2 branches missed.">        if (genome.length != velocity.length)</span>
+<span class="nc" id="L334">            velocity = new double[genome.length];</span>
+<span class="nc" id="L335">        resetAuxillaryInformation();</span>
+<span class="nc" id="L336">        }</span>
+
+    // This would be exceptionally weird to use in a PSO context, but for
+    // consistency's sake...
+    public void join(Object[] pieces)
+        {
+<span class="nc" id="L342">        super.join(pieces);</span>
+        
+        // we always reset regardless of whether the length is the same
+<span class="nc bnc" id="L345" title="All 2 branches missed.">        if (genome.length != velocity.length)</span>
+<span class="nc" id="L346">            velocity = new double[genome.length];</span>
+<span class="nc" id="L347">        resetAuxillaryInformation();</span>
+<span class="nc" id="L348">        }</span>
+        
+        
+    
+    
+    /// gunk for reading and writing, but trying to preserve some of the 
+    /// auxillary information
+        
+    StringBuilder encodeAuxillary()
+        {
+<span class="nc" id="L358">        StringBuilder s = new StringBuilder();</span>
+<span class="nc" id="L359">        s.append(AUXILLARY_PREAMBLE);</span>
+<span class="nc" id="L360">        s.append(Code.encode(true));</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">        s.append(Code.encode(neighborhood!=null));</span>
+<span class="nc bnc" id="L362" title="All 2 branches missed.">        s.append(Code.encode(neighborhoodBestGenome != null));</span>
+<span class="nc bnc" id="L363" title="All 2 branches missed.">        s.append(Code.encode(neighborhoodBestFitness != null));</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">        s.append(Code.encode(personalBestGenome != null));</span>
+<span class="nc bnc" id="L365" title="All 2 branches missed.">        s.append(Code.encode(personalBestFitness != null));</span>
+<span class="nc" id="L366">        s.append(&quot;\n&quot;);</span>
+        
+        // velocity
+<span class="nc" id="L369">        s.append(Code.encode(velocity.length));</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">        for(int i = 0; i &lt; velocity.length; i++)</span>
+<span class="nc" id="L371">            s.append(Code.encode(velocity[i]));</span>
+<span class="nc" id="L372">        s.append(&quot;\n&quot;);</span>
+        
+        // neighborhood 
+<span class="nc bnc" id="L375" title="All 2 branches missed.">        if (neighborhood != null)</span>
+            {
+<span class="nc" id="L377">            s.append(Code.encode(neighborhood.length));</span>
+<span class="nc bnc" id="L378" title="All 2 branches missed.">            for(int i = 0; i &lt; neighborhood.length; i++)</span>
+<span class="nc" id="L379">                s.append(Code.encode(neighborhood[i]));</span>
+<span class="nc" id="L380">            s.append(&quot;\n&quot;);</span>
+            }
+
+        // neighborhood best
+<span class="nc bnc" id="L384" title="All 2 branches missed.">        if (neighborhoodBestGenome != null)</span>
+            {
+<span class="nc" id="L386">            s.append(Code.encode(neighborhoodBestGenome.length));</span>
+<span class="nc bnc" id="L387" title="All 2 branches missed.">            for(int i = 0; i &lt; neighborhoodBestGenome.length; i++)</span>
+<span class="nc" id="L388">                s.append(Code.encode(neighborhoodBestGenome[i]));</span>
+<span class="nc" id="L389">            s.append(&quot;\n&quot;);</span>
+            }
+
+<span class="nc bnc" id="L392" title="All 2 branches missed.">        if (neighborhoodBestFitness != null)</span>
+<span class="nc" id="L393">            s.append(neighborhoodBestFitness.fitnessToString());</span>
+
+        // personal     best
+<span class="nc bnc" id="L396" title="All 2 branches missed.">        if (personalBestGenome != null)</span>
+            {
+<span class="nc" id="L398">            s.append(Code.encode(personalBestGenome.length));</span>
+<span class="nc bnc" id="L399" title="All 2 branches missed.">            for(int i = 0; i &lt; personalBestGenome.length; i++)</span>
+<span class="nc" id="L400">                s.append(Code.encode(personalBestGenome[i]));</span>
+<span class="nc" id="L401">            s.append(&quot;\n&quot;);</span>
+            }
+
+<span class="nc bnc" id="L404" title="All 2 branches missed.">        if (personalBestFitness != null)</span>
+<span class="nc" id="L405">            s.append(personalBestFitness.fitnessToString());</span>
+<span class="nc" id="L406">        s.append(&quot;\n&quot;);</span>
+                
+<span class="nc" id="L408">        return s;</span>
+        }
+    
+    public void printIndividual(final EvolutionState state, final int log)
+        {
+<span class="nc" id="L413">        super.printIndividual(state, log);</span>
+<span class="nc" id="L414">        state.output.println(encodeAuxillary().toString(), log);</span>
+<span class="nc" id="L415">        }</span>
+
+    public void printIndividual(final EvolutionState state, final PrintWriter writer)
+        {
+<span class="nc" id="L419">        super.printIndividual(state, writer);</span>
+<span class="nc" id="L420">        writer.println(encodeAuxillary().toString());</span>
+<span class="nc" id="L421">        }</span>
+
+    public void readIndividual(final EvolutionState state, 
+        final LineNumberReader reader)
+        throws IOException
+        {
+<span class="nc" id="L427">        super.readIndividual(state, reader);</span>
+        
+        // Next, read auxillary header.
+<span class="nc" id="L430">        DecodeReturn d = new DecodeReturn(Code.readStringWithPreamble(AUXILLARY_PREAMBLE, state, reader));</span>
+<span class="nc" id="L431">        Code.decode(d);</span>
+<span class="nc bnc" id="L432" title="All 2 branches missed.">        if (d.type != DecodeReturn.T_BOOLEAN)</span>
+<span class="nc" id="L433">            state.output.fatal(&quot;Line &quot; + d.lineNumber + &quot; should have six boolean values but seems to have fewer.&quot;);</span>
+<span class="nc bnc" id="L434" title="All 2 branches missed.">        boolean v = (d.l != 0);</span>
+<span class="nc" id="L435">        Code.decode(d);</span>
+<span class="nc bnc" id="L436" title="All 2 branches missed.">        if (d.type != DecodeReturn.T_BOOLEAN)</span>
+<span class="nc" id="L437">            state.output.fatal(&quot;Line &quot; + d.lineNumber + &quot; should have six boolean values but seems to have fewer.&quot;);</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">        boolean n = (d.l != 0);</span>
+<span class="nc" id="L439">        Code.decode(d);</span>
+<span class="nc bnc" id="L440" title="All 2 branches missed.">        if (d.type != DecodeReturn.T_BOOLEAN)</span>
+<span class="nc" id="L441">            state.output.fatal(&quot;Line &quot; + d.lineNumber + &quot; should have six boolean values but seems to have fewer.&quot;);</span>
+<span class="nc bnc" id="L442" title="All 2 branches missed.">        boolean nb = (d.l != 0);</span>
+<span class="nc" id="L443">        Code.decode(d);</span>
+<span class="nc bnc" id="L444" title="All 2 branches missed.">        if (d.type != DecodeReturn.T_BOOLEAN)</span>
+<span class="nc" id="L445">            state.output.fatal(&quot;Line &quot; + d.lineNumber + &quot; should have six boolean values but seems to have fewer.&quot;);</span>
+<span class="nc bnc" id="L446" title="All 2 branches missed.">        boolean nbf = (d.l != 0);</span>
+<span class="nc" id="L447">        Code.decode(d);</span>
+<span class="nc bnc" id="L448" title="All 2 branches missed.">        if (d.type != DecodeReturn.T_BOOLEAN)</span>
+<span class="nc" id="L449">            state.output.fatal(&quot;Line &quot; + d.lineNumber + &quot; should have six boolean values but seems to have fewer.&quot;);</span>
+<span class="nc bnc" id="L450" title="All 2 branches missed.">        boolean pb = (d.l != 0);</span>
+<span class="nc" id="L451">        Code.decode(d);</span>
+<span class="nc bnc" id="L452" title="All 2 branches missed.">        if (d.type != DecodeReturn.T_BOOLEAN)</span>
+<span class="nc" id="L453">            state.output.fatal(&quot;Line &quot; + d.lineNumber + &quot; should have six boolean values but seems to have fewer.&quot;);</span>
+<span class="nc bnc" id="L454" title="All 2 branches missed.">        boolean pbf = (d.l != 0);</span>
+
+        // Next, read auxillary arrays.
+<span class="nc bnc" id="L457" title="All 2 branches missed.">        if (v)</span>
+            {
+<span class="nc" id="L459">            String s = reader.readLine();</span>
+<span class="nc" id="L460">            d = new DecodeReturn(s);</span>
+<span class="nc" id="L461">            Code.decode(d);</span>
+<span class="nc bnc" id="L462" title="All 2 branches missed.">            if (d.type != DecodeReturn.T_INT)</span>
+<span class="nc" id="L463">                state.output.fatal(&quot;Velocity length missing.&quot;);</span>
+<span class="nc" id="L464">            velocity = new double[(int)(d.l)];</span>
+<span class="nc bnc" id="L465" title="All 2 branches missed.">            for(int i = 0; i &lt; velocity.length; i++)</span>
+                {
+<span class="nc" id="L467">                Code.decode(d);</span>
+<span class="nc bnc" id="L468" title="All 2 branches missed.">                if (d.type != DecodeReturn.T_DOUBLE)</span>
+<span class="nc" id="L469">                    state.output.fatal(&quot;Velocity information not long enough&quot;);</span>
+<span class="nc" id="L470">                velocity[i] = d.d;</span>
+                }
+<span class="nc" id="L472">            }</span>
+<span class="nc" id="L473">        else velocity = new double[genome.length];</span>
+
+<span class="nc bnc" id="L475" title="All 2 branches missed.">        if (n)</span>
+            {
+<span class="nc" id="L477">            String s = reader.readLine();</span>
+<span class="nc" id="L478">            d = new DecodeReturn(s);</span>
+<span class="nc" id="L479">            Code.decode(d);</span>
+<span class="nc bnc" id="L480" title="All 2 branches missed.">            if (d.type != DecodeReturn.T_INT)</span>
+<span class="nc" id="L481">                state.output.fatal(&quot;Neighborhood length missing.&quot;);</span>
+<span class="nc" id="L482">            neighborhood = new int[(int)(d.l)];</span>
+<span class="nc bnc" id="L483" title="All 2 branches missed.">            for(int i = 0; i &lt; neighborhood.length; i++)</span>
+                {
+<span class="nc" id="L485">                Code.decode(d);</span>
+<span class="nc bnc" id="L486" title="All 2 branches missed.">                if (d.type != DecodeReturn.T_INT)</span>
+<span class="nc" id="L487">                    state.output.fatal(&quot;Neighborhood information not long enough&quot;);</span>
+<span class="nc" id="L488">                neighborhood[i] = (int)(d.l);</span>
+                }
+<span class="nc" id="L490">            }</span>
+<span class="nc" id="L491">        else neighborhood = null;</span>
+
+<span class="nc bnc" id="L493" title="All 2 branches missed.">        if (nb)</span>
+            {
+<span class="nc" id="L495">            String s = reader.readLine();</span>
+<span class="nc" id="L496">            d = new DecodeReturn(s);</span>
+<span class="nc" id="L497">            Code.decode(d);</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">            if (d.type != DecodeReturn.T_INT)</span>
+<span class="nc" id="L499">                state.output.fatal(&quot;Neighborhood-Best length missing.&quot;);</span>
+<span class="nc" id="L500">            neighborhoodBestGenome = new double[(int)(d.l)];</span>
+<span class="nc bnc" id="L501" title="All 2 branches missed.">            for(int i = 0; i &lt; neighborhoodBestGenome.length; i++)</span>
+                {
+<span class="nc" id="L503">                Code.decode(d);</span>
+<span class="nc bnc" id="L504" title="All 2 branches missed.">                if (d.type != DecodeReturn.T_DOUBLE)</span>
+<span class="nc" id="L505">                    state.output.fatal(&quot;Neighborhood-Best genome not long enough&quot;);</span>
+<span class="nc" id="L506">                neighborhoodBestGenome[i] = d.d;</span>
+                }
+<span class="nc" id="L508">            }</span>
+<span class="nc" id="L509">        else neighborhoodBestGenome = null;</span>
+
+<span class="nc bnc" id="L511" title="All 2 branches missed.">        if (nbf)</span>
+            {
+            // here we don't know what kind of fitness it is.  So we'll do our best and guess
+            // that it's the same fitness as our own Particle 
+<span class="nc" id="L515">            neighborhoodBestFitness = (Fitness)(fitness.clone());</span>
+<span class="nc" id="L516">            neighborhoodBestFitness.readFitness(state, reader);</span>
+            }
+
+<span class="nc bnc" id="L519" title="All 2 branches missed.">        if (pb)</span>
+            {
+<span class="nc" id="L521">            String s = reader.readLine();</span>
+<span class="nc" id="L522">            d = new DecodeReturn(s);</span>
+<span class="nc" id="L523">            Code.decode(d);</span>
+<span class="nc bnc" id="L524" title="All 2 branches missed.">            if (d.type != DecodeReturn.T_INT)</span>
+<span class="nc" id="L525">                state.output.fatal(&quot;Personal-Best length missing.&quot;);</span>
+<span class="nc" id="L526">            personalBestGenome = new double[(int)(d.l)];</span>
+<span class="nc bnc" id="L527" title="All 2 branches missed.">            for(int i = 0; i &lt; personalBestGenome.length; i++)</span>
+                {
+<span class="nc" id="L529">                Code.decode(d);</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">                if (d.type != DecodeReturn.T_DOUBLE)</span>
+<span class="nc" id="L531">                    state.output.fatal(&quot;Personal-Best genome not long enough&quot;);</span>
+<span class="nc" id="L532">                personalBestGenome[i] = d.d;</span>
+                }
+<span class="nc" id="L534">            }</span>
+<span class="nc" id="L535">        else personalBestGenome = null;</span>
+
+<span class="nc bnc" id="L537" title="All 2 branches missed.">        if (pbf)</span>
+            {
+            // here we don't know what kind of fitness it is.  So we'll do our best and guess
+            // that it's the same fitness as our own Particle 
+<span class="nc" id="L541">            personalBestFitness = (Fitness)(fitness.clone());</span>
+<span class="nc" id="L542">            personalBestFitness.readFitness(state, reader);</span>
+            }
+<span class="nc" id="L544">        }</span>
+
+    public void writeIndividual(final EvolutionState state,
+        final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L549">        super.writeIndividual(state, dataOutput);</span>
+        
+<span class="nc bnc" id="L551" title="All 2 branches missed.">        if (velocity != null)  // it's always non-null</span>
+            {
+<span class="nc" id="L553">            dataOutput.writeBoolean(true);</span>
+<span class="nc" id="L554">            dataOutput.writeInt(velocity.length);</span>
+<span class="nc bnc" id="L555" title="All 2 branches missed.">            for(int i = 0; i &lt; velocity.length; i++)</span>
+<span class="nc" id="L556">                dataOutput.writeDouble(velocity[i]);</span>
+            }
+<span class="nc" id="L558">        else dataOutput.writeBoolean(false);  // this will never happen</span>
+ 
+ 
+<span class="nc bnc" id="L561" title="All 2 branches missed.">        if (neighborhood != null)</span>
+            {
+<span class="nc" id="L563">            dataOutput.writeBoolean(true);</span>
+<span class="nc" id="L564">            dataOutput.writeInt(neighborhood.length);</span>
+<span class="nc bnc" id="L565" title="All 2 branches missed.">            for(int i = 0; i &lt; neighborhood.length; i++)</span>
+<span class="nc" id="L566">                dataOutput.writeDouble(neighborhood[i]);</span>
+            }
+<span class="nc" id="L568">        else dataOutput.writeBoolean(false);</span>
+
+
+<span class="nc bnc" id="L571" title="All 2 branches missed.">        if (neighborhoodBestGenome != null)</span>
+            {
+<span class="nc" id="L573">            dataOutput.writeBoolean(true);</span>
+<span class="nc" id="L574">            dataOutput.writeInt(neighborhoodBestGenome.length);</span>
+<span class="nc bnc" id="L575" title="All 2 branches missed.">            for(int i = 0; i &lt; neighborhoodBestGenome.length; i++)</span>
+<span class="nc" id="L576">                dataOutput.writeDouble(neighborhoodBestGenome[i]);</span>
+            }
+<span class="nc" id="L578">        else dataOutput.writeBoolean(false);</span>
+
+
+<span class="nc bnc" id="L581" title="All 2 branches missed.">        if (neighborhoodBestFitness != null)</span>
+            {
+<span class="nc" id="L583">            dataOutput.writeBoolean(true);</span>
+<span class="nc" id="L584">            neighborhoodBestFitness.writeFitness(state, dataOutput);</span>
+            }
+<span class="nc" id="L586">        else dataOutput.writeBoolean(false);</span>
+
+
+<span class="nc bnc" id="L589" title="All 2 branches missed.">        if (personalBestGenome != null)  // it's always non-null</span>
+            {
+<span class="nc" id="L591">            dataOutput.writeBoolean(true);</span>
+<span class="nc" id="L592">            dataOutput.writeInt(personalBestGenome.length);</span>
+<span class="nc bnc" id="L593" title="All 2 branches missed.">            for(int i = 0; i &lt; personalBestGenome.length; i++)</span>
+<span class="nc" id="L594">                dataOutput.writeDouble(personalBestGenome[i]);</span>
+            }
+<span class="nc" id="L596">        else dataOutput.writeBoolean(false);</span>
+
+
+<span class="nc bnc" id="L599" title="All 2 branches missed.">        if (personalBestFitness != null)</span>
+            {
+<span class="nc" id="L601">            dataOutput.writeBoolean(true);</span>
+<span class="nc" id="L602">            personalBestFitness.writeFitness(state, dataOutput);</span>
+            }
+<span class="nc" id="L604">        else dataOutput.writeBoolean(false);</span>
+<span class="nc" id="L605">        }</span>
+
+    public void readIndividual(final EvolutionState state,
+        final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L610">        super.readIndividual(state, dataInput);</span>
+        
+        // Next, read auxillary arrays.
+<span class="nc bnc" id="L613" title="All 2 branches missed.">        if (dataInput.readBoolean())</span>
+            {
+<span class="nc" id="L615">            velocity = new double[dataInput.readInt()];</span>
+<span class="nc bnc" id="L616" title="All 2 branches missed.">            for(int i = 0; i &lt; velocity.length; i++)</span>
+<span class="nc" id="L617">                velocity[i] = dataInput.readDouble();</span>
+            }
+<span class="nc" id="L619">        else velocity = new double[genome.length];</span>
+
+<span class="nc bnc" id="L621" title="All 2 branches missed.">        if (dataInput.readBoolean())</span>
+            {
+<span class="nc" id="L623">            neighborhood = new int[dataInput.readInt()];</span>
+<span class="nc bnc" id="L624" title="All 2 branches missed.">            for(int i = 0; i &lt; neighborhood.length; i++)</span>
+<span class="nc" id="L625">                neighborhood[i] = dataInput.readInt();</span>
+            }
+<span class="nc" id="L627">        else neighborhood = null;</span>
+        
+<span class="nc bnc" id="L629" title="All 2 branches missed.">        if (dataInput.readBoolean())</span>
+            {
+<span class="nc" id="L631">            neighborhoodBestGenome = new double[dataInput.readInt()];</span>
+<span class="nc bnc" id="L632" title="All 2 branches missed.">            for(int i = 0; i &lt; neighborhoodBestGenome.length; i++)</span>
+<span class="nc" id="L633">                neighborhoodBestGenome[i] = dataInput.readDouble();</span>
+            }
+<span class="nc" id="L635">        else neighborhoodBestGenome = null;</span>
+
+<span class="nc bnc" id="L637" title="All 2 branches missed.">        if (dataInput.readBoolean())</span>
+            {
+<span class="nc" id="L639">            neighborhoodBestFitness = (Fitness)(fitness.clone());</span>
+<span class="nc" id="L640">            neighborhoodBestFitness.readFitness(state, dataInput);</span>
+            }
+
+<span class="nc bnc" id="L643" title="All 2 branches missed.">        if (dataInput.readBoolean())</span>
+            {
+<span class="nc" id="L645">            personalBestGenome = new double[dataInput.readInt()];</span>
+<span class="nc bnc" id="L646" title="All 2 branches missed.">            for(int i = 0; i &lt; personalBestGenome.length; i++)</span>
+<span class="nc" id="L647">                personalBestGenome[i] = dataInput.readDouble();</span>
+            }
+<span class="nc" id="L649">        else personalBestGenome = null;</span>
+
+<span class="nc bnc" id="L651" title="All 2 branches missed.">        if (dataInput.readBoolean())</span>
+            {
+<span class="nc" id="L653">            personalBestFitness = (Fitness)(fitness.clone());</span>
+<span class="nc" id="L654">            personalBestFitness.readFitness(state, dataInput);</span>
+            }
+<span class="nc" id="L656">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

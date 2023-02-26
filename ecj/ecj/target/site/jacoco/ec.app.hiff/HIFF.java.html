@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HIFF.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.hiff</a> &gt; <span class="el_source">HIFF.java</span></div><h1>HIFF.java</h1><pre class="source lang-java linenums">package ec.app.hiff; 
+
+import ec.*; 
+import ec.util.*; 
+import ec.vector.*;
+import ec.simple.*;
+
+/** 
+    HIFF implements the Hierarchical If-And-Only-If problem developed by Watson, Hornby and Pollack.
+    See &lt;a href=&quot;http://www.cs.brandeis.edu/~richardw/hiff.html&quot;&gt;The HIFF Generator&lt;/a&gt; for more information
+    and papers.
+
+    &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+    &lt;table&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;p&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;int &gt;= 0 &lt;/td&gt;
+    &lt;td valign=top&gt;(number of blocks at each level)&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;k&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;int &gt;= 0 &lt;/td&gt;
+    &lt;td valign=top&gt;(number of hierarchical levels)&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;rc&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;double &lt;/td&gt;
+    &lt;td valign=top&gt;(ratio of block contributions)&lt;/td&gt;&lt;/tr&gt;
+    &lt;/table&gt;
+
+    @author Keith Sullivan
+    @version 1.0
+*/
+
+<span class="nc" id="L30">public class HIFF extends Problem implements SimpleProblemForm </span>
+    {
+
+    public static final String P_K = &quot;k&quot;;
+    public static final String P_P = &quot;p&quot;; 
+    public static final String P_RC = &quot;rc&quot;; 
+        
+    int K, P, Rc; 
+                
+    public void setup(EvolutionState state, Parameter base) 
+        {
+<span class="nc" id="L41">        super.setup(state, base); </span>
+                
+<span class="nc" id="L43">        K = state.parameters.getInt(base.push(P_K), null, 0); </span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (K &lt; 0) </span>
+<span class="nc" id="L45">            state.output.fatal(&quot;k must be &gt; 0&quot;, base.push(P_K)); </span>
+                
+<span class="nc" id="L47">        P = state.parameters.getInt(base.push(P_P), null, 0); </span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (P &lt; 0) </span>
+<span class="nc" id="L49">            state.output.fatal(&quot;p must be &gt; 0&quot;, base.push(P_P)); </span>
+                
+<span class="nc" id="L51">        Rc = state.parameters.getInt(base.push(P_RC), null, 0); </span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (Rc &lt; 0) </span>
+<span class="nc" id="L53">            state.output.fatal(&quot;rc must be &gt; 0&quot;, base.push(P_RC)); </span>
+<span class="nc" id="L54">        }</span>
+        
+    public void evaluate(final EvolutionState state, final Individual ind, final int subpopulation, final int threadnum)
+        {
+<span class="nc" id="L58">        BitVectorIndividual ind2 = (BitVectorIndividual) ind; </span>
+                
+<span class="nc" id="L60">        double genes[] = new double[ind2.genome.length];</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        for (int i=0; i &lt; genes.length; i++) </span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">            genes[i] = ((ind2.genome[i]) ? 1 : 0); </span>
+<span class="nc" id="L63">        double fitness = H(genes); </span>
+                
+<span class="nc" id="L65">        ((SimpleFitness)(ind2.fitness)).setFitness( state, fitness, false);</span>
+<span class="nc" id="L66">        ind2.evaluated = true; </span>
+<span class="nc" id="L67">        }</span>
+                
+    double H(double genes[]) 
+        {
+<span class="nc" id="L71">        double bonus=1, F=0; </span>
+<span class="nc" id="L72">        int last = genes.length;</span>
+                
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        for (int i=0; i &lt; last; i++) </span>
+<span class="nc" id="L75">            F += f(genes[i]) ; </span>
+                
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        for (int i=1; i &lt;= P; i++) </span>
+            { 
+<span class="nc" id="L79">            last /= K; </span>
+<span class="nc" id="L80">            bonus *= Rc; </span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            for (int j=0; j &lt; last; j++) </span>
+                { 
+<span class="nc" id="L83">                genes[j] = t(genes, j*K); </span>
+<span class="nc" id="L84">                F += f(genes[j]) * bonus; </span>
+                }
+            }
+                
+<span class="nc" id="L88">        return F;</span>
+        }
+        
+    double t(double transform[], int first) 
+        {
+<span class="nc" id="L93">        int s=0; </span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        for (int i=first+1; i &lt; first+K; i++) </span>
+            { 
+<span class="nc bnc" id="L96" title="All 2 branches missed.">            if (transform[first] == transform[i]) </span>
+<span class="nc" id="L97">                s++; </span>
+            }
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (s == (K-1)) return transform[first]; </span>
+                
+<span class="nc" id="L101">        return -1; </span>
+        }
+        
+    double f(double b) 
+        {
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (b != -1) return 1; </span>
+<span class="nc" id="L107">        return 0;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

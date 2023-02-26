@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MutateSwapPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.breed</a> &gt; <span class="el_source">MutateSwapPipeline.java</span></div><h1>MutateSwapPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.breed;
+import ec.*;
+import ec.util.*;
+import ec.gp.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * MutateSwapPipeline.java
+ * 
+ * Created: Wed Dec 15 21:41:30 1999
+ * By: Sean Luke
+ */
+
+/**
+ * MutateSwapPipeline works very similarly to the Swap algorithm
+ * described in  Kumar Chellapilla,
+ * &quot;A Preliminary Investigation into Evolving Modular Programs without Subtree
+ * Crossover&quot;, GP98.
+ *
+ * &lt;p&gt;MutateSwapPipeline picks a random tree, then picks
+ * randomly from all the swappable nodes in the tree, and swaps two of its subtrees.  
+ * If its chosen tree has no swappable nodes, it repeats
+ * the choose-tree process.  If after &lt;i&gt;tries&lt;/i&gt; times
+ * it has failed to find a tree with swappable nodes, it gives up and simply
+ * copies the individual.
+ *
+ * &lt;p&gt;&quot;Swapping&quot; means to take a node &lt;i&gt;n&lt;/i&gt;, and choose two children
+ * nodes of &lt;i&gt;n&lt;/i&gt;, &lt;i&gt;x&lt;/i&gt; and &lt;i&gt;y&lt;/i&gt;, such that &lt;i&gt;x&lt;/i&gt;'s return
+ * type is swap-compatible with &lt;i&gt;y&lt;/i&gt;'s slot, and &lt;i&gt;y&lt;/i&gt;'s return
+ * type is swap-compatible with &lt;i&gt;x&lt;/i&gt;'s slot.  The subtrees rooted at
+ * &lt;i&gt;x&lt;/i&gt; and &lt;i&gt;y&lt;/i&gt; are swapped.
+ *
+ * &lt;p&gt;A &quot;Swappable&quot; node means a node which is capable of swapping
+ * given the existing function set.  In general to swap a node &lt;i&gt;foo&lt;/i&gt;,
+ * it must have at least two children whose return types are type-compatible
+ * with each other's slots in &lt;i&gt;foo&lt;/i&gt;.
+ *
+ * &lt;p&gt;This method is very expensive in searching nodes for
+ * &quot;swappability&quot;.  However, if the number of types is 1 (the
+ * GP run is typeless) then the type-constraint-checking
+ * code is bypassed and the method runs a little faster.
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ ...as many as the source produces
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tries&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of times to try finding valid pairs of nodes)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.0&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; int &amp;lt; (num trees in individuals), if exists&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(tree chosen for mutation; if parameter doesn't exist, tree is picked at random)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.breed.mutate-swap
+
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L77">public class MutateSwapPipeline extends GPBreedingPipeline</span>
+    {
+    public static final String P_MUTATESWAP = &quot;mutate-swap&quot;;
+    public static final String P_NUM_TRIES = &quot;tries&quot;;
+    public static final int NUM_SOURCES = 1;
+   
+    /** The number of times the pipeline tries to build a valid mutated
+        tree before it gives up and just passes on the original */
+    int numTries;
+
+    /** Is our tree fixed?  If not, this is -1 */
+    int tree;
+
+<span class="nc" id="L90">    public Parameter defaultBase() { return GPBreedDefaults.base().push(P_MUTATESWAP); }</span>
+
+<span class="nc" id="L92">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L96">        super.setup(state,base);</span>
+        
+<span class="nc" id="L98">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L100">        numTries = state.parameters.getInt(base.push(P_NUM_TRIES),</span>
+<span class="nc" id="L101">            def.push(P_NUM_TRIES),1);</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (numTries == 0)</span>
+<span class="nc" id="L103">            state.output.fatal(&quot;MutateSwapPipeline has an invalid number of tries (it must be &gt;= 1).&quot;,base.push(P_NUM_TRIES),def.push(P_NUM_TRIES));</span>
+
+<span class="nc" id="L105">        tree = TREE_UNFIXED;</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L107">                def.push(P_TREE).push(&quot;&quot;+0)))</span>
+            {
+<span class="nc" id="L109">            tree = state.parameters.getInt(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L110">                def.push(P_TREE).push(&quot;&quot;+0),0);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if (tree==-1)</span>
+<span class="nc" id="L112">                state.output.fatal(&quot;Tree fixed value, if defined, must be &gt;= 0&quot;);</span>
+            }
+<span class="nc" id="L114">        }</span>
+
+
+    /** This very expensive method (for types) 
+        might be improved in various ways I guess. */
+
+    private boolean swappable(final GPInitializer initializer,
+        final GPNode node)
+        {
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (node.children.length &lt; 2)</span>
+<span class="nc" id="L124">            return false;  // fast check</span>
+
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (initializer.numAtomicTypes + initializer.numSetTypes == 1)</span>
+<span class="nc" id="L127">            return true;  // next fast check</span>
+
+        // we're typed, so now we have to check our type compatibility
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        for(int x=0;x&lt;node.constraints(initializer).childtypes.length-1;x++)</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            for(int y=x+1;y&lt;node.constraints(initializer).childtypes.length;y++)</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">                if (node.children[x].constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L133">                        node.constraints(initializer).childtypes[y]) &amp;&amp;</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                    node.children[y].constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L135">                        node.constraints(initializer).childtypes[x]))</span>
+                    // whew!
+<span class="nc" id="L137">                    return true;</span>
+<span class="nc" id="L138">        return false;</span>
+        }
+    
+    
+    private void swapSomething(final GPNode node, final EvolutionState state, final int thread)
+        {
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (((GPInitializer)state.initializer).numAtomicTypes + ((GPInitializer)state.initializer).numSetTypes == 1) // typeless</span>
+<span class="nc" id="L145">            _swapSomethingTypeless(node,state,thread);</span>
+<span class="nc" id="L146">        else _swapSomething(node,state,thread);</span>
+<span class="nc" id="L147">        }</span>
+
+    private void _swapSomethingTypeless(final GPNode node, final EvolutionState state, final int thread)
+        {
+        // assumes that number of child nodes &gt;= 2
+
+        // pick a random first node
+<span class="nc" id="L154">        int x = state.random[thread].nextInt(node.children.length);</span>
+        // pick a random second node
+<span class="nc" id="L156">        int y = state.random[thread].nextInt(node.children.length-1);</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">        if (y &gt;= x) y++; // adjust for first node</span>
+
+        // swap the nodes
+
+<span class="nc" id="L161">        GPNode tmp = node.children[x];</span>
+<span class="nc" id="L162">        node.children[x] = node.children[y];</span>
+<span class="nc" id="L163">        node.children[y] = tmp;</span>
+<span class="nc" id="L164">        node.children[x].argposition = (byte)x;</span>
+<span class="nc" id="L165">        node.children[y].argposition = (byte)y;</span>
+        // no need to set parent -- it's the same parent of course
+<span class="nc" id="L167">        }</span>
+
+    
+    private void _swapSomething(final GPNode node, final EvolutionState state, final int thread)
+        {
+<span class="nc" id="L172">        int numSwappable = 0;</span>
+<span class="nc" id="L173">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">        for(int x=0;x&lt;node.constraints(initializer).childtypes.length-1;x++)</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            for(int y=x+1;y&lt;node.constraints(initializer).childtypes.length;y++)</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                if (node.children[x].constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L177">                        node.constraints(initializer).childtypes[y]) &amp;&amp;</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                    node.children[y].constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L179">                        node.constraints(initializer).childtypes[x]))</span>
+                    // whew!
+<span class="nc" id="L181">                    numSwappable++;</span>
+
+        // pick a random item to swap -- numSwappable is assumed to be &gt; 0
+<span class="nc" id="L184">        int swapItem = state.random[thread].nextInt(numSwappable);</span>
+
+<span class="nc" id="L186">        numSwappable=0;</span>
+        // find it
+
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        for(int x=0;x&lt;node.constraints(initializer).childtypes.length-1;x++)</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">            for(int y=x+1;y&lt;node.constraints(initializer).childtypes.length;y++)</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">                if (node.children[x].constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L192">                        node.constraints(initializer).childtypes[y]) &amp;&amp;</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">                    node.children[y].constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L194">                        node.constraints(initializer).childtypes[x]))</span>
+                    {
+<span class="nc bnc" id="L196" title="All 2 branches missed.">                    if (numSwappable==swapItem) // found it</span>
+                        {
+                        // swap the children
+<span class="nc" id="L199">                        GPNode tmp = node.children[x];</span>
+<span class="nc" id="L200">                        node.children[x] = node.children[y];</span>
+<span class="nc" id="L201">                        node.children[y] = tmp;</span>
+<span class="nc" id="L202">                        node.children[x].argposition = (byte)x;</span>
+<span class="nc" id="L203">                        node.children[y].argposition = (byte)y;</span>
+                        // no need to set parent -- it's the same parent of course
+<span class="nc" id="L205">                        return;</span>
+                        }
+<span class="nc" id="L207">                    else numSwappable++;</span>
+                    }
+<span class="nc" id="L209">        }</span>
+
+
+    private int numSwappableNodes(final GPInitializer initializer,
+        final GPNode root, int soFar)
+        {
+<span class="nc bnc" id="L215" title="All 2 branches missed.">        if (swappable(initializer, root)) soFar++;</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        for(int x=0;x&lt;root.children.length;x++) </span>
+<span class="nc" id="L217">            soFar = numSwappableNodes(initializer, root.children[x],soFar);</span>
+<span class="nc" id="L218">        return soFar;</span>
+        }
+
+
+    private GPNode swappableNode;
+
+    // sticks the node in 
+    private int pickSwappableNode(final GPInitializer initializer,
+        final GPNode root, int num)
+        {
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (swappable(initializer, root))</span>
+            {
+<span class="nc" id="L230">            num--;</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">            if (num==-1)  // found it</span>
+                {
+<span class="nc" id="L233">                swappableNode = root;</span>
+<span class="nc" id="L234">                return num;</span>
+                }
+            }
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        for(int x=0;x&lt;root.children.length;x++)</span>
+            {
+<span class="nc" id="L239">            num = pickSwappableNode(initializer, root.children[x],num);</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">            if (num==-1) break;  // someone found it</span>
+            }
+<span class="nc" id="L242">        return num;     </span>
+        }
+    
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+        {
+<span class="nc" id="L253">        int start = inds.size();</span>
+                
+        // grab n individuals from our source and stick 'em right into inds.
+        // we'll modify them from there
+<span class="nc" id="L257">        int n = sources[0].produce(min,max,subpopulation,inds, state,thread, misc);</span>
+
+        // should we bother?
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+<span class="nc" id="L262">            return n;</span>
+            }
+
+
+
+        // now let's mutate 'em
+<span class="nc bnc" id="L268" title="All 2 branches missed.">        for(int q=start; q &lt; n+start; q++)</span>
+            {
+<span class="nc" id="L270">            GPIndividual i = (GPIndividual)inds.get(q);</span>
+            
+<span class="nc bnc" id="L272" title="All 6 branches missed.">            if (tree!=TREE_UNFIXED &amp;&amp; (tree&lt;0 || tree &gt;= i.trees.length))</span>
+                // uh oh
+<span class="nc" id="L274">                state.output.fatal(&quot;MutateSwapPipeline attempted to fix tree.0 to a value which was out of bounds of the array of the individual's trees.  Check the pipeline's fixed tree values -- they may be negative or greater than the number of trees in an individual&quot;); </span>
+            
+            
+<span class="nc bnc" id="L277" title="All 2 branches missed.">            for (int x=0;x&lt;numTries;x++)</span>
+                {
+                int t;
+                // pick random tree
+<span class="nc bnc" id="L281" title="All 2 branches missed.">                if (tree==TREE_UNFIXED)</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">                    if (i.trees.length&gt;1) t = state.random[thread].nextInt(i.trees.length);</span>
+<span class="nc" id="L283">                    else t = 0;</span>
+<span class="nc" id="L284">                else t = tree;</span>
+                
+                // is the tree swappable?      
+<span class="nc" id="L287">                GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc" id="L288">                int numswap = numSwappableNodes(initializer, i.trees[t].child,0);</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">                if (numswap==0) continue; // uh oh, try again</span>
+                
+                // swap the node, or if we're unsuccessful, just leave it alone
+<span class="nc" id="L292">                pickSwappableNode(initializer, i.trees[t].child,state.random[thread].nextInt(numswap));</span>
+                
+                // node is now in swappableNode, swap it
+<span class="nc" id="L295">                swapSomething(swappableNode,state,thread);</span>
+
+<span class="nc" id="L297">                i.evaluated = false;</span>
+<span class="nc" id="L298">                break;</span>
+                }
+
+            // add the new individual, replacing its previous source
+<span class="nc" id="L302">            inds.set(q,i);</span>
+            
+            }
+<span class="nc" id="L305">        return n;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

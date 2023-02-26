@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GreedyComponentSelector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co.ant</a> &gt; <span class="el_source">GreedyComponentSelector.java</span></div><h1>GreedyComponentSelector.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co.ant;
+
+import ec.EvolutionState;
+import ec.Setup;
+import ec.co.Component;
+import ec.util.Misc;
+import ec.util.Parameter;
+import java.util.List;
+
+/**
+ * A trivial rule that builds solutions greedily to have the highest heuristic value in the neighborhood.
+ *
+ * @author Eric O. Scott
+ */
+<span class="nc bnc" id="L20" title="All 2 branches missed.">public class GreedyComponentSelector implements ComponentSelector {</span>
+    
+<span class="nc" id="L22">    public GreedyComponentSelector() {}</span>
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc bnc" id="L25" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L26">    }</span>
+
+    @Override
+    public Component choose(final EvolutionState state, final List&lt;Component&gt; components, final PheromoneTable pheromones, final int thread) {
+<span class="nc bnc" id="L30" title="All 4 branches missed.">        assert(components != null);</span>
+<span class="nc bnc" id="L31" title="All 4 branches missed.">        assert(!components.isEmpty());</span>
+<span class="nc bnc" id="L32" title="All 4 branches missed.">        assert(!Misc.containsNulls(components));</span>
+        
+<span class="nc" id="L34">        double bestValue = Double.NEGATIVE_INFINITY;</span>
+<span class="nc" id="L35">        Component best = null;</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        for (final Component c : components)</span>
+            {
+<span class="nc bnc" id="L38" title="All 2 branches missed.">                if (c.desirability() &gt;= bestValue)</span>
+                    {
+<span class="nc" id="L40">                    bestValue = c.desirability();</span>
+<span class="nc" id="L41">                    best = c;</span>
+                    }
+<span class="nc" id="L43">            }</span>
+<span class="nc bnc" id="L44" title="All 4 branches missed.">        assert(best != null);</span>
+<span class="nc" id="L45">        return best;</span>
+    }
+    
+    public final boolean repOK()
+    {
+<span class="nc" id="L50">        return true;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

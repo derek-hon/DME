@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Mona.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.mona</a> &gt; <span class="el_source">Mona.java</span></div><h1>Mona.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2013 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.app.mona; 
+
+import ec.*; 
+import ec.util.*; 
+import ec.vector.*;
+import ec.simple.*;
+import java.io.*;
+
+<span class="nc" id="L15">public class Mona extends Problem implements SimpleProblemForm </span>
+    {
+    public static final String P_IN = &quot;in&quot;;
+    public static final String P_OUT = &quot;out&quot;;
+    public static final String P_VERTICES = &quot;num-vertices&quot;;
+    public static final String P_HEADLESS = &quot;headless&quot;;
+    
+    public Picture pic;
+    public File in;
+    public File out;
+    public int numVertices;
+    public boolean headless;
+    
+    public Object clone()
+        {
+<span class="nc" id="L30">        Mona m = (Mona)(super.clone());</span>
+<span class="nc" id="L31">        m.pic = (Picture)(pic.clone());</span>
+<span class="nc" id="L32">        return m;</span>
+        }
+        
+    public void setup(EvolutionState state, Parameter base) 
+        {
+<span class="nc" id="L37">        super.setup(state, base); </span>
+<span class="nc" id="L38">        in = state.parameters.getFile(base.push(P_IN), null);</span>
+<span class="nc" id="L39">        out = state.parameters.getFile(base.push(P_OUT), null);</span>
+<span class="nc" id="L40">        numVertices = state.parameters.getInt(base.push(P_VERTICES), null, 3);</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (numVertices &lt; 3) state.output.fatal(&quot;Number of vertices must be &gt;= 3&quot;);</span>
+<span class="nc" id="L42">        headless = state.parameters.getBoolean(base.push(P_HEADLESS), null, false);</span>
+<span class="nc" id="L43">        pic =  new Picture(headless);</span>
+<span class="nc" id="L44">        pic.load(in);</span>
+<span class="nc" id="L45">        }</span>
+        
+    public void evaluate(final EvolutionState state, final Individual ind, final int subpopulation, final int threadnum)
+        {
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (ind.evaluated) return;</span>
+        
+<span class="nc" id="L51">        DoubleVectorIndividual _ind = (DoubleVectorIndividual)ind;</span>
+<span class="nc" id="L52">        int vertexSkip = numVertices * 2 + 4;  // for four colors</span>
+        
+<span class="nc" id="L54">        pic.clear();</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        for(int i = 0; i &lt; _ind.genome.length; i+=vertexSkip)</span>
+<span class="nc" id="L56">            pic.addPolygon(_ind.genome, i, numVertices);</span>
+
+<span class="nc" id="L58">        double error = pic.error();</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        ((SimpleFitness)(_ind.fitness)).setFitness(state, (1.0 - error), error == 0);</span>
+<span class="nc" id="L60">        ind.evaluated = true;</span>
+<span class="nc" id="L61">        }</span>
+        
+    public void finishEvaluating(final EvolutionState state, final int threadnum)
+        {
+<span class="nc" id="L65">        pic.disposeGraphics();  // dutifully</span>
+<span class="nc" id="L66">        }</span>
+
+    public void describe(
+        final EvolutionState state, 
+        final Individual ind, 
+        final int threadnum,
+        final int subpopulation,
+        final int log)  
+        {
+<span class="nc" id="L75">        ind.evaluated = false;</span>
+<span class="nc" id="L76">        evaluate(state, ind, subpopulation,threadnum);</span>
+<span class="nc" id="L77">        pic.save(new File(out.getParentFile(), &quot;&quot; + (state.generation) + &quot;-&quot; + out.getName()));  // not sure if &quot;.&quot; is acceptable in Windows</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        if (!headless)</span>
+<span class="nc" id="L79">            pic.display(&quot;Best So Far, Generation &quot; + state.generation);</span>
+        // System.out.println(&quot;Filled Polygons: &quot; + pic.getLatestFilledPolygonCount() + &quot; of &quot; + pic.getLatestTotalCount());
+<span class="nc" id="L81">        ind.evaluated = true;</span>
+<span class="nc" id="L82">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

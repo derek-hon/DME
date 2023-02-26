@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PTC2.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.build</a> &gt; <span class="el_source">PTC2.java</span></div><h1>PTC2.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.build;
+import ec.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * PTC2.java
+ * 
+ * Created: Tue Jan 25 21:36:02 2000
+ * By: Sean Luke
+ */
+
+/**
+ * PTC2 implements the &quot;Strongly-typed Probabilistic Tree Creation 2 (PTC2)&quot; algorithm described in 
+ *
+ * &lt;p&gt;Luke, Sean. 2000. &lt;i&gt;Issues in Scaling Genetic Programming: Breeding Strategies, Tree Generation, and Code Bloat.&lt;/i&gt; Ph.D. Dissertation, Department of Computer Science, University of Maryland, College Park, Maryland. 
+ *
+ * &lt;p&gt; ...and also in
+ *
+ * &lt;p&gt;Luke, Sean. 2000. Two fast tree-creation algorithms for genetic programming. In &lt;i&gt;IEEE Transactions on Evolutionary Computation&lt;/i&gt; 4:3 (September 2000), 274-283. IEEE. 
+ *
+ * &lt;p&gt; Both can be found at &lt;a href=&quot;http://www.cs.gmu.edu/~sean/papers/&quot;&gt;http://www.cs.gmu.edu/~sean/papers/&lt;/a&gt;
+ * 
+ * &lt;p&gt; PTC2 requires that your function set to implement PTCFunctionSetForm.  The
+ * provided function set, PTCFunctionSet, does exactly this.
+ *
+ * &lt;p&gt;The Strongly-typed PTC2 algorithm roughly works as follows: 
+ * the user provides a requested tree size, and PTC2 attempts to build
+ * a tree of that size or that size plus the maximum arity of a nonterminal
+ * in the function set.  PTC2 works roughly like this:
+ *
+ &lt;ol&gt;&lt;li&gt;If the tree size requested is 1, pick a random terminal and return it.
+ &lt;li&gt; Else pick a random nonterminal as the root and put each of its unfilled child positions into the queue &lt;i&gt;Q&lt;/i&gt;.
+ &lt;li&gt; Loop until the size of &lt;i&gt;Q&lt;/i&gt;, plus the size of the nodes in the tree so far, equals or exceeds the requested tree size:
+ &lt;ol&gt;&lt;li&gt;Remove a random position from &lt;i&gt;Q&lt;/i&gt;.
+ &lt;li&gt;Fill the position with a random nonterminal &lt;i&gt;n&lt;/i&gt;.
+ &lt;li&gt;Put each of &lt;/i&gt;n's&lt;/i&gt; unfilled child positions into &lt;i&gt;Q&lt;/i&gt;.
+ &lt;/ol&gt;
+ &lt;li&gt;For each position in &lt;i&gt;Q&lt;/i&gt;, fill the position with a randomly-chosen terminal.
+ &lt;/ol&gt;
+ *
+ * &lt;p&gt; Generally speaking, PTC2 picks a random position in the horizon of the tree (unfiled child node positions), fills it with a nonterminal, thus extending the horizon, and repeats this until the number of nodes (nonterminals) in the tree, plus the number of unfilled node positions, is &gt;= the requested tree size.  Then the remaining horizon is filled with terminals.
+ *
+ * &lt;p&gt; The user-provided requested tree size is either provided directly to the PTC2 algorithm, or if the size is NOSIZEGIVEN, then PTC2 will pick one at random from the GPNodeBuilder probability distribution system (using either max-depth and min-depth, or using num-sizes).
+ *
+ * &lt;p&gt; PTC2 also has provisions for picking nonterminals with a certain probability over other nonterminals of the same return type (and terminals over other terminals likewise), hence its name.  To change the probability of picking various terminals or nonterminals, you modify your PTCFunctionSetForm function set.
+ *
+ * &lt;p&gt;PTC2 further has a maximum depth, which you should set to some fairly big value.  If your maximum depth is small enough that PTC2 often creates trees which bump up against it, then PTC2 will only generate terminals at that depth position.  If the depth is *really* small, it's possible that this means PTC2 will generate trees smaller than you had requested.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-depth&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;maximum allowable tree depth (usually a big value)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.build.ptc2
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L71">public class PTC2 extends GPNodeBuilder </span>
+    {
+    public static final String P_PTC2 = &quot;ptc2&quot;;
+    public static final String P_MAXDEPTH = &quot;max-depth&quot;;
+
+    /** The largest maximum tree depth GROW can specify -- should be big. */
+    public int maxDepth;
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L81">        return GPBuildDefaults.base().push(P_PTC2);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L86">        super.setup(state,base);</span>
+
+<span class="nc" id="L88">        Parameter def = defaultBase();</span>
+
+        // we use size distributions -- did the user specify any?
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if (!canPick())</span>
+<span class="nc" id="L92">            state.output.fatal(&quot;PTC2 needs a distribution of tree sizes to pick from.  You can do this by either setting a distribution (with &quot; + P_NUMSIZES + &quot;) or with &quot;</span>
+                + P_MINSIZE + &quot; and &quot; + P_MAXSIZE + &quot;.&quot;, base, def);
+
+<span class="nc" id="L95">        maxDepth = state.parameters.getInt(base.push(P_MAXDEPTH),</span>
+<span class="nc" id="L96">            def.push(P_MAXDEPTH),1);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (maxDepth &lt; 1)</span>
+<span class="nc" id="L98">            state.output.fatal(&quot;Maximum depth must be &gt;= 1&quot;,</span>
+<span class="nc" id="L99">                base.push(P_MAXDEPTH),</span>
+<span class="nc" id="L100">                def.push(P_MAXDEPTH));</span>
+<span class="nc" id="L101">        }</span>
+
+    public final static int MIN_QUEUE_SIZE = 32;
+    
+    // these are all initialized in enqueue
+    GPNode[] s_node;
+    int[] s_argpos;
+    int[] s_depth;
+    int s_size;
+
+    private void enqueue(final GPNode n, final int argpos, final int depth)
+        {
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        if (s_node==null) </span>
+            {
+<span class="nc" id="L115">            s_node = new GPNode[MIN_QUEUE_SIZE];</span>
+<span class="nc" id="L116">            s_argpos = new int[MIN_QUEUE_SIZE];</span>
+<span class="nc" id="L117">            s_depth = new int[MIN_QUEUE_SIZE];</span>
+<span class="nc" id="L118">            s_size = 0;</span>
+            }
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        else if (s_size==s_node.length) // need to double them</span>
+            {
+<span class="nc" id="L122">            GPNode[] new_s_node = new GPNode[s_size*2];</span>
+<span class="nc" id="L123">            System.arraycopy(s_node,0,new_s_node,0,s_size);</span>
+<span class="nc" id="L124">            s_node = new_s_node;</span>
+<span class="nc" id="L125">            int[] new_s_argpos = new int[s_size*2];</span>
+<span class="nc" id="L126">            System.arraycopy(s_argpos,0,new_s_argpos,0,s_size);</span>
+<span class="nc" id="L127">            s_argpos = new_s_argpos;</span>
+<span class="nc" id="L128">            int[] new_s_depth = new int[s_size*2];</span>
+<span class="nc" id="L129">            System.arraycopy(s_depth,0,new_s_depth,0,s_size);</span>
+<span class="nc" id="L130">            s_depth = new_s_depth;</span>
+            }
+        
+        // okay, let's boogie!
+<span class="nc" id="L134">        s_node[s_size] = n;</span>
+<span class="nc" id="L135">        s_argpos[s_size] = argpos;</span>
+<span class="nc" id="L136">        s_depth[s_size] = depth;</span>
+<span class="nc" id="L137">        s_size++;</span>
+<span class="nc" id="L138">        }</span>
+
+    GPNode dequeue_node;
+    int dequeue_argpos;
+    int dequeue_depth;
+
+    // stashes in dequeue_*
+    private void randomDequeue(final EvolutionState state, final int thread)
+        {
+<span class="nc" id="L147">        int r = state.random[thread].nextInt(s_size);</span>
+<span class="nc" id="L148">        s_size -= 1;</span>
+        // put items r into spot dequeue_*
+<span class="nc" id="L150">        dequeue_node = s_node[r];</span>
+<span class="nc" id="L151">        dequeue_argpos = s_argpos[r];</span>
+<span class="nc" id="L152">        dequeue_depth = s_depth[r];</span>
+        // put items s_size into spot r
+<span class="nc" id="L154">        s_node[r] = s_node[s_size];</span>
+<span class="nc" id="L155">        s_argpos[r] = s_argpos[s_size];</span>
+<span class="nc" id="L156">        s_depth[r] = s_depth[s_size];</span>
+<span class="nc" id="L157">        }</span>
+
+
+    public GPNode newRootedTree(final EvolutionState state,
+        GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final GPFunctionSet set,
+        final int argposition,
+        int requestedSize)
+        {
+        // ptc2 can mess up if there are no available terminals for a given type.  If this occurs,
+        // and we find ourselves unable to pick a terminal when we want to do so, we will issue a warning,
+        // and pick a nonterminal, violating the ptc2 size and depth contracts.  This can lead to pathological situations
+        // where the system will continue to go on and on unable to stop because it can't pick a terminal,
+        // resulting in running out of memory or some such.  But there are cases where we'd want to let
+        // this work itself out.
+<span class="nc" id="L174">        boolean triedTerminals = false;</span>
+
+<span class="nc bnc" id="L176" title="All 2 branches missed.">        if (!(set instanceof PTCFunctionSetForm))</span>
+<span class="nc" id="L177">            state.output.fatal(&quot;Set &quot; + set.name + &quot; is not of the class ec.gp.build.PTCFunctionSetForm, and so cannot be used with PTC Nodebuilders.&quot;);</span>
+
+<span class="nc" id="L179">        PTCFunctionSetForm pset = (PTCFunctionSetForm)set;</span>
+
+        // pick a size from the distribution
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        if (requestedSize==NOSIZEGIVEN)</span>
+<span class="nc" id="L183">            requestedSize = pickSize(state,thread);</span>
+
+        GPNode root;
+
+<span class="nc" id="L187">        int t = type.type;</span>
+<span class="nc" id="L188">        GPNode[] terminals = set.terminals[t];</span>
+<span class="nc" id="L189">        GPNode[] nonterminals = set.nonterminals[t];</span>
+<span class="nc" id="L190">        GPNode[] nodes = set.nodes[t];          </span>
+
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        if (nodes.length == 0)</span>
+<span class="nc" id="L193">            errorAboutNoNodeWithType(type, state);   // total failure</span>
+
+
+
+        // return a terminal
+<span class="nc bnc" id="L198" title="All 4 branches missed.">        if ((   requestedSize==1 ||                                                          // Now pick a terminal if our size is 1</span>
+<span class="nc bnc" id="L199" title="All 6 branches missed.">                warnAboutNonterminal(nonterminals.length==0, type, false, state)) &amp;&amp;         // OR if there are NO nonterminals!</span>
+            // (this will freak out the static checkers)
+            (triedTerminals = true) &amp;&amp;                                                       // [first set triedTerminals]
+            terminals.length != 0)                                                           // AND if there are available terminals
+            {
+<span class="nc" id="L204">            root = (GPNode)</span>
+<span class="nc" id="L205">                terminals[RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L206">                    pset.terminalProbabilities(t),</span>
+<span class="nc" id="L207">                    state.random[thread].nextDouble())].lightClone();</span>
+<span class="nc" id="L208">            root.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L209">            root.argposition = (byte)argposition;</span>
+<span class="nc" id="L210">            root.parent = parent;</span>
+            }
+        else   // return a nonterminal-rooted tree
+            {
+<span class="nc bnc" id="L214" title="All 2 branches missed.">            if (triedTerminals) warnAboutNoTerminalWithType(type, false, state);        // we tried terminals and we're here because there were none!</span>
+
+            // pick a nonterminal
+<span class="nc" id="L217">            root = (GPNode)</span>
+<span class="nc" id="L218">                nonterminals[RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L219">                    pset.nonterminalProbabilities(t),</span>
+<span class="nc" id="L220">                    state.random[thread].nextDouble())].lightClone();</span>
+<span class="nc" id="L221">            root.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L222">            root.argposition = (byte)argposition;</span>
+<span class="nc" id="L223">            root.parent = parent;</span>
+
+            // set the depth, size, and enqueuing, and reset the random dequeue
+            
+<span class="nc" id="L227">            s_size=0;  // pretty critical!</span>
+<span class="nc" id="L228">            int s = 1;</span>
+<span class="nc" id="L229">            GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc" id="L230">            GPType[] childtypes = root.constraints(initializer).childtypes;</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">            for(int x=0;x&lt;childtypes.length;x++)</span>
+<span class="nc" id="L232">                enqueue(root,x,1);  /* depth 1 */</span>
+            
+                        
+                        
+                        
+<span class="nc bnc" id="L237" title="All 2 branches missed.">            while(s_size&gt;0)</span>
+                {
+<span class="nc" id="L239">                triedTerminals = false;</span>
+<span class="nc" id="L240">                randomDequeue(state,thread);</span>
+<span class="nc" id="L241">                type = dequeue_node.constraints(initializer).childtypes[dequeue_argpos];</span>
+                
+<span class="nc" id="L243">                int y = type.type;</span>
+<span class="nc" id="L244">                terminals = set.terminals[y];</span>
+<span class="nc" id="L245">                nonterminals = set.nonterminals[y];</span>
+<span class="nc" id="L246">                nodes = set.nodes[y];           </span>
+
+<span class="nc bnc" id="L248" title="All 2 branches missed.">                if (nodes.length == 0)</span>
+<span class="nc" id="L249">                    errorAboutNoNodeWithType(type, state);   // total failure</span>
+
+                // pick a terminal 
+<span class="nc bnc" id="L252" title="All 6 branches missed.">                if ((   s_size + s &gt;= requestedSize ||                                        // if we need no more nonterminal nodes</span>
+                        dequeue_depth==maxDepth ||                                            // OR if we're at max depth and must pick a terminal
+<span class="nc bnc" id="L254" title="All 6 branches missed.">                        warnAboutNonterminal(nonterminals.length==0, type, false, state)) &amp;&amp;  // OR if there are NO nonterminals!</span>
+                    // (this will freak out the static checkers)
+                    (triedTerminals = true) &amp;&amp;                                                // [first set triedTerminals]
+                    terminals.length != 0)                                                    // AND if there are available terminals
+                    {
+<span class="nc" id="L259">                    GPNode n = (GPNode)</span>
+<span class="nc" id="L260">                        terminals[RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L261">                            pset.terminalProbabilities(y),</span>
+<span class="nc" id="L262">                            state.random[thread].nextDouble())].lightClone();</span>
+<span class="nc" id="L263">                    dequeue_node.children[dequeue_argpos] = n;</span>
+<span class="nc" id="L264">                    n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L265">                    n.argposition = (byte)dequeue_argpos;</span>
+<span class="nc" id="L266">                    n.parent = dequeue_node;</span>
+<span class="nc" id="L267">                    }</span>
+                
+                // pick a nonterminal and enqueue its children
+                else
+                    {
+<span class="nc bnc" id="L272" title="All 2 branches missed.">                    if (triedTerminals) warnAboutNoTerminalWithType(type, false, state);       // we tried terminals and we're here because there were none!</span>
+                                                                                        
+<span class="nc" id="L274">                    GPNode n = (GPNode)</span>
+<span class="nc" id="L275">                        nonterminals[RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L276">                            pset.nonterminalProbabilities(y),</span>
+<span class="nc" id="L277">                            state.random[thread].nextDouble())].lightClone();</span>
+<span class="nc" id="L278">                    dequeue_node.children[dequeue_argpos] = n;</span>
+<span class="nc" id="L279">                    n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L280">                    n.argposition = (byte)dequeue_argpos;</span>
+<span class="nc" id="L281">                    n.parent = dequeue_node;</span>
+                    
+<span class="nc" id="L283">                    childtypes = n.constraints(initializer).childtypes;</span>
+<span class="nc bnc" id="L284" title="All 2 branches missed.">                    for(int x=0;x&lt;childtypes.length;x++)</span>
+<span class="nc" id="L285">                        enqueue(n,x,dequeue_depth + 1);</span>
+                    }
+<span class="nc" id="L287">                s++;</span>
+<span class="nc" id="L288">                }</span>
+            }
+
+<span class="nc" id="L291">        return root;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

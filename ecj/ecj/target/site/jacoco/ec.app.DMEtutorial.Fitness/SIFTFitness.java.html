@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SIFTFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.Fitness</a> &gt; <span class="el_source">SIFTFitness.java</span></div><h1>SIFTFitness.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.Fitness;
+
+import org.opencv.core.*;
+import org.opencv.features2d.BFMatcher;
+import org.opencv.features2d.DescriptorMatcher;
+import org.opencv.features2d.SIFT;
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
+import java.awt.image.DataBufferByte;
+import java.awt.image.DataBufferInt;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
+
+public class SIFTFitness {
+
+    public double siftValue;
+    public double tKeypoints;
+
+<span class="nc" id="L21">    public SIFTFitness(int[][] pixelsOne, int[][] pixelsTwo) {</span>
+<span class="nc" id="L22">        System.setProperty(&quot;java.library.path&quot;, System.getProperty(&quot;user.dir&quot;) + &quot;/opencv/build/lib/&quot;);</span>
+<span class="nc" id="L23">        String path = System.getProperty(&quot;java.library.path&quot;);</span>
+<span class="nc" id="L24">        System.load(path + &quot;libopencv_java470.so&quot;);</span>
+
+
+<span class="nc" id="L27">        int imageWidth = pixelsOne.length;</span>
+<span class="nc" id="L28">        int imageHeight = pixelsTwo[0].length;</span>
+        // Mat target = new Mat(imageWidth, imageHeight, CvType.CV_8U);
+        // Mat solution = new Mat(imageWidth, imageHeight, CvType.CV_8U);
+<span class="nc" id="L31">        int rgb = 0;</span>
+
+<span class="nc" id="L33">        BufferedImage targetImg = PSDExtensions.Int2DToImage(pixelsOne);</span>
+<span class="nc" id="L34">        BufferedImage solutionImg = PSDExtensions.Int2DToImage(pixelsTwo);</span>
+<span class="nc" id="L35">        Mat target = OCVExtensions.greyMatify(targetImg);</span>
+<span class="nc" id="L36">        Mat solution = OCVExtensions.greyMatify(solutionImg);</span>
+
+        // for (int x = 0 ; x &lt; imageWidth ; x ++) {
+        //     for (int y = 0 ; y &lt; imageHeight ; y ++) {
+        //         // rgb = pixelsOne[x][y];
+        //         // target.put(x, y, ((rgb &amp; 0xFF0000) &gt;&gt; 16 + (rgb &amp; 0x00FF00) &gt;&gt; 8 + (rgb &amp; 0x0000FF))/3.0);
+        //         // rgb = pixelsTwo[x][y];
+        //         // solution.put(x, y, ((rgb &amp; 0xFF0000) &gt;&gt; 16 + (rgb &amp; 0x00FF00) &gt;&gt; 8 + (rgb &amp; 0x0000FF))/3.0);
+        //         // target.put(x, y, pixelsOne[x][y]);
+        //         // solution.put(x, y, pixelsTwo[x][y]);
+        //     }
+        // }
+        
+<span class="nc" id="L49">        SIFT sift = SIFT.create(0, 4, 0.04, 10, 1.6);</span>
+<span class="nc" id="L50">        MatOfKeyPoint targetKeyPoints = new MatOfKeyPoint();</span>
+<span class="nc" id="L51">        MatOfKeyPoint solutionKeyPoints = new MatOfKeyPoint();</span>
+<span class="nc" id="L52">        Mat targetDescriptors = new Mat();</span>
+<span class="nc" id="L53">        Mat solutionDescriptors = new Mat();</span>
+        
+<span class="nc" id="L55">        sift.detect(target, targetKeyPoints);</span>
+<span class="nc" id="L56">        sift.detect(solution, solutionKeyPoints);</span>
+
+<span class="nc" id="L58">        sift.compute(target, targetKeyPoints, targetDescriptors);</span>
+<span class="nc" id="L59">        sift.compute(solution, solutionKeyPoints, solutionDescriptors);</span>
+
+<span class="nc" id="L61">        tKeypoints = targetKeyPoints.rows();</span>
+        
+<span class="nc" id="L63">        List&lt;MatOfDMatch&gt; matches = new ArrayList&lt;&gt;();</span>
+<span class="nc" id="L64">        DescriptorMatcher descriptorMatcher = new BFMatcher(Core.NORM_L2, false);</span>
+        // DescriptorMatcher descriptorMatcher = DescriptorMatcher.create(Core.NORM_L2);
+        // targetDescriptors.convertTo(targetDescriptors, CvType.CV_32F);
+        // solutionDescriptors.convertTo(solutionDescriptors, CvType.CV_32F);
+        // bruteForce.match(solutionDescriptors, targetDescriptors, matches, new Mat());
+        // MatOfDMatch dMatches = new MatOfDMatch();
+        // bruteForce.match(solutionDescriptors, targetDescriptors, dMatches);
+        // bruteForce.knnMatch(solutionDescriptors, targetDescriptors, matches, 2);
+<span class="nc" id="L72">        descriptorMatcher.knnMatch(solutionDescriptors, targetDescriptors, matches, 2);</span>
+
+        //-- Filter matches using the Lowe's ratio test
+<span class="nc" id="L75">        double ratio = 0.75;</span>
+<span class="nc" id="L76">        List&lt;DMatch&gt; listOfGoodMatches = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        for (int i = 0; i &lt; matches.size(); i++) {</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">            if (matches.get(i).rows() &gt; 1) {</span>
+<span class="nc" id="L79">                DMatch[] dMatches = matches.get(i).toArray();</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                if (dMatches[0].distance &lt; ratio * dMatches[1].distance) {</span>
+<span class="nc" id="L81">                    listOfGoodMatches.add(dMatches[0]);</span>
+                }
+            }
+        }
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (matches.size() == 0)</span>
+<span class="nc" id="L86">            siftValue = 100000;</span>
+        else
+<span class="nc" id="L88">            siftValue = Math.abs(1.0 - listOfGoodMatches.size()/matches.size());</span>
+
+        // try {
+        //     ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        //     ImageIO.write(imageOne, &quot;png&quot;, baos);
+        //     byte[] bytes = baos.toByteArray();
+        //     target.put(0, 0, bytes);
+
+        //     ImageIO.write(imageTwo, &quot;png&quot;, baos);
+        //     bytes = baos.toByteArray();
+        //     solution.put(0, 0, bytes);
+        // } catch (IOException e) {
+        //     e.printStackTrace();
+        //     System.out.println(&quot;Error while converting image to bytes and writing to Mat&quot;);
+        // }
+<span class="nc" id="L103">    }</span>
+
+    /**
+     * https://answers.opencv.org/question/28348/converting-bufferedimage-to-mat-in-java/
+     * @param sourceImg
+     * @return
+     */
+    public Mat matify(BufferedImage sourceImg) {
+<span class="nc" id="L111">        DataBuffer dataBuffer = sourceImg.getRaster().getDataBuffer();</span>
+<span class="nc" id="L112">        byte[] imgPixels = null;</span>
+<span class="nc" id="L113">        Mat imgMat = null;</span>
+    
+<span class="nc" id="L115">        int width = sourceImg.getWidth();</span>
+<span class="nc" id="L116">        int height = sourceImg.getHeight();</span>
+    
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        if(dataBuffer instanceof DataBufferByte) {      </span>
+<span class="nc" id="L119">                imgPixels = ((DataBufferByte)dataBuffer).getData();</span>
+        }
+    
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if(dataBuffer instanceof DataBufferInt) {</span>
+    
+<span class="nc" id="L124">            int byteSize = width * height;      </span>
+<span class="nc" id="L125">            imgPixels = new byte[byteSize*3];</span>
+    
+<span class="nc" id="L127">            int[] imgIntegerPixels = ((DataBufferInt)dataBuffer).getData();</span>
+    
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            for(int p = 0; p &lt; byteSize; p++) {         </span>
+<span class="nc" id="L130">                imgPixels[p*3 + 0] = (byte) ((imgIntegerPixels[p] &amp; 0x00FF0000) &gt;&gt; 16);</span>
+<span class="nc" id="L131">                imgPixels[p*3 + 1] = (byte) ((imgIntegerPixels[p] &amp; 0x0000FF00) &gt;&gt; 8);</span>
+<span class="nc" id="L132">                imgPixels[p*3 + 2] = (byte) (imgIntegerPixels[p] &amp; 0x000000FF);</span>
+            }
+        }
+    
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        if(imgPixels != null) {</span>
+<span class="nc" id="L137">            imgMat = new Mat(height, width, CvType.CV_8UC3);</span>
+<span class="nc" id="L138">            imgMat.put(0, 0, imgPixels);</span>
+        }
+    
+<span class="nc" id="L141">        return imgMat;</span>
+    }
+
+    public double getSIFT() {
+<span class="nc" id="L145">        return this.siftValue;</span>
+    }
+
+    public double getTKeyPoints() {
+<span class="nc" id="L149">        return this.tKeypoints;</span>
+    }
+}
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

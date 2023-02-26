@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ColorHistogram.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.proctexture</a> &gt; <span class="el_source">ColorHistogram.java</span></div><h1>ColorHistogram.java</h1><pre class="source lang-java linenums">package ec.proctexture;
+
+
+import java.awt.Color;
+import java.awt.image.*;
+
+
+/**
+ * This class is used both to store color histogram information and compare
+ * its own values to that of other color histograms.
+ * 
+ * Adaptations by Michael Gircys, 2017-06-08
+ * Precomputed and stored bin colour similarity, instead of thousands of times across generations.
+ *
+ * @author Steve Bergen
+ */
+
+public class ColorHistogram 
+{
+
+<span class="nc" id="L21">	private static final double     Max_Colour_Dist       = Math.sqrt( Math.pow(255,2) * 3);</span>
+<span class="nc" id="L22">    public static final double[][]  BIN_COLOUR_SIMILARITY = new double[512][512];</span>
+    
+<span class="nc" id="L24">	public double[]                 data    = null;</span>
+<span class="nc" id="L25">	public BufferedImage            img     = null;</span>
+    
+
+	/**
+	 * Constructor which takes in an image as source for initial calculations.
+	 * @param img           Source image
+	 */
+	public ColorHistogram ( BufferedImage img ) 
+	{
+<span class="nc" id="L34">		this(img,1);</span>
+<span class="nc" id="L35">	}	</span>
+	public ColorHistogram ( BufferedImage img, int threads )
+<span class="nc" id="L37">	{   </span>
+<span class="nc" id="L38">        this.img  = img;</span>
+<span class="nc" id="L39">        this.data = new double[512];</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">        for ( int i = 0; i &lt; 512; i++ )</span>
+<span class="nc" id="L41">            this.data[i] = 0;</span>
+
+<span class="nc" id="L43">        int start = 0;</span>
+<span class="nc" id="L44">        int inc = img.getHeight() / threads;</span>
+        
+        // Create and fire off additional threads as needed
+<span class="nc" id="L47">        HistThread fit[] = new HistThread[threads-1];</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if(threads &gt; 1)</span>
+        {   
+<span class="nc bnc" id="L50" title="All 2 branches missed.">	        for (int i = 0; i &lt; threads-1; i++) </span>
+	        {
+<span class="nc" id="L52">	            fit[i] = new HistThread(img, start, start + inc, data.clone());</span>
+<span class="nc" id="L53">	            start = start + inc;</span>
+<span class="nc" id="L54">	            fit[i].start();</span>
+	        }
+        }
+
+        // Do work alloted for first thread
+<span class="nc" id="L59">        quantize(img, start, img.getHeight(), data);</span>
+        
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if(threads &gt; 1)</span>
+        {
+        	// Check for all finished threads, and quit when all are finished
+	        while (true) 
+	        {
+<span class="nc" id="L66">	            boolean dead = true;</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">	            for (int i = 0; i &lt; threads-1; i++)</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">	                if (fit[i].isAlive()) dead = false;</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">	            if (dead) break;</span>
+<span class="nc" id="L70">	        }</span>
+	        // Copy histogram data from threads to main instance
+<span class="nc bnc" id="L72" title="All 2 branches missed.">	        for ( int i = 0; i &lt; 512; i++ )</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">	        	for (int j = 0; j &lt; threads-1; j++)</span>
+<span class="nc" id="L74">	        		this.data[i] += fit[j].data[i];</span>
+        }
+        
+        // Normalize
+<span class="nc" id="L78">        int pixelCount = img.getWidth() * img.getHeight();</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        for ( int i = 0; i &lt; 512; i++ )</span>
+<span class="nc" id="L80">        	this.data[i] /= (double)pixelCount;</span>
+<span class="nc" id="L81">	};</span>
+    
+	static
+	{
+<span class="nc bnc" id="L85" title="All 2 branches missed.">		for ( int i = 0; i &lt; 512; i++ )</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        	for ( int j = 0; j &lt; 512; j++ )</span>
+<span class="nc" id="L87">        		BIN_COLOUR_SIMILARITY[i][j] = colorSimilarity(getColorI(i),getColorI(j));</span>
+<span class="nc" id="L88">	}</span>
+	
+	
+	private static class HistThread extends Thread 
+	{
+		
+	    public double[]         data;
+	    public int              ystart, yend;
+	    private BufferedImage   img;
+
+	    public HistThread ( BufferedImage img, int ystart, int yend, double[] data ) 
+<span class="nc" id="L99">	    {</span>
+<span class="nc" id="L100">	        this.img        = img;</span>
+<span class="nc" id="L101">	        this.ystart     = ystart;</span>
+<span class="nc" id="L102">	        this.yend       = yend;</span>
+<span class="nc" id="L103">	        this.data       = data;</span>
+<span class="nc" id="L104">	    };</span>
+
+	    @Override
+	    public void run ( ) 
+	    {
+<span class="nc" id="L109">	        ColorHistogram.quantize(img, ystart, yend, data);</span>
+<span class="nc" id="L110">	    };</span>
+	    
+	};
+	
+
+    /**
+     * Method called to quantize an image to 512 colors, and counts the
+     * occurrences of each color in the image, storing them in an array.
+     * @param img           Source image
+     */
+    public static void quantize ( BufferedImage img, int y0, int yend, double[] d ) 
+    {   
+<span class="nc bnc" id="L122" title="All 2 branches missed.">    	for ( int x = 0; x &lt; img.getWidth(); x++ )</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">    		for ( int y = y0; y &lt; yend; y++ )</span>
+<span class="nc" id="L124">    			d[getIndex(new Color(img.getRGB(x, y)))]++;</span>
+<span class="nc" id="L125">    };</span>
+    
+
+    /**
+     * Returns an integer representing an index from 0 to 511, which is the
+     * value of the color passed in.
+     * @param c             Color to be quantized
+     * @return              Quantized integer
+     */
+    private static int getIndex ( Color c ) 
+    {   
+<span class="nc" id="L136">        int index = 0;</span>
+        // TODO: Make more clear by switching to bitshifts.
+<span class="nc" id="L138">        index   =  (c.getRed()   / 32) * 64;</span>
+<span class="nc" id="L139">        index   += (c.getGreen() / 32) * 8;</span>
+<span class="nc" id="L140">        index   += (c.getBlue()  / 32);</span>
+<span class="nc" id="L141">        return index;</span>
+    };
+    
+
+    /**
+     * Calculates the color index distance between two histograms at a single
+     * index i.
+     * @param hist          Second histogram
+     * @param i             Index
+     * @return              Absolute distance between values.
+     */
+    private double colorDistanceI ( ColorHistogram hist, int i ) 
+    {   
+<span class="nc" id="L154">        return Math.abs(hist.data[i] - this.data[i]);</span>
+    };
+    
+    
+    /**
+     * Calculates the color similarity between two colors.
+     * @param a             First color
+     * @param b             Second color
+     * @return              Color similarity value
+     */
+    private static double colorSimilarity ( Color a, Color b ) 
+    {   
+<span class="nc" id="L166">        double R    = Math.pow(a.getRed()   - b.getRed(),   2);</span>
+<span class="nc" id="L167">        double G    = Math.pow(a.getGreen() - b.getGreen(), 2);</span>
+<span class="nc" id="L168">        double B    = Math.pow(a.getBlue()  - b.getBlue(),  2);</span>
+<span class="nc" id="L169">        double t    = Math.sqrt(R + G + B);</span>
+<span class="nc" id="L170">        double res  = Math.pow(1.0 - (t / Max_Colour_Dist), 2); </span>
+<span class="nc" id="L171">        return res;</span>
+    };
+    private static double colorSimilarity( int ind1, int ind2 )
+    {
+<span class="nc" id="L175">    	return BIN_COLOUR_SIMILARITY[ind1][ind2];</span>
+    }
+    
+
+    /**
+     * Converts an integer from 0..511 to a color (reverse-quantization).
+     * @param i             Integer to convert
+     * @return              Color value of integer
+     */
+    private static Color getColorI ( int i ) 
+    { 
+<span class="nc" id="L186">        int R = ((i / 64)    ) * 32;</span>
+<span class="nc" id="L187">        int G = ((i % 64) / 8) * 32;</span>
+<span class="nc" id="L188">        int B = ((i % 64) % 8) * 32;</span>
+<span class="nc" id="L189">        return new Color(R, G, B);</span>
+    };
+    
+
+    /**
+     * Returns the color distance between the histograms summed with absolute
+     * color distance between two histogram images. An expensive call.
+     * @param hist          Second histogram
+     * @return              Color distance
+     */
+    public double colorDS ( ColorHistogram hist ) 
+    {   
+<span class="nc" id="L201">        double total = 0.0;</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        for ( int i = 0; i &lt; 512; i++ )</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        	for ( int j = 0; j &lt; 512; j++ ) </span>
+<span class="nc" id="L204">        		total += colorDistanceI(hist, i) </span>
+<span class="nc" id="L205">                       * colorSimilarity(i,j) </span>
+<span class="nc" id="L206">                       * colorDistanceI(hist, j);</span>
+<span class="nc" id="L207">        return total;</span>
+    };
+    
+
+    /** Returns the color index difference between two histograms. Compares
+     * values stored in the arrays.
+     * @param hist          Second histogram
+     * @return              Color distance
+     */
+    public double colorHistDistance ( ColorHistogram hist ) 
+    {   
+<span class="nc" id="L218">        double total = 0.0;</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        for ( int i = 0; i &lt; 512; i++ )</span>
+<span class="nc" id="L220">            total += colorDistanceI(hist, i);</span>
+<span class="nc" id="L221">        return total;</span>
+    };
+    
+    
+    
+    
+    
+    
+    public static void main( String[] args )
+    {
+<span class="nc" id="L231">    	int w = 128;</span>
+<span class="nc" id="L232">    	int h = 128;</span>
+    	
+<span class="nc" id="L234">    	BufferedImage i1 = new BufferedImage(w,h, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L235">    	BufferedImage i2 = new BufferedImage(w,h, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">    	for(int y = 0; y &lt; h; y++)</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">    	for(int x = 0; x &lt; w; x++)</span>
+    	{
+<span class="nc" id="L239">    		i1.setRGB(x, y, 0x00000000);</span>
+<span class="nc" id="L240">    		i2.setRGB(x, y, 0xFFFFFFFF);</span>
+    	}
+    	
+<span class="nc" id="L243">    	ColorHistogram h1 = new ColorHistogram(i1);</span>
+<span class="nc" id="L244">    	ColorHistogram h2 = new ColorHistogram(i2);</span>
+<span class="nc" id="L245">    	double d0 = h1.colorDS(h1);</span>
+<span class="nc" id="L246">    	double d1 = h1.colorDS(h2);</span>
+    	
+<span class="nc" id="L248">    	System.out.println(&quot;Min Hist Distance: &quot; + String.valueOf(d0));</span>
+<span class="nc" id="L249">    	System.out.println(&quot;Max Hist Distance: &quot; + String.valueOf(d1));</span>
+<span class="nc" id="L250">    }</span>
+    
+};
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

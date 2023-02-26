@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IntBag.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">IntBag.java</span></div><h1>IntBag.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.util;
+
+/** Maintains a simple array (objs) of ints and the number of ints (numObjs) in the array
+    (the array can be bigger than this number).  You are encouraged to access the ints directly;
+    they are stored in positions [0 ... numObjs-1].  If you wish to extend the array, you should call
+    the resize method.
+    
+    &lt;p&gt;IntBag is approximately to int what Bag is to Object.  However, for obvious reasons, IntBag is not
+    a java.util.Collection subclass and is purposely simple (it doesn't have an Iterator for example).
+    
+    &lt;p&gt;IntBag is not synchronized, and so should not be accessed from different threads without locking on it
+    or some appropriate lock int first.  IntBag also has an unusual, fast method for removing ints
+    called remove(...), which removes the int simply by swapping the topmost int into its
+    place.  This means that after remove(...) is called, the IntBag may no longer have the same order
+    (hence the reason it's called a &quot;IntBag&quot; rather than some variant on &quot;Vector&quot; or &quot;Array&quot; or &quot;List&quot;).  You can
+    guarantee order by calling removeNondestructively(...) instead if you wish, but this is O(n) in the worst case.
+*/
+
+public class IntBag implements java.io.Serializable, Cloneable, Indexed
+    {
+    private static final long serialVersionUID = 1;
+
+    public int[] objs;
+    public int numObjs;
+    
+    /** Creates an IntBag with a given initial capacity. */
+<span class="nc" id="L33">    public IntBag(int capacity) { numObjs = 0; objs = new int[capacity]; }</span>
+
+<span class="nc" id="L35">    public IntBag() { numObjs = 0; objs = new int[1]; }</span>
+    
+    /** Adds the ints from the other IntBag without copying them.  The size of the
+        new IntBag is the minimum necessary size to hold the ints. If the Other IntBag is
+        null, a new empty IntBag is created.*/
+    public IntBag(final IntBag other)
+<span class="nc" id="L41">        {</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">        if (other==null) { numObjs = 0; objs = new int[1]; }</span>
+        else
+            {
+<span class="nc" id="L45">            numObjs = other.numObjs;</span>
+<span class="nc" id="L46">            objs = new int[numObjs];</span>
+<span class="nc" id="L47">            System.arraycopy(other.objs,0,objs,0,numObjs);</span>
+            }
+<span class="nc" id="L49">        }</span>
+    
+    /** Creates an IntBag with the given elements. If the Other array is
+        null, a new empty IntBag is created.*/
+<span class="nc bnc" id="L53" title="All 2 branches missed.">    public IntBag(int[] other) { this(); if (other!=null) addAll(other); }</span>
+
+    public int size()
+        {
+<span class="nc" id="L57">        return numObjs;</span>
+        }
+    
+    public boolean isEmpty()
+        {
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        return (numObjs&lt;=0);</span>
+        }
+    
+<span class="nc" id="L65">    public boolean addAll(int[] other) { return addAll(numObjs, other); }</span>
+
+    public boolean addAll(final int index, final int[] other)
+        {
+        // throws NullPointerException if other == null,
+        // ArrayArrayIndexOutOfBoundsException if index &lt; 0,
+        // and ArrayIndexOutOfBoundsException if index &gt; numObjs
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (index &gt; numObjs) </span>
+<span class="nc" id="L73">            throw new ArrayIndexOutOfBoundsException(index);</span>
+        // { throwArrayIndexOutOfBoundsException(index); }
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (other.length == 0) return false;</span>
+        // make IntBag big enough
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (numObjs+other.length &gt; objs.length)</span>
+<span class="nc" id="L78">            resize(numObjs+other.length);</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        if (index != numObjs)   // scoot over elements if we're inserting in the middle</span>
+<span class="nc" id="L80">            System.arraycopy(objs,index,objs,index+other.length,numObjs - index);</span>
+<span class="nc" id="L81">        System.arraycopy(other,0,objs,index,other.length);</span>
+<span class="nc" id="L82">        numObjs += other.length;</span>
+<span class="nc" id="L83">        return true;</span>
+        }
+    
+<span class="nc" id="L86">    public boolean addAll(final IntBag other) { return addAll(numObjs,other); }</span>
+
+    public boolean addAll(final int index, final IntBag other)
+        {
+        // throws NullPointerException if other == null,
+        // ArrayArrayIndexOutOfBoundsException if index &lt; 0,
+        // and ArrayIndexOutOfBoundsException if index &gt; numObjs
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if (index &gt; numObjs) </span>
+<span class="nc" id="L94">            throw new ArrayIndexOutOfBoundsException(index);</span>
+        // { throwArrayIndexOutOfBoundsException(index); }
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (other.numObjs &lt;= 0) return false;</span>
+        // make IntBag big enough
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (numObjs+other.numObjs &gt; objs.length)</span>
+<span class="nc" id="L99">            resize(numObjs+other.numObjs);</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if (index != numObjs)   // scoot over elements if we're inserting in the middle</span>
+<span class="nc" id="L101">            System.arraycopy(objs,index,objs,index+other.size(),numObjs - index);</span>
+<span class="nc" id="L102">        System.arraycopy(other.objs,0,objs,index,other.numObjs);</span>
+<span class="nc" id="L103">        numObjs += other.numObjs;</span>
+<span class="nc" id="L104">        return true;</span>
+        }
+
+    public Object clone() throws CloneNotSupportedException
+        {
+<span class="nc" id="L109">        IntBag b = (IntBag)(super.clone());</span>
+<span class="nc" id="L110">        b.objs = (int[]) objs.clone();</span>
+<span class="nc" id="L111">        return b;</span>
+        }
+        
+    public void resize(int toAtLeast)
+        {
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (objs.length &gt;= toAtLeast)  // already at least as big as requested</span>
+<span class="nc" id="L117">            return;</span>
+
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (objs.length * 2 &gt; toAtLeast)  // worth doubling</span>
+<span class="nc" id="L120">            toAtLeast = objs.length * 2;</span>
+
+        // now resize
+<span class="nc" id="L123">        int[] newobjs = new int[toAtLeast];</span>
+<span class="nc" id="L124">        System.arraycopy(objs,0,newobjs,0,numObjs);</span>
+<span class="nc" id="L125">        objs=newobjs;</span>
+<span class="nc" id="L126">        }</span>
+    
+    /** Resizes the objs array to max(numObjs, desiredLength), unless that value is greater than or equal to objs.length,
+        in which case no resizing is done (this operation only shrinks -- use resize() instead).
+        This is an O(n) operation, so use it sparingly. */
+    public void shrink(int desiredLength)
+        {
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        if (desiredLength &lt; numObjs) desiredLength = numObjs;</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (desiredLength &gt;= objs.length) return;  // no reason to bother</span>
+<span class="nc" id="L135">        int[] newobjs = new int[desiredLength];</span>
+<span class="nc" id="L136">        System.arraycopy(objs,0,newobjs,0,numObjs);</span>
+<span class="nc" id="L137">        objs = newobjs;</span>
+<span class="nc" id="L138">        }</span>
+    
+    /** Returns 0 if the IntBag is empty, else returns the topmost int. */
+    public int top()
+        {
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (numObjs&lt;=0) return 0;</span>
+<span class="nc" id="L144">        else return objs[numObjs-1];</span>
+        }
+    
+    /** Returns 0 if the IntBag is empty, else removes and returns the topmost int. */
+    public int pop()
+        {
+        // this curious arrangement makes me small enough to be inlined (28 bytes)
+<span class="nc" id="L151">        int numObjs = this.numObjs;</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (numObjs&lt;=0) return 0;</span>
+<span class="nc" id="L153">        int ret = objs[--numObjs];</span>
+<span class="nc" id="L154">        this.numObjs = numObjs;</span>
+<span class="nc" id="L155">        return ret;</span>
+        }
+    
+    /** Synonym for add(obj) -- try to use add instead unless you
+        want to think of the IntBag as a stack. */
+    public boolean push(final int obj)
+        {
+<span class="nc bnc" id="L162" title="All 2 branches missed.">        if (numObjs &gt;= objs.length) doubleCapacityPlusOne();</span>
+<span class="nc" id="L163">        objs[numObjs++] = obj;</span>
+<span class="nc" id="L164">        return true;</span>
+        /*
+        // this curious arrangement makes me small enough to be inlined (35 bytes)
+        int numObjs = this.numObjs;
+        if (numObjs &gt;= objs.length) doubleCapacityPlusOne();
+        objs[numObjs] = obj;
+        this.numObjs = numObjs+1;
+        return true;
+        */
+        }
+        
+    public boolean add(final int obj)
+        {
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        if (numObjs &gt;= objs.length) doubleCapacityPlusOne();</span>
+<span class="nc" id="L178">        objs[numObjs++] = obj;</span>
+<span class="nc" id="L179">        return true;</span>
+        /*
+        // this curious arrangement makes me small enough to be inlined (35 bytes)
+        int numObjs = this.numObjs;
+        if (numObjs &gt;= objs.length) doubleCapacityPlusOne();
+        objs[numObjs] = obj;
+        this.numObjs = numObjs+1;
+        return true;
+        */
+        }
+        
+    // private function used by add and push in order to get them below
+    // 35 bytes -- always doubles the capacity and adds one
+    void doubleCapacityPlusOne()
+        {
+<span class="nc" id="L194">        int[] newobjs = new int[numObjs*2+1];</span>
+<span class="nc" id="L195">        System.arraycopy(objs,0,newobjs,0,numObjs);</span>
+<span class="nc" id="L196">        objs=newobjs;</span>
+<span class="nc" id="L197">        }</span>
+
+    public boolean contains(final int o)
+        {
+<span class="nc" id="L201">        final int numObjs = this.numObjs;</span>
+<span class="nc" id="L202">        final int[] objs = this.objs;</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        for(int x=0;x&lt;numObjs;x++)</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">            if (o==objs[x]) return true;</span>
+<span class="nc" id="L205">        return false;</span>
+        }
+        
+    public int get(final int index)
+        {
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        if (index&gt;=numObjs) // || index &lt; 0)</span>
+<span class="nc" id="L211">            throw new ArrayIndexOutOfBoundsException(index);</span>
+        // throwArrayIndexOutOfBoundsException(index);
+<span class="nc" id="L213">        return objs[index];</span>
+        }
+
+    public Object getValue(final int index)
+        {
+<span class="nc" id="L218">        return Integer.valueOf(get(index));</span>
+        }
+
+    public int set(final int index, final int element)
+        {
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (index&gt;=numObjs) // || index &lt; 0)</span>
+<span class="nc" id="L224">            throw new ArrayIndexOutOfBoundsException(index);</span>
+        // throwArrayIndexOutOfBoundsException(index);
+<span class="nc" id="L226">        int returnval = objs[index];</span>
+<span class="nc" id="L227">        objs[index] = element;</span>
+<span class="nc" id="L228">        return returnval;</span>
+        }
+
+    public Object setValue(final int index, final Object value)
+        {
+<span class="nc" id="L233">        Integer old = new Integer(get(index));</span>
+<span class="nc" id="L234">        Integer newval = null;</span>
+<span class="nc" id="L235">        try { newval = (Integer)value; }</span>
+<span class="nc" id="L236">        catch (ClassCastException e) { throw new IllegalArgumentException(&quot;Expected an Integer&quot;); }</span>
+<span class="nc" id="L237">        set(index,newval.intValue());</span>
+<span class="nc" id="L238">        return old;</span>
+        }
+
+    /** Removes the int at the given index, shifting the other ints down. */
+    public int removeNondestructively(final int index)
+        {
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        if (index&gt;=numObjs) // || index &lt; 0)</span>
+<span class="nc" id="L245">            throw new ArrayIndexOutOfBoundsException(index);</span>
+        // throwArrayIndexOutOfBoundsException(index);
+<span class="nc" id="L247">        int ret = objs[index];</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (index &lt; numObjs - 1)  // it's not the topmost int, must swap down</span>
+<span class="nc" id="L249">            System.arraycopy(objs, index+1, objs, index, numObjs - index - 1);</span>
+<span class="nc" id="L250">        numObjs--;</span>
+<span class="nc" id="L251">        return ret;</span>
+        }
+    
+    /** Removes the int at the given index, moving the topmost int into its position. */
+    public int remove(final int index)
+        {
+<span class="nc" id="L257">        int _numObjs = numObjs;</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        if (index&gt;=_numObjs) // || index &lt; 0)</span>
+<span class="nc" id="L259">            throw new ArrayIndexOutOfBoundsException(index);</span>
+        // throwArrayIndexOutOfBoundsException(index);
+<span class="nc" id="L261">        int[] _objs = this.objs;</span>
+<span class="nc" id="L262">        int ret = _objs[index];</span>
+<span class="nc" id="L263">        _objs[index] = _objs[_numObjs-1];</span>
+<span class="nc" id="L264">        numObjs--;</span>
+<span class="nc" id="L265">        return ret;</span>
+        }
+        
+    /** Sorts the ints into ascending numerical order. */
+<span class="nc" id="L269">    public void sort() {java.util.Arrays.sort(objs, 0, numObjs);}</span>
+
+    /** Replaces all elements in the bag with the provided int. */
+    public void fill(int o)
+        {
+        // teeny bit faster
+<span class="nc" id="L275">        int[] objs = this.objs;</span>
+<span class="nc" id="L276">        int numObjs = this.numObjs;</span>
+        
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        for(int x=0; x &lt; numObjs; x++)</span>
+<span class="nc" id="L279">            objs[x] = o;</span>
+<span class="nc" id="L280">        }</span>
+
+    /** Shuffles (randomizes the order of) the IntBag */
+    public void shuffle(java.util.Random random)
+        {
+        // teeny bit faster
+<span class="nc" id="L286">        int[] objs = this.objs;</span>
+<span class="nc" id="L287">        int numObjs = this.numObjs;</span>
+        int obj;
+        int rand;
+        
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        for(int x=numObjs-1; x &gt;= 1 ; x--)</span>
+            {
+<span class="nc" id="L293">            rand = random.nextInt(x+1);</span>
+<span class="nc" id="L294">            obj = objs[x];</span>
+<span class="nc" id="L295">            objs[x] = objs[rand];</span>
+<span class="nc" id="L296">            objs[rand] = obj;</span>
+            }
+<span class="nc" id="L298">        }</span>
+    
+    /** Shuffles (randomizes the order of) the IntBag */
+    public void shuffle(ec.util.MersenneTwisterFast random)
+        {
+        // teeny bit faster
+<span class="nc" id="L304">        int[] objs = this.objs;</span>
+<span class="nc" id="L305">        int numObjs = this.numObjs;</span>
+        int obj;
+        int rand;
+        
+<span class="nc bnc" id="L309" title="All 2 branches missed.">        for(int x=numObjs-1; x &gt;= 1 ; x--)</span>
+            {
+<span class="nc" id="L311">            rand = random.nextInt(x+1);</span>
+<span class="nc" id="L312">            obj = objs[x];</span>
+<span class="nc" id="L313">            objs[x] = objs[rand];</span>
+<span class="nc" id="L314">            objs[rand] = obj;</span>
+            }
+<span class="nc" id="L316">        }</span>
+    
+    /** Reverses order of the elements in the IntBag */
+    public void reverse()
+        {
+        // teeny bit faster
+<span class="nc" id="L322">        int[] objs = this.objs;</span>
+<span class="nc" id="L323">        int numObjs = this.numObjs;</span>
+<span class="nc" id="L324">        int l = numObjs / 2;</span>
+        int obj;
+<span class="nc bnc" id="L326" title="All 2 branches missed.">        for(int x=0; x &lt; l; x++)</span>
+            {
+<span class="nc" id="L328">            obj = objs[x];</span>
+<span class="nc" id="L329">            objs[x] = objs[numObjs - x - 1];</span>
+<span class="nc" id="L330">            objs[numObjs - x - 1] = obj;</span>
+            }
+<span class="nc" id="L332">        }</span>
+
+    // protected void throwArrayIndexOutOfBoundsException(final int index)
+    //     {
+    //     throw new ArrayIndexOutOfBoundsException(&quot;&quot;+index);
+    //    }
+        
+    /** Removes all numbers in the IntBag.  This is done by clearing the internal array but 
+        not replacing it with a new, smaller one. */
+    public void clear()
+        {
+<span class="nc" id="L343">        numObjs = 0;</span>
+<span class="nc" id="L344">        }</span>
+        
+    /**    
+           Copies 'len' elements from the Bag into the provided array.
+           The 'len' elements start at index 'fromStart' in the Bag, and
+           are copied into the provided array starting at 'toStat'.
+    */ 
+    public void copyIntoArray(int fromStart, int[] to, int toStart, int len)
+        {
+<span class="nc" id="L353">        System.arraycopy(objs, fromStart, to, toStart, len);</span>
+<span class="nc" id="L354">        }</span>
+
+    public int[] toArray()
+        {
+<span class="nc" id="L358">        int[] o = new int[numObjs];</span>
+<span class="nc" id="L359">        System.arraycopy(objs,0,o,0,numObjs);</span>
+<span class="nc" id="L360">        return o;</span>
+        }
+
+    public Integer[] toIntegerArray()
+        {
+<span class="nc" id="L365">        Integer[] o = new Integer[numObjs];</span>
+<span class="nc bnc" id="L366" title="All 2 branches missed.">        for(int i = 0; i &lt; numObjs; i++)</span>
+<span class="nc" id="L367">            o[i] = Integer.valueOf(objs[i]);</span>
+<span class="nc" id="L368">        return o;</span>
+        }
+
+    public Long[] toLongArray()
+        {
+<span class="nc" id="L373">        Long[] o = new Long[numObjs];</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">        for(int i = 0; i &lt; numObjs; i++)</span>
+<span class="nc" id="L375">            o[i] = Long.valueOf(objs[i]);</span>
+<span class="nc" id="L376">        return o;</span>
+        }
+
+    public Double[] toDoubleArray()
+        {
+<span class="nc" id="L381">        Double[] o = new Double[numObjs];</span>
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        for(int i = 0; i &lt; numObjs; i++)</span>
+<span class="nc" id="L383">            o[i] = new Double(objs[i]);</span>
+<span class="nc" id="L384">        return o;</span>
+        }
+
+    public Class componentType()
+        {
+<span class="nc" id="L389">        return Integer.TYPE;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

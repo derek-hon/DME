@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PBILBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.pbil</a> &gt; <span class="el_source">PBILBreeder.java</span></div><h1>PBILBreeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sunil Kumar Rajendran
+  With modifications by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.eda.pbil;
+
+import java.util.ArrayList;
+
+import ec.*;
+import ec.util.*;
+
+/* 
+ * PBILBreeder.java
+ * 
+ * Created: Wed Jan 10 16:15:00 EDT 2018
+ * By: Sunil Kumar Rajendran
+ */
+
+/**
+ * PBILBreeder is a Breeder which overrides the breedPopulation method
+ * to first update PBIL's internal distribution, then replace all the
+ * individuals in the population with new samples generated from the
+ * distribution.  All the heavy lifting is done in PBILSpecies, not here.
+ *
+ * @author Sunil Kumar Rajendran
+ * @version 1.0 
+ */
+
+<span class="nc" id="L33">public class PBILBreeder extends Breeder</span>
+    {
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // nothing to setup
+<span class="nc" id="L38">        }</span>
+    
+    /** Updates the PBIL distribution given the current population, then 
+        replaces the population with new samples generated from the distribution.
+        Returns the revised population. */
+    
+    public Population breedPopulation(final EvolutionState state)
+        {
+<span class="nc" id="L46">        Population pop = state.population;</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        for(int i = 0; i &lt; pop.subpops.size(); i++)</span>
+            {
+<span class="nc" id="L49">            Subpopulation subpop = pop.subpops.get(i);</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">            if (!(subpop.species instanceof PBILSpecies)) </span>
+<span class="nc" id="L51">                state.output.fatal(&quot;To use PBILBreeder, subpopulation &quot; + i + &quot; must contain a PBILSpecies.  But it contains a &quot; + subpop.species);</span>
+                        
+<span class="nc" id="L53">            PBILSpecies species = (PBILSpecies)(subpop.species);</span>
+                
+            // update distribution[i] for subpop
+<span class="nc" id="L56">            species.updateDistribution(state, subpop);</span>
+                
+            // overwrite individuals
+<span class="nc" id="L59">            ArrayList&lt;Individual&gt; inds = subpop.individuals;</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            for(int j = 0; j &lt; inds.size(); j++)</span>
+<span class="nc" id="L61">                inds.set(j, species.newIndividual(state, 0));</span>
+            }
+                
+<span class="nc" id="L64">        return pop;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

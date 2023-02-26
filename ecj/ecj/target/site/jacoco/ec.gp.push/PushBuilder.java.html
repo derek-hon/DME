@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PushBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.push</a> &gt; <span class="el_source">PushBuilder.java</span></div><h1>PushBuilder.java</h1><pre class="source lang-java linenums">package ec.gp.push;
+import ec.*;
+import ec.gp.*;
+import ec.util.*;
+import java.util.*;
+
+/* 
+ * PushBuilder.java
+ * 
+ * Created: Fri Feb 15 23:00:04 EST 2013
+ * By: Sean Luke
+ */
+ 
+/**
+ *
+ * PushBuilder implements the Push-style tree building algorithm, which permits nonterminals of arbitrary arity.
+ * This algorithm is as follows:
+
+ &lt;p&gt;&lt;tt&gt;&lt;pre&gt;
+ BUILD-TREE(size)
+ If size == 1, return a terminal
+ Else
+ .... Make a parent nonterminal p
+ .... while (size &gt; 0)
+ .... .... a &lt;- random number from 1 to size
+ .... .... size &lt;- size - a
+ .... .... c &lt;- BUILD-TREE(a)
+ .... .... Add c as a child of p
+ shuffle order of children of p
+ return p
+ &lt;/pre&gt;&lt;/tt&gt;
+   
+ &lt;p&gt;You must specify a size distribution for PushBuilder.
+  
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.push.builder
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+
+<span class="nc" id="L43">public class PushBuilder extends GPNodeBuilder</span>
+    {
+    public static final String P_PUSHBUILDER = &quot;builder&quot;;
+        
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L49">        return PushDefaults.base().push(P_PUSHBUILDER); </span>
+        }
+        
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L54">        super.setup(state,base);</span>
+
+<span class="nc" id="L56">        Parameter def = defaultBase();</span>
+
+        // we use size distributions -- did the user specify any?
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (!canPick())</span>
+<span class="nc" id="L60">            state.output.fatal(&quot;PushBuilder needs a distribution of tree sizes to pick from.  You can do this by either setting a distribution (with &quot; + P_NUMSIZES + &quot;) or with &quot;</span>
+                + P_MINSIZE + &quot; and &quot; + P_MAXSIZE + &quot;.&quot;, base, def);
+<span class="nc" id="L62">        }</span>
+
+    
+    // shuffles the children of the node, if any, and returns the node
+    public GPNode[] shuffle(GPNode[] objs, EvolutionState state, int thread)
+        {
+<span class="nc" id="L68">        int numObjs = objs.length;</span>
+<span class="nc" id="L69">        MersenneTwisterFast random = state.random[thread];</span>
+        GPNode obj;
+        int rand;
+        
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        for(int x=numObjs-1; x &gt;= 1 ; x--)</span>
+            {
+<span class="nc" id="L75">            rand = random.nextInt(x+1);</span>
+<span class="nc" id="L76">            obj = objs[x];</span>
+<span class="nc" id="L77">            objs[x] = objs[rand];</span>
+<span class="nc" id="L78">            objs[rand] = obj;</span>
+            }
+<span class="nc" id="L80">        return objs;</span>
+        }
+    
+<span class="nc" id="L83">    GPNode[] dummy = new GPNode[0];</span>
+    
+    public GPNode newRootedTree(final EvolutionState state,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final GPFunctionSet set,
+        final int argposition,
+        int requestedSize)
+        {
+<span class="nc" id="L93">        int t = type.type;</span>
+<span class="nc" id="L94">        GPNode[] terminals = set.terminals[t];</span>
+<span class="nc" id="L95">        GPNode[] nonterminals = set.nonterminals[t];</span>
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (requestedSize == NOSIZEGIVEN)</span>
+<span class="nc" id="L98">            requestedSize = pickSize(state,thread);</span>
+
+<span class="nc" id="L100">        GPNode n = null;</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (requestedSize == 1)</span>
+            {
+            // pick a random terminal
+<span class="nc" id="L104">            n = (GPNode)(terminals[state.random[thread].nextInt(terminals.length)].lightClone());</span>
+            }
+        else
+            {
+<span class="nc" id="L108">            n = (GPNode)(nonterminals[state.random[thread].nextInt(nonterminals.length)].lightClone());  // it's always going to be the Dummy</span>
+            
+            // do decomposition
+<span class="nc" id="L111">            byte pos = 0;            // THIS WILL HAVE TO BE MODIFIED TO AN INT LATER ON AND THIS WILL AFFECT ARGPOSITIONS!!!</span>
+<span class="nc" id="L112">            ArrayList list = new ArrayList();  // dunno if this is too expensive</span>
+            
+<span class="nc bnc" id="L114" title="All 2 branches missed.">            while(requestedSize &gt;= 1)</span>
+                {
+<span class="nc" id="L116">                int amount = state.random[thread].nextInt(requestedSize) + 1;</span>
+<span class="nc" id="L117">                requestedSize -= amount;</span>
+<span class="nc" id="L118">                GPNode f = newRootedTree(state, type, thread, parent, set, pos, amount);</span>
+<span class="nc" id="L119">                list.add(f);</span>
+<span class="nc" id="L120">                }</span>
+            
+            // shuffle and reassign argument position
+<span class="nc" id="L123">            n.children = (GPNode[])(list.toArray(dummy));</span>
+<span class="nc" id="L124">            n.children = shuffle(n.children, state, thread);</span>
+
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            for(int i = 0; i &lt; n.children.length; i++)</span>
+<span class="nc" id="L127">                n.children[i].argposition = (byte) i;</span>
+            }
+            
+<span class="nc" id="L130">        n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L131">        n.argposition = (byte)argposition;</span>
+<span class="nc" id="L132">        n.parent = parent;</span>
+        
+<span class="nc" id="L134">        return n;</span>
+        }
+    }
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

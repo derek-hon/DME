@@ -1,0 +1,167 @@
+parent.0 = ../../gp/koza/koza.params
+
+stat = ec.thesisStatistics.BaselineStatistics
+
+eval.problem = ec.app.VanillaPT.ProceduralTextureFitness
+eval.problem.data = ec.app.VanillaPT.MultiData
+eval.problem.target = src/main/resources/ec/app/proceduralTexture/flowertest.jpg
+
+distributed = false
+
+generations = 340
+eval.problem.imagesize = 256
+
+select.tournament.size =  3
+stat.do-description = true
+stat.do-final = true
+stat.do-evaluation = true
+eval.problem.save-path = /BaselineGP/
+stat.do-memory = true
+stat.do-time = true
+
+eval.problem.min_x = -2.5
+eval.problem.max_x = 2.25
+eval.problem.min_y = -1.5
+eval.problem.max_y = 1.25
+
+pop.subpops 				            = 3
+
+pop.subpop.0                            = ec.Subpopulation
+pop.subpop.0.size                       = 300
+pop.subpop.0.species                    = ec.gp.GPSpecies
+pop.subpop.0.species.ind                = ec.gp.GPIndividual
+pop.subpop.0.species.ind.numtrees       = 3
+pop.subpop.0.species.ind.tree.0         = ec.gp.GPTree
+pop.subpop.0.species.ind.tree.0.tc      = tc0
+pop.subpop.0.species.ind.tree.1         = ec.gp.GPTree
+pop.subpop.0.species.ind.tree.1.tc      = tc0
+pop.subpop.0.species.ind.tree.2         = ec.gp.GPTree
+pop.subpop.0.species.ind.tree.2.tc      = tc0
+pop.subpop.0.species.pipe               = ec.breed.MultiBreedingPipeline
+pop.subpop.0.species.pipe.generate-max  = false
+pop.subpop.0.species.pipe.num-sources   = 2
+pop.subpop.0.species.pipe.source.0      = ec.gp.koza.CrossoverPipeline
+pop.subpop.0.species.pipe.source.0.prob = 0.9
+pop.subpop.0.species.pipe.source.1      = ec.gp.koza.MutationPipeline
+pop.subpop.0.species.pipe.source.1.prob = 0.1
+
+pop.subpop.1                            = ec.Subpopulation
+pop.subpop.1.size                       = 300
+pop.subpop.1.species                    = ec.gp.GPSpecies
+pop.subpop.1.species.ind                = ec.gp.GPIndividual
+pop.subpop.1.species.ind.numtrees       = 3
+pop.subpop.1.species.ind.tree.0         = ec.gp.GPTree
+pop.subpop.1.species.ind.tree.0.tc      = tc0
+pop.subpop.1.species.ind.tree.1         = ec.gp.GPTree
+pop.subpop.1.species.ind.tree.1.tc      = tc0
+pop.subpop.1.species.ind.tree.2         = ec.gp.GPTree
+pop.subpop.1.species.ind.tree.2.tc      = tc0
+pop.subpop.1.species.pipe               = ec.breed.MultiBreedingPipeline
+pop.subpop.1.species.pipe.generate-max  = false
+pop.subpop.1.species.pipe.num-sources   = 2
+pop.subpop.1.species.pipe.source.0      = ec.gp.koza.CrossoverPipeline
+pop.subpop.1.species.pipe.source.0.prob = 0.9
+pop.subpop.1.species.pipe.source.1      = ec.gp.koza.MutationPipeline
+pop.subpop.1.species.pipe.source.1.prob = 0.1
+
+pop.subpop.2                            = ec.Subpopulation
+pop.subpop.2.size                       = 300
+pop.subpop.2.species                    = ec.gp.GPSpecies
+pop.subpop.2.species.ind                = ec.gp.GPIndividual
+pop.subpop.2.species.ind.numtrees       = 3
+pop.subpop.2.species.ind.tree.0         = ec.gp.GPTree
+pop.subpop.2.species.ind.tree.0.tc      = tc0
+pop.subpop.2.species.ind.tree.1         = ec.gp.GPTree
+pop.subpop.2.species.ind.tree.1.tc      = tc0
+pop.subpop.2.species.ind.tree.2         = ec.gp.GPTree
+pop.subpop.2.species.ind.tree.2.tc      = tc0
+pop.subpop.2.species.pipe               = ec.breed.MultiBreedingPipeline
+pop.subpop.2.species.pipe.generate-max  = false
+pop.subpop.2.species.pipe.num-sources   = 2
+pop.subpop.2.species.pipe.source.0      = ec.gp.koza.CrossoverPipeline
+pop.subpop.2.species.pipe.source.0.prob = 0.9
+pop.subpop.2.species.pipe.source.1      = ec.gp.koza.MutationPipeline
+pop.subpop.2.species.pipe.source.1.prob = 0.1
+
+exch = ec.exchange.InterPopulationExchange
+
+exch.subpop.0.select = ec.select.TournamentSelection
+exch.subpop.0.mod = 4
+exch.subpop.0.start = 0
+exch.subpop.0.size = 5
+exch.subpop.0.num-dest = 1
+exch.subpop.0.dest.0 = 1
+
+exch.subpop.1.select = ec.select.TournamentSelection
+exch.subpop.1.mod = 4
+exch.subpop.1.start = 0
+exch.subpop.1.size = 5
+exch.subpop.1.num-dest = 1
+exch.subpop.1.dest.0 = 2
+
+exch.subpop.2.select = ec.select.TournamentSelection
+exch.subpop.2.mod = 4
+exch.subpop.2.start = 0
+exch.subpop.2.size = 5
+exch.subpop.2.num-dest = 1
+exch.subpop.2.dest.0 = 0
+
+# ======= Nodes =======
+# We have some functions.  They are:
+gp.fs.0.size = 25
+# Math (10):
+gp.fs.0.func.0 = ec.app.VanillaPT.Func_Math$Add
+gp.fs.0.func.0.nc = nc2
+gp.fs.0.func.1 = ec.app.VanillaPT.Func_Math$Sub
+gp.fs.0.func.1.nc = nc2
+gp.fs.0.func.2 = ec.app.VanillaPT.Func_Math$Mul
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = ec.app.VanillaPT.Func_Math$Div
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = ec.app.VanillaPT.Func_Math$Sin
+gp.fs.0.func.4.nc = nc1
+gp.fs.0.func.5 = ec.app.VanillaPT.Func_Math$Cos
+gp.fs.0.func.5.nc = nc1
+gp.fs.0.func.6 = ec.app.VanillaPT.Func_Math$Max
+gp.fs.0.func.6.nc = nc2
+gp.fs.0.func.7 = ec.app.VanillaPT.Func_Math$Min
+gp.fs.0.func.7.nc = nc2
+gp.fs.0.func.8 = ec.app.VanillaPT.Func_Math$Exp
+gp.fs.0.func.8.nc = nc1
+gp.fs.0.func.9 = ec.app.VanillaPT.Func_Math$Neg
+gp.fs.0.func.9.nc = nc1
+#
+# Ephemerals (3)
+gp.fs.0.func.10 = ec.app.VanillaPT.Func_Ephemeral$Eph_1
+gp.fs.0.func.10.nc = nc0
+gp.fs.0.func.11 = ec.app.VanillaPT.Func_Ephemeral$Eph_10
+gp.fs.0.func.11.nc = nc0
+gp.fs.0.func.12 = ec.app.VanillaPT.Func_Ephemeral$Eph_100
+gp.fs.0.func.12.nc = nc0
+#
+# Extended functions (12)
+gp.fs.0.func.13 = ec.app.VanillaPT.Func_Math$Abs
+gp.fs.0.func.13.nc = nc1
+gp.fs.0.func.14 = ec.app.VanillaPT.Func_Math$Pow
+gp.fs.0.func.14.nc = nc2
+gp.fs.0.func.15 = ec.app.VanillaPT.Func_Math$Log10
+gp.fs.0.func.15.nc = nc1
+gp.fs.0.func.16 = ec.app.VanillaPT.Func_Math$LogE
+gp.fs.0.func.16.nc = nc1
+gp.fs.0.func.17 = ec.app.VanillaPT.Func_Math$Floor
+gp.fs.0.func.17.nc = nc1
+gp.fs.0.func.18 = ec.app.VanillaPT.Func_Math$Ceil
+gp.fs.0.func.18.nc = nc1
+gp.fs.0.func.19 = ec.app.VanillaPT.Func_Math$Tan
+gp.fs.0.func.19.nc = nc1
+gp.fs.0.func.20 = ec.app.VanillaPT.Func_Math$Sqrt
+gp.fs.0.func.20.nc = nc1
+gp.fs.0.func.21 = ec.app.VanillaPT.Func_Math$Square
+gp.fs.0.func.21.nc = nc1
+gp.fs.0.func.22 = ec.app.VanillaPT.Func_Math$Cube
+gp.fs.0.func.22.nc = nc1
+# Direct Variables (2)
+gp.fs.0.func.23  = ec.app.VanillaPT.Func_Variable$Pos_X
+gp.fs.0.func.23.nc  = nc0
+gp.fs.0.func.24  = ec.app.VanillaPT.Func_Variable$Pos_Y
+gp.fs.0.func.24.nc  = nc0

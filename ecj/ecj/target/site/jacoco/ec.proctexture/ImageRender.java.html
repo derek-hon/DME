@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ImageRender.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.proctexture</a> &gt; <span class="el_source">ImageRender.java</span></div><h1>ImageRender.java</h1><pre class="source lang-java linenums">package ec.proctexture;
+
+// Base Texture Synthesis Engine
+
+import static ec.proctexture.CoordinateVariable.*;
+
+import java.awt.image.BufferedImage;
+import java.util.Arrays;
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
+
+import ec.EvolutionState;
+import ec.Individual;
+import ec.gp.GPInitializer;
+import ec.gp.GPProblem;
+import ec.util.Parameter;
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L20">public abstract class ImageRender extends GPProblem implements TextureProblemForm {</span>
+
+<span class="nc" id="L22">    protected static int Default_Image_Size = 128;</span>
+
+<span class="nc" id="L24">    private double[] Current_Pos = new double[CoordinateVariable.values().length];</span>
+<span class="nc" id="L25">    public double[] Get_Current_Pos(){ return Current_Pos; }</span>
+<span class="nc" id="L26">    public void Set_Current_Pos(double[] p){ Current_Pos = p; }</span>
+
+<span class="nc" id="L28">    private boolean  UpdateComplexCoordinates = false;</span>
+<span class="nc" id="L29">    public boolean UsesComplexCoordinates(){ return UpdateComplexCoordinates; }</span>
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+<span class="nc" id="L34">        super.setup(state, base);</span>
+
+        // verify our input is the right class (or subclasses from it)
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        if (!(input instanceof MultiData))</span>
+<span class="nc" id="L38">            state.output.fatal(&quot;GPData class must subclass from &quot; + MultiData.class, base.push(P_DATA), null);</span>
+
+<span class="nc" id="L40">        UpdateComplexCoordinates = state.parameters.getBoolean(base.push(&quot;complex-coordinates&quot;), null, false);</span>
+<span class="nc" id="L41">    }</span>
+
+
+    // This is done across multiple threads.
+    @Override
+    public void evaluate(EvolutionState state, Individual ind, int subpopulation, int threadnum)
+    {
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if(ind.evaluated) return;</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if(ind instanceof TextureIndividual)</span>
+        {
+<span class="nc" id="L51">            TextureIndividual indv = (TextureIndividual)ind;</span>
+<span class="nc" id="L52">            indv.Rendering = RenderImage(state, indv, subpopulation, threadnum, Default_Image_Size);</span>
+        }
+<span class="nc" id="L54">    }</span>
+
+
+    // We expect a [0.0,1.0] range. Make it [0,255] (fairly).
+    private int FitToChannelRange(double v)
+    {
+<span class="nc" id="L60">        v = Math.min(Math.max( 0.0, v), 1.0 );</span>
+<span class="nc" id="L61">        return (int)Math.ceil( v * 255.0 );</span>
+    }
+
+    public BufferedImage RenderImage(EvolutionState state, TextureIndividual ind, int subpop, int threadnum, int size) {
+<span class="nc" id="L65">        final int Image_Size_X = size;</span>
+<span class="nc" id="L66">        final int Image_Size_Y = size;</span>
+        // Percentage of image that a pixel takes up
+<span class="nc" id="L68">        final double Image_Step_X = 2.0 / ((double) Image_Size_X);</span>
+<span class="nc" id="L69">        final double Image_Step_Y = 2.0 / ((double) Image_Size_Y);</span>
+
+<span class="nc" id="L71">        MultiData input = (MultiData)this.input;</span>
+
+        // Problem IS being cloned.
+        //MultiData input = new MultiData();
+        //ADFStack  stack = new ADFStack();
+
+<span class="nc" id="L77">        BufferedImage outImage = new BufferedImage(Image_Size_X, Image_Size_Y, BufferedImage.TYPE_INT_RGB);</span>
+
+<span class="nc" id="L79">        String renderMethod = ind.trees[0].constraints((GPInitializer)(state.initializer)).treetype.name.toUpperCase();</span>
+        // state.output.message(&quot;render method: &quot; + renderMethod);
+<span class="nc bnc" id="L81" title="All 2 branches missed.">        if( renderMethod.equals(&quot;TEXTURE&quot;) )</span>
+        {
+            //TODO: Make better.
+<span class="nc" id="L84">            ind.trees[0].child.eval(state,threadnum,input,stack,ind,this);</span>
+<span class="nc" id="L85">            outImage = input.GetT();</span>
+<span class="nc" id="L86">            return outImage;</span>
+        }
+
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        for(int y = 0; y &lt; Image_Size_Y; y++)</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">            for(int x = 0; x &lt; Image_Size_X; x++)</span>
+            {
+<span class="nc" id="L92">                int r, g, b, rgb = 0;</span>
+
+<span class="nc" id="L94">                Current_Pos[X.ordinal()] = -1.0 + Image_Step_X * x;</span>
+<span class="nc" id="L95">                Current_Pos[Y.ordinal()] = -1.0 + Image_Step_Y * y;</span>
+                //Used for geometric functions, probably not going to do that for now
+<span class="nc bnc" id="L97" title="All 2 branches missed.">                if(UpdateComplexCoordinates)</span>
+<span class="nc" id="L98">                    Func_Variable.UpdatePolarCoordinates(Current_Pos);</span>
+
+<span class="nc bnc" id="L100" title="All 2 branches missed.">                if( ind.trees.length &lt; 3 )</span>
+                {
+                    // Grayscale or Tuple/Vector
+<span class="nc" id="L103">                    ind.trees[0].child.eval(state,threadnum,input,stack,ind,this);</span>
+
+<span class="nc bnc" id="L105" title="All 4 branches missed.">                    if( input.GetDataType() == MultiData.MultiDataType.Vector &amp;&amp; input.GetS().length &gt;= 3 )</span>
+                    {
+<span class="nc" id="L107">                        r = FitToChannelRange( input.GetS()[0] );</span>
+<span class="nc" id="L108">                        g = FitToChannelRange( input.GetS()[1] );</span>
+<span class="nc" id="L109">                        b = FitToChannelRange( input.GetS()[2] );</span>
+                    }
+                    else
+                    {
+<span class="nc" id="L113">                        r = g = b = FitToChannelRange(input.GetD());</span>
+                    }
+
+<span class="nc" id="L116">                    rgb = (r&lt;&lt;16) + (g&lt;&lt;8) + (b);</span>
+                }
+                else
+                {
+                    // Multiple colour channels.
+<span class="nc" id="L121">                    ind.trees[0].child.eval(state,threadnum,input,stack,ind,this);</span>
+<span class="nc" id="L122">                    r = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L123">                    ind.trees[1].child.eval(state,threadnum,input,stack,ind,this);</span>
+<span class="nc" id="L124">                    g = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L125">                    ind.trees[2].child.eval(state,threadnum,input,stack,ind,this);</span>
+<span class="nc" id="L126">                    b = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L127">                    rgb = (r&lt;&lt;16) + (g&lt;&lt;8) + (b);</span>
+                }
+
+<span class="nc" id="L130">                outImage.setRGB(x, y, rgb);</span>
+            }
+
+<span class="nc" id="L133">        return outImage;</span>
+    }
+
+    // @Override
+    // public void describe(final EvolutionState state, final Individual best, final int subpop, final int threadnum,
+    //         final int log) {
+    //     best.evaluated = false;
+    //     File dir = new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/java/ec/proctexture/Results/Renderings/&quot;);
+    //     if (!dir.exists())
+    //         dir.mkdir();
+    //     try {
+    //         this.evaluate(state, best, threadnum, subpop);
+    //         BufferedImage img = ((TextureIndividual)best).Rendering;
+    //         File output = new File(dir, &quot;best.jpg&quot;);
+    //         ImageIO.write(img, &quot;jpg&quot;, output);
+    //     }catch (IOException e) {
+    //         state.output.fatal(
+    //                 &quot;Error while saving best individual as image: &quot; + e);
+    //     }
+    // }
+
+    @Override
+    public Object clone()
+    {
+<span class="nc" id="L157">        ImageRender o = (ImageRender) super.clone();</span>
+<span class="nc" id="L158">        o.Current_Pos = Arrays.copyOf(this.Current_Pos, this.Current_Pos.length);</span>
+<span class="nc" id="L159">        return o;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

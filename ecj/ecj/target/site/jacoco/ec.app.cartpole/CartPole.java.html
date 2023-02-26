@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CartPole.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.cartpole</a> &gt; <span class="el_source">CartPole.java</span></div><h1>CartPole.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.app.cartpole;
+
+import ec.*;
+import ec.neat.*;
+import ec.simple.*;
+
+<span class="nc" id="L12">public class CartPole extends Problem implements SimpleProblemForm</span>
+    {
+<span class="nc" id="L14">    int MAX_STEPS=100000;</span>
+    double x,                   /* cart position, meters */
+        x_dot,                      /* cart velocity */
+        theta,                      /* pole angle, radians */
+        theta_dot;          /* pole angular velocity */
+<span class="nc" id="L19">    int steps=0,y;</span>
+
+
+    public double[] getNetOutput(NEATNetwork net, double[][] in,EvolutionState state)
+        {
+        double[] out;
+<span class="nc" id="L25">        int netDepth = net.maxDepth();</span>
+
+<span class="nc" id="L27">        net.loadSensors(in[0]);</span>
+<span class="nc bnc" id="L28" title="All 2 branches missed.">        for(int relax = 0; relax &lt; netDepth; relax++)</span>
+            {
+<span class="nc" id="L30">            net.activate(state);</span>
+            }
+
+<span class="nc" id="L33">        out = net.getOutputResults();</span>
+
+<span class="nc" id="L35">        net.flush();</span>
+
+
+<span class="nc" id="L38">        return out;</span>
+        }
+    public int runCartPole(NEATNetwork net, EvolutionState state)
+        {
+
+
+
+        // double in[] = new double[5];  //Input loading array
+
+        double out1;
+        double out2;
+<span class="nc" id="L49">        double twelve_degrees=0.2094384;</span>
+<span class="nc" id="L50">        x = x_dot = theta = theta_dot = 0.0;</span>
+<span class="nc" id="L51">        steps = 0;</span>
+
+
+
+
+<span class="nc" id="L56">        double[][] in= new double[1][5];</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        while (steps++ &lt; MAX_STEPS)</span>
+            {
+
+            /*-- setup the input layer based on the four inputs and bias --*/
+            //setup_input(net,x,x_dot,theta,theta_dot);
+<span class="nc" id="L62">            in[0][0] = 1.0;  //Bias</span>
+<span class="nc" id="L63">            in[0][1] = (x + 2.4) / 4.8;</span>
+
+<span class="nc" id="L65">            in[0][2] = (x_dot + .75) / 1.5;</span>
+<span class="nc" id="L66">            in[0][3] = (theta + twelve_degrees) / .41;</span>
+<span class="nc" id="L67">            in[0][4] = (theta_dot + 1.0) / 2.0;</span>
+
+<span class="nc" id="L69">            double[] out = getNetOutput(net,in,state);</span>
+
+            /*-- decide which way to push via which output unit is greater --*/
+<span class="nc bnc" id="L72" title="All 2 branches missed.">            if(out[0] &gt; out[1])</span>
+<span class="nc" id="L73">                y=0;</span>
+            else
+<span class="nc" id="L75">                y=1;</span>
+
+            /*--- Apply action to the simulated cart-pole ---*/
+<span class="nc" id="L78">            cart_pole(y);</span>
+
+            /*--- Check for failure.  If so, return steps ---*/
+<span class="nc bnc" id="L81" title="All 8 branches missed.">            if (x &lt; -2.4 || x &gt; 2.4  || theta &lt; -twelve_degrees || theta &gt; twelve_degrees)</span>
+<span class="nc" id="L82">                return steps;</span>
+<span class="nc" id="L83">            }</span>
+
+<span class="nc" id="L85">        return steps;</span>
+
+
+
+        }
+    void cart_pole(int action)
+        {
+        double xacc,thetaacc,force,costheta,sintheta,temp;
+
+<span class="nc" id="L94">        final double GRAVITY=9.8;</span>
+<span class="nc" id="L95">        final double MASSCART=1.0;</span>
+<span class="nc" id="L96">        final double MASSPOLE=0.1;</span>
+<span class="nc" id="L97">        final double TOTAL_MASS=(MASSPOLE + MASSCART);</span>
+<span class="nc" id="L98">        final double LENGTH=0.5;   /* actually half the pole's length */</span>
+<span class="nc" id="L99">        final double POLEMASS_LENGTH=(MASSPOLE * LENGTH);</span>
+<span class="nc" id="L100">        final double FORCE_MAG=10.0;</span>
+<span class="nc" id="L101">        final double TAU=0.02;     /* seconds between state updates */</span>
+<span class="nc" id="L102">        final double FOURTHIRDS=1.3333333333333;</span>
+
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        force = (action&gt;0)? FORCE_MAG : -FORCE_MAG;</span>
+<span class="nc" id="L105">        costheta = Math.cos(theta);</span>
+<span class="nc" id="L106">        sintheta = Math.sin(theta);</span>
+
+<span class="nc" id="L108">        temp = (force + POLEMASS_LENGTH * theta_dot * theta_dot * sintheta) / TOTAL_MASS;</span>
+
+<span class="nc" id="L110">        thetaacc = (GRAVITY * sintheta - costheta* temp)</span>
+            / (LENGTH * (FOURTHIRDS - MASSPOLE * costheta * costheta
+                    / TOTAL_MASS));
+
+<span class="nc" id="L114">        xacc  = temp - POLEMASS_LENGTH * thetaacc* costheta / TOTAL_MASS;</span>
+
+        /*** Update the four state variables, using Euler's method. ***/
+
+<span class="nc" id="L118">        x  += TAU * x_dot;</span>
+<span class="nc" id="L119">        x_dot += TAU * xacc;</span>
+<span class="nc" id="L120">        theta += TAU * theta_dot;</span>
+<span class="nc" id="L121">        theta_dot += TAU * thetaacc;</span>
+<span class="nc" id="L122">        }</span>
+    public void evaluate(EvolutionState state, Individual ind, int subpopulation, int threadnum)
+        {
+
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (ind.evaluated) return;</span>
+
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (!(ind instanceof NEATIndividual))</span>
+<span class="nc" id="L129">            state.output.fatal(&quot;Whoa! It's not a NEATIndividual!!!&quot;, null);</span>
+
+<span class="nc" id="L131">        NEATIndividual neatInd = (NEATIndividual) ind;</span>
+
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        if (!(neatInd.fitness instanceof SimpleFitness))</span>
+<span class="nc" id="L134">            state.output.fatal(&quot;Whoa! It's not a SimpleFitness!!!&quot;, null);</span>
+
+
+<span class="nc" id="L137">        NEATNetwork net = neatInd.createNetwork();</span>
+
+<span class="nc" id="L139">        double fitness = runCartPole(net, state);</span>
+
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        ((SimpleFitness)neatInd.fitness).setFitness(state, fitness, fitness &gt;= (double)MAX_STEPS);</span>
+<span class="nc" id="L142">        neatInd.evaluated = true;</span>
+
+
+<span class="nc" id="L145">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

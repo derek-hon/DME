@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GECrossoverPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.ge.breed</a> &gt; <span class="el_source">GECrossoverPipeline.java</span></div><h1>GECrossoverPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2013 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.gp.ge.breed;
+
+/* 
+ * GECrossoverPipeline.java
+ * 
+ * Created: Thu Jan  2 14:45:51 EST 2014
+ * By: Sean Luke
+ */
+ 
+import ec.vector.*;
+import ec.vector.breed.*;
+import ec.*;
+import ec.util.*;
+import ec.gp.ge.*;
+import java.util.*;
+
+
+/**
+   GECrossoverPipeline is just like ListCrossoverPipeline, except that it will additionally
+   check to verify that the first crossover point is within the range of consumed genes
+   in each parent.  This is not uncommon in the GE literature.
+   
+   &lt;p&gt;For simplicity, GECrossoverPipeline shares the same default base as ListCrossoverPipeline,
+   since it adds no new parameters.
+   
+   &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+   2
+
+   &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+   vector.list-xover
+**/
+
+<span class="nc" id="L39">public class GECrossoverPipeline extends ListCrossoverPipeline</span>
+    {
+    public Object computeValidationData(EvolutionState state, ArrayList&lt;Individual&gt; parents, int thread)
+        {
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if (!(parents.get(0) instanceof GEIndividual) ||</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">            !(parents.get(1) instanceof GEIndividual))</span>
+<span class="nc" id="L45">            state.output.fatal(&quot;Non GEIndividuals used with GECrossoverPipeline.&quot;, null, null);</span>
+        
+<span class="nc" id="L47">        return new int[] </span>
+            {      
+<span class="nc" id="L49">            ((GESpecies)(parents.get(0).species)).consumed(state, ((GEIndividual)(parents.get(0))), thread),</span>
+<span class="nc" id="L50">            ((GESpecies)(parents.get(1).species)).consumed(state, ((GEIndividual)(parents.get(1))), thread) </span>
+            };
+        }
+
+    public boolean isValidated(int[][] split, Object validationData)
+        {
+<span class="nc" id="L56">        int[] consumed = (int[]) validationData;</span>
+                
+<span class="nc bnc" id="L58" title="All 4 branches missed.">        return split[0][0] &lt; consumed[0] &amp;&amp; split[1][0] &lt; consumed[1];</span>
+        }    
+    }
+    
+    
+    
+    
+    
+    
+    
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

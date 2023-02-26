@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NEATInnovation.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.neat</a> &gt; <span class="el_source">NEATInnovation.java</span></div><h1>NEATInnovation.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.neat;
+
+import ec.*;
+import ec.util.*;
+
+/**
+ * NEATInnovation is a class for recording the innovation information during the
+ * evolution of neat. This information is critical to determine if two
+ * individuals have same origin. There a basic two types of innovation we want
+ * to keep track of, adding a node or adding a gene (link) to the individual.
+ * Different innovation require record different information.
+ * 
+ * @author Ermo Wei and David Freelan
+ *
+ */
+
+<span class="nc" id="L22">public class NEATInnovation implements Prototype</span>
+    {
+    public final static String P_INNOVATION = &quot;innovation&quot;;
+
+    /** Either NEWNODE (0) or NEWLINK (1). */
+    public int innovationType;
+
+    /**
+     * Two nodes specify where the link innovation took place : this is the
+     * input node.
+     */
+    public int inNodeId;
+
+    /**
+     * Two nodes specify where the link innovation took place : this is the
+     * output node.
+     */
+    public int outNodeId;
+
+    /** The number assigned to the innovation. */
+    public int innovationNum1;
+
+    /**
+     * If this is a new node innovation,then there are 2 innovations (links)
+     * added for the new node.
+     */
+    public int innovationNum2;
+
+    /** If a link is added, this is its weight. */
+    public double newWeight;
+
+    /** If a new node was created, this is its node id. */
+    public int newNodeId;
+
+    /**
+     * If a new node was created, this is the innovation number of the gene's
+     * link it is being stuck inside.
+     */
+    public int oldInnovationNum;
+
+    /** Is the link innovation a recurrent link. */
+    public boolean recurFlag;
+
+    @Override
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L68">        innovationType = 0;</span>
+<span class="nc" id="L69">        inNodeId = 0;</span>
+<span class="nc" id="L70">        outNodeId = 0;</span>
+<span class="nc" id="L71">        innovationNum1 = 0;</span>
+<span class="nc" id="L72">        innovationNum2 = 0;</span>
+<span class="nc" id="L73">        newNodeId = 0;</span>
+<span class="nc" id="L74">        oldInnovationNum = 0;</span>
+<span class="nc" id="L75">        newWeight = 0;</span>
+<span class="nc" id="L76">        recurFlag = false;</span>
+<span class="nc" id="L77">        }</span>
+
+    @Override
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L82">        return NEATDefaults.base().push(P_INNOVATION);</span>
+        }
+
+    /**
+     * When we have a new innovation, we clone an existing NEATInnovation
+     * instance, and change its information with this reset
+     * method.
+     */
+    public void reset(int inNode, int outNode, int innovNum1, int innovNum2, int newId, int oldInnov)
+        {
+<span class="nc" id="L92">        innovationType = 0;</span>
+<span class="nc" id="L93">        inNodeId = inNode;</span>
+<span class="nc" id="L94">        outNodeId = outNode;</span>
+<span class="nc" id="L95">        innovationNum1 = innovNum1;</span>
+<span class="nc" id="L96">        innovationNum2 = innovNum2;</span>
+<span class="nc" id="L97">        newNodeId = newId;</span>
+<span class="nc" id="L98">        oldInnovationNum = oldInnov;</span>
+
+        // unused parameters set to zero
+<span class="nc" id="L101">        newWeight = 0;</span>
+<span class="nc" id="L102">        recurFlag = false;</span>
+<span class="nc" id="L103">        }</span>
+
+    /**
+     * When we have a new innovation, we clone an existing NEATInnovation
+     * instance, and change its information with this reset
+     * method.
+     */
+    public void reset(int inNode, int outNode, int oldInnov)
+        {
+<span class="nc" id="L112">        innovationType = 0;</span>
+<span class="nc" id="L113">        inNodeId = inNode;</span>
+<span class="nc" id="L114">        outNodeId = outNode;</span>
+<span class="nc" id="L115">        oldInnovationNum = oldInnov;</span>
+
+        // unused parameters set to zero
+<span class="nc" id="L118">        innovationNum1 = 0;</span>
+<span class="nc" id="L119">        innovationNum2 = 0;</span>
+<span class="nc" id="L120">        newNodeId = 0;</span>
+<span class="nc" id="L121">        newWeight = 0;</span>
+<span class="nc" id="L122">        recurFlag = false;</span>
+<span class="nc" id="L123">        }</span>
+
+    /**
+     * When we have a new innovation, we clone an existing NEATInnovation
+     * instance, and change its information with this reset
+     * method.
+     */
+    public void reset(int inNode, int outNode, int innovNum, double weight, boolean recur)
+        {
+<span class="nc" id="L132">        innovationType = 1;</span>
+<span class="nc" id="L133">        inNodeId = inNode;</span>
+<span class="nc" id="L134">        outNodeId = outNode;</span>
+<span class="nc" id="L135">        innovationNum1 = innovNum;</span>
+<span class="nc" id="L136">        newWeight = weight;</span>
+<span class="nc" id="L137">        recurFlag = recur;</span>
+
+        // unused parameters set to zero
+<span class="nc" id="L140">        innovationNum2 = 0;</span>
+<span class="nc" id="L141">        oldInnovationNum = 0;</span>
+<span class="nc" id="L142">        newNodeId = 0;</span>
+<span class="nc" id="L143">        }</span>
+
+    /**
+     * When we have a new innovation, we clone an existing NEATInnovation
+     * instance, and change its information with this reset
+     * method.
+     */
+    public void reset(int inNode, int outNode, boolean recur)
+        {
+<span class="nc" id="L152">        innovationType = 1;</span>
+<span class="nc" id="L153">        inNodeId = inNode;</span>
+<span class="nc" id="L154">        outNodeId = outNode;</span>
+<span class="nc" id="L155">        recurFlag = recur;</span>
+
+        // unused parameters set to zero
+<span class="nc" id="L158">        innovationNum1 = 0;</span>
+<span class="nc" id="L159">        newWeight = 0;</span>
+<span class="nc" id="L160">        innovationNum2 = 0;</span>
+<span class="nc" id="L161">        oldInnovationNum = 0;</span>
+<span class="nc" id="L162">        newNodeId = 0;</span>
+
+<span class="nc" id="L164">        }</span>
+
+    public Object clone()
+        {
+<span class="nc" id="L168">        NEATInnovation myobj = null;</span>
+        try
+            {
+<span class="nc" id="L171">            myobj = (NEATInnovation) (super.clone());</span>
+<span class="nc" id="L172">            myobj.innovationType = innovationType;</span>
+<span class="nc" id="L173">            myobj.inNodeId = inNodeId;</span>
+<span class="nc" id="L174">            myobj.outNodeId = outNodeId;</span>
+<span class="nc" id="L175">            myobj.innovationNum1 = innovationNum1;</span>
+<span class="nc" id="L176">            myobj.innovationNum2 = innovationNum2;</span>
+<span class="nc" id="L177">            myobj.newWeight = newWeight;</span>
+<span class="nc" id="L178">            myobj.newNodeId = newNodeId;</span>
+<span class="nc" id="L179">            myobj.oldInnovationNum = oldInnovationNum;</span>
+<span class="nc" id="L180">            myobj.recurFlag = recurFlag;</span>
+<span class="nc" id="L181">            } catch (CloneNotSupportedException e) // never happens</span>
+            {
+<span class="nc" id="L183">            throw new InternalError();</span>
+<span class="nc" id="L184">            }</span>
+<span class="nc" id="L185">        return myobj;</span>
+        }
+
+    @Override
+    public int hashCode()
+        {
+<span class="nc" id="L191">        int result = innovationType;</span>
+<span class="nc" id="L192">        result = result * 31 + 17 + inNodeId;</span>
+<span class="nc" id="L193">        result = result * 31 + 17 + outNodeId;</span>
+<span class="nc" id="L194">        result = result * 31 + 17 + oldInnovationNum;</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">        if (recurFlag)</span>
+<span class="nc" id="L196">            result = result + 13;</span>
+
+<span class="nc" id="L198">        return result;</span>
+        }
+
+    @Override
+    public boolean equals(Object obj)
+        {
+<span class="nc" id="L204">        NEATInnovation inno = (NEATInnovation) obj;</span>
+<span class="nc bnc" id="L205" title="All 2 branches missed.">        if (innovationType != inno.innovationType)</span>
+<span class="nc" id="L206">            return false;</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        if (inNodeId != inno.inNodeId)</span>
+<span class="nc" id="L208">            return false;</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        if (outNodeId != inno.outNodeId)</span>
+<span class="nc" id="L210">            return false;</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">        if (oldInnovationNum != inno.oldInnovationNum)</span>
+<span class="nc" id="L212">            return false;</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        return recurFlag == inno.recurFlag;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

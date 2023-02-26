@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SimpleInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.simple</a> &gt; <span class="el_source">SimpleInitializer.java</span></div><h1>SimpleInitializer.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.simple;
+import ec.Initializer;
+import ec.EvolutionState;
+import ec.util.Parameter;
+import ec.Population;
+
+/* 
+ * SimpleInitializer.java
+ * 
+ * Created: Tue Aug 10 21:07:42 1999
+ * By: Sean Luke
+ */
+
+/**
+ * SimpleInitializer is a default Initializer which initializes a Population
+ * by calling the Population's populate(...) method.  For most applications,
+ * this should suffice.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="fc" id="L30">public class SimpleInitializer extends Initializer</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public void setup(final EvolutionState state, final Parameter base)
+        { 
+<span class="fc" id="L36">        }</span>
+
+    /** Creates, populates, and returns a new population by making a new
+        population, calling setup(...) on it, and calling populate(...)
+        on it, assuming an unthreaded environment (thread 0).
+        Obviously, this is an expensive method.  It should only
+        be called once typically in a run. */
+
+    public Population initialPopulation(final EvolutionState state, int thread)
+        {
+<span class="fc" id="L46">        Population p = setupPopulation(state, thread); </span>
+<span class="fc" id="L47">        p.populate(state, thread);</span>
+<span class="fc" id="L48">        return p;</span>
+        }
+                
+    public Population setupPopulation(final EvolutionState state, int thread)
+        {
+<span class="fc" id="L53">        Parameter base = new Parameter(P_POP);</span>
+<span class="fc" id="L54">        Population p = (Population) state.parameters.getInstanceForParameterEq(base,null,Population.class);  // Population.class is fine</span>
+<span class="fc" id="L55">        p.setup(state,base);</span>
+<span class="fc" id="L56">        return p;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

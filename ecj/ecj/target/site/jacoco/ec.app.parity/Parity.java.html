@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Parity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.parity</a> &gt; <span class="el_source">Parity.java</span></div><h1>Parity.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.parity;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+
+/* 
+ * Parity.java
+ * 
+ * Created: Mon Nov  1 15:46:19 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Parity implements the family of &lt;i&gt;n&lt;/i&gt;-[even|odd]-Parity problems up 
+ * to 32-parity.  Read the README file in this package for information on
+ * how to set up the parameter files to your liking -- it's a big family.
+ *
+ * &lt;p&gt;The Parity family evolves a boolean function on &lt;i&gt;n&lt;/i&gt; sets of bits,
+ * which returns true if the number of 1's is even (for even-parity) or odd
+ * (for odd-parity), false otherwise. 
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.app.parity.ParityData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the Parity problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;even&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; (default) or &lt;tt&gt;false&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(is this even-parity (as opposed to odd-parity)?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;bits&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; 2 &amp;gt;= int &amp;lt;= 31&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The number of data bits)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L54">public class Parity extends GPProblem implements SimpleProblemForm</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_NUMBITS = &quot;bits&quot;;
+    public static final String P_EVEN = &quot;even&quot;;
+
+    public boolean doEven;
+    public int numBits;
+    public int totalSize;
+
+    public int bits;  // data bits
+
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L71">        super.setup(state,base);</span>
+
+        // not using a default base here
+
+        // verify our input is the right class (or subclasses from it)
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if (!(input instanceof ParityData))</span>
+<span class="nc" id="L77">            state.output.fatal(&quot;GPData class must subclass from &quot; + ParityData.class,</span>
+<span class="nc" id="L78">                base.push(P_DATA), null);</span>
+
+        // can't use all 32 bits -- Java is signed.  Must use 31 bits.        
+<span class="nc" id="L81">        numBits = state.parameters.getIntWithMax(base.push(P_NUMBITS),null,2,31);</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (numBits&lt;2)</span>
+<span class="nc" id="L83">            state.output.fatal(&quot;The number of bits for Parity must be between 2 and 31 inclusive&quot;,base.push(P_NUMBITS));</span>
+        
+<span class="nc" id="L85">        totalSize = 1;</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        for(int x=0;x&lt;numBits;x++)</span>
+<span class="nc" id="L87">            totalSize *=2;   // safer than Math.pow()</span>
+
+<span class="nc" id="L89">        doEven = state.parameters.getBoolean(base.push(P_EVEN),null,true);</span>
+<span class="nc" id="L90">        }</span>
+
+
+    public void evaluate(final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+<span class="nc" id="L100">            ParityData input = (ParityData)(this.input);</span>
+
+<span class="nc" id="L102">            int sum = 0;</span>
+                
+<span class="nc bnc" id="L104" title="All 2 branches missed.">            for(bits=0;bits&lt;totalSize;bits++)</span>
+                {
+<span class="nc" id="L106">                int tb = 0;</span>
+                // first, is #bits even or odd?
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                for(int b=0;b&lt;numBits;b++)</span>
+<span class="nc" id="L109">                    tb += (bits &gt;&gt;&gt; b) &amp; 1;</span>
+<span class="nc" id="L110">                tb &amp;= 1;  // now tb is 1 if we're odd, 0 if we're even</span>
+
+<span class="nc" id="L112">                ((GPIndividual)ind).trees[0].child.eval(</span>
+                    state,threadnum,input,stack,((GPIndividual)ind),this);
+
+<span class="nc bnc" id="L115" title="All 8 branches missed.">                if ((doEven &amp;&amp; ((input.x &amp; 1) != tb)) ||</span>
+                    ((!doEven) &amp;&amp; ((input.x &amp; 1) == tb)))
+<span class="nc" id="L117">                    sum++;</span>
+                }
+                
+            // the fitness better be KozaFitness!
+<span class="nc" id="L121">            KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc" id="L122">            f.setStandardizedFitness(state, (totalSize - sum));</span>
+<span class="nc" id="L123">            f.hits = sum;</span>
+<span class="nc" id="L124">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L126">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

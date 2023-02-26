@@ -1,0 +1,857 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AMALGAMSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.amalgam</a> &gt; <span class="el_source">AMALGAMSpecies.java</span></div><h1>AMALGAMSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2015 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.eda.amalgam;
+
+import ec.*;
+import ec.vector.*;
+import ec.util.*;
+import ec.simple.SimpleFitness;
+import java.io.*;
+import org.ejml.data.DenseMatrix64F;
+import org.ejml.factory.DecompositionFactory;
+import org.ejml.interfaces.decomposition.CholeskyDecomposition;
+import org.ejml.ops.CommonOps;
+import org.ejml.ops.NormOps;
+import org.ejml.ops.RandomMatrices;
+import org.ejml.simple.SimpleMatrix;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.IdentityHashMap;
+
+
+
+/**
+ * AMALGAMSpecies is a FloatVectorSpecies which implements a faithful version of the
+ * iAMaLGaM IDEA algorithm.  The class has two basic methods.  The newIndividual(...)
+ * method generates a new random individual underneath the current AMALGAM
+ * distribution.  The updateDistribution(...) method revises the
+ * distribution to reflect the fitness results of the population.  In many respects
+ * this approach is similar to how it's done in CMA-ES [and in fact you'll find that
+ * these comments are similar to the CMA-ES comments].
+ * 
+ * &lt;p&gt;AMALGAMSpecies must be used in combination with AMALGAMBreeder, which will
+ * call it at appropriate times to revise the distribution and to generate a new
+ * subpopulation of individuals.  Unlike CMA-ES, AMALGAM does not require its own
+ * special initializer (we use SimpleInitializer).
+ *
+ * &lt;p&gt;AMALAGAMSpecies has nine numeric parameters that you can set; five of them
+ * have standard default constant values, and four have values which, if you 
+ * don't specify them, are updated every step via excessively complex equations.
+ *
+ * &lt;p&gt;AMALGAMSpecies also has an &quot;alternative termination&quot; option, by default turned off.  
+ * Normally ECJ terminates when the optimal individual is discovered or when the generations
+ * or maximum number of evaluations has been exceeded.  AMALGAM will also terminate
+ * when the &quot;distribution multiplier&quot; is lower than 10^(-10), or when the distribution
+ * variance is less than the fitness variance tolerance.  
+ *
+ * &lt;p&gt;AMALGAMSpecies relies on the EJML matrix library, available at 
+ * &lt;a href=&quot;http://ejml.org/&quot;&gt;http://ejml.org/&lt;/a&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tau&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Floating-point value &amp;lt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(proportion of elite individuals)&lt;br&gt;
+ If not provided, defaults to 0.35
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;variance-tolerance&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Floating-point value&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(termination condition: if the variance is less than this amount)&lt;br&gt;
+ If not provided, defaults to 0.0
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;nis-max&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Floating-point value&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of generations with no improvement beyond which the distribution multiplier begins to decrease)&lt;br&gt;
+ If not provided, defaults to 25 + genome size
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;alpha-ams&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; Floating-point value&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the proportion of individuals to be shifted in the direction of the anticipated mean shift)&lt;br&gt;
+ If not provided, defaults to 0.5 * tau * subpopulation size / (subpopulation size - 1)
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;delta-ams&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; Floating-point value&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(controls how much selected individuals are shifted)&lt;br&gt;
+ If not provided, defaults to 2.0
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;eta-shift&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Floating-point value &amp;lt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(learning rate of the anticipated mean shift)&lt;br&gt;
+ If not provided, defaults to 1.0 - (e ^ (-1.2 * (floor(tau * subpopulation size))^0.31) / (genome size ^ 0.5))
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;eta-sigma&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Floating-point value &amp;lt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(learning rate of the covariance matrix)&lt;br&gt;
+ If not provided, defaults to 1.0 - e ^ (-1.1 * (floor(tau * subpopulation size)^1.20) / (genome size ^ 1.6))
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;eta-dec&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Floating-point value &amp;lt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(degree to which the distribution multipler is decreased in certain conditions)&lt;br&gt;
+ If not provided, defaults to 0.9
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;theta-sdr&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt;= Floating-point value&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(threshold for the standard deviation ratio)&lt;br&gt;
+ If not provided, defaults to 1.0
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;alternative-termination&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;boolean, default false&lt;/td&gt;
+ &lt;td valign=top&gt;Should we also terminate on AMALGAM's additional termination conditions?.
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ eda.amalgam.species
+
+ * @author Sam McKay and Sean Luke
+ * @version 1.0 
+ */
+
+
+<span class="nc" id="L128">public class AMALGAMSpecies extends FloatVectorSpecies </span>
+    {
+    public static final String P_AMALGAM_SPECIES = &quot;species&quot;;
+
+    public static final String P_TAU = &quot;tau&quot;; // tau
+    public static final String P_ETA_DEC = &quot;eta-dec&quot;; // eta-dec
+    public static final String P_THETA_SDR = &quot;theta-sdr&quot;; // theta-sdr
+    public static final String P_ETA_SHIFT = &quot;eta-shift&quot;; // eta-shift
+    public static final String P_ETA_SIGMA = &quot;eta-sigma&quot;; // eta-sigma
+    public static final String P_NIS_MAX = &quot;nis-max&quot;; // nis-max
+    public static final String P_VARIANCE_TOLERANCE = &quot;variance-tolerance&quot;; // variance-tolerance
+    public static final String P_DELTA_AMS = &quot;delta-ams&quot;; // delta-ams
+    public static final String P_ALPHA_AMS = &quot;alpha-ams&quot;; // alpha-ams
+
+        
+    public static final String P_ALTERNATIVE_TERMINATION = &quot;alternative-termination&quot;;
+    public static final int P_PARAMETER_MISSING = -1;
+
+    public boolean useAltTermination;
+
+    // 0 &lt;= tau &lt;= 1
+    // defaults to 0.35
+    public double tau;
+
+    // 0 &lt;= variance-tolerance      : we terminate if the distribution variance is less than this
+    // 0 by default
+<span class="nc" id="L154">    public double fitnessVarianceTolerance = 0;</span>
+
+    // 0 &lt;= nis-max
+    // 26 + genome size by default
+<span class="nc" id="L158">    public int maximumNoImprovementStretch = 0;</span>
+<span class="nc" id="L159">    public int noImprovementStretch = 0;</span>
+
+    // 0 &lt; alpha-ams
+    // default is   0.5 * tau * subpop.individuals.size() / (subpop.individuals.size()-1)
+    public double alphaAMS;
+    public double userAlphaAMS;
+    
+    // 0 &lt; delta-ams
+    // defaults to 2.0
+    public double deltaAMS;
+
+    // 0 &lt;= eta-shift &lt;= 1
+    // defaults to   1.0-Math.exp(-1.2*Math.pow((int)(tau*subpop.individuals.size()),0.31)/Math.pow(genomeSize,0.50))
+    public double etaP;
+    public double userEtaP;
+
+    // 0 &lt;= eta-sigma &lt;= 1
+    // defaults to  1.0-Math.exp(-1.1*Math.pow((int)(tau*subpop.individuals.size()),1.20)/Math.pow(genomeSize,1.60))
+    public double etaS;
+    public double userEtaS;
+
+    // 0 &lt;= eta-dec &lt;= 1
+    // defaults to 0.9
+    public double distributionMultiplierDecrease;
+    // this is just 1.0/distributionMultiplierDecrease -- it's only here because Amalgam's C code had that
+    public double distributionMultiplierIncrease;
+    public double distributionMultiplier;
+
+    // 0 &lt;= theta-sdr 
+    // defaults to 1.0
+    public double stDevRatioThresh;
+
+
+
+    /** The mean of the distribution. */
+    public DenseMatrix64F mean;
+    public DenseMatrix64F prevMean;
+    public DenseMatrix64F xAvgImp;
+    public DenseMatrix64F meanShift;
+
+    public DenseMatrix64F genCovarMatrix;
+    public DenseMatrix64F aggCovarMatrix;
+    public DenseMatrix64F covarMatrix;
+    public DenseMatrix64F choleskyLower;
+
+    // various preallocated vectors/matrices used for intermediate computations
+    public DenseMatrix64F temp;
+    public DenseMatrix64F temp2;
+    public DenseMatrix64F temp3;
+    public DenseMatrix64F tempMatrix;
+
+    public IdentityHashMap&lt;Individual, Integer&gt; constraintViolations;
+
+    // some stuff is different for the first generation
+    // this flag is flipped in breeder
+    public boolean firstGeneration;
+
+    public Parameter defaultBase() 
+        {
+<span class="nc" id="L218">        return AMALGAMDefaults.base().push(P_AMALGAM_SPECIES);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base) 
+        {
+<span class="nc" id="L223">        super.setup(state, base);</span>
+<span class="nc" id="L224">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L226">        Parameter subpopBase = base.pop();</span>
+<span class="nc" id="L227">        Parameter subpopDefaultBase =  ECDefaults.base().push(Subpopulation.P_SUBPOPULATION);</span>
+
+<span class="nc" id="L229">        useAltTermination = state.parameters.getBoolean(base.push(P_ALTERNATIVE_TERMINATION), def.push(P_ALTERNATIVE_TERMINATION),false);</span>
+
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_TAU), def.push(P_TAU)))</span>
+            {
+<span class="nc" id="L233">            state.output.message(&quot;AMALGAM tau was not provided, defaulting to 0.35&quot;);</span>
+<span class="nc" id="L234">            tau = 0.35;</span>
+            }
+        else
+            {
+<span class="nc" id="L238">            tau = state.parameters.getDouble(base.push(P_TAU), def.push(P_TAU),0.0);</span>
+<span class="nc bnc" id="L239" title="All 4 branches missed.">            if (tau &lt; 0 || tau &gt; 1) </span>
+<span class="nc" id="L240">                state.output.fatal(&quot;If AMALGAM tau is provided, it must be a valid number in the range [0,1]&quot;, base.push(P_TAU), def.push(P_TAU));</span>
+            }
+
+
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_ETA_DEC), def.push(P_ETA_DEC)))</span>
+            {
+<span class="nc" id="L246">            state.output.message(&quot;AMALGAM eta-dec was not provided, defaulting to 0.9&quot;);</span>
+<span class="nc" id="L247">            distributionMultiplierDecrease = 0.9;</span>
+            }
+        else
+            {
+<span class="nc" id="L251">            distributionMultiplierDecrease = state.parameters.getDouble(base.push(P_ETA_DEC), def.push(P_ETA_DEC),0.0);</span>
+<span class="nc bnc" id="L252" title="All 4 branches missed.">            if (distributionMultiplierDecrease &lt; 0 || distributionMultiplierDecrease &gt; 1) </span>
+<span class="nc" id="L253">                state.output.fatal(&quot;If AMALGAM eta-dec is provided, it must be a valid number in the range [0,1]&quot;, base.push(P_ETA_DEC), def.push(P_ETA_DEC));</span>
+            }
+
+<span class="nc" id="L256">        distributionMultiplier = 1;</span>
+<span class="nc" id="L257">        distributionMultiplierIncrease = 1.0/distributionMultiplierDecrease;</span>
+
+<span class="nc bnc" id="L259" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_THETA_SDR), def.push(P_THETA_SDR)))</span>
+            {
+<span class="nc" id="L261">            state.output.message(&quot;AMALGAM theta-sdr was not provided, defaulting to 1.0&quot;);</span>
+<span class="nc" id="L262">            stDevRatioThresh = 1.0;</span>
+            }
+        else
+            {
+<span class="nc" id="L266">            stDevRatioThresh = state.parameters.getDouble(base.push(P_THETA_SDR), def.push(P_THETA_SDR),1);</span>
+<span class="nc bnc" id="L267" title="All 2 branches missed.">            if (stDevRatioThresh &lt; 0 ) </span>
+<span class="nc" id="L268">                state.output.fatal(&quot;If AMALGAM theta-sdr is provided, it must be &gt;= 0&quot;, base.push(P_THETA_SDR), def.push(P_THETA_SDR));</span>
+            }
+
+
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_VARIANCE_TOLERANCE), def.push(P_VARIANCE_TOLERANCE)))</span>
+            {
+<span class="nc" id="L274">            state.output.message(&quot;AMALGAM variance-tolerance was not provided, defaulting to 0.0&quot;);</span>
+<span class="nc" id="L275">            fitnessVarianceTolerance = 0.0;</span>
+            }
+        else
+            {
+<span class="nc" id="L279">            fitnessVarianceTolerance = state.parameters.getDouble(base.push(P_VARIANCE_TOLERANCE), def.push(P_VARIANCE_TOLERANCE),0.0);</span>
+<span class="nc bnc" id="L280" title="All 2 branches missed.">            if (fitnessVarianceTolerance &lt; 0 ) </span>
+<span class="nc" id="L281">                state.output.fatal(&quot;If AMALGAM variance-tolerance is provided, it must be &gt;= 0&quot;, base.push(P_VARIANCE_TOLERANCE), def.push(P_VARIANCE_TOLERANCE));</span>
+            }
+
+<span class="nc" id="L284">        noImprovementStretch = 0;</span>
+<span class="nc bnc" id="L285" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_NIS_MAX), def.push(P_NIS_MAX)))</span>
+            {
+<span class="nc" id="L287">            maximumNoImprovementStretch = 25 + genomeSize;</span>
+            }
+        else
+            {
+<span class="nc" id="L291">            maximumNoImprovementStretch = state.parameters.getInt(base.push(P_NIS_MAX), def.push(P_NIS_MAX),0);</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">            if (maximumNoImprovementStretch &lt;= 0 ) </span>
+<span class="nc" id="L293">                state.output.fatal(&quot;If AMALGAM nis-max is provided, it must be a valid integer &gt; 0&quot;, base.push(P_NIS_MAX), def.push(P_NIS_MAX));</span>
+            }
+
+
+<span class="nc bnc" id="L297" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_DELTA_AMS), def.push(P_DELTA_AMS)))</span>
+            {
+<span class="nc" id="L299">            state.output.message(&quot;AMALGAM delta-ams was not provided, defaulting to 2.0&quot;);</span>
+<span class="nc" id="L300">            deltaAMS = 2;</span>
+            }
+        else
+            {
+<span class="nc" id="L304">            deltaAMS = state.parameters.getDouble(base.push(P_DELTA_AMS), def.push(P_DELTA_AMS),0.0);</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">            if (deltaAMS &lt;= 0 ) </span>
+<span class="nc" id="L306">                state.output.fatal(&quot;If AMALGAM delta-ams is provided, it must be &gt; 0&quot;, base.push(P_DELTA_AMS), def.push(P_DELTA_AMS));</span>
+            }
+
+        // the default values for the following parameters require knowledge of the population size
+        // we don't know it at this point, so wait until update distribution to set default values up
+        // for now, just assign P_PARAMETER MISSING if the param file does not contain a value
+
+<span class="nc bnc" id="L313" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_ALPHA_AMS), def.push(P_ALPHA_AMS)))</span>
+            {
+<span class="nc" id="L315">            userAlphaAMS = P_PARAMETER_MISSING;</span>
+            }
+        else
+            {
+<span class="nc" id="L319">            userAlphaAMS = state.parameters.getDouble(base.push(P_ALPHA_AMS), def.push(P_ALPHA_AMS),P_PARAMETER_MISSING);</span>
+<span class="nc bnc" id="L320" title="All 2 branches missed.">            if (userAlphaAMS &lt;= 0 ) </span>
+<span class="nc" id="L321">                state.output.fatal(&quot;If AMALGAM alpha-ams is provided, it must be &gt; 0&quot;, base.push(P_ALPHA_AMS), def.push(P_ALPHA_AMS));</span>
+            }
+
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_ETA_SHIFT), def.push(P_ETA_SHIFT)))</span>
+            {
+<span class="nc" id="L326">            userEtaP = P_PARAMETER_MISSING;</span>
+            }
+        else
+            {
+<span class="nc" id="L330">            userEtaP = state.parameters.getDouble(base.push(P_ETA_SHIFT), def.push(P_ETA_SHIFT),P_PARAMETER_MISSING);</span>
+<span class="nc bnc" id="L331" title="All 4 branches missed.">            if (userEtaP &lt; 0 || userEtaP &gt; 1) </span>
+<span class="nc" id="L332">                state.output.fatal(&quot;If AMALGAM eta-shift is provided, it must be a valid number in the range [0,1]&quot;, base.push(P_ETA_SHIFT), def.push(P_ETA_SHIFT));</span>
+            }
+
+<span class="nc bnc" id="L335" title="All 2 branches missed.">        if (!state.parameters.exists(base.push(P_ETA_SIGMA), def.push(P_ETA_SIGMA)))</span>
+            {
+<span class="nc" id="L337">            userEtaS = P_PARAMETER_MISSING;</span>
+            }
+        else
+            {
+<span class="nc" id="L341">            userEtaS = state.parameters.getDouble(base.push(P_ETA_SIGMA), def.push(P_ETA_SIGMA),P_PARAMETER_MISSING);</span>
+<span class="nc bnc" id="L342" title="All 4 branches missed.">            if (userEtaS &lt; 0 || userEtaS &gt; 1) </span>
+<span class="nc" id="L343">                state.output.fatal(&quot;If AMALGAM eta-sigma is provided, it must be a valid number in the range [0,1]&quot;, base.push(P_ETA_SIGMA), def.push(P_ETA_SIGMA));</span>
+            }
+
+<span class="nc" id="L346">        alphaAMS = userAlphaAMS;</span>
+<span class="nc" id="L347">        etaP = userEtaP;</span>
+<span class="nc" id="L348">        etaS = userEtaS;</span>
+
+<span class="nc" id="L350">        mean = new DenseMatrix64F(genomeSize,1);</span>
+<span class="nc" id="L351">        prevMean = new DenseMatrix64F(genomeSize,1);</span>
+<span class="nc" id="L352">        xAvgImp = new DenseMatrix64F(genomeSize,1);</span>
+<span class="nc" id="L353">        meanShift = new DenseMatrix64F(genomeSize,1);</span>
+
+<span class="nc" id="L355">        genCovarMatrix = CommonOps.identity(genomeSize);</span>
+<span class="nc" id="L356">        aggCovarMatrix = CommonOps.identity(genomeSize);</span>
+<span class="nc" id="L357">        covarMatrix = CommonOps.identity(genomeSize);</span>
+<span class="nc" id="L358">        choleskyLower = CommonOps.identity(genomeSize);</span>
+
+<span class="nc" id="L360">        temp = new DenseMatrix64F(genomeSize,1);</span>
+<span class="nc" id="L361">        temp3 = new DenseMatrix64F(genomeSize,1);</span>
+<span class="nc" id="L362">        temp2 = new DenseMatrix64F(1,genomeSize);</span>
+<span class="nc" id="L363">        tempMatrix = new DenseMatrix64F(genomeSize,genomeSize);</span>
+
+<span class="nc" id="L365">        firstGeneration = true;</span>
+<span class="nc" id="L366">        }</span>
+
+
+    public Object clone()
+        {
+<span class="nc" id="L371">        AMALGAMSpecies myobj = (AMALGAMSpecies) (super.clone());</span>
+
+<span class="nc" id="L373">        myobj.fitnessVarianceTolerance = fitnessVarianceTolerance;</span>
+
+<span class="nc" id="L375">        myobj.noImprovementStretch = noImprovementStretch = 0;</span>
+<span class="nc" id="L376">        myobj.maximumNoImprovementStretch = maximumNoImprovementStretch = 0;</span>
+
+<span class="nc" id="L378">        myobj.tau = tau;</span>
+
+<span class="nc" id="L380">        myobj.alphaAMS = alphaAMS;</span>
+<span class="nc" id="L381">        myobj.deltaAMS = deltaAMS;</span>
+
+<span class="nc" id="L383">        myobj.userEtaP = userEtaP;</span>
+<span class="nc" id="L384">        myobj.userEtaS = userEtaS;</span>
+
+<span class="nc" id="L386">        myobj.distributionMultiplier = distributionMultiplier;</span>
+
+<span class="nc" id="L388">        myobj.distributionMultiplierDecrease = distributionMultiplierDecrease;</span>
+<span class="nc" id="L389">        myobj.distributionMultiplierIncrease = distributionMultiplierIncrease;</span>
+
+<span class="nc" id="L391">        myobj.stDevRatioThresh = stDevRatioThresh;</span>
+
+        /** The mean of the distribution. */
+<span class="nc" id="L394">        myobj.mean.set(mean);</span>
+<span class="nc" id="L395">        myobj.prevMean.set(prevMean);</span>
+<span class="nc" id="L396">        myobj.xAvgImp.set(xAvgImp);</span>
+<span class="nc" id="L397">        myobj.meanShift.set(meanShift);</span>
+
+<span class="nc" id="L399">        myobj.genCovarMatrix.set(genCovarMatrix);</span>
+<span class="nc" id="L400">        myobj.aggCovarMatrix.set(aggCovarMatrix);</span>
+<span class="nc" id="L401">        myobj.covarMatrix.set(covarMatrix);</span>
+<span class="nc" id="L402">        myobj.choleskyLower.set(choleskyLower);</span>
+
+<span class="nc" id="L404">        myobj.constraintViolations = (IdentityHashMap&lt;Individual, Integer&gt;) constraintViolations.clone();</span>
+
+<span class="nc" id="L406">        return myobj;</span>
+        }
+
+
+
+    public void computeConstraintViolations(final EvolutionState state, final Subpopulation subpop) 
+        {
+<span class="nc" id="L413">        constraintViolations = new IdentityHashMap&lt;Individual, Integer&gt;();</span>
+<span class="nc bnc" id="L414" title="All 2 branches missed.">        for (int i = 0; i &lt; subpop.individuals.size(); i++) </span>
+            {
+<span class="nc" id="L416">            int cv = 0;</span>
+<span class="nc" id="L417">            DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">            for (int j = 0; j &lt; genomeSize; j++) </span>
+                {
+<span class="nc bnc" id="L420" title="All 4 branches missed.">                if (dvind.genome[j] &lt; minGene(j) || dvind.genome[j] &gt; maxGene(j)) </span>
+                    {
+<span class="nc" id="L422">                    cv++;</span>
+                    }
+                }
+<span class="nc" id="L425">            constraintViolations.put(subpop.individuals.get(i), cv);</span>
+            }
+<span class="nc" id="L427">        }</span>
+
+    public int compareIndividuals(Individual a, Individual b) 
+        {
+<span class="nc" id="L431">        int constraintViolationA = constraintViolations.get(a);</span>
+<span class="nc" id="L432">        int constraintViolationB = constraintViolations.get(b);</span>
+
+        /// The original iAmalgam code uses a merge sort, but the sorting comparison
+        /// does not ever state that two individuals are equal.  It just says that
+        /// if a and b are the same, then a &gt; b.  This is of course in violation of 
+        /// Java sorting contracts.  So we have to tweak it slightly.  
+        /// The iAmalgam sorting code (line 783 of iAMaLGaM-Full.c) says:
+        /// 
+        ///             Sorts an array of objectives and constraints
+        ///             using constraint domination and returns the
+        ///             sort-order (small to large).
+        ///
+        /// By this we assume that the following should be proper:
+        ///
+        /// If A violates fewer constraints than B
+        ///             A is best
+        ///     Else if B violates less than A
+        ///             B is best
+        ///     Else if A is fitter than B
+        ///             A is best
+        ///     Else if B is fitter than A
+        ///             B is best
+        ///     Else 
+        ///             A and B are equal
+
+<span class="nc bnc" id="L457" title="All 2 branches missed.">        if (constraintViolationA &lt; constraintViolationB)</span>
+            {
+<span class="nc" id="L459">            return -1;  // A is better</span>
+            }
+<span class="nc bnc" id="L461" title="All 2 branches missed.">        else if (constraintViolationB &lt; constraintViolationA)</span>
+            {
+<span class="nc" id="L463">            return 1;  // B is better</span>
+            }
+<span class="nc" id="L465">        else return a.compareTo(b);  // compares based on fitness, with 0 as a tie</span>
+        }
+
+    public boolean isValid(DoubleVectorIndividual dvind)
+        {
+<span class="nc bnc" id="L470" title="All 2 branches missed.">        for (int i = 0; i &lt; genomeSize; i++)</span>
+            {
+<span class="nc bnc" id="L472" title="All 4 branches missed.">            if (dvind.genome[i] &lt; minGene(i) || dvind.genome[i] &gt; maxGene(i)) </span>
+                {
+<span class="nc" id="L474">                return false;</span>
+                }
+            }
+<span class="nc" id="L477">        return true;</span>
+        }
+
+
+    public Individual newIndividual(final EvolutionState state, int thread) 
+        {
+<span class="nc" id="L483">        Individual newind = super.newIndividual(state, thread);</span>
+<span class="nc" id="L484">        MersenneTwisterFast random = state.random[thread];</span>
+
+<span class="nc bnc" id="L486" title="All 2 branches missed.">        if (!(newind instanceof DoubleVectorIndividual))  // uh oh</span>
+<span class="nc" id="L487">            state.output.fatal(&quot;To use AMALGAMSpecies, the species must be initialized with a DoubleVectorIndividual.  But it contains a &quot; + newind);</span>
+
+
+<span class="nc" id="L490">        DoubleVectorIndividual dvind = (DoubleVectorIndividual)(newind);</span>
+<span class="nc" id="L491">        DenseMatrix64F genome = DenseMatrix64F.wrap(genomeSize,1,dvind.genome);</span>
+
+        while (true) 
+            {
+
+<span class="nc bnc" id="L496" title="All 2 branches missed.">            if (!firstGeneration) </span>
+                {
+<span class="nc bnc" id="L498" title="All 2 branches missed.">                for ( int i = 0; i &lt; genomeSize; i++ )</span>
+<span class="nc" id="L499">                    dvind.genome[i] = random.nextGaussian();</span>
+
+<span class="nc" id="L501">                CommonOps.mult(choleskyLower,genome,temp);</span>
+<span class="nc" id="L502">                CommonOps.add(temp,mean,genome);</span>
+
+<span class="nc bnc" id="L504" title="All 2 branches missed.">                if (!isValid(dvind)) </span>
+                    {
+<span class="nc" id="L506">                    continue;</span>
+                    }
+                } 
+            else 
+                {
+<span class="nc bnc" id="L511" title="All 2 branches missed.">                for ( int i = 0; i &lt; genomeSize; i++ )</span>
+<span class="nc" id="L512">                    dvind.genome[i] = minGene(i) + (maxGene[i] - minGene(i)) * random.nextDouble();</span>
+                }
+
+<span class="nc" id="L515">            return newind;</span>
+            }
+
+        }
+
+    public void adaptDistributionMultiplier(final EvolutionState state, final Subpopulation subpop) 
+        {
+        // don't run for the first generation
+
+<span class="nc" id="L524">        boolean improved = false;</span>
+<span class="nc bnc" id="L525" title="All 2 branches missed.">        for (int i = 1; i &lt; tau*subpop.individuals.size(); i++) </span>
+            {
+            // if ind[i] is better than ind[0] (the individual kept from the previous population)
+            // if (subpop.individuals.get(i).compareTo(subpop.individuals.get(0)) &lt; 0) 
+                {
+<span class="nc bnc" id="L530" title="All 2 branches missed.">                if (compareIndividuals(subpop.individuals.get(i), subpop.individuals.get(0)) &lt; 0) </span>
+                    {
+<span class="nc" id="L532">                    improved = true;</span>
+<span class="nc" id="L533">                    break;</span>
+                    }
+                }
+            }
+                        
+<span class="nc bnc" id="L538" title="All 2 branches missed.">        if (improved) </span>
+            {
+<span class="nc" id="L540">            noImprovementStretch = 0;</span>
+<span class="nc bnc" id="L541" title="All 2 branches missed.">            if (distributionMultiplier &lt; 1) distributionMultiplier = 1;</span>
+
+<span class="nc" id="L543">            xAvgImp = new DenseMatrix64F(genomeSize, 1);</span>
+<span class="nc" id="L544">            int count = 0;</span>
+<span class="nc bnc" id="L545" title="All 2 branches missed.">            for (int j = 1; j &lt; tau*subpop.individuals.size(); j++) </span>
+                {
+<span class="nc bnc" id="L547" title="All 2 branches missed.">                if (compareIndividuals(subpop.individuals.get(j), subpop.individuals.get(0)) &lt; 0) </span>
+                    {
+<span class="nc" id="L549">                    DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(j));</span>
+<span class="nc" id="L550">                    DenseMatrix64F genome = DenseMatrix64F.wrap(genomeSize,1,dvind.genome);</span>
+<span class="nc" id="L551">                    CommonOps.add(xAvgImp,genome,xAvgImp);</span>
+<span class="nc" id="L552">                    count++;</span>
+                    }
+
+                }
+<span class="nc" id="L556">            CommonOps.scale(1.0/count,xAvgImp,xAvgImp);</span>
+
+<span class="nc" id="L558">            CommonOps.subtract(xAvgImp, mean, temp);</span>
+<span class="nc" id="L559">            CommonOps.invert(choleskyLower, tempMatrix);</span>
+<span class="nc" id="L560">            CommonOps.mult(tempMatrix, temp, temp3);</span>
+<span class="nc" id="L561">            double sdr = CommonOps.elementMaxAbs(temp3);</span>
+
+<span class="nc bnc" id="L563" title="All 2 branches missed.">            if (sdr &gt; stDevRatioThresh) </span>
+                {
+<span class="nc" id="L565">                distributionMultiplier *= distributionMultiplierIncrease;</span>
+                }
+<span class="nc" id="L567">            } </span>
+        else 
+            {
+<span class="nc bnc" id="L570" title="All 2 branches missed.">            if (distributionMultiplier &lt;= 1) noImprovementStretch++;</span>
+<span class="nc bnc" id="L571" title="All 4 branches missed.">            if (distributionMultiplier &gt; 1 || noImprovementStretch &gt; maximumNoImprovementStretch) distributionMultiplier *= distributionMultiplierDecrease;</span>
+<span class="nc bnc" id="L572" title="All 4 branches missed.">            if (distributionMultiplier &lt; 1 &amp;&amp; noImprovementStretch &lt; maximumNoImprovementStretch) distributionMultiplier = 1;</span>
+            }
+<span class="nc" id="L574">        }</span>
+
+    public void selectForDiversity(final EvolutionState state, final Subpopulation subpop) 
+        {
+        int numBest; // the number of individuals with fitness equal to the best individual
+<span class="nc" id="L579">        DoubleVectorIndividual bestInd = (DoubleVectorIndividual) subpop.individuals.get(0);</span>
+<span class="nc bnc" id="L580" title="All 2 branches missed.">        for (numBest = 1; numBest &lt; subpop.individuals.size(); numBest++) </span>
+            {
+<span class="nc" id="L582">            DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(numBest));</span>
+<span class="nc bnc" id="L583" title="All 2 branches missed.">            if (dvind.compareTo(bestInd) != 0) </span>
+                {
+<span class="nc" id="L585">                break; // break when we find an individual that isn't as good as the best</span>
+                }
+            }
+
+        // rearrange the selections so that the selected individuals out of the equal fitness ones are at the front of the array
+        // chooses the individual that is farthest from the ones selected previously
+
+<span class="nc" id="L592">        int numSelectedSoFar = 1; // first one is already selected</span>
+<span class="nc" id="L593">        double[] distances = new double[numBest];</span>
+<span class="nc" id="L594">        Arrays.fill(distances, Double.POSITIVE_INFINITY); // value guaranteed to be overwriten</span>
+<span class="nc bnc" id="L595" title="All 2 branches missed.">        for (; numSelectedSoFar &lt; tau*subpop.individuals.size(); numSelectedSoFar++) </span>
+            {
+<span class="nc" id="L597">            double farthest = -1; // always less than the first candidate</span>
+
+<span class="nc bnc" id="L599" title="All 2 branches missed.">            for (int i = numSelectedSoFar; i &lt; numBest; i++) </span>
+                {
+<span class="nc" id="L601">                double distance = subpop.individuals.get(numSelectedSoFar-1).distanceTo(subpop.individuals.get(i));</span>
+
+<span class="nc bnc" id="L603" title="All 2 branches missed.">                if (distance &lt; distances[i]) </span>
+                    {
+<span class="nc" id="L605">                    distances[i] = distance;</span>
+                    }
+
+<span class="nc bnc" id="L608" title="All 2 branches missed.">                if (distances[i] &gt; farthest)</span>
+                    {
+<span class="nc" id="L610">                    farthest = distances[i];</span>
+<span class="nc" id="L611">                    Individual tmp = subpop.individuals.get(i);</span>
+<span class="nc" id="L612">                    subpop.individuals.set(i, subpop.individuals.get(numSelectedSoFar));</span>
+<span class="nc" id="L613">                    subpop.individuals.set(numSelectedSoFar, tmp);</span>
+                    }
+                }
+            }
+
+<span class="nc" id="L618">        }</span>
+
+    public void computeMean(final EvolutionState state, final Subpopulation subpop) 
+        {
+<span class="nc" id="L622">        prevMean.set(mean);</span>
+<span class="nc" id="L623">        CommonOps.fill(mean,0);</span>
+<span class="nc bnc" id="L624" title="All 2 branches missed.">        if (distributionMultiplier &gt;= 1.0) </span>
+            {
+            int i;
+<span class="nc bnc" id="L627" title="All 2 branches missed.">            for (i = 0; i &lt; tau*subpop.individuals.size(); i++) </span>
+                {
+<span class="nc" id="L629">                DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));</span>
+<span class="nc" id="L630">                DenseMatrix64F genome = DenseMatrix64F.wrap(genomeSize,1,dvind.genome);</span>
+<span class="nc" id="L631">                CommonOps.add(mean,genome,mean);</span>
+                }
+<span class="nc" id="L633">            CommonOps.scale(1.0/i,mean,mean);</span>
+<span class="nc" id="L634">            } </span>
+        else 
+            {
+            // focus on the best solution
+<span class="nc" id="L638">            DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(0));</span>
+<span class="nc" id="L639">            mean.set(DenseMatrix64F.wrap(genomeSize,1,dvind.genome));</span>
+            }
+<span class="nc" id="L641">        }</span>
+
+    public void computeCovariance(final EvolutionState state, final Subpopulation subpop) 
+        {
+<span class="nc" id="L645">        CommonOps.fill(genCovarMatrix, 0);</span>
+
+        int i;
+<span class="nc bnc" id="L648" title="All 2 branches missed.">        for (i = 0; i &lt; tau*subpop.individuals.size(); i++) </span>
+            {
+<span class="nc" id="L650">            DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));</span>
+<span class="nc" id="L651">            DenseMatrix64F genome = DenseMatrix64F.wrap(genomeSize,1,dvind.genome);</span>
+<span class="nc" id="L652">            CommonOps.subtract(genome,mean,temp);</span>
+<span class="nc" id="L653">            CommonOps.transpose(temp,temp2);</span>
+<span class="nc" id="L654">            CommonOps.multAdd(temp,temp2,genCovarMatrix);</span>
+            }
+
+
+
+<span class="nc" id="L659">        CommonOps.scale(1.0/i,genCovarMatrix,genCovarMatrix);</span>
+
+<span class="nc bnc" id="L661" title="All 2 branches missed.">        if (!firstGeneration) </span>
+            {
+<span class="nc" id="L663">            CommonOps.scale(etaS, genCovarMatrix, genCovarMatrix);</span>
+<span class="nc" id="L664">            CommonOps.scale(1-etaS, aggCovarMatrix, aggCovarMatrix);</span>
+<span class="nc" id="L665">            CommonOps.add(aggCovarMatrix, genCovarMatrix, aggCovarMatrix);</span>
+            } 
+        else 
+            {
+<span class="nc" id="L669">            aggCovarMatrix.set(genCovarMatrix);</span>
+            }    
+<span class="nc" id="L671">        CommonOps.scale(distributionMultiplier, aggCovarMatrix, covarMatrix);</span>
+
+<span class="nc bnc" id="L673" title="All 2 branches missed.">        for ( i = 0; i &lt; genomeSize; i++ )</span>
+<span class="nc bnc" id="L674" title="All 2 branches missed.">            for (int j = 0; j &lt; i; j++ )</span>
+<span class="nc" id="L675">                covarMatrix.set(i,j,covarMatrix.get(j,i));</span>
+<span class="nc" id="L676">        }</span>
+
+    public void computeAMS(final EvolutionState state, final Subpopulation subpop) 
+        {
+<span class="nc" id="L680">        CommonOps.subtract(mean,prevMean,temp);</span>
+<span class="nc bnc" id="L681" title="All 2 branches missed.">        if (!firstGeneration) </span>
+            {
+<span class="nc" id="L683">            CommonOps.scale(etaP, temp);</span>
+<span class="nc" id="L684">            CommonOps.scale(1-etaP, meanShift);</span>
+<span class="nc" id="L685">            CommonOps.add(meanShift,temp,meanShift);</span>
+            } 
+        else 
+            {
+<span class="nc" id="L689">            meanShift.set(temp);</span>
+            }
+<span class="nc" id="L691">        }</span>
+
+
+    public void updateDistribution(final EvolutionState state, final Subpopulation subpop) 
+        {
+<span class="nc" id="L696">        CommonOps.fill(temp, 0);</span>
+<span class="nc" id="L697">        CommonOps.fill(temp3, 0);</span>
+<span class="nc" id="L698">        CommonOps.fill(temp2, 0);</span>
+<span class="nc" id="L699">        CommonOps.fill(tempMatrix, 0);</span>
+
+<span class="nc bnc" id="L701" title="All 2 branches missed.">        if (userEtaP == P_PARAMETER_MISSING) </span>
+            {
+<span class="nc" id="L703">            etaP = 1.0-Math.exp(-1.2*Math.pow((int)(tau*subpop.individuals.size()),0.31)/Math.pow(genomeSize,0.50));</span>
+            }
+
+<span class="nc bnc" id="L706" title="All 2 branches missed.">        if (userEtaS == P_PARAMETER_MISSING) </span>
+            {
+<span class="nc" id="L708">            etaS = 1.0-Math.exp(-1.1*Math.pow((int)(tau*subpop.individuals.size()),1.20)/Math.pow(genomeSize,1.60));</span>
+            }
+
+<span class="nc bnc" id="L711" title="All 2 branches missed.">        if (userAlphaAMS == P_PARAMETER_MISSING) </span>
+            {
+<span class="nc" id="L713">            alphaAMS = 0.5 * tau * subpop.individuals.size() / (subpop.individuals.size()-1);</span>
+            }
+
+
+<span class="nc" id="L717">        computeConstraintViolations(state, subpop);</span>
+
+<span class="nc bnc" id="L719" title="All 2 branches missed.">        if (!firstGeneration)</span>
+            {
+<span class="nc" id="L721">            adaptDistributionMultiplier(state, subpop);</span>
+            }
+
+<span class="nc" id="L724">        Collections.sort(subpop.individuals, new Comparator&lt;Individual&gt;() </span>
+<span class="nc" id="L725">                {</span>
+                public int compare(Individual a, Individual b) 
+                    {
+<span class="nc" id="L728">                    return compareIndividuals(a, b);</span>
+                    }
+            });
+        // printStats(state,subpop);
+
+<span class="nc bnc" id="L733" title="All 2 branches missed.">        if (subpop.individuals.get((int)tau*subpop.individuals.size()).fitness.fitness() == subpop.individuals.get(0).fitness.fitness()) </span>
+            {
+<span class="nc" id="L735">            selectForDiversity(state,subpop);</span>
+            }
+
+
+<span class="nc bnc" id="L739" title="All 2 branches missed.">        if (checkTerminationConditions(state,subpop)) </span>
+            {
+<span class="nc" id="L741">            state.evaluator.setRunComplete(&quot;AMALGAMSpecies: Termination condition reached.&quot;);</span>
+            }
+
+<span class="nc" id="L744">        computeMean(state, subpop);</span>
+<span class="nc" id="L745">        computeCovariance(state, subpop);</span>
+<span class="nc" id="L746">        computeAMS(state, subpop);</span>
+
+
+        // System.out.println(&quot;distributionMultiplier: &quot; + distributionMultiplier);
+<span class="nc" id="L750">        CholeskyDecomposition chol = DecompositionFactory.chol(genomeSize, true);</span>
+
+<span class="nc" id="L752">        tempMatrix.set(covarMatrix);</span>
+
+<span class="nc bnc" id="L754" title="All 2 branches missed.">        if (!chol.decompose(tempMatrix)) </span>
+            {
+<span class="nc" id="L756">            chol.getT(choleskyLower);</span>
+            // state.output.fatal(&quot;Failed to decompose matrix&quot;);
+            } 
+        else
+            {
+<span class="nc" id="L761">            chol.getT(choleskyLower);</span>
+            }
+<span class="nc" id="L763">        }</span>
+
+    public boolean checkTerminationConditions(final EvolutionState state,  final Subpopulation subpop) 
+        {
+<span class="nc bnc" id="L767" title="All 2 branches missed.">        if (!useAltTermination)</span>
+<span class="nc" id="L768">            return false;</span>
+                
+<span class="nc bnc" id="L770" title="All 2 branches missed.">        if (distributionMultiplier &lt; 1e-10) </span>
+            {
+<span class="nc" id="L772">            return true;</span>
+            }
+
+<span class="nc" id="L775">        double avg = 0, var = 0;</span>
+        // terminate if fitness variance multiplier gets too small
+<span class="nc bnc" id="L777" title="All 2 branches missed.">        for (int i = 0; i &lt; subpop.individuals.size(); i++) </span>
+            {
+<span class="nc" id="L779">            DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));</span>
+<span class="nc" id="L780">            avg += dvind.fitness.fitness();</span>
+            }
+<span class="nc" id="L782">        avg /= subpop.individuals.size();</span>
+
+<span class="nc bnc" id="L784" title="All 2 branches missed.">        for (int i = 0; i &lt; subpop.individuals.size(); i++) </span>
+            {
+<span class="nc" id="L786">            DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));</span>
+<span class="nc" id="L787">            var += (dvind.fitness.fitness()-avg)*(dvind.fitness.fitness()-avg);</span>
+            }
+
+<span class="nc" id="L790">        var /= subpop.individuals.size();</span>
+
+<span class="nc bnc" id="L792" title="All 2 branches missed.">        if (var &lt;= 0.0)</span>
+<span class="nc" id="L793">            var = 0.0;</span>
+
+<span class="nc bnc" id="L795" title="All 2 branches missed.">        if (var &lt; fitnessVarianceTolerance)</span>
+            {
+<span class="nc" id="L797">            return true;</span>
+            }
+
+<span class="nc" id="L800">        return false;</span>
+        }
+
+    public void shiftIndividual(final EvolutionState state, DoubleVectorIndividual ind)
+        {
+<span class="nc" id="L805">        DenseMatrix64F genome = DenseMatrix64F.wrap(genomeSize,1,ind.genome);</span>
+<span class="nc" id="L806">        double shiftMult = 1;</span>
+<span class="nc" id="L807">        temp.set(genome);</span>
+        do 
+            {
+<span class="nc" id="L810">            genome.set(temp);</span>
+<span class="nc" id="L811">            CommonOps.add(shiftMult*deltaAMS*distributionMultiplier, meanShift, genome, genome);</span>
+<span class="nc" id="L812">            shiftMult *= 0.5;</span>
+<span class="nc bnc" id="L813" title="All 4 branches missed.">            } while (!isValid(ind) &amp;&amp; shiftMult &gt; 1e-10);</span>
+<span class="nc" id="L814">        }</span>
+
+    // public void printStats(final EvolutionState state, final Subpopulation subpop) {
+    //     // System.out.println(distributionMultiplier);
+    //     DoubleVectorIndividual first = (DoubleVectorIndividual)(subpop.individuals.get(0));
+    //     double avg = 0, var = 0;
+    //     double best = first.fitness.fitness();
+    //     double worst = first.fitness.fitness();
+
+    //     for (int i = 0; i &lt; subpop.individuals.size(); i++) {
+    //         DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));
+    //         avg += dvind.fitness.fitness();
+    //         if (dvind.fitness.fitness() &gt; best) {
+    //             best = dvind.fitness.fitness();
+    //         }
+    //         if (dvind.fitness.fitness() &lt; worst) {
+    //             worst = dvind.fitness.fitness();
+    //         }
+    //     }
+    //     avg /= subpop.individuals.size();
+
+    //     for (int i = 0; i &lt; subpop.individuals.size(); i++) {
+    //         DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));
+    //         var += (dvind.fitness.fitness()-avg)*(dvind.fitness.fitness()-avg);
+    //     }
+
+    //     var /= subpop.individuals.size();
+
+
+    //     System.out.printf(&quot;# Generation Evaluations  Average-obj. Variance-obj.     Best-obj.    Worst-obj.   Dist. mult. \n&quot;);
+    //     System.out.printf(&quot;  %10d %11d %13e %13e %13e %13e %13e\n&quot;, state.generation, 0, avg, var, best, worst, distributionMultiplier);
+
+
+    //     for (int i = 0; i &lt; subpop.individuals.size(); i++) {
+    //         DoubleVectorIndividual dvind = (DoubleVectorIndividual)(subpop.individuals.get(i));
+    //         DenseMatrix64F genome = DenseMatrix64F.wrap(genomeSize,1,dvind.genome);
+    //         // genome.transpose().print();
+    //         CommonOps.transpose(genome, temp2);
+    //         // temp2.print(); 
+    //     }  
+    // }
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

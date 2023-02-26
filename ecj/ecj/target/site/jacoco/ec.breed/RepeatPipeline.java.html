@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RepeatPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.breed</a> &gt; <span class="el_source">RepeatPipeline.java</span></div><h1>RepeatPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.breed;
+import ec.*;
+import ec.util.*;
+import ec.select.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * RepeatPipeline.java
+ * 
+ * Created: Wed Jun  7 15:14:17 CEST 2017
+ * By: Sean Luke
+ */
+
+/**
+ * RepeatPipeline is a BreedingPipeline which, after prepareToProduce() is called,
+ * produces a single individual from its single source, then repeatedly clones that
+ * child to fulfill requests to produce().
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ breed.repeat
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L38">public class RepeatPipeline extends BreedingPipeline</span>
+    {
+    public static final String P_REPEAT = &quot;repeat&quot;;
+    public static final int NUM_SOURCES = 1;
+    
+<span class="nc" id="L43">    public Individual individual = null;</span>
+    public IntBag parents;
+
+<span class="nc" id="L46">    public Parameter defaultBase() { return BreedDefaults.base().push(P_REPEAT); }</span>
+
+<span class="nc" id="L48">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L52">        super.setup(state,base);</span>
+<span class="nc" id="L53">        Parameter def = defaultBase();</span>
+                
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (likelihood != 1.0)</span>
+<span class="nc" id="L56">            state.output.warning(&quot;RepeatPipeline given a likelihood other than 1.0.  This is nonsensical and will be ignored.&quot;,</span>
+<span class="nc" id="L57">                base.push(P_LIKELIHOOD),</span>
+<span class="nc" id="L58">                def.push(P_LIKELIHOOD));</span>
+<span class="nc" id="L59">        }</span>
+
+    public void prepareToProduce(final EvolutionState state, final int subpopulation, final int thread)
+        {
+<span class="nc" id="L63">        super.prepareToProduce(state, subpopulation, thread);</span>
+<span class="nc" id="L64">        individual = null;</span>
+<span class="nc" id="L65">        }</span>
+
+    public int produce(
+        final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+        {
+        
+        // First things first: build our individual and his parents array
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (individual == null)</span>
+            {
+<span class="nc" id="L79">            HashMap&lt;String, Object&gt; misc1 = null;</span>
+<span class="nc bnc" id="L80" title="All 4 branches missed.">            if (misc != null &amp;&amp; misc.get(SelectionMethod.KEY_PARENTS) != null)</span>
+                {
+                // the user is providing a parents array.  We'll need to make our own.
+<span class="nc" id="L83">                IntBag[] parentsArray = new IntBag[1];</span>
+<span class="nc" id="L84">                misc1 = new HashMap();</span>
+<span class="nc" id="L85">                misc1.put(SelectionMethod.KEY_PARENTS, parentsArray);</span>
+                }
+<span class="nc" id="L87">            ArrayList&lt;Individual&gt; temp = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L88">            sources[0].produce(1, 1, subpopulation, temp, state, thread, misc1);</span>
+<span class="nc" id="L89">            individual = temp.get(0);</span>
+
+            // Now we extract from misc1 if we have to
+<span class="nc bnc" id="L92" title="All 4 branches missed.">            if (misc1 != null &amp;&amp; misc1.get(SelectionMethod.KEY_PARENTS) != null) // we already know this second fact unless it was somehow removed</span>
+                {
+<span class="nc" id="L94">                parents = ((IntBag[])misc.get(SelectionMethod.KEY_PARENTS))[0];</span>
+                }
+<span class="nc" id="L96">            else parents = null;</span>
+            }
+
+<span class="nc" id="L99">        int start = inds.size();</span>
+        
+        // Now we can copy the individual in
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        for(int i = 0; i &lt; min; i++)</span>
+            {
+<span class="nc" id="L104">            inds.add((Individual)(individual.clone()));</span>
+            }
+        
+        // add in the parents if we need to
+<span class="nc bnc" id="L108" title="All 6 branches missed.">        if (parents != null &amp;&amp; misc != null &amp;&amp; misc.get(SelectionMethod.KEY_PARENTS) != null)</span>
+            {
+<span class="nc" id="L110">            IntBag[] parentsArray = ((IntBag[])misc.get(SelectionMethod.KEY_PARENTS));</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            for(int i = 0 ; i &lt; min; i++)</span>
+                {
+<span class="nc" id="L113">                parentsArray[start + i] = new IntBag(parents);</span>
+                }
+            }
+                
+<span class="nc" id="L117">        return min;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

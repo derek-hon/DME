@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConstructiveBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co</a> &gt; <span class="el_source">ConstructiveBreeder.java</span></div><h1>ConstructiveBreeder.java</h1><pre class="source lang-java linenums">/*
+ Copyright 2019 by Sean Luke
+ Licensed under the Academic Free License version 3.0
+ See the file &quot;LICENSE&quot; for more information
+ */
+package ec.co;
+
+import ec.*;
+import ec.util.Parameter;
+
+/**
+ * A basic Breeder that generates a new population by asking each subpopulation's
+ * Species to create new individuals.
+ *
+ * This is used with algorithms like GRASP, which generate new individuals at
+ * each step (rather than producing them by running an old population through a pipeline).
+ *
+ * @author Eric O. Scott
+ */
+<span class="nc bnc" id="L20" title="All 2 branches missed.">public class ConstructiveBreeder extends Breeder</span>
+{
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+        // Do nothing
+<span class="nc" id="L27">    }</span>
+
+    @Override
+    public Population breedPopulation(final EvolutionState state)
+    {
+<span class="nc bnc" id="L32" title="All 4 branches missed.">        assert(state != null);</span>
+
+<span class="nc" id="L34">        final Population newPop = state.population.emptyClone();</span>
+        // For each subpopulation
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        for (int i = 0; i &lt; state.population.subpops.size(); i++)</span>
+        {
+<span class="nc" id="L38">            final Subpopulation oldSubpop = state.population.subpops.get(i);</span>
+<span class="nc" id="L39">            final Species species = state.population.subpops.get(i).species;</span>
+
+            // Execute ants
+<span class="nc bnc" id="L42" title="All 2 branches missed.">            for (int j = 0; j &lt; oldSubpop.individuals.size(); j++)</span>
+            {
+<span class="nc" id="L44">                final Individual newInd = species.newIndividual(state, i);</span>
+<span class="nc" id="L45">                newPop.subpops.get(i).individuals.add(newInd);</span>
+            }
+        }
+<span class="nc" id="L48">        return newPop;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

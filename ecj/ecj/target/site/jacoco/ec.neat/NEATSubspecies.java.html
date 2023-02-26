@@ -1,0 +1,492 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NEATSubspecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.neat</a> &gt; <span class="el_source">NEATSubspecies.java</span></div><h1>NEATSubspecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.neat;
+
+import java.util.*;
+import ec.*;
+import ec.neat.NEATSpecies.*;
+import ec.util.*;
+
+/**
+ * NEATSubspecies is the actual Species in original code. However, since we
+ * already have Species in ECJ, we name Species in original code as Subspecies
+ * in our implementation. The creation of the Subspecies is done in the speciate
+ * method.
+ * 
+ * @author Ermo Wei and David Freelan
+ *
+ */
+<span class="nc" id="L22">public class NEATSubspecies implements Prototype</span>
+    {
+    public static final String P_SUBSPECIES = &quot;subspecies&quot;;
+
+
+
+    /** Age of the current subspecies. */
+    public int age;
+
+    /**
+     * Record the last time the best fitness improved within the individuals of
+     * this subspecies If this is too long ago, the subspecies will goes extinct
+     */
+    public int ageOfLastImprovement;
+
+    /** The max fitness the an individual in this subspecies ever achieved. */
+    public double maxFitnessEver;
+
+    /** The individuals within this species */
+    public ArrayList&lt;Individual&gt; individuals;
+
+    /** The next generation individuals within this species */
+    public ArrayList&lt;Individual&gt; newGenIndividuals;
+
+    /** Expected Offspring for next generation for this subspecies */
+    public int expectedOffspring;
+
+    @Override
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L52">        age = 1;</span>
+<span class="nc" id="L53">        ageOfLastImprovement = 0;</span>
+<span class="nc" id="L54">        maxFitnessEver = 0;</span>
+<span class="nc" id="L55">        individuals = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L56">        newGenIndividuals = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L57">        }</span>
+
+    /**
+     * Return a clone of this subspecies, but with a empty individuals and
+     * newGenIndividuals list.
+     */
+    public Object emptyClone()
+        {
+<span class="nc" id="L65">        NEATSubspecies myobj = (NEATSubspecies) clone();</span>
+<span class="nc" id="L66">        individuals = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L67">        newGenIndividuals = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L68">        return myobj;</span>
+        }
+
+    public Object clone()
+        {
+<span class="nc" id="L73">        NEATSubspecies myobj = null;</span>
+        try
+            {
+<span class="nc" id="L76">            myobj = (NEATSubspecies) (super.clone());</span>
+<span class="nc" id="L77">            myobj.age = age;</span>
+<span class="nc" id="L78">            myobj.ageOfLastImprovement = ageOfLastImprovement;</span>
+<span class="nc" id="L79">            myobj.maxFitnessEver = maxFitnessEver;</span>
+<span class="nc" id="L80">            myobj.expectedOffspring = expectedOffspring;</span>
+            
+
+<span class="nc" id="L83">            } catch (CloneNotSupportedException e)// never happens</span>
+            {
+<span class="nc" id="L85">            throw new InternalError();</span>
+<span class="nc" id="L86">            }</span>
+<span class="nc" id="L87">        return myobj;</span>
+        }
+
+    /** Reset the status of the current subspecies. */
+    public void reset()
+        {
+<span class="nc" id="L93">        age = 1;</span>
+<span class="nc" id="L94">        expectedOffspring = 0;</span>
+<span class="nc" id="L95">        ageOfLastImprovement = 0;</span>
+<span class="nc" id="L96">        maxFitnessEver = 0;</span>
+<span class="nc" id="L97">        }</span>
+
+    /** Return the first individual in this subspecies */
+    public Individual first()
+        {
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (individuals.size() &gt; 0)</span>
+<span class="nc" id="L103">            return individuals.get(0);</span>
+<span class="nc" id="L104">        return null;</span>
+        }
+
+    /** Return the first individual in newGenIndividuals list. */
+    public Individual newGenerationFirst()
+        {
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        if (newGenIndividuals.size() &gt; 0)</span>
+<span class="nc" id="L111">            return newGenIndividuals.get(0);</span>
+<span class="nc" id="L112">        return null;</span>
+        }
+
+    @Override
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L118">        return NEATDefaults.base().push(P_SUBSPECIES);</span>
+        }
+
+    /**
+     * Adjust the fitness of the individuals within this subspecies. We will use
+     * the adjusted fitness to determine the expected offsprings within each
+     * subspecies.
+     */
+    public void adjustFitness(EvolutionState state, int dropoffAge, double ageSignificance)
+        {
+<span class="nc" id="L128">        int ageDebt = (age - ageOfLastImprovement + 1) - dropoffAge;</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (ageDebt == 0)</span>
+<span class="nc" id="L130">            ageDebt = 1;</span>
+
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        for (int i = 0; i &lt; individuals.size(); ++i)</span>
+            {
+<span class="nc" id="L134">            NEATIndividual ind = (NEATIndividual) individuals.get(i);</span>
+
+            // start to adjust the fitness with age information
+<span class="nc" id="L137">            ind.adjustedFitness = ind.fitness.fitness();</span>
+
+            // Make fitness decrease after a stagnation point dropoffAge
+            // Added an if to keep species pristine until the dropoff point
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            if (ageDebt &gt;= 1)</span>
+                {
+<span class="nc" id="L143">                ind.adjustedFitness = ind.adjustedFitness * 0.01;</span>
+                }
+
+            // Give a fitness boost up to some young age (niching)
+            // The age-significance parameter is a system parameter
+            // If it is 1, then young species get no fitness boost
+<span class="nc bnc" id="L149" title="All 2 branches missed.">            if (age &lt;= 10)</span>
+<span class="nc" id="L150">                ind.adjustedFitness = ind.adjustedFitness * ageSignificance;</span>
+
+            // Do not allow negative fitness
+<span class="nc bnc" id="L153" title="All 2 branches missed.">            if (ind.adjustedFitness &lt; 0.0)</span>
+<span class="nc" id="L154">                ind.adjustedFitness = 0.0001;</span>
+
+            // Share fitness with the species
+            // This is the explicit fitness sharing, where the the original
+            // fitness
+            // are dividing by the number of individuals in the species.
+            // By using this, a species cannot afford to become too big even if
+            // many of its
+            // individual perform well
+<span class="nc" id="L163">            ind.adjustedFitness = ind.adjustedFitness / individuals.size();</span>
+
+            }
+<span class="nc" id="L166">        }</span>
+
+    /**
+     * Sort the individuals in this subspecies, the one with highest fitness
+     * comes first.
+     */
+    public void sortIndividuals()
+        {
+        // Sort the individuals
+        // sorting is based on adjusted fitness, descending order
+<span class="nc" id="L176">        Collections.sort(individuals, new Comparator&lt;Individual&gt;()</span>
+<span class="nc" id="L177">                {</span>
+
+                @Override
+                public int compare(Individual i1, Individual i2)
+                    {
+<span class="nc" id="L182">                    NEATIndividual ind1 = (NEATIndividual) i1;</span>
+<span class="nc" id="L183">                    NEATIndividual ind2 = (NEATIndividual) i2;</span>
+
+<span class="nc bnc" id="L185" title="All 2 branches missed.">                    if (ind1.adjustedFitness &lt; ind2.adjustedFitness)</span>
+<span class="nc" id="L186">                        return 1;</span>
+
+<span class="nc bnc" id="L188" title="All 2 branches missed.">                    if (ind1.adjustedFitness &gt; ind2.adjustedFitness)</span>
+<span class="nc" id="L189">                        return -1;</span>
+
+<span class="nc" id="L191">                    return 0;</span>
+                    }
+            });
+<span class="nc" id="L194">        }</span>
+
+    /** Update the maxFitnessEver variable. */
+    public void updateSubspeciesMaxFitness()
+        {
+        // Update ageOfLastImprovement here, assume the individuals are
+        // already sorted
+        // (the first Individual has the best fitness)
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        if (individuals.get(0).fitness.fitness() &gt; maxFitnessEver)</span>
+            {
+<span class="nc" id="L204">            ageOfLastImprovement = age;</span>
+<span class="nc" id="L205">            maxFitnessEver = individuals.get(0).fitness.fitness();</span>
+            }
+
+<span class="nc" id="L208">        }</span>
+
+    /** Mark the individual who can reproduce for this generation. */
+    public void markReproducableIndividuals(double survivalThreshold)
+        {
+        // Decide how many get to reproduce based on survivalThreshold *
+        // individuals.size()
+        // mark for death those after survivalThreshold * individuals.size()
+        // Adding 1.0 ensures that at least one will survive
+        // floor is the largest (closest to positive infinity) double value that
+        // is not greater than the argument and is equal to a mathematical
+        // integer
+
+<span class="nc" id="L221">        int numParents = (int) Math.floor(survivalThreshold * ((double) individuals.size()) + 1.0);</span>
+
+        // Mark the champion as such
+<span class="nc" id="L224">        ((NEATIndividual) first()).champion = true;</span>
+
+        // Mark for death those who are ranked too low to be parents
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        for (int i = 0; i &lt; individuals.size(); ++i)</span>
+            {
+<span class="nc" id="L229">            NEATIndividual ind = (NEATIndividual) individuals.get(i);</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">            if (i &gt;= numParents)</span>
+                {
+<span class="nc" id="L232">                ind.eliminate = true;</span>
+                }
+            }
+<span class="nc" id="L235">        }</span>
+
+    /** Test if newGenIndividuals list is empty. */
+    public boolean hasNewGeneration()
+        {
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        return !newGenIndividuals.isEmpty();</span>
+        }
+
+    /**
+     * Compute the collective offspring the entire species (the sum of all
+     * individual's offspring) is assigned skim is fractional offspring left
+     * over from a previous subspecies that was counted. These fractional parts
+     * are kept until they add up to 1
+     */
+
+
+    public double countOffspring(double skim)
+        {
+<span class="nc" id="L253">        expectedOffspring = 0;</span>
+<span class="nc" id="L254">        double x1 = 0.0, y1 = 1.0;</span>
+<span class="nc" id="L255">        double r1 = 0.0, r2 = skim;</span>
+<span class="nc" id="L256">        int n1 = 0, n2 = 0;</span>
+
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        for (int i = 0; i &lt; individuals.size(); ++i)</span>
+            {
+<span class="nc" id="L260">            x1 = ((NEATIndividual) individuals.get(i)).expectedOffspring;</span>
+<span class="nc" id="L261">            n1 = (int) (x1 / y1);</span>
+<span class="nc" id="L262">            r1 = x1 - ((int) (x1 / y1) * y1);</span>
+<span class="nc" id="L263">            n2 = n2 + n1;</span>
+<span class="nc" id="L264">            r2 = r2 + r1;</span>
+
+<span class="nc bnc" id="L266" title="All 2 branches missed.">            if (r2 &gt;= 1.0)</span>
+                {
+<span class="nc" id="L268">                n2 = n2 + 1;</span>
+<span class="nc" id="L269">                r2 = r2 - 1.0;</span>
+                }
+            }
+
+<span class="nc" id="L273">        expectedOffspring = n2;</span>
+<span class="nc" id="L274">        return r2;</span>
+        }
+
+    /**
+     * Where the actual reproduce is happening, it will grab the candidate
+     * parents, and calls the crossover or mutation method on these parents
+     * individuals.
+     */
+    public boolean reproduce(EvolutionState state, int thread, int subpop, ArrayList&lt;NEATSubspecies&gt; sortedSubspecies)
+        {
+<span class="nc bnc" id="L284" title="All 4 branches missed.">        if (expectedOffspring &gt; 0 &amp;&amp; individuals.size() == 0)</span>
+            {
+<span class="nc" id="L286">            state.output.fatal(&quot;Attempt to reproduce out of empty subspecies&quot;);</span>
+<span class="nc" id="L287">            return false;</span>
+            }
+
+<span class="nc bnc" id="L290" title="All 2 branches missed.">        if (expectedOffspring &gt; state.population.subpops.get(subpop).initialSize)</span>
+            {
+<span class="nc" id="L292">            state.output.fatal(&quot;Attempt to reproduce too many individuals&quot;);</span>
+<span class="nc" id="L293">            return false;</span>
+            }
+
+<span class="nc" id="L296">        NEATSpecies species = (NEATSpecies) state.population.subpops.get(subpop).species;</span>
+
+        // bestIndividual of the 'this' specie is the first element of the
+        // species
+        // note, we already sort the individuals based on the fitness (not sure
+        // if this is still correct to say)
+<span class="nc" id="L302">        NEATIndividual bestIndividual = (NEATIndividual) first();</span>
+
+
+
+       
+        // create the designated number of offspring for the Species one at a
+        // time
+<span class="nc" id="L309">        boolean bestIndividualDone = false;</span>
+
+<span class="nc bnc" id="L311" title="All 2 branches missed.">        for (int i = 0; i &lt; expectedOffspring; ++i)</span>
+            {
+
+<span class="nc" id="L314">            NEATIndividual newInd = null;</span>
+
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            if (bestIndividual.superChampionOffspring &gt; 0)</span>
+                {
+
+<span class="nc" id="L319">                newInd = (NEATIndividual) bestIndividual.clone();</span>
+
+                // Most super champion offspring will have their connection
+                // weights mutated only
+                // The last offspring will be an exact duplicate of this super
+                // champion
+                // Note: Super champion offspring only occur with stolen babies!
+                // Settings used for published experiments did not use this
+
+<span class="nc bnc" id="L328" title="All 2 branches missed.">                if (bestIndividual.superChampionOffspring &gt; 1)</span>
+                    {
+<span class="nc bnc" id="L330" title="All 4 branches missed.">                    if (state.random[thread].nextBoolean( 0.8) || species.mutateAddLinkProb == 0.0)</span>
+                        {
+<span class="nc" id="L332">                        newInd.mutateLinkWeights(state, thread, species, species.weightMutationPower, 1.0,</span>
+                            MutationType.GAUSSIAN);
+                        }
+                    else
+                        {
+                        // Sometime we add a link to a superchamp
+<span class="nc" id="L338">                        newInd.createNetwork(); // make sure we have the network</span>
+<span class="nc" id="L339">                        newInd.mutateAddLink(state,thread);</span>
+                        }
+                    }
+<span class="nc bnc" id="L342" title="All 2 branches missed.">                if (bestIndividual.superChampionOffspring == 1)</span>
+                    {
+<span class="nc bnc" id="L344" title="All 2 branches missed.">                    if (bestIndividual.popChampion)</span>
+                        {
+<span class="nc" id="L346">                        newInd.popChampionChild = true;</span>
+<span class="nc" id="L347">                        newInd.highFit = bestIndividual.fitness.fitness();</span>
+                        }
+                    }
+
+<span class="nc" id="L351">                bestIndividual.superChampionOffspring--;</span>
+                }
+<span class="nc bnc" id="L353" title="All 4 branches missed.">            else if ((!bestIndividualDone) &amp;&amp; (expectedOffspring &gt; 5))</span>
+                {
+
+<span class="nc" id="L356">                newInd = (NEATIndividual) bestIndividual.clone();</span>
+<span class="nc" id="L357">                bestIndividualDone = true;</span>
+                }
+            // Decide whether to mate or mutate
+            // If there is only one individual, then always mutate
+<span class="nc bnc" id="L361" title="All 4 branches missed.">            else if (state.random[thread].nextBoolean(species.mutateOnlyProb) || individuals.size() == 1)</span>
+                {
+                // Choose the random parent
+<span class="nc" id="L364">                int parentIndex = state.random[thread].nextInt(individuals.size());</span>
+<span class="nc" id="L365">                Individual parent = individuals.get(parentIndex);</span>
+<span class="nc" id="L366">                newInd = (NEATIndividual) parent.clone();</span>
+                
+
+<span class="nc" id="L369">                newInd.defaultMutate(state, thread);</span>
+
+               
+<span class="nc" id="L372">                }</span>
+            else // Otherwise we should mate
+                {
+             
+                // random choose the first parent
+<span class="nc" id="L377">                int parentIndex = state.random[thread].nextInt(individuals.size());</span>
+<span class="nc" id="L378">                NEATIndividual firstParent = (NEATIndividual) individuals.get(parentIndex);</span>
+<span class="nc" id="L379">                NEATIndividual secondParent = null;</span>
+                // Mate within subspecies, choose random second parent
+<span class="nc bnc" id="L381" title="All 2 branches missed.">                if (state.random[thread].nextBoolean(1.0-species.interspeciesMateRate))</span>
+                    {
+<span class="nc" id="L383">                    parentIndex = state.random[thread].nextInt(individuals.size());</span>
+<span class="nc" id="L384">                    secondParent = (NEATIndividual) individuals.get(parentIndex);</span>
+                    
+
+                    }
+                else // Mate outside subspecies
+                    {
+                    
+                    // Select a random species
+<span class="nc" id="L392">                    NEATSubspecies randomSubspecies = this;</span>
+                    // Give up if you cant find a different Species
+<span class="nc" id="L394">                    int giveUp = 0;</span>
+<span class="nc bnc" id="L395" title="All 4 branches missed.">                    while (randomSubspecies == this &amp;&amp; giveUp &lt; 5)</span>
+                        {
+                        // Choose a random species tending towards better
+                        // species
+<span class="nc" id="L399">                        double value = state.random[thread].nextGaussian() / 4;</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">                        if (value &gt; 1.0)</span>
+<span class="nc" id="L401">                            value = 1.0;</span>
+                        // This tends to select better species
+                        
+<span class="nc" id="L404">                        int upperBound = (int) Math.floor((value * (sortedSubspecies.size() - 1.0)) + 0.5);</span>
+<span class="nc" id="L405">                        int index = 0;</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">                        while (index &lt; upperBound)</span>
+<span class="nc" id="L407">                            index++;</span>
+<span class="nc" id="L408">                        randomSubspecies = sortedSubspecies.get(index);</span>
+<span class="nc" id="L409">                        giveUp++;</span>
+<span class="nc" id="L410">                        }</span>
+
+<span class="nc" id="L412">                    secondParent = (NEATIndividual) randomSubspecies.first();</span>
+
+                    }
+
+<span class="nc" id="L416">                newInd = firstParent.crossover(state, thread, secondParent);</span>
+
+
+                // Determine whether to mutate the baby's Genome
+                // This is done randomly or if the parents are the same
+                // individual
+<span class="nc bnc" id="L422" title="All 4 branches missed.">                if (state.random[thread].nextBoolean(1.0-species.mateOnlyProb) || firstParent== secondParent</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">                    || species.compatibility(firstParent, secondParent) == 0.0)</span>
+                    {
+<span class="nc" id="L425">                    newInd.defaultMutate(state, thread);</span>
+                    }
+                }
+
+           
+
+<span class="nc" id="L431">            newInd.setGeneration(state);</span>
+<span class="nc" id="L432">            newInd.createNetwork();</span>
+
+            // Add the new individual to its proper subspecies
+            // this could create new subspecies
+<span class="nc" id="L436">            species.speciate(state, newInd);</span>
+            }
+ 
+          
+
+<span class="nc" id="L441">        return true;</span>
+
+        }
+
+    /**
+     * Compute generations gap since last improvement
+     */
+    public int timeSinceLastImproved()
+        {
+<span class="nc" id="L450">        return age - ageOfLastImprovement;</span>
+        }
+
+    /** Add the individual to the next generation of this subspecies */
+    public void addNewGenIndividual(NEATIndividual neatInd)
+        {
+<span class="nc" id="L456">        newGenIndividuals.add(neatInd);</span>
+<span class="nc" id="L457">        neatInd.subspecies = this;</span>
+<span class="nc" id="L458">        }</span>
+
+    /**
+     * Remove the individuals from current subspecies who have been mark as
+     * eliminate the remain individuals will be allow to reproduce
+     */
+    public void removePoorFitnessIndividuals()
+        {
+        // create a new list, contain the non eliminate individuals
+<span class="nc" id="L467">        ArrayList&lt;Individual&gt; remainIndividuals = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc bnc" id="L468" title="All 2 branches missed.">        for (int i = 0; i &lt; individuals.size(); ++i)</span>
+            {
+<span class="nc" id="L470">            NEATIndividual ind = (NEATIndividual) individuals.get(i);</span>
+<span class="nc bnc" id="L471" title="All 2 branches missed.">            if (!ind.eliminate)</span>
+                {
+<span class="nc" id="L473">                remainIndividuals.add(ind);</span>
+                }
+            }
+<span class="nc" id="L476">        individuals = remainIndividuals;</span>
+<span class="nc" id="L477">        }</span>
+
+    /**
+     * After we finish the reproduce, the newGenIndividual list has the all the
+     * individuals that is ready for evalution in next generation. Let's switch
+     * to it.
+     */
+    public void toNewGeneration()
+        {
+<span class="nc" id="L486">        individuals = newGenIndividuals;</span>
+        // create a new ArrayList
+<span class="nc" id="L488">        newGenIndividuals = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L489">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

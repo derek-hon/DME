@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ParameterDatabaseTreeNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">ParameterDatabaseTreeNode.java</span></div><h1>ParameterDatabaseTreeNode.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+/*
+ * Created on Apr 5, 2005 8:24:19 PM
+ * 
+ * By: spaus
+ */
+package ec.util;
+
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Enumeration;
+import java.util.Vector;
+
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
+
+/**
+ * @author spaus
+ */
+class ParameterDatabaseTreeNode
+    extends DefaultMutableTreeNode
+    implements Comparable {
+
+    /**
+     * 
+     */
+    public ParameterDatabaseTreeNode() {
+<span class="nc" id="L35">        super();</span>
+<span class="nc" id="L36">        }</span>
+
+    /**
+     * @param userObject
+     */
+    public ParameterDatabaseTreeNode(Object userObject) {
+<span class="nc" id="L42">        super(userObject);</span>
+<span class="nc" id="L43">        }</span>
+
+    /**
+     * @param userObject
+     * @param allowsChildren
+     */
+    public ParameterDatabaseTreeNode(Object userObject, boolean allowsChildren) {
+<span class="nc" id="L50">        super(userObject, allowsChildren);</span>
+<span class="nc" id="L51">        }</span>
+    
+    /**
+     * @param index
+     * @param visibleLeaves
+     * @return
+     */
+    public Object getChildAt(int index, boolean visibleLeaves) {
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (children == null) {</span>
+<span class="nc" id="L60">            throw new ArrayIndexOutOfBoundsException(&quot;node has no children&quot;);</span>
+            }
+
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (!visibleLeaves) {</span>
+<span class="nc" id="L64">            int nonLeafIndex = -1;</span>
+<span class="nc" id="L65">            Enumeration e = children.elements();</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">            while (e.hasMoreElements()) {</span>
+<span class="nc" id="L67">                TreeNode n = (TreeNode)e.nextElement();</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">                if (!n.isLeaf()) {</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                    if (++nonLeafIndex == index)</span>
+<span class="nc" id="L70">                        return n;</span>
+                    }
+<span class="nc" id="L72">                }</span>
+            
+<span class="nc" id="L74">            throw new ArrayIndexOutOfBoundsException(&quot;index = &quot;+index+&quot;, children = &quot;+getChildCount(visibleLeaves));</span>
+            }
+        
+<span class="nc" id="L77">        return super.getChildAt(index);</span>
+        }
+    
+    /**
+     * @param visibleLeaves
+     * @return
+     */
+    public int getChildCount(boolean visibleLeaves) {
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (!visibleLeaves) {</span>
+<span class="nc" id="L86">            int nonLeafCount = 0;</span>
+<span class="nc" id="L87">            Enumeration e = children.elements();</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            while (e.hasMoreElements()) {</span>
+<span class="nc" id="L89">                TreeNode n = (TreeNode)e.nextElement();</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">                if (!n.isLeaf()) ++nonLeafCount;</span>
+<span class="nc" id="L91">                }</span>
+            
+<span class="nc" id="L93">            return nonLeafCount;</span>
+            }
+        
+<span class="nc" id="L96">        return super.getChildCount();</span>
+        }
+    
+    /* (non-Javadoc)
+     * @see java.lang.Comparable#compareTo(java.lang.Object)
+     */
+    public int compareTo(Object o) {
+<span class="nc" id="L103">        ParameterDatabaseTreeNode n = (ParameterDatabaseTreeNode)o;</span>
+
+<span class="nc" id="L105">        return ((Comparable)userObject).compareTo(n.userObject);</span>
+        }
+    
+    /**
+     * @param comp
+     */
+    public void sort(Comparator comp) {
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (children == null) </span>
+<span class="nc" id="L113">            return;</span>
+        //                by Ermo. get rid of asList, if sorting is the purpose, no need to convert this.       
+        //        Object[] childArr = children.toArray();
+        //        Arrays.sort(childArr, comp);
+        //        children = new Vector(Arrays.asList(childArr));
+        // Do we have Collections.sort in 1.5?  1.6?  Sean
+<span class="nc" id="L119">        Collections.sort(children, comp);</span>
+        
+        
+<span class="nc" id="L122">        Enumeration e = children.elements();</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        while (e.hasMoreElements()) {</span>
+<span class="nc" id="L124">            ParameterDatabaseTreeNode n = </span>
+<span class="nc" id="L125">                (ParameterDatabaseTreeNode)e.nextElement();</span>
+<span class="nc" id="L126">            n.sort(comp);</span>
+<span class="nc" id="L127">            }</span>
+<span class="nc" id="L128">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

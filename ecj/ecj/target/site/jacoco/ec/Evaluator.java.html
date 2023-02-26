@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Evaluator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">Evaluator.java</span></div><h1>Evaluator.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+import ec.util.ParamClassLoadException;
+import ec.util.Parameter;
+import ec.eval.MasterProblem;
+
+/* 
+ * Evaluator.java
+ * 
+ * Created: Tue Aug 10 20:53:30 1999
+ * By: Sean Luke
+ */
+
+/**
+ * An Evaluator is a singleton object which is responsible for the
+ * evaluation process during the course of an evolutionary run.  Only
+ * one Evaluator is created in a run, and is stored in the EvolutionState
+ * object.
+ *
+ * &lt;p&gt;Evaluators typically do their work by applying an instance of some
+ * subclass of Problem to individuals in the population.  Evaluators come
+ * with a Problem prototype which they may clone as necessary to create
+ * new Problem spaces to evaluate individuals in (Problems may be reused
+ * to prevent constant cloning).
+ *
+ * &lt;p&gt;Evaluators may be multithreaded, with one Problem instance per thread
+ * usually.  The number of threads they may spawn (excepting a parent
+ * &quot;gathering&quot; thread) is governed by the EvolutionState's evalthreads value.
+ *
+ * &lt;p&gt;Be careful about spawning threads -- this system has no few synchronized 
+ * methods for efficiency's sake, so you must either divvy up evaluation in 
+ * a thread-safe fashion, or 
+ * otherwise you must obtain the appropriate locks on individuals in the population
+ * and other objects as necessary.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;&lt;tt&gt;.problem&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.Problem&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the Problem prototype p_problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;&lt;tt&gt;.masterproblem&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the MasterProblem prototype masterproblem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">public abstract class Evaluator implements Singleton</span>
+    {
+    public static final String P_PROBLEM = &quot;problem&quot;;
+
+    public Problem p_problem;
+<span class="fc" id="L60">    public MasterProblem masterproblem = null;</span>
+
+    public static final String P_MASTERPROBLEM = &quot;masterproblem&quot;;
+    public static final String P_IAMSLAVE = &quot;i-am-slave&quot;;
+    
+    /** Evaluates the fitness of an entire population.  You will
+        have to determine how to handle multiple threads on your own,
+        as this is a very domain-specific thing. */
+    public abstract void evaluatePopulation(final EvolutionState state);
+
+    /** Returns non-NULL if the Evaluator believes that the run is
+        finished: perhaps an ideal individual has been found or some
+        other run result has shortcircuited the run so that it should
+        end prematurely right now.  Typically a message is stored in
+        the String for the user to know why the system shut down.*/
+    public abstract String runComplete(final EvolutionState state);
+
+    public String runComplete;
+    /** Requests that the Evaluator quit soon for a user-defined reason provided in the message. */
+<span class="nc" id="L79">    public void setRunComplete(String message) { runComplete = message; }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // Load my problem
+<span class="fc" id="L84">        p_problem = (Problem)(state.parameters.getInstanceForParameter(</span>
+<span class="fc" id="L85">                base.push(P_PROBLEM),null,Problem.class));</span>
+<span class="fc" id="L86">        p_problem.setup(state,base.push(P_PROBLEM));</span>
+        
+        // Am I a master problem and NOT a slave.  Note that the &quot;eval.i-am-slave&quot; parameter
+        // is not set by the user but rather programmatically by the Slave.java class
+<span class="pc bpc" id="L90" title="1 of 2 branches missed.">        if(state.parameters.exists(base.push(P_MASTERPROBLEM),null)) // there's a master problem to load</span>
+            {
+            // load the masterproblem so it can be accessed by the Slave as well (even though it's not used in its official capacity)
+<span class="nc" id="L93">            masterproblem = (MasterProblem)(state.parameters.getInstanceForParameter(</span>
+<span class="nc" id="L94">                    base.push(P_MASTERPROBLEM),null,Problem.class));</span>
+<span class="nc" id="L95">            masterproblem.setup(state,base.push(P_MASTERPROBLEM));</span>
+
+<span class="nc bnc" id="L97" title="All 2 branches missed.">            if (!state.parameters.getBoolean(base.push(P_IAMSLAVE),null,false))  // I am a master (or possibly a slave -- same params)</span>
+                {
+                
+                //try {
+                //    Problem masterproblem = (Problem)(state.parameters.getInstanceForParameter(
+                //            base.push(P_MASTERPROBLEM),null,Problem.class));
+                //    masterproblem.setup(state,base.push(P_MASTERPROBLEM));
+                                         
+                /*
+                 * If a MasterProblem was specified, interpose it between the
+                 * evaluator and the real problem.  This allows seamless use
+                 * of the master problem.
+                 */
+<span class="nc" id="L110">                masterproblem.problem = p_problem;</span>
+<span class="nc" id="L111">                p_problem = masterproblem;</span>
+                //     }
+                // catch(ParamClassLoadException e)
+                //     {
+                //     state.output.fatal(&quot;Parameter has an invalid value: &quot;+base.push(P_MASTERPROBLEM));
+                //     }
+                }
+            }
+<span class="fc" id="L119">        }</span>
+    
+    /** Called to set up remote evaluation network contacts when the run is started.  Mostly used for client/server evaluation (see MasterProblem).  By default calls p_problem.initializeContacts(state) */
+    public void initializeContacts(EvolutionState state)
+        {
+<span class="fc" id="L124">        p_problem.initializeContacts(state);</span>
+<span class="fc" id="L125">        }</span>
+    
+    /**  Called to reinitialize remote evaluation network contacts when the run is restarted from checkpoint.  Mostly used for client/server evaluation (see MasterProblem).  By default calls p_problem.reinitializeContacts(state) */
+    public void reinitializeContacts(EvolutionState state)
+        {
+<span class="nc" id="L130">        p_problem.reinitializeContacts(state);</span>
+<span class="nc" id="L131">        }</span>
+        
+    /**  Called to shut down remote evaluation network contacts when the run is completed.  Mostly used for client/server evaluation (see MasterProblem).  By default calls p_problem.closeContacts(state,result) */
+    public void closeContacts(EvolutionState state, int result)
+        {
+<span class="nc" id="L136">        p_problem.closeContacts(state,result);</span>
+<span class="nc" id="L137">        }</span>
+
+    /** Called to update some state by considering the current population.
+     *
+     * This is used by some algorithms to update additional state (stored the population's Species)
+     * beyond fitness values (ex. ACO's pheromone distributions).
+     *
+     * This method will typically just call a similar hook on a Species, where the actually state update occurs.*/
+    public void postEvaluationGlobalUpdate(EvolutionState state)
+        {
+<span class="pc bpc" id="L147" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L148" title="2 of 4 branches missed.">        assert(state.population != null);</span>
+<span class="pc bpc" id="L149" title="2 of 4 branches missed.">        assert(state.population.subpops != null);</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        for (final Subpopulation subpop : state.population.subpops)</span>
+<span class="fc" id="L151">            subpop.species.updateSubpopulation(state, subpop);</span>
+<span class="fc" id="L152">        }</span>
+
+
+    /** Called to update some state by considering a single Individual.
+     *
+     * This is used by some algorithms to update additional state (stored the population's Species)
+     * beyond fitness values (ex. ACO's pheromone distributions).
+     *
+     * This method will typically just call a similar hook on a Species, where the actually state update occurs.*/
+    public void postEvaluationLocalUpdate(EvolutionState state, Individual ind, int subpop)
+        {
+<span class="pc bpc" id="L163" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L164" title="2 of 4 branches missed.">        assert(state.population != null);</span>
+<span class="pc bpc" id="L165" title="2 of 4 branches missed.">        assert(state.population.subpops != null);</span>
+<span class="pc bpc" id="L166" title="2 of 4 branches missed.">        assert(state.population.subpops.size() &gt; subpop);</span>
+<span class="fc" id="L167">        state.population.subpops.get(subpop).species.updateIndividual(state, ind);</span>
+<span class="fc" id="L168">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

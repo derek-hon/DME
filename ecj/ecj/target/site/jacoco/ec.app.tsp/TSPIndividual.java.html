@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TSPIndividual.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.tsp</a> &gt; <span class="el_source">TSPIndividual.java</span></div><h1>TSPIndividual.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.app.tsp;
+
+import ec.EvolutionState;
+import ec.app.tsp.TSPGraph.TSPComponent;
+import ec.co.ConstructiveIndividual;
+import java.io.DataInput;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+/**
+ * A constructive individual for use with Traveling Salesmen Problems.
+ * 
+ * Adds support for maintaining a &quot;tabu list&quot; of nodes, which ACO algorithms 
+ * can use to prevent cycles from forming in solutions.
+ * 
+ * @author Eric O. Scott
+ */
+<span class="pc bpc" id="L24" title="1 of 2 branches missed.">public class TSPIndividual extends ConstructiveIndividual&lt;TSPComponent&gt; {</span>
+<span class="fc" id="L25">    private Set&lt;Integer&gt; visitedNodes = new HashSet&lt;Integer&gt;();</span>
+    
+<span class="fc" id="L27">    private int lastNodeVisited = -1;</span>
+    
+    public boolean visited(final int node)
+    {
+<span class="pc bpc" id="L31" title="2 of 4 branches missed.">        assert(node &gt;= 0);</span>
+<span class="pc bpc" id="L32" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L33">        return visitedNodes.contains(node);</span>
+    }
+    
+    public int getLastNodeVisited()
+    {
+<span class="pc bpc" id="L38" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L39">        return lastNodeVisited;</span>
+    }
+    
+    @Override
+    public void add(final EvolutionState state, final TSPComponent component)
+    {
+<span class="fc" id="L45">        super.add(state, component);</span>
+<span class="pc bpc" id="L46" title="2 of 4 branches missed.">        assert(component != null);</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        if (!(component instanceof TSPComponent))</span>
+<span class="nc" id="L48">            state.output.fatal(String.format(&quot;%s: attempted to add a component of type %s, but must be %s.&quot;, this.getClass().getSimpleName(), component.getClass().getSimpleName(), TSPComponent.class.getSimpleName()));</span>
+<span class="fc" id="L49">        final TSPComponent e = (TSPComponent) component;</span>
+<span class="pc bpc" id="L50" title="1 of 4 branches missed.">        if (visitedNodes.contains(e.from()) &amp;&amp; visitedNodes.contains(e.to()))</span>
+<span class="nc" id="L51">            state.output.fatal(String.format(&quot;%s: attempted to add an edge connected two nodes that have already been visited, but this is disallowed.&quot;, this.getClass().getSimpleName()));</span>
+<span class="pc bpc" id="L52" title="3 of 6 branches missed.">        if (!visitedNodes.isEmpty() &amp;&amp; (!visitedNodes.contains(e.from()) &amp;&amp; !visitedNodes.contains(e.to())))</span>
+<span class="nc" id="L53">            state.output.fatal(String.format(&quot;%s: attempted to add an edge that is disconnected from the existing tour, but this is disallowed.&quot;, this.getClass().getSimpleName()));</span>
+        
+        // FIXME Trying to infer the directionality of the edge being added.  But what do we do when the first edge of the tour is being added?
+        // XXX These complications never end.  Perhaps we should be recording solutions as DIRECTED TOURS, even on an undirected graph?
+        // But to do this with an abstract &quot;component set&quot; scheme, that means we'd be recording different pheremone concentrations
+        // for each direction, which contradicts the classical formulation of ACO for TSP.
+        
+        // 
+<span class="pc bpc" id="L61" title="2 of 6 branches missed.">        assert(visitedNodes.isEmpty() || visitedNodes.contains(e.from()));</span>
+<span class="fc" id="L62">        lastNodeVisited = e.to();</span>
+        
+<span class="fc" id="L64">        visitedNodes.add(e.from());</span>
+<span class="fc" id="L65">        visitedNodes.add(e.to());</span>
+<span class="pc bpc" id="L66" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L67">    }</span>
+    
+    @Override
+    public void readGenotype(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L72">            visitedNodes = new HashSet&lt;Integer&gt;();</span>
+<span class="nc" id="L73">            super.readGenotype(state, dataInput);</span>
+<span class="nc" id="L74">        }</span>
+    
+    @Override
+    public Object clone()
+    {
+<span class="nc" id="L79">        TSPIndividual myobj = (TSPIndividual) (super.clone());</span>
+        
+<span class="nc" id="L81">        myobj.visitedNodes = new HashSet&lt;Integer&gt;(visitedNodes);</span>
+        
+<span class="nc bnc" id="L83" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L84">        return myobj;</span>
+    } 
+    
+    @Override
+    public boolean repOK()
+    {
+<span class="pc bpc" id="L90" title="2 of 4 branches missed.">        return super.repOK()</span>
+                &amp;&amp; visitedNodes != null;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

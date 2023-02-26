@@ -1,0 +1,1264 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NEATIndividual.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.neat</a> &gt; <span class="el_source">NEATIndividual.java</span></div><h1>NEATIndividual.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.neat;
+
+import java.io.*;
+import java.util.*;
+import ec.*;
+import ec.neat.NEATSpecies.*;
+import ec.neat.NEATNode.*;
+import ec.util.*;
+import ec.vector.*;
+
+/**
+ * NEATIndividual is GeneVectorIndividual with NEATNetwork as phenotype. It
+ * contains the genome of the individual and also the nodes (NEATNode) for
+ * phenotype. It's the combination of Organism class and Genome class in original
+ * code. Most of the mutation and crossover happen in this class.
+ * 
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;network&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Classname, = ec.neat.NEATNetwork&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Class of network in the individual&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;network&lt;/tt&gt;&lt;br&gt;
+ * &lt;td&gt;network in the individual&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ * neat.individual
+ * 
+ * @author Ermo Wei and David Freelan
+ * 
+ */
+<span class="nc" id="L49">public class NEATIndividual extends GeneVectorIndividual</span>
+    {
+    /**
+     * Fitness after the adjustment.
+     */
+    public double adjustedFitness;
+
+    /** The individual's subpecies */
+    public NEATSubspecies subspecies;
+
+    /** Number of children this individual may have for next generation. */
+    public double expectedOffspring;
+
+    /** Tells which generation this individual is from. */
+    public int generation;
+
+    /** Marker for destruction of inferior individual. */
+    public boolean eliminate;
+
+    /**
+     * Marks the subspecies champion, which is the individual who has the
+     * highest fitness with the subspecies.
+     */
+    public boolean champion;
+
+    /**
+     * Number of reserved offspring for a population leader. This is used for
+     * delta coding.
+     */
+    public int superChampionOffspring;
+
+    /** Marks the best individual in current generation of the population. */
+    public boolean popChampion;
+
+    /** Marks the duplicate child of a champion (for tracking purposes). */
+    public boolean popChampionChild;
+
+    /** debug variable, highest fitness of champion */
+    public double highFit;
+
+    /**
+     * When playing in real-time allows knowing the maturity of an individual
+     */
+    public int timeAlive;
+
+    /**
+     * All the node of this individual. Nodes are arranged so that the first
+     * part of the nodes are SENSOR nodes.
+     */
+    public ArrayList&lt;NEATNode&gt; nodes;
+
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L102">        super.setup(state, base);</span>
+
+<span class="nc" id="L104">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L106">        eliminate = false;</span>
+<span class="nc" id="L107">        expectedOffspring = 0;</span>
+<span class="nc" id="L108">        generation = 0;</span>
+<span class="nc" id="L109">        subspecies = null;</span>
+<span class="nc" id="L110">        champion = false;</span>
+<span class="nc" id="L111">        superChampionOffspring = 0;</span>
+<span class="nc" id="L112">        nodes = new ArrayList&lt;NEATNode&gt;();</span>
+<span class="nc" id="L113">        }</span>
+
+    @Override
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L118">        return NEATDefaults.base().push(P_INDIVIDUAL);</span>
+        }
+
+    /** Initializes an individual with minimal structure. */
+    public void reset(EvolutionState state, int thread)
+        {
+<span class="nc" id="L124">        super.reset(state, thread);</span>
+<span class="nc" id="L125">        }</span>
+
+    /** Reset the individual with given nodes and genome */
+    public void reset(ArrayList&lt;NEATNode&gt; nodeList, ArrayList&lt;Gene&gt; genes)
+        {
+        // clone the genome
+<span class="nc" id="L131">        genome = new Gene[genes.size()];</span>
+<span class="nc" id="L132">        genome = genes.toArray(genome);</span>
+
+        // must clone the nodes
+<span class="nc" id="L135">        nodes = nodeList;</span>
+
+        // link the genes in new individual with nodes
+<span class="nc bnc" id="L138" title="All 2 branches missed.">        for (int i = 0; i &lt; genome.length; ++i)</span>
+            {
+<span class="nc" id="L140">            NEATGene gene = (NEATGene) genome[i];</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">            for (int j = 0; j &lt; nodes.size(); ++j)</span>
+                {
+<span class="nc bnc" id="L143" title="All 2 branches missed.">                if (nodes.get(j).nodeId == gene.inNodeId)</span>
+<span class="nc" id="L144">                    gene.inNode = nodes.get(j);</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">                if (nodes.get(j).nodeId == gene.outNodeId)</span>
+<span class="nc" id="L146">                    gene.outNode = nodes.get(j);</span>
+                }
+            }
+<span class="nc" id="L149">        }</span>
+        
+    public int hashCode()
+        {
+<span class="nc" id="L153">        int hash = super.hashCode();</span>
+        
+        // fold in the nodes
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        for(int i = 0; i &lt; nodes.size(); i++)</span>
+            {
+<span class="nc" id="L158">            hash = hash * 31 + 17 + nodes.get(i).hashCode();</span>
+            }
+                
+<span class="nc" id="L161">        return hash;</span>
+        }
+
+    @Override
+    public boolean equals(Object obj)
+        {
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        if (!super.equals(obj))</span>
+<span class="nc" id="L168">            return false;</span>
+<span class="nc" id="L169">        NEATIndividual ind = (NEATIndividual) obj;</span>
+<span class="nc" id="L170">        int len1 = nodes.size();</span>
+<span class="nc" id="L171">        int len2 = ind.nodes.size();</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        if (len1 != len2) return false;</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        for(int i = 0 ; i &lt; len1; i++)</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            if (!nodes.get(i).equals(ind.nodes.get(i)))</span>
+<span class="nc" id="L175">                return false;</span>
+<span class="nc" id="L176">        return true;</span>
+        }
+
+    /** Set the born generation of this individual. */
+    public void setGeneration(EvolutionState state)
+        {
+<span class="nc" id="L182">        generation = state.generation;</span>
+<span class="nc" id="L183">        }</span>
+
+    /** Get the upperbound for the node id, used in Initializer. */
+    public int getNodeIdSup()
+        {
+<span class="nc" id="L188">        return nodes.get(nodes.size() - 1).nodeId + 1;</span>
+        }
+
+    /** Get the upperbound for the innovation number, used in Initializer. */
+    public int getGeneInnovationNumberSup()
+        {
+<span class="nc" id="L194">        return ((NEATGene) genome[genome.length - 1]).innovationNumber + 1;</span>
+        }
+
+    public Object clone()
+        {
+        // Genome *Genome::duplicate(int new_id)
+        // we ignore the new_id here as it can be assigned later
+        // this clones the genes
+<span class="nc" id="L202">        NEATIndividual myobj = (NEATIndividual) (super.clone());</span>
+
+        // must clone the nodes
+<span class="nc" id="L205">        myobj.nodes = new ArrayList&lt;NEATNode&gt;();</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">        for (int i = 0; i &lt; nodes.size(); ++i)</span>
+            {
+<span class="nc" id="L208">            NEATNode newNode = (NEATNode) nodes.get(i).emptyClone();</span>
+<span class="nc" id="L209">            myobj.nodes.add(newNode);</span>
+            }
+
+        // link the genes in new individual with nodes
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        for (int i = 0; i &lt; myobj.genome.length; ++i)</span>
+            {
+<span class="nc" id="L215">            NEATGene gene = (NEATGene) myobj.genome[i];</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">            for (int j = 0; j &lt; myobj.nodes.size(); ++j)</span>
+                {
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                if (myobj.nodes.get(j).nodeId == gene.inNodeId)</span>
+<span class="nc" id="L219">                    gene.inNode = myobj.nodes.get(j);</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">                if (myobj.nodes.get(j).nodeId == gene.outNodeId)</span>
+<span class="nc" id="L221">                    gene.outNode = myobj.nodes.get(j);</span>
+                }
+            }
+<span class="nc" id="L224">        return myobj;</span>
+        }
+
+
+    /**
+     * This method is used to output a individual that is same as the format in
+     * start genome file.
+     */
+    public String genotypeToString()
+        {
+<span class="nc" id="L234">        StringBuilder s = new StringBuilder();</span>
+<span class="nc" id="L235">        int size = genome.length;</span>
+<span class="nc" id="L236">        s.append(Code.encode(size));</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        for (int i = 0; i &lt; genome.length; i++)</span>
+            {
+<span class="nc" id="L239">            s.append(&quot;\n&quot;);</span>
+<span class="nc" id="L240">            s.append(genome[i].printGeneToString());</span>
+            }
+<span class="nc" id="L242">        s.append(&quot;\n&quot; + Code.encode(nodes.size()));</span>
+<span class="nc bnc" id="L243" title="All 2 branches missed.">        for (int i = 0; i &lt; nodes.size(); ++i)</span>
+            {
+<span class="nc" id="L245">            s.append(&quot;\n&quot;);</span>
+<span class="nc" id="L246">            s.append(nodes.get(i).printNodeToString());</span>
+            }
+<span class="nc" id="L248">        return s.toString();</span>
+        }
+
+    /**
+     * This method is used to read a gene in start genome from file. It will
+     * then calls the corresponding methods to parse genome and nodes
+     * respectively.
+     */
+    protected void parseGenotype(EvolutionState state, LineNumberReader reader) throws IOException
+        {
+        // first parse the genotype, the genes of NEAT
+<span class="nc" id="L259">        super.parseGenotype(state, reader);</span>
+
+        // after read the gene, start to read nodes for network
+<span class="nc" id="L262">        parseNodes(state, reader);</span>
+
+        // go through all the gene (represent edge in network), link with
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        for (int i = 0; i &lt; genome.length; ++i)</span>
+            {
+<span class="nc" id="L267">            NEATGene neatGene = (NEATGene) genome[i];</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">            for (int j = 0; j &lt; nodes.size(); ++j)</span>
+                {
+<span class="nc bnc" id="L270" title="All 2 branches missed.">                if (nodes.get(j).nodeId == neatGene.inNodeId)</span>
+<span class="nc" id="L271">                    neatGene.inNode = nodes.get(j);</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">                else if (nodes.get(j).nodeId == neatGene.outNodeId)</span>
+<span class="nc" id="L273">                    neatGene.outNode = nodes.get(j);</span>
+                }
+            }
+<span class="nc" id="L276">        }</span>
+
+    /**
+     * Create the nodes from the reader, and calls readNode method on each node.
+     */
+    public void parseNodes(EvolutionState state, LineNumberReader reader) throws IOException
+        {
+        // read in the next line. The first item is the number of genes
+<span class="nc" id="L284">        String string = reader.readLine();</span>
+
+<span class="nc" id="L286">        DecodeReturn d = new DecodeReturn(string);</span>
+<span class="nc" id="L287">        Code.decode(d);</span>
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        if (d.type != DecodeReturn.T_INTEGER)  // uh oh</span>
+<span class="nc" id="L289">            state.output.fatal(&quot;Individual with nodes:\n&quot; + string</span>
+                + &quot;\n... does not have an integer at the beginning indicating the node count.&quot;);
+<span class="nc" id="L291">        int lll = (int) (d.l);</span>
+
+<span class="nc" id="L293">        NEATSpecies s = (NEATSpecies) species;</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">        for (int i = 0; i &lt; lll; ++i)</span>
+            {
+<span class="nc" id="L296">            NEATNode node = (NEATNode) (s.nodePrototype.emptyClone());</span>
+<span class="nc" id="L297">            node.readNode(state, reader);</span>
+<span class="nc" id="L298">            nodes.add(node);</span>
+            }
+<span class="nc" id="L300">        }</span>
+
+    /** We append new gene(s) to the current genome */
+    public void addGene(NEATGene[] appendGenes)
+        {
+<span class="nc" id="L305">        Gene[] newGenome = new Gene[genome.length + appendGenes.length];</span>
+<span class="nc" id="L306">        System.arraycopy(genome, 0, newGenome, 0, genome.length);</span>
+<span class="nc" id="L307">        System.arraycopy(appendGenes, 0, newGenome, genome.length, appendGenes.length);</span>
+<span class="nc" id="L308">        setGenome(newGenome);</span>
+<span class="nc" id="L309">        }</span>
+
+    /** Mutate the weights of the genes */
+    public void mutateLinkWeights(EvolutionState state, int thread ,NEATSpecies species, double power, double rate,
+        MutationType mutationType)
+        {
+        // Go through all the Genes and perturb their link's weights
+        // Signifies the last part of the genome
+<span class="nc" id="L317">        double endPart = ((double) genome.length) * 0.8;</span>
+
+        // Modified power by gene number
+        // The power of mutation will rise farther into the genome
+        // on the theory that the older genes are more fit since
+        // they have stood the test of time
+<span class="nc" id="L323">        double powerMod = 1.0;</span>
+
+        double gaussPoint, coldGaussPoint;
+<span class="nc" id="L326">        boolean severe = state.random[thread].nextBoolean();</span>
+
+
+
+        // Loop on all genes
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        for (int i = 0; i &lt; genome.length; ++i)</span>
+            {
+            // The following if determines the probabilities of doing cold
+            // gaussian
+            // mutation, meaning the probability of replacing a link weight with
+            // another, entirely random weight. It is meant to bias such
+            // mutations
+            // to the tail of a genome, because that is where less time-tested
+            // genes
+            // reside. The gaussPoint and coldGaussPoint represent values above
+            // which a random double will signify that kind of mutation.
+
+<span class="nc" id="L343">            NEATGene gene = (NEATGene) genome[i];</span>
+
+<span class="nc bnc" id="L345" title="All 2 branches missed.">            if (severe)</span>
+                {
+<span class="nc" id="L347">                gaussPoint = 0.3;</span>
+<span class="nc" id="L348">                coldGaussPoint = 0.1;</span>
+                }
+<span class="nc bnc" id="L350" title="All 4 branches missed.">            else if (genome.length &gt;= 10 &amp;&amp; i &gt; endPart)</span>
+                {
+                // Mutate by modification % of connections
+<span class="nc" id="L353">                gaussPoint = 0.5;</span>
+                // Mutate the rest by replacement % of the time
+<span class="nc" id="L355">                coldGaussPoint = 0.3;</span>
+                }
+            else
+                {
+                // Half the time don't do any cold mutations
+<span class="nc bnc" id="L360" title="All 2 branches missed.">                if (state.random[thread].nextBoolean())</span>
+                    {
+<span class="nc" id="L362">                    gaussPoint = 1.0 - rate;</span>
+<span class="nc" id="L363">                    coldGaussPoint = 1.0 - rate - 0.1;</span>
+                    }
+                else
+                    {
+<span class="nc" id="L367">                    gaussPoint = 1.0 - rate;</span>
+<span class="nc" id="L368">                    coldGaussPoint = 1.0 - rate;</span>
+                    }
+                }
+
+<span class="nc bnc" id="L372" title="All 2 branches missed.">            double value =  (state.random[thread].nextBoolean() ? 1 : -1) * state.random[thread].nextDouble() * power * powerMod;</span>
+
+<span class="nc bnc" id="L374" title="All 2 branches missed.">            if (mutationType == MutationType.GAUSSIAN)</span>
+                {
+<span class="nc" id="L376">                double randomChoice = state.random[thread].nextDouble();</span>
+<span class="nc bnc" id="L377" title="All 2 branches missed.">                if (randomChoice &gt; gaussPoint)</span>
+<span class="nc" id="L378">                    gene.weight += value;</span>
+<span class="nc bnc" id="L379" title="All 2 branches missed.">                else if (randomChoice &gt; coldGaussPoint)</span>
+<span class="nc" id="L380">                    gene.weight = value;</span>
+<span class="nc" id="L381">                }</span>
+<span class="nc bnc" id="L382" title="All 2 branches missed.">            else if (mutationType == MutationType.COLDGAUSSIAN)</span>
+                {
+<span class="nc" id="L384">                gene.weight = value;</span>
+                }
+
+            // Clip the weight at 8.0 (experimental)
+            // FIXME : this code only exist in C++ version
+            /*
+             * if (gene.weight &gt; 8.0) gene.weight = 8.0; else if (gene.weight &lt;
+             * -8.0) gene.weight = -8.0;
+             */
+
+            // Record the innovation
+<span class="nc" id="L395">            gene.mutationNumber = gene.weight;</span>
+
+            }
+
+<span class="nc" id="L399">        }</span>
+
+    /** Try to add a new gene (link) into the current genome. */
+    public void mutateAddLink(EvolutionState state,int thread)
+        {
+        // Make attempts to find an unconnected pair
+<span class="nc" id="L405">        int tryCount = 0;</span>
+<span class="nc" id="L406">        NEATSpecies neatSpecies = (NEATSpecies) species;</span>
+<span class="nc" id="L407">        int newLinkTries = neatSpecies.newLinkTries;</span>
+        // Decide whether to make this recurrent
+<span class="nc" id="L409">        boolean doRecur = state.random[thread].nextBoolean(neatSpecies.recurOnlyProb);</span>
+
+<span class="nc" id="L411">        NEATNode firstNode = null, secondNode = null;</span>
+
+        // Find the first non-sensor so that the to-node won't look at sensor as
+        // possible destinations
+<span class="nc" id="L415">        int firstNonSensor = -1;</span>
+<span class="nc bnc" id="L416" title="All 2 branches missed.">        for (int i = 0; i &lt; nodes.size(); ++i)</span>
+            {
+<span class="nc bnc" id="L418" title="All 2 branches missed.">            if (nodes.get(i).type == NodeType.SENSOR)</span>
+                {
+<span class="nc" id="L420">                firstNonSensor = i;</span>
+<span class="nc" id="L421">                break;</span>
+                }
+            }
+
+        // Here is the recurrent finder loop- it is done separately
+<span class="nc" id="L426">        boolean loopRecur = false;</span>
+<span class="nc" id="L427">        int firstNodeIndex = -1;</span>
+<span class="nc" id="L428">        int secondNodeIndex = -1;</span>
+<span class="nc" id="L429">        boolean found = false;</span>
+<span class="nc bnc" id="L430" title="All 2 branches missed.">        while (tryCount &lt; newLinkTries)</span>
+            {
+<span class="nc bnc" id="L432" title="All 2 branches missed.">            if (doRecur)</span>
+                {
+                // at this point :
+                // 50% of prob to decide a loop recurrency (node X to node X)
+                // 50% a normal recurrency (node X to node Y)
+<span class="nc" id="L437">                loopRecur = state.random[thread].nextBoolean();</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">                if (loopRecur)</span>
+                    {
+<span class="nc" id="L440">                    firstNodeIndex = firstNonSensor + state.random[thread].nextInt(nodes.size() - firstNonSensor);</span>
+<span class="nc" id="L441">                    secondNodeIndex = firstNodeIndex;</span>
+                    }
+                else
+                    {
+<span class="nc" id="L445">                    firstNodeIndex = state.random[thread].nextInt(nodes.size());</span>
+<span class="nc" id="L446">                    secondNodeIndex = firstNonSensor + state.random[thread].nextInt(nodes.size() - firstNonSensor);</span>
+                    }
+                }
+            else  // No recurrency case
+                {
+<span class="nc" id="L451">                firstNodeIndex = state.random[thread].nextInt(nodes.size());</span>
+<span class="nc" id="L452">                secondNodeIndex = firstNonSensor + state.random[thread].nextInt(nodes.size() - firstNonSensor);</span>
+                }
+
+            // grab the nodes
+<span class="nc" id="L456">            firstNode = nodes.get(firstNodeIndex);</span>
+<span class="nc" id="L457">            secondNode = nodes.get(secondNodeIndex);</span>
+
+            // Verify is the possible new gene (link) already exist
+<span class="nc" id="L460">            boolean bypass = false;</span>
+<span class="nc bnc" id="L461" title="All 2 branches missed.">            for (int i = 0; i &lt; genome.length; ++i)</span>
+                {
+<span class="nc" id="L463">                NEATGene gene = (NEATGene) genome[i];</span>
+<span class="nc bnc" id="L464" title="All 2 branches missed.">                if (secondNode.type == NodeType.SENSOR)</span>
+                    {
+<span class="nc" id="L466">                    bypass = true;</span>
+<span class="nc" id="L467">                    break;</span>
+                    }
+<span class="nc bnc" id="L469" title="All 8 branches missed.">                if (gene.inNodeId == firstNode.nodeId &amp;&amp; gene.outNodeId == secondNode.nodeId &amp;&amp; gene.isRecurrent</span>
+                    &amp;&amp; doRecur)
+                    {// already have a recurrent link between these nodes in
+                    // recurrent case
+<span class="nc" id="L473">                    bypass = true;</span>
+<span class="nc" id="L474">                    break;</span>
+                    }
+<span class="nc bnc" id="L476" title="All 8 branches missed.">                if (gene.inNodeId == firstNode.nodeId &amp;&amp; gene.outNodeId == secondNode.nodeId &amp;&amp; !gene.isRecurrent</span>
+                    &amp;&amp; !doRecur)
+                    {// already have a normal link between these nodes in normal
+                    // case
+<span class="nc" id="L480">                    bypass = true;</span>
+<span class="nc" id="L481">                    break;</span>
+                    }
+                }
+
+<span class="nc bnc" id="L485" title="All 2 branches missed.">            if (!bypass)</span>
+                {
+<span class="nc" id="L487">                int threshold = nodes.size() * nodes.size();</span>
+                // we want to add a link from firstNode to secondNode,
+                // we first check if there is a potential link from secondNodde
+                // to firstNode
+<span class="nc" id="L491">                boolean[] result = NEATNetwork.hasPath(state, firstNode, secondNode, threshold);</span>
+
+                // the network contains a
+<span class="nc bnc" id="L494" title="All 2 branches missed.">                if (!result[0])</span>
+                    {
+<span class="nc" id="L496">                    state.output.error(&quot;network has infinite loop&quot;);</span>
+<span class="nc" id="L497">                    return;</span>
+                    }
+                // if we want a recur link but added link will not add recur
+                // or if we do not want a recur link but added link will cause a
+                // recur,
+                // we keep trying
+<span class="nc bnc" id="L503" title="All 8 branches missed.">                if ((!result[1] &amp;&amp; doRecur) || (result[1] &amp;&amp; !doRecur))</span>
+<span class="nc" id="L504">                    tryCount++;</span>
+                else
+                    {
+<span class="nc" id="L507">                    found = true;</span>
+<span class="nc" id="L508">                    break;</span>
+                    }
+<span class="nc" id="L510">                }</span>
+            else
+                {
+                // if bypass is true, this gene is not good
+                // and skip to next cycle
+<span class="nc" id="L515">                tryCount++;</span>
+                }
+<span class="nc" id="L517">            }</span>
+
+<span class="nc bnc" id="L519" title="All 2 branches missed.">        if (!found)</span>
+<span class="nc" id="L520">            return;</span>
+
+<span class="nc" id="L522">        NEATInnovation testInno = (NEATInnovation) neatSpecies.innovationPrototype.clone();</span>
+<span class="nc" id="L523">        testInno.reset(firstNode.nodeId, secondNode.nodeId, doRecur);</span>
+
+<span class="nc" id="L525">        NEATGene[] newGenes = new NEATGene[1];</span>
+<span class="nc bnc" id="L526" title="All 2 branches missed.">        if (neatSpecies.hasInnovation(testInno))</span>
+            {
+            // Grab the existing innovation info
+<span class="nc" id="L529">            NEATInnovation innovation = neatSpecies.getInnovation(testInno);</span>
+
+            // create the gene
+<span class="nc" id="L532">            newGenes[0] = (NEATGene) neatSpecies.genePrototype.clone();</span>
+<span class="nc" id="L533">            newGenes[0].reset(innovation.newWeight, firstNode.nodeId, secondNode.nodeId, doRecur,</span>
+                innovation.innovationNum1, 0);
+<span class="nc" id="L535">            newGenes[0].inNode = firstNode;</span>
+<span class="nc" id="L536">            newGenes[0].outNode = secondNode;</span>
+<span class="nc" id="L537">            }</span>
+        else
+            {
+            // The innovation is totally novel
+<span class="nc bnc" id="L541" title="All 2 branches missed.">            double weight = state.random[thread].nextBoolean() ? 1 : -1;</span>
+<span class="nc" id="L542">            weight *= state.random[thread].nextDouble();</span>
+
+<span class="nc" id="L544">            newGenes[0] = (NEATGene) neatSpecies.genePrototype.clone();</span>
+<span class="nc" id="L545">            int currInnovNum = neatSpecies.nextInnovationNumber();</span>
+<span class="nc" id="L546">            newGenes[0].reset(weight, firstNode.nodeId, secondNode.nodeId, doRecur, currInnovNum, weight);</span>
+<span class="nc" id="L547">            newGenes[0].inNode = firstNode;</span>
+<span class="nc" id="L548">            newGenes[0].outNode = secondNode;</span>
+
+            // create innovation information
+<span class="nc" id="L551">            NEATInnovation newInno = (NEATInnovation) neatSpecies.innovationPrototype.clone();</span>
+<span class="nc" id="L552">            newInno.reset(firstNode.nodeId, secondNode.nodeId, currInnovNum, weight, doRecur);</span>
+<span class="nc" id="L553">            neatSpecies.addInnovation(newInno);</span>
+
+
+            }
+
+        // Now add the new Genes to the genome
+<span class="nc" id="L559">        addGene(newGenes);</span>
+<span class="nc" id="L560">        }</span>
+    /** Add a new node into this individual. */
+    public void mutateAddNode(EvolutionState state, int thread)
+        {
+<span class="nc" id="L564">        NEATSpecies neatSpecies = (NEATSpecies) species;</span>
+<span class="nc" id="L565">        NEATGene gene = null;</span>
+<span class="nc" id="L566">        int newNodeTries = neatSpecies.newNodeTries;</span>
+<span class="nc" id="L567">        int tryCount = 0;</span>
+<span class="nc" id="L568">        boolean found = false;</span>
+<span class="nc" id="L569">        int i = 0;</span>
+        // split next link with a bias towards older links
+
+<span class="nc bnc" id="L572" title="All 2 branches missed.">        if (genomeLength() &lt; neatSpecies.addNodeMaxGenomeLength)</span>
+            {
+
+<span class="nc" id="L575">            boolean step2 = false;</span>
+
+            // find the first non enable link whose input is not a bias node
+<span class="nc bnc" id="L578" title="All 2 branches missed.">            for (i = 0; i &lt; genome.length; ++i)</span>
+                {
+<span class="nc" id="L580">                gene = (NEATGene) genome[i];</span>
+<span class="nc bnc" id="L581" title="All 4 branches missed.">                if (gene.enable &amp;&amp; gene.inNode.geneticNodeLabel != NodePlace.BIAS)</span>
+<span class="nc" id="L582">                    break;</span>
+                }
+            // Now randomize which node is chosen at this point
+            // We bias the search towards older genes because
+            // this encourages splitting to distribute evenly
+<span class="nc bnc" id="L587" title="All 2 branches missed.">            for (; i &lt; genome.length; ++i)</span>
+                {
+<span class="nc" id="L589">                gene = (NEATGene) genome[i];</span>
+<span class="nc bnc" id="L590" title="All 4 branches missed.">                if (state.random[thread].nextBoolean(.7) &amp;&amp; (gene.inNode.geneticNodeLabel != NodePlace.BIAS))</span>
+                    {
+<span class="nc" id="L592">                    step2 = true;</span>
+<span class="nc" id="L593">                    break;</span>
+                    }
+                }
+
+<span class="nc bnc" id="L597" title="All 4 branches missed.">            if (step2 &amp;&amp; gene.enable)</span>
+<span class="nc" id="L598">                found = true;</span>
+<span class="nc" id="L599">            }</span>
+        else
+            {
+<span class="nc bnc" id="L602" title="All 4 branches missed.">            while ((tryCount &lt; newNodeTries) &amp;&amp; (!found))</span>
+                {
+                // Pure random split
+<span class="nc" id="L605">                int index = state.random[thread].nextInt(genomeLength());</span>
+<span class="nc" id="L606">                gene = (NEATGene) genome[index];</span>
+<span class="nc bnc" id="L607" title="All 4 branches missed.">                if (gene.enable &amp;&amp; gene.inNode.geneticNodeLabel != NodePlace.BIAS)</span>
+                    {
+<span class="nc" id="L609">                    found = true;</span>
+                    }
+<span class="nc" id="L611">                tryCount++;</span>
+<span class="nc" id="L612">                }</span>
+            }
+
+        // If we couldn't find anything so say goodbye
+<span class="nc bnc" id="L616" title="All 2 branches missed.">        if (!found)</span>
+<span class="nc" id="L617">            return;</span>
+
+        // Disable the old gene (link)
+<span class="nc" id="L620">        gene.enable = false;</span>
+
+        // Extract the link
+<span class="nc" id="L623">        double oldWeight = gene.weight;</span>
+
+        // Extract the nodes
+<span class="nc" id="L626">        NEATNode inNode = gene.inNode;</span>
+<span class="nc" id="L627">        NEATNode outNode = gene.outNode;</span>
+
+        // Check to see if this innovation has already been done
+        // in another genome
+        // Innovations are used to make sure the same innovation in
+        // two separate genomes in the same generation receives
+        // the same innovation number.
+
+        // We check to see if an innovation already occured that was:
+        // -A new node
+        // -Stuck between the same nodes as were chosen for this mutation
+        // -Splitting the same gene as chosen for this mutation
+        // If so, we know this mutation is not a novel innovation
+        // in this generation
+        // so we make it match the original, identical mutation which occured
+        // elsewhere in the population by coincidence
+
+<span class="nc" id="L644">        NEATInnovation testInno = (NEATInnovation) neatSpecies.innovationPrototype.clone();</span>
+<span class="nc" id="L645">        testInno.reset(inNode.nodeId, outNode.nodeId, gene.innovationNumber);</span>
+
+<span class="nc" id="L647">        NEATNode newNode = null;</span>
+<span class="nc" id="L648">        NEATGene[] newGenes = new NEATGene[2];</span>
+<span class="nc bnc" id="L649" title="All 2 branches missed.">        if (neatSpecies.hasInnovation(testInno))</span>
+            {
+            // Grab the existing innovation info
+<span class="nc" id="L652">            NEATInnovation innovation = neatSpecies.getInnovation(testInno);</span>
+<span class="nc" id="L653">            newNode = (NEATNode) neatSpecies.nodePrototype.emptyClone();</span>
+<span class="nc" id="L654">            newNode.reset(NodeType.NEURON, innovation.newNodeId, NodePlace.HIDDEN);</span>
+
+            // create the gene
+<span class="nc" id="L657">            newGenes[0] = (NEATGene) neatSpecies.genePrototype.clone();</span>
+<span class="nc" id="L658">            newGenes[0].reset(1, inNode.nodeId, newNode.nodeId, gene.isRecurrent, innovation.innovationNum1, 0);</span>
+<span class="nc" id="L659">            newGenes[0].inNode = inNode;</span>
+<span class="nc" id="L660">            newGenes[0].outNode = newNode;</span>
+
+<span class="nc" id="L662">            newGenes[1] = (NEATGene) neatSpecies.genePrototype.clone();</span>
+<span class="nc" id="L663">            newGenes[1].reset(oldWeight, newNode.nodeId, outNode.nodeId, false, innovation.innovationNum2, 0);</span>
+<span class="nc" id="L664">            newGenes[1].inNode = newNode;</span>
+<span class="nc" id="L665">            newGenes[1].outNode = outNode;</span>
+<span class="nc" id="L666">            }</span>
+        else
+            {
+            // The innovation is totally novel
+            // create the new Node
+            
+<span class="nc" id="L672">            newNode = (NEATNode) neatSpecies.nodePrototype.emptyClone();</span>
+<span class="nc" id="L673">            newNode.reset(NodeType.NEURON, neatSpecies.currNodeId++, NodePlace.HIDDEN);</span>
+
+            // create the new Gene
+<span class="nc" id="L676">            newGenes[0] = (NEATGene) neatSpecies.genePrototype.clone();</span>
+<span class="nc" id="L677">            int currInnovNum = neatSpecies.nextInnovationNumber();</span>
+<span class="nc" id="L678">            int currInnovNum2 = neatSpecies.nextInnovationNumber();</span>
+<span class="nc" id="L679">            newGenes[0].reset(1, inNode.nodeId, newNode.nodeId, gene.isRecurrent,currInnovNum, 0);</span>
+            // link the new gene to node
+<span class="nc" id="L681">            newGenes[0].inNode = inNode;</span>
+<span class="nc" id="L682">            newGenes[0].outNode = newNode;</span>
+            
+
+<span class="nc" id="L685">            newGenes[1] = (NEATGene) neatSpecies.genePrototype.clone();</span>
+<span class="nc" id="L686">            newGenes[1].reset(oldWeight, newNode.nodeId, outNode.nodeId, false, currInnovNum2, 0);</span>
+<span class="nc" id="L687">            newGenes[1].inNode = newNode;</span>
+<span class="nc" id="L688">            newGenes[1].outNode = outNode;</span>
+            
+
+
+            // create innovation information
+<span class="nc" id="L693">            NEATInnovation newInno = (NEATInnovation) neatSpecies.innovationPrototype.clone();</span>
+<span class="nc" id="L694">            newInno.reset(inNode.nodeId, outNode.nodeId, currInnovNum, currInnovNum2,</span>
+                newNode.nodeId, gene.innovationNumber);
+<span class="nc" id="L696">            neatSpecies.addInnovation(newInno);</span>
+            }
+
+        // Now add the new Node and New Genes to the genome
+<span class="nc" id="L700">        nodes.add(newNode);</span>
+<span class="nc" id="L701">        addGene(newGenes);</span>
+
+<span class="nc" id="L703">        }</span>
+
+    /** Randomly enable or disable a gene. */
+    public void mutateToggleEnable(EvolutionState state, int thread,int times)
+        {
+<span class="nc bnc" id="L708" title="All 2 branches missed.">        for (int i = 0; i &lt; times; ++i)</span>
+            {
+            // Choose a random gene
+<span class="nc" id="L711">            int index = state.random[thread].nextInt(genome.length);</span>
+<span class="nc" id="L712">            NEATGene gene = (NEATGene) genome[index];</span>
+
+<span class="nc bnc" id="L714" title="All 2 branches missed.">            if (gene.enable)</span>
+                {
+                // We need to make sure that another gene connects out of the
+                // in-node
+                // Because if not a section of network will break off and become
+                // isolated
+<span class="nc" id="L720">                boolean found = false;</span>
+<span class="nc bnc" id="L721" title="All 2 branches missed.">                for (int j = 0; j &lt; genome.length; ++j)</span>
+                    {
+<span class="nc" id="L723">                    NEATGene anotherGene = (NEATGene) genome[j];</span>
+<span class="nc bnc" id="L724" title="All 6 branches missed.">                    if (anotherGene.inNodeId == gene.inNodeId &amp;&amp; anotherGene.enable</span>
+                        &amp;&amp; anotherGene.innovationNumber != gene.innovationNumber)
+                        {
+<span class="nc" id="L727">                        found = true;</span>
+<span class="nc" id="L728">                        break;</span>
+                        }
+                    }
+
+                // Disable the gene is it's safe to do so
+<span class="nc bnc" id="L733" title="All 2 branches missed.">                if (found)</span>
+<span class="nc" id="L734">                    gene.enable = false;</span>
+<span class="nc" id="L735">                }</span>
+            else // Turn on the enable if it's not enable
+<span class="nc" id="L737">                gene.enable = true;</span>
+            }
+
+<span class="nc" id="L740">        }</span>
+
+    /** Reenable a gene if it's disabled. */
+    public void mutateGeneReenable()
+        {
+<span class="nc bnc" id="L745" title="All 2 branches missed.">        for (int i = 0; i &lt; genome.length; ++i)</span>
+            {
+<span class="nc" id="L747">            NEATGene gene = (NEATGene) genome[i];</span>
+<span class="nc bnc" id="L748" title="All 2 branches missed.">            if (!gene.enable)</span>
+                {
+<span class="nc" id="L750">                gene.enable = true;</span>
+<span class="nc" id="L751">                break;</span>
+                }
+            }
+<span class="nc" id="L754">        }</span>
+
+
+
+    /**
+     * Mutation function, determine which mutation is going to proceed with
+     * certain probabilities parameters.
+     */
+    public void defaultMutate(EvolutionState state, int thread)
+        {
+<span class="nc" id="L764">        NEATSpecies neatSpecies = (NEATSpecies) species;</span>
+        // do the mutation depending on the probabilities of various mutations
+<span class="nc bnc" id="L766" title="All 2 branches missed.">        if (state.random[thread].nextBoolean(neatSpecies.mutateAddNodeProb))</span>
+            {
+           
+<span class="nc" id="L769">            mutateAddNode(state,thread);</span>
+            }
+<span class="nc bnc" id="L771" title="All 2 branches missed.">        else if (state.random[thread].nextBoolean(neatSpecies.mutateAddLinkProb))</span>
+            {
+           
+<span class="nc" id="L774">            createNetwork(); // Make sure we have the network</span>
+<span class="nc" id="L775">            mutateAddLink(state, thread);</span>
+            }
+        else
+            {
+
+<span class="nc bnc" id="L780" title="All 2 branches missed.">            if (state.random[thread].nextBoolean(neatSpecies.mutateLinkWeightsProb))</span>
+                {
+                
+<span class="nc" id="L783">                mutateLinkWeights(state,thread, neatSpecies, neatSpecies.weightMutationPower, 1.0, MutationType.GAUSSIAN);</span>
+                }
+<span class="nc bnc" id="L785" title="All 2 branches missed.">            if (state.random[thread].nextBoolean(neatSpecies.mutateToggleEnableProb))</span>
+                {
+                
+<span class="nc" id="L788">                mutateToggleEnable(state,thread, 1);</span>
+                }
+<span class="nc bnc" id="L790" title="All 2 branches missed.">            if (state.random[thread].nextBoolean(neatSpecies.mutateGeneReenableProb))</span>
+                {
+               
+<span class="nc" id="L793">                mutateGeneReenable();</span>
+                }
+            }
+<span class="nc" id="L796">        }</span>
+
+    /**
+     * Crossover function. Unlike defaultCrossover, this does not do destructive
+     * crossover. It will create a new individual as the crossover of the new
+     * parents.
+     */
+    public NEATIndividual crossover(EvolutionState state, int thread, NEATIndividual secondParent)
+        {
+
+<span class="nc" id="L806">        NEATSpecies neatSpecies = (NEATSpecies) species;</span>
+<span class="nc" id="L807">        NEATIndividual newInd = null;</span>
+<span class="nc bnc" id="L808" title="All 2 branches missed.">        if (state.random[thread].nextBoolean(neatSpecies.mateMultipointProb))</span>
+            {
+            // mate multipoint
+            
+<span class="nc" id="L812">            newInd = mateMultipoint(state, thread, secondParent, false);</span>
+            }
+<span class="nc bnc" id="L814" title="All 2 branches missed.">        else if (state.random[thread].nextBoolean((neatSpecies.mateMultipointAvgProb</span>
+                    / (neatSpecies.mateMultipointAvgProb + neatSpecies.mateSinglepointProb))))
+            {
+
+            // mate multipoint average
+<span class="nc" id="L819">            newInd = mateMultipoint(state, thread, secondParent, true);</span>
+            }
+        else
+            {
+            // mate single point
+            
+<span class="nc" id="L825">            newInd = mateSinglepoint(state, thread, secondParent);</span>
+            }
+        // mate_baby = true;
+<span class="nc" id="L828">        return newInd;</span>
+        }
+
+    @Deprecated
+    /**
+     * Crossover a single point from two parents, it's not used in original
+     * code, as pop.subpop.X.species.mate-singlepoint-prob will always be 0.
+     */
+    public NEATIndividual mateSinglepoint(EvolutionState state, int thread, NEATIndividual secondParent)
+        {
+        // NOTE : unfinished code, seems the NEAT is not using this mate method
+<span class="nc" id="L839">        NEATSpecies neatSpecies = (NEATSpecies) species;</span>
+<span class="nc" id="L840">        ArrayList&lt;NEATNode&gt; newNodes = new ArrayList&lt;NEATNode&gt;();</span>
+<span class="nc" id="L841">        ArrayList&lt;Gene&gt; newGenes = new ArrayList&lt;Gene&gt;();</span>
+
+<span class="nc" id="L843">        int sizeA = genomeLength(), sizeB = secondParent.genomeLength();</span>
+        // make sure genomeA point to the shorter genome
+<span class="nc bnc" id="L845" title="All 2 branches missed.">        Gene[] genomeA = sizeA &lt; sizeB ? genome : secondParent.genome;</span>
+<span class="nc bnc" id="L846" title="All 2 branches missed.">        Gene[] genomeB = sizeA &lt; sizeB ? secondParent.genome : genome;</span>
+
+<span class="nc" id="L848">        int lengthA = genomeA.length, lengthB = genomeB.length;</span>
+<span class="nc" id="L849">        int crossPoint = state.random[thread].nextInt(lengthA);</span>
+
+<span class="nc" id="L851">        NEATGene geneA = null, geneB = null;</span>
+<span class="nc" id="L852">        int indexA = 0, indexB = 0;</span>
+
+<span class="nc" id="L854">        boolean skip = false;  // Default to not skip a Gene</span>
+        // Note that we skip when we are on the wrong Genome before
+        // crossing
+
+<span class="nc" id="L858">        int geneCounter = 0;  // Ready to count to crosspoint</span>
+
+<span class="nc" id="L860">        NEATGene chosenGene = null;</span>
+
+        // Now move through the Genes of each parent until both genomes end
+<span class="nc bnc" id="L863" title="All 4 branches missed.">        while (indexA &lt; lengthA || indexB &lt; lengthB)</span>
+            {
+            // if genomeA is ended, we move pointer of genomeB
+            // select genes from genomeB
+<span class="nc bnc" id="L867" title="All 2 branches missed.">            if (indexA == lengthA)</span>
+                {
+<span class="nc" id="L869">                chosenGene = (NEATGene) genomeB[indexB];</span>
+<span class="nc" id="L870">                indexB++;</span>
+                }
+            // if genomeB is ended, we move pointer of genomeA
+            // select genes from genomeA
+<span class="nc bnc" id="L874" title="All 2 branches missed.">            else if (indexB == lengthB)</span>
+                {
+<span class="nc" id="L876">                chosenGene = (NEATGene) genomeA[indexA];</span>
+<span class="nc" id="L877">                indexA++;</span>
+                }
+            else
+                {
+                // extract current innovation number
+<span class="nc" id="L882">                int innovA = ((NEATGene) genomeA[indexA]).innovationNumber;</span>
+<span class="nc" id="L883">                int innovB = ((NEATGene) genomeB[indexB]).innovationNumber;</span>
+
+<span class="nc bnc" id="L885" title="All 2 branches missed.">                if (innovA == innovB)</span>
+                    {
+                    // Pick the chosenGene depending on whether we've crossed
+                    // yet
+<span class="nc bnc" id="L889" title="All 2 branches missed.">                    if (geneCounter &lt; crossPoint)</span>
+                        {
+<span class="nc" id="L891">                        chosenGene = (NEATGene) genomeA[indexA];</span>
+                        }
+<span class="nc bnc" id="L893" title="All 2 branches missed.">                    else if (geneCounter &gt; crossPoint)</span>
+                        {
+<span class="nc" id="L895">                        chosenGene = (NEATGene) genomeB[indexB];</span>
+                        }
+                    // We are at the cross point here
+                    else
+                        {
+<span class="nc" id="L900">                        geneA = (NEATGene) genomeA[indexA];</span>
+<span class="nc" id="L901">                        geneB = (NEATGene) genomeB[indexB];</span>
+
+                        // set up the average gene
+<span class="nc" id="L904">                        NEATGene avgGene = (NEATGene) neatSpecies.genePrototype.clone();</span>
+
+<span class="nc" id="L906">                        double weight = (geneA.weight + geneB.weight) / 2.0;</span>
+
+                        // Average them into the avgGene
+<span class="nc bnc" id="L909" title="All 2 branches missed.">                        int inNodeId = (state.random[thread].nextBoolean()) ? geneA.inNodeId : geneB.inNodeId;</span>
+<span class="nc bnc" id="L910" title="All 2 branches missed.">                        int outNodeId = (state.random[thread].nextBoolean()) ? geneA.outNodeId : geneB.outNodeId;</span>
+<span class="nc bnc" id="L911" title="All 2 branches missed.">                        boolean isRecurrent = (state.random[thread].nextBoolean()) ? geneA.isRecurrent : geneB.isRecurrent;</span>
+
+<span class="nc" id="L913">                        int innovationNumber = geneA.innovationNumber;</span>
+<span class="nc" id="L914">                        double mutationNumber = (geneA.mutationNumber + geneB.mutationNumber) / 2.0;</span>
+
+<span class="nc bnc" id="L916" title="All 4 branches missed.">                        avgGene.enable = !(!geneA.enable || !geneB.enable);</span>
+
+<span class="nc" id="L918">                        avgGene.reset(weight, inNodeId, outNodeId, isRecurrent, innovationNumber, mutationNumber);</span>
+
+<span class="nc" id="L920">                        chosenGene = avgGene;</span>
+                        }
+
+<span class="nc" id="L923">                    indexA++;</span>
+<span class="nc" id="L924">                    indexB++;</span>
+<span class="nc" id="L925">                    geneCounter++;</span>
+                    }
+<span class="nc bnc" id="L927" title="All 2 branches missed.">                else if (innovA &lt; innovB)</span>
+                    {
+<span class="nc bnc" id="L929" title="All 2 branches missed.">                    if (geneCounter &lt; crossPoint)</span>
+                        {
+<span class="nc" id="L931">                        chosenGene = (NEATGene) genomeA[indexA];</span>
+<span class="nc" id="L932">                        indexA++;</span>
+<span class="nc" id="L933">                        geneCounter++;</span>
+                        }
+                    else
+                        {
+<span class="nc" id="L937">                        chosenGene = (NEATGene) genomeB[indexB];</span>
+<span class="nc" id="L938">                        indexB++;</span>
+                        }
+                    }
+<span class="nc bnc" id="L941" title="All 2 branches missed.">                else if (innovA &gt; innovB)</span>
+                    {
+<span class="nc" id="L943">                    indexB++;</span>
+<span class="nc" id="L944">                    skip = true; // Special case: we need to skip to the next</span>
+                    // iteration
+                    // because this Gene is before the crosspoint on the wrong
+                    // Genome
+                    }
+                }
+
+<span class="nc bnc" id="L951" title="All 2 branches missed.">            if (hasGene(newGenes, chosenGene))</span>
+<span class="nc" id="L952">                skip = true;</span>
+
+            // Check to see if the chosenGene conflicts with an already chosen
+            // gene
+            // i.e. do they represent the same link
+            // if the link is not duplicate, add it to the new individual
+<span class="nc bnc" id="L958" title="All 2 branches missed.">            if (!skip)</span>
+                {
+                // Check for the nodes, add them if not in the baby Genome
+                // already
+<span class="nc" id="L962">                createNodeCopyIfMissing(newNodes, chosenGene.inNode);</span>
+<span class="nc" id="L963">                createNodeCopyIfMissing(newNodes, chosenGene.outNode);</span>
+
+                // clone the chosenGene and add to newGenes
+<span class="nc" id="L966">                NEATGene newGene = (NEATGene) chosenGene.clone();</span>
+<span class="nc" id="L967">                newGenes.add(newGene);</span>
+                }
+
+<span class="nc" id="L970">            skip = false;</span>
+            }
+
+<span class="nc" id="L973">        return null;</span>
+        }
+
+    /** Test if a genome has certain gene. */
+    public boolean hasGene(ArrayList&lt;Gene&gt; genome, Gene gene)
+        {
+<span class="nc" id="L979">        NEATGene neatGene = (NEATGene) gene;</span>
+<span class="nc bnc" id="L980" title="All 2 branches missed.">        for (int i = 0; i &lt; genome.size(); ++i)</span>
+            {
+            // original code seems redundant
+<span class="nc" id="L983">            NEATGene g = (NEATGene) genome.get(i);</span>
+<span class="nc bnc" id="L984" title="All 6 branches missed.">            if (g.inNodeId == neatGene.inNodeId &amp;&amp; g.outNodeId == neatGene.outNodeId &amp;&amp; g.isRecurrent == neatGene.isRecurrent)</span>
+                {
+<span class="nc" id="L986">                return true;</span>
+                }
+
+            }
+<span class="nc" id="L990">        return false;</span>
+        }
+
+    /**
+     * Create the node if the nodeList do not have that node.The nodes in the
+     * nodeList is guarantee in ascending order according to node's nodeId.
+     */
+    public void createNodeCopyIfMissing(ArrayList&lt;NEATNode&gt; nodeList, NEATNode node)
+        {
+<span class="nc bnc" id="L999" title="All 2 branches missed.">        for (int i = 0; i &lt; nodeList.size(); ++i)</span>
+            {
+<span class="nc" id="L1001">            NEATNode n = nodeList.get(i);</span>
+            // if we find the node with the same node id, we simply return it
+<span class="nc bnc" id="L1003" title="All 2 branches missed.">            if (node.nodeId == n.nodeId)</span>
+<span class="nc" id="L1004">                return;</span>
+            // if we find a node with larger node id, we insert the new node
+            // into current position
+<span class="nc bnc" id="L1007" title="All 2 branches missed.">            else if (node.nodeId &lt; n.nodeId)</span>
+                {
+<span class="nc" id="L1009">                NEATNode newNode = (NEATNode) node.emptyClone();</span>
+<span class="nc" id="L1010">                nodeList.add(i, newNode);</span>
+<span class="nc" id="L1011">                return;</span>
+                }
+            }
+
+        // if we didn't find node in nodeList and it has the highest nodeId
+        // we add it to the end of list
+<span class="nc" id="L1017">        NEATNode newNode = (NEATNode) node.emptyClone();</span>
+<span class="nc" id="L1018">        nodeList.add(newNode);</span>
+<span class="nc" id="L1019">        }</span>
+
+    /** Doing crossover from two parent at multiple points in the genome. */
+    public NEATIndividual mateMultipoint(EvolutionState state, int thread, NEATIndividual secondParent,
+        boolean averageFlag)
+        {
+<span class="nc" id="L1025">        NEATSpecies neatSpecies = (NEATSpecies) species;</span>
+<span class="nc" id="L1026">        ArrayList&lt;NEATNode&gt; newNodes = new ArrayList&lt;NEATNode&gt;();</span>
+<span class="nc" id="L1027">        ArrayList&lt;Gene&gt; newGenes = new ArrayList&lt;Gene&gt;();</span>
+
+<span class="nc" id="L1029">        int indexA = 0;</span>
+<span class="nc" id="L1030">        int indexB = 0;</span>
+<span class="nc" id="L1031">        Gene[] genomeA = genome;</span>
+<span class="nc" id="L1032">        Gene[] genomeB = secondParent.genome;</span>
+<span class="nc" id="L1033">        int lengthA = genomeA.length;</span>
+<span class="nc" id="L1034">        int lengthB = genomeB.length;</span>
+
+        // Figure out which genome is better
+        // The worse genome should not be allowed to add extra structural
+        // baggage
+        // If they are the same, use the smaller one's disjoint and excess genes
+        // only
+
+
+<span class="nc" id="L1043">        boolean firstFitter = isSuperiorTo(this, secondParent);</span>
+
+        // Make sure all sensors and outputs are included
+<span class="nc bnc" id="L1046" title="All 2 branches missed.">        for (int i = 0; i &lt; secondParent.nodes.size(); ++i)</span>
+            {
+<span class="nc" id="L1048">            NEATNode node = secondParent.nodes.get(i);</span>
+<span class="nc bnc" id="L1049" title="All 6 branches missed.">            if (node.geneticNodeLabel == NodePlace.INPUT || node.geneticNodeLabel == NodePlace.BIAS || node.geneticNodeLabel == NodePlace.OUTPUT)</span>
+                {
+<span class="nc" id="L1051">                createNodeCopyIfMissing(newNodes, node);</span>
+                }
+            }
+
+<span class="nc" id="L1055">        NEATGene chosenGene = null;</span>
+<span class="nc bnc" id="L1056" title="All 4 branches missed.">        while (indexA &lt; lengthA || indexB &lt; lengthB)</span>
+            {
+<span class="nc" id="L1058">            boolean skip = false;</span>
+
+<span class="nc bnc" id="L1060" title="All 2 branches missed.">            if (indexA &gt;= lengthA)</span>
+                {
+<span class="nc" id="L1062">                chosenGene = (NEATGene) genomeB[indexB];</span>
+<span class="nc" id="L1063">                indexB++;</span>
+                // Skip excess from the worse genome
+<span class="nc bnc" id="L1065" title="All 2 branches missed.">                if (firstFitter)</span>
+<span class="nc" id="L1066">                    skip = true;</span>
+                }
+<span class="nc bnc" id="L1068" title="All 2 branches missed.">            else if (indexB &gt;= lengthB)</span>
+                {
+<span class="nc" id="L1070">                chosenGene = (NEATGene) genomeA[indexA];</span>
+<span class="nc" id="L1071">                indexA++;</span>
+                // Skip excess from worse genome
+<span class="nc bnc" id="L1073" title="All 2 branches missed.">                if (!firstFitter)</span>
+<span class="nc" id="L1074">                    skip = true;</span>
+                }
+            else
+                {
+<span class="nc" id="L1078">                NEATGene geneA = (NEATGene) genomeA[indexA];</span>
+<span class="nc" id="L1079">                NEATGene geneB = (NEATGene) genomeB[indexB];</span>
+
+<span class="nc" id="L1081">                int innovA = geneA.innovationNumber;</span>
+<span class="nc" id="L1082">                int innovB = geneB.innovationNumber;</span>
+
+<span class="nc bnc" id="L1084" title="All 2 branches missed.">                if (innovA == innovB)</span>
+                    {
+<span class="nc bnc" id="L1086" title="All 2 branches missed.">                    if (!averageFlag)</span>
+                        {
+<span class="nc bnc" id="L1088" title="All 2 branches missed.">                        chosenGene = state.random[thread].nextBoolean() ? geneA : geneB;</span>
+                        // If one is disabled, the corresponding gene in the
+                        // offspring will likely be disabled
+<span class="nc bnc" id="L1091" title="All 4 branches missed.">                        if (!geneA.enable || !geneB.enable)</span>
+                            {
+<span class="nc bnc" id="L1093" title="All 2 branches missed.">                            if (state.random[thread].nextBoolean( 0.75))</span>
+<span class="nc" id="L1094">                                chosenGene.enable = false;</span>
+                            }
+                        }
+                    else
+                        {
+                        // weight averaged here
+<span class="nc" id="L1100">                        double weight = (geneA.weight + geneB.weight) / 2.0;</span>
+
+                        // Average them into the avgGene
+<span class="nc" id="L1103">                        int inNodeId = -1, outNodeId = -1;</span>
+<span class="nc" id="L1104">                        NEATNode inNode = null, outNode = null;</span>
+<span class="nc bnc" id="L1105" title="All 2 branches missed.">                        if (state.random[thread].nextBoolean())</span>
+                            {
+<span class="nc" id="L1107">                            inNodeId = geneA.inNodeId;</span>
+                            // we direct set the inNode here without clone
+                            // this is because we will clone this node
+                            // eventually
+<span class="nc" id="L1111">                            inNode = geneA.inNode;</span>
+                            }
+                        else
+                            {
+<span class="nc" id="L1115">                            inNodeId = geneB.inNodeId;</span>
+<span class="nc" id="L1116">                            inNode = geneB.inNode;</span>
+                            }
+<span class="nc bnc" id="L1118" title="All 2 branches missed.">                        if (state.random[thread].nextBoolean())</span>
+                            {
+<span class="nc" id="L1120">                            outNodeId = geneA.outNodeId;</span>
+                            // we direct set the inNode here without clone
+                            // this is because we will clone this node
+                            // eventually
+<span class="nc" id="L1124">                            outNode = geneA.outNode;</span>
+                            }
+                        else
+                            {
+<span class="nc" id="L1128">                            outNodeId = geneB.outNodeId;</span>
+<span class="nc" id="L1129">                            outNode = geneB.outNode;</span>
+                            }
+<span class="nc bnc" id="L1131" title="All 2 branches missed.">                        boolean isRecurrent = (state.random[thread].nextBoolean()) ? geneA.isRecurrent : geneB.isRecurrent;</span>
+
+<span class="nc" id="L1133">                        int innovationNumber = geneA.innovationNumber;</span>
+<span class="nc" id="L1134">                        double mutationNumber = (geneA.mutationNumber + geneB.mutationNumber) / 2.0;</span>
+
+<span class="nc" id="L1136">                        boolean enable = true;</span>
+<span class="nc bnc" id="L1137" title="All 4 branches missed.">                        if (!geneA.enable || !geneB.enable)</span>
+<span class="nc bnc" id="L1138" title="All 2 branches missed.">                            if (state.random[thread].nextBoolean( 0.75))</span>
+<span class="nc" id="L1139">                                enable = false;</span>
+
+<span class="nc" id="L1141">                        chosenGene = (NEATGene) neatSpecies.genePrototype.clone();</span>
+<span class="nc" id="L1142">                        chosenGene.reset(weight, inNodeId, outNodeId, isRecurrent, innovationNumber, mutationNumber);</span>
+<span class="nc" id="L1143">                        chosenGene.enable = enable;</span>
+<span class="nc" id="L1144">                        chosenGene.inNode = inNode;</span>
+<span class="nc" id="L1145">                        chosenGene.outNode = outNode;</span>
+                        }
+
+<span class="nc" id="L1148">                    indexA++;</span>
+<span class="nc" id="L1149">                    indexB++;</span>
+                    }
+<span class="nc bnc" id="L1151" title="All 2 branches missed.">                else if (innovA &lt; innovB)</span>
+                    {
+<span class="nc" id="L1153">                    chosenGene = (NEATGene) genomeA[indexA];</span>
+<span class="nc" id="L1154">                    indexA++;</span>
+                    // Skip disjoint from worse genome
+<span class="nc bnc" id="L1156" title="All 2 branches missed.">                    if (!firstFitter)</span>
+<span class="nc" id="L1157">                        skip = true;</span>
+                    }
+<span class="nc bnc" id="L1159" title="All 2 branches missed.">                else if (innovA &gt; innovB)</span>
+                    {
+<span class="nc" id="L1161">                    chosenGene = (NEATGene) genomeB[indexB];</span>
+<span class="nc" id="L1162">                    indexB++;</span>
+                    // Skip disjoint from worse genome
+<span class="nc bnc" id="L1164" title="All 2 branches missed.">                    if (firstFitter)</span>
+<span class="nc" id="L1165">                        skip = true;</span>
+                    }
+                }
+
+            // Check to see if the chosengene conflicts with an already chosen
+            // gene
+            // i.e. do they represent the same link
+<span class="nc bnc" id="L1172" title="All 4 branches missed.">            if (!skip &amp;&amp; hasGene(newGenes, chosenGene))</span>
+<span class="nc" id="L1173">                skip = true;</span>
+
+<span class="nc bnc" id="L1175" title="All 2 branches missed.">            if (!skip)</span>
+                {
+                // Now add the chosenGene to the baby individual
+<span class="nc" id="L1178">                createNodeCopyIfMissing(newNodes, chosenGene.inNode);</span>
+<span class="nc" id="L1179">                createNodeCopyIfMissing(newNodes, chosenGene.outNode);</span>
+
+                // clone the chosenGene and add to newGenes
+<span class="nc" id="L1182">                NEATGene newGene = (NEATGene) chosenGene.clone();</span>
+<span class="nc" id="L1183">                newGenes.add(newGene);</span>
+                }
+
+<span class="nc" id="L1186">            }</span>
+
+        // NEATIndividual newInd = (NEATIndividual)
+        // neatSpecies.i_prototype.clone();
+        // newInd.reset(newNodes, newGenes);
+
+<span class="nc" id="L1192">        return (NEATIndividual) neatSpecies.newIndividual(state, thread, newNodes, newGenes);</span>
+        }
+
+    /**
+     * Return true if first individual has better fitness than the second
+     * individual. If they have the same fitness, look at their genome length
+     * whoever is shorter is superior.
+     */
+    private boolean isSuperiorTo(NEATIndividual first, NEATIndividual second)
+        {
+<span class="nc" id="L1202">        boolean firstIsBetter = false;</span>
+
+<span class="nc bnc" id="L1204" title="All 2 branches missed.">        if (first.fitness.betterThan(second.fitness))</span>
+<span class="nc" id="L1205">            firstIsBetter = true;</span>
+<span class="nc bnc" id="L1206" title="All 2 branches missed.">        else if (second.fitness.betterThan(first.fitness))</span>
+<span class="nc" id="L1207">            firstIsBetter = false;</span>
+        else
+            {
+            // we compare their genome length if their fitness is equal
+            // in this case, the individual with more compact representation
+            // are considered as more fit
+<span class="nc bnc" id="L1213" title="All 2 branches missed.">            firstIsBetter = first.genome.length &lt; second.genome.length;</span>
+            }
+
+<span class="nc" id="L1216">        return firstIsBetter;</span>
+        }
+
+    public NEATNetwork createNetwork()
+        {
+<span class="nc" id="L1221">        NEATNetwork net = (NEATNetwork) (((NEATSpecies)species).networkPrototype.clone());</span>
+<span class="nc" id="L1222">        net.buildNetwork(this);</span>
+<span class="nc" id="L1223">        return net;</span>
+        }
+
+    /**
+     * This method convert the individual in to human readable format. It can be
+     * useful in debugging.
+     */
+    public String toString()
+        {
+<span class="nc" id="L1232">        StringBuffer stringBuffer = new StringBuffer();</span>
+<span class="nc" id="L1233">        stringBuffer.append(&quot;\n GENOME START  &quot;);</span>
+<span class="nc" id="L1234">        stringBuffer.append(&quot;\n  genes are :&quot; + genome.length);</span>
+<span class="nc" id="L1235">        stringBuffer.append(&quot;\n  nodes are :&quot; + nodes.size());</span>
+        
+<span class="nc bnc" id="L1237" title="All 2 branches missed.">        for (int i = 0; i &lt; nodes.size(); ++i)</span>
+            {
+<span class="nc" id="L1239">            NEATNode node = nodes.get(i);</span>
+<span class="nc bnc" id="L1240" title="All 2 branches missed.">            if (node.geneticNodeLabel == NodePlace.INPUT)</span>
+<span class="nc" id="L1241">                stringBuffer.append(&quot;\n Input &quot;);</span>
+<span class="nc bnc" id="L1242" title="All 2 branches missed.">            if (node.geneticNodeLabel == NodePlace.OUTPUT)</span>
+<span class="nc" id="L1243">                stringBuffer.append(&quot;\n Output&quot;);</span>
+<span class="nc bnc" id="L1244" title="All 2 branches missed.">            if (node.geneticNodeLabel == NodePlace.HIDDEN)</span>
+<span class="nc" id="L1245">                stringBuffer.append(&quot;\n Hidden&quot;);</span>
+<span class="nc bnc" id="L1246" title="All 2 branches missed.">            if (node.geneticNodeLabel == NodePlace.BIAS)</span>
+<span class="nc" id="L1247">                stringBuffer.append(&quot;\n Bias  &quot;);</span>
+<span class="nc" id="L1248">            stringBuffer.append(node.toString());</span>
+            }
+
+<span class="nc bnc" id="L1251" title="All 2 branches missed.">        for (int i = 0; i &lt; genome.length; ++i)</span>
+            {
+<span class="nc" id="L1253">            NEATGene gene = (NEATGene) genome[i];</span>
+<span class="nc" id="L1254">            stringBuffer.append(gene.toString());</span>
+            }
+
+   
+<span class="nc" id="L1258">        stringBuffer.append(&quot;\n&quot;);</span>
+<span class="nc" id="L1259">        stringBuffer.append(&quot; GENOME END&quot;);</span>
+<span class="nc" id="L1260">        return stringBuffer.toString();</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

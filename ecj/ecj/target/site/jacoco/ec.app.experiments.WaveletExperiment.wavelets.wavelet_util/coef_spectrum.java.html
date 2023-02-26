@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>coef_spectrum.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets.wavelet_util</a> &gt; <span class="el_source">coef_spectrum.java</span></div><h1>coef_spectrum.java</h1><pre class="source lang-java linenums">
+
+package ec.app.experiments.WaveletExperiment.wavelets.wavelet_util;
+
+import java.io.*;
+
+import ec.app.experiments.WaveletExperiment.wavelets.*;
+
+/**
+  &lt;p&gt;
+  After the wavelet transform is calculated, regenerate the time
+  series with a given spectrum set to zero, or with all but a given
+  spectrum set to zero.  The plots are generated from the highest
+  frequency spectrum to the lower frequency spectrums.  The
+  highest frequency spectrum is left out of later plots since
+  this spectrum contains most of the noise.
+  &lt;/p&gt;
+
+  &lt;p&gt;
+  Wavelets allow a time series to be examined by
+  filtering the component spectrum.  For example, the
+  Haar wavelet transform can be calculated and the
+  highest frequency spectrum of coefficients can
+  be set to zero.  When the reverse Haar transform
+  is calculated, the time series will be regenerated
+  without this spectrum.
+  &lt;/p&gt;
+
+  &lt;p&gt;
+  Wavelets can also be used to look at a single
+  spectrum in isolation.  This can be done by
+  setting all but the one spectrum to zero and
+  then regenerating the time series.  This will
+  result in a time series showning the contribution
+  of that spectrum.
+  &lt;/p&gt;
+
+ */
+<span class="nc" id="L39">public class coef_spectrum extends plot {</span>
+
+<span class="nc" id="L41">   final private int min_spectrum = 64;</span>
+
+<span class="nc" id="L43">   String class_name() { return &quot;coef_spectrum&quot;; }</span>
+
+  /**
+    Regenerate the time series from the coefficient
+    array and output the time series to a file.
+   */
+  private void output_time_series( String file_name, double coef[] )
+  {
+<span class="nc" id="L51">    PrintWriter prStr = OpenFile( file_name );</span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">    if (prStr != null) {</span>
+<span class="nc" id="L53">      inplace_haar haar = new inplace_haar();</span>
+<span class="nc" id="L54">      haar.setWavefx( coef );</span>
+<span class="nc" id="L55">      haar.setIsOrdered();</span>
+<span class="nc" id="L56">      haar.inverse();      // calculate the inverse Haar transform</span>
+
+      // the time series has been regenerated in the coef array
+<span class="nc bnc" id="L59" title="All 2 branches missed.">      for (int i = 0; i &lt; coef.length; i++) {</span>
+<span class="nc" id="L60">	prStr.println( i + &quot;  &quot; + coef[i] );</span>
+      }
+<span class="nc" id="L62">      prStr.close();</span>
+    }
+<span class="nc" id="L64">  } // output_time_series</span>
+
+
+  /**
+    Make a copy of the coefficient array.  If limit
+    is greater than zero copy up to limit, otherwise
+    copy the entire array.
+   */
+  private double[] copy_coef( double coef[], int limit )
+  {
+<span class="nc" id="L74">    double new_array[] = null;</span>
+
+<span class="nc bnc" id="L76" title="All 2 branches missed.">    if (coef != null) {</span>
+<span class="nc" id="L77">      new_array = new double[ coef.length ];</span>
+<span class="nc" id="L78">      int end = coef.length;</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">      if (limit &gt; 0)</span>
+<span class="nc" id="L80">	end = limit;</span>
+	
+<span class="nc bnc" id="L82" title="All 2 branches missed.">      for (int i = 0; i &lt; end; i++) {</span>
+<span class="nc" id="L83">	new_array[i] = coef[i];</span>
+      }
+    }
+<span class="nc" id="L86">    return new_array;</span>
+  } // copy_coef
+
+
+  /**
+    &lt;p&gt;
+    Moving from the high frequency coefficient spectrum
+    to the lower frequency spectrum, set each spectrum
+    to zero and output the regenerated time series to
+    a file.
+    &lt;/p&gt;
+
+    &lt;p&gt;
+    The highest frequency spectrum contains most of the
+    noise so when subsequent spectrum are set to zero,
+    the highest frequency spectrum is not included.
+    &lt;/p&gt;
+
+   */
+  public void filter_one_spectrum( double coef[] )
+  {
+<span class="nc" id="L107">    int end = coef.length;</span>
+<span class="nc" id="L108">    int start = end &gt;&gt; 1;</span>
+<span class="nc" id="L109">    int noise_start = start;</span>
+<span class="nc" id="L110">    int limit = 0;</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">    while (start &gt;= min_spectrum) {</span>
+<span class="nc" id="L112">      double new_array[] = copy_coef( coef, limit );</span>
+      // set the spectrum to zero
+<span class="nc bnc" id="L114" title="All 2 branches missed.">      for (int i = start; i &lt; end; i++) {</span>
+<span class="nc" id="L115">	new_array[i] = 0;</span>
+      }
+<span class="nc" id="L117">      String file_name = &quot;all_but_&quot; + start;</span>
+<span class="nc" id="L118">      output_time_series( file_name, new_array );</span>
+<span class="nc" id="L119">      end = start;</span>
+<span class="nc" id="L120">      start = end &gt;&gt; 1;</span>
+<span class="nc" id="L121">      limit = noise_start;</span>
+<span class="nc" id="L122">    }</span>
+<span class="nc" id="L123">  } // filter_one_spectrum</span>
+
+
+  /**
+    &lt;p&gt;
+    Moving from high frequency to lower frequency, regenerate
+    the time series from only one spectrum.
+    &lt;/p&gt;
+    &lt;p&gt;
+    Note that coef[0] contains the time series average and
+    must exist for all coefficient arrays in order to 
+    regenerate the time series.
+    &lt;/p&gt;
+   */
+  public void only_one_spectrum( double coef[] )
+  {
+<span class="nc" id="L139">    int end = coef.length;</span>
+<span class="nc" id="L140">    int start = end &gt;&gt; 1;</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">    while (start &gt;= min_spectrum) {</span>
+<span class="nc" id="L142">      double new_array[] = new double[ coef.length ];</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">      for (int i = 0; i &lt; min_spectrum; i++) {</span>
+<span class="nc" id="L144">	new_array[i] = coef[i];</span>
+      }
+      // Copy spectrum 
+<span class="nc bnc" id="L147" title="All 2 branches missed.">      for (int i = start; i &lt; end; i++) {</span>
+<span class="nc" id="L148">	new_array[i] = coef[i];</span>
+      }
+<span class="nc" id="L150">      String file_name = &quot;only_&quot; + start;</span>
+<span class="nc" id="L151">      output_time_series( file_name, new_array );</span>
+<span class="nc" id="L152">      end = start;</span>
+<span class="nc" id="L153">      start = end &gt;&gt; 1;</span>
+<span class="nc" id="L154">    }    </span>
+<span class="nc" id="L155">  } // only_one_spectrum</span>
+
+} // coef_spectrum
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

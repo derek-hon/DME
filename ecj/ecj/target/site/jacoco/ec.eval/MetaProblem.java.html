@@ -1,0 +1,686 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MetaProblem.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eval</a> &gt; <span class="el_source">MetaProblem.java</span></div><h1>MetaProblem.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2013 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.eval; 
+
+import ec.util.*;
+import ec.simple.*;
+import ec.*;
+import java.io.*;
+import ec.vector.*;
+import java.util.*;
+
+/* 
+ * MetaProblem.java
+ * 
+ * Created: Fri Jul 27 15:03:48 PDT 2012
+ * By: Sean Luke
+ */
+ 
+/**
+ * &lt;p&gt;MetaProblem is a special class for implenting so-called &quot;Meta-Evolutionary Algorithms&quot;,
+ * a topic related to &quot;HyperHeuristics&quot;.  In a Meta-EA, an evolutionary system is used to
+ * optimize the parameters for another evolutionary system.
+ *
+ * &lt;p&gt;We will refer to the EA used to optimize the parameters as the &lt;i&gt;Meta-EA&lt;/i&gt; or &lt;i&gt;meta-level EA&lt;/i&gt;.
+ * The EA whose parameters are getting optimized will be called the &lt;i&gt;Base EA&lt;/i&gt;.
+ *
+ * &lt;p&gt;In order to optimize the parameters for a base EA, one must be able to
+ * test those parameters, and this is done by running a base evolutionary system using those 
+ * parameters and seeing how well it performs.  This means generating a second instance
+ * of an ECJ system.  ECJ does this in the same Java process as the original system: so you must
+ * account for this in your memory consumption.
+ *
+ * &lt;p&gt;The way it works is as follows. First, you set up the base-level ECJ system as normal, with a
+ * parameter file defining all of its parameters (ideally including default settings for the
+ * parameters you'll be optimizing).  You probabliy ultimately want to prevent statistics from writing
+ * anything to files or printing anything to the screen, which would be very inefficient when
+ * doing meta-level stuff.
+ *
+ * &lt;p&gt;&lt;pre&gt;     stat.silent = true       &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * &lt;p&gt;Next you set up the meta-level ECJ system.  Here you define the problem class as a MetaProblem:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem = ec.eval.MetaProblem    &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * &lt;p&gt;Next you tell the meta-level ECJ system where the parameter file for the base-level ECJ system is,
+ * so it can set up the base-level system from that file:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.file = base-ec.params    &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * &lt;p&gt;MetaProblem assesses the fitness of its individuals (the parameter settings for the base ECJ
+ * system) by running the base ECJ system some N times using those parameter settings, gathering
+ * the best-of-run fitnesses from each of those N times, and taking the mean of the fitnesses.  This 
+ * means that the base ECJ system must use a fitness facility which can be reduced to a single
+ * number.  Further, both ECJ systems (meta-level and base) should use the same Fitness class.
+ * The value of N is important: if you make it too high, you're wasting valuable time in testing.  But
+ * if you make it too low, you will get inaccurate fitness results and you'll have a lot of noise in
+ * your testing.  To specify the N number of tests to 10 (for example), you say:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.runs = 10    &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * &lt;p&gt;Because evaluations are noisy and random, you will probably want to guarantee that individuals
+ * are reevaluated if they show up again in a later generation.  To do this, you say:
+ * 
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.reevaluate = true    &lt;/pre&gt;&lt;/tt&gt;
+ *  
+ * &lt;p&gt;Actually you don't need to say this because it's the default value.  But if you want to avoid
+ * reevaluating individuals, you must explicitly set it to false.
+ *
+ * &lt;p&gt;Now we get to specifying the actual parameters which will be optimized.  The outer ECJ system
+ * must use a DoubleVectorIndividual.  The genome size of that individual must be exactly the number
+ * of parameters you're trying to optimize in the base ECJ system.  If there are 5 parameters,
+ * for example, you might say:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species = ec.vector.FloatVectorSpecies    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.ind = ec.vector.DoubleVectorIndividual    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.genome-size = 5    &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * &lt;p&gt;We suggest you keep the default min-gene and max-gene values something simple, such as 0.0 and 1.0
+ * respectively, and likewise some default mutation data.  And a crossover parameter perhaps:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.min-gene = 0.0    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.max-gene = 1.0    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.mutation-prob = 0.25    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.mutation-type = gauss    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.mutation-stdev = 0.1    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.mutation-bounded = true    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.out-of-bounds-retries = 100    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.crossover-type = one    &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * &lt;p&gt;The genes in this genome are not necessarily going to be treated as doubles, however.  This
+ * is because not all parameters are doubles.  While something like gaussian mutation variance
+ * is a double, population size is an integer.  Furthermore, some parameters are booleans, and
+ * others are values chosen from a set of possible strings, such as one-point (&quot;one&quot;), two-point (&quot;two&quot;), and
+ * uniform (&quot;any&quot;) crossover (3 strings).  To handle this, we will encode in the double vector 
+ * any of the following kinds of data:
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt; Double values between a min and max value inclusive.
+ * &lt;li&gt; Integer values between a min and a max value inclusive.
+ * &lt;li&gt; Integer values from 0 through n-1, representing some N possible string values.
+ * &lt;li&gt; Boolean values, represented as the integers 0 and 1
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;For example, let's say you're trying to optimize the following parameters.
+ * 
+ * &lt;p&gt;&lt;ol&gt;
+ * &lt;li&gt; Mutation probability (a double)
+ * &lt;li&gt; Mutation type (one of &quot;reset&quot;, &quot;gauss&quot;, or &quot;polynomial&quot;)
+ * &lt;li&gt; Mutation standard deviation for gauss mutaton (a double)
+ * &lt;li&gt; Mutation distribution index for polynomial mutation (an integer)
+ * &lt;li&gt; Use of the alternative polynomial mutation version (a boolean)
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;For each of these we need to specify the mutation type used for the gene
+ * responsible for that parameter.  In our example, we will use our default mutation
+ * (gaussian, probability 0.25, stdev 0.1, bounded) for our two double parameters,
+ * &quot;reset&quot; mutation for the second and fifth parameters, and integer random walk mutation for
+ * the fourth parameter.  Declaring these mutation types will also determine the
+ * initialization procedure for those genes: see &quot;Heterogeneous Vectors&quot; in the manual
+ * for more information.
+ * 
+ * &lt;p&gt;Finally we need to specify the parameter associated with each gene.  We do that with
+ * a parameter like this:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.0 = pop.subpop.0.species.mutation-prob    &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * If the parameter value is numerical or boolean, MetaProblem will create the right value for 
+ * it automatically. If the parameter value is a string, you need which string value
+ * corresponds to the number stored in the gene.  For example:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1 = pop.subpop.0.species.mutation-type    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1.num-vals = 3    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1.val.0 = reset    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1.val.1 = gauss    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1.val.2 = polynomial    &lt;/pre&gt;&lt;/tt&gt;
+
+ * &lt;p&gt;So we need to specify two things: information about how the gene is mutated
+ * (and hence initialized), and information about how it is to be interpreted as a parameter.
+ * In the parameters below note that we often omit mutation information when we are relying
+ * on some default we defined above:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.genome-size = 5    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.num-params = 5    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;br&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.0 = pop.subpop.0.species.mutation-prob    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.0.type = float    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;br&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1 = pop.subpop.0.species.mutation-type    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1.num-vals = 3    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1.val.0 = reset    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1.val.1 = gauss    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.1.val.2 = polynomial    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.max-gene.1 = 2    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.mutation-type.1 = integer-reset    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;br&gt; 
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.2 = pop.subpop.0.species.mutation-stdev    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.2.type = float    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;br&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.3 = pop.subpop.0.species.mutation-distribution-index    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.3.type = integer    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.max-gene.3 = 10    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.mutation-type.3 = integer-random-walk   &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.random-walk-probability.3 = 0.8    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;br&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.4 = pop.subpop.0.species.alternative-polynomial-version    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    eval.problem.param.4.type = boolean    &lt;/pre&gt;&lt;/tt&gt;
+ * &lt;tt&gt;&lt;pre&gt;    pop.subpop.0.species.mutation-type.4 = integer-reset    &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * &lt;p&gt;If the mappings above are insufficient for you, you can create your own by overriding
+ * two methods: 
+ *
+ * &lt;ul&gt;
+ * &lt;p&gt;&lt;li&gt;
+ *     loadDomain(...) sets up the domain from the parameters above.  You could override this
+ *     to interpret your own parameters as you saw fit, or simply to turn off parameter loading
+ *     entirely.
+ *
+ * &lt;p&gt;&lt;li&gt;
+ *     map(...) actually maps a gene into a parameter value (a string).  You could override this
+ *     to provide your own mapping, either hard coded, or from some version of loadDomain(...)
+ *     you created.  If you override this method, you'll want to override loadDomain(...) for
+ *     sure, if only to turn it off.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Preparing for the final run&lt;/b&gt; Once you've got everything working, you probably want
+ * to eliminate all output at the base level before starting the big meta-level run.  You can
+ * do this in a base-level parameter file like this:
+ *
+ * &lt;tt&gt;&lt;pre&gt;    silent = true    &lt;/pre&gt;&lt;/tt&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Caveats.&lt;/b&gt; A meta-level individual is tested by setting a base-level EA with its
+ * parameters, then running the base-level EA, then extracting the best individual of the run and
+ * getting its fitness.  This is done some N times, and the fitness is combined from these
+ * N, using the method &lt;b&gt;combine(...)&lt;/b&gt;.  By default this method simply does &lt;b&gt;setToMeanOf(...)&lt;/b&gt;,
+ * but you might want to do something else.  Note that this means that by default it's going
+ * to be difficult to have multiobjective fitness at either level without overriding the combine()
+ * method.  Furthermore, because the fitness is extracted from just the first subpopulation of the
+ * base-level EA, this implies that you probably only want one subpopulation at the base-level,
+ * except in the case of competitive coevolution where you ultimately don't care about the fitness of othe
+ * other subpopulations.  If you have more than one subpopulation at the base level, you will 
+ * receive a one-time warning.
+ *
+ * &lt;p&gt;MetaProblem gathers two kinds of statistics of interest to you.  First, it gathers the
+ * best individual of run, mearning the DoubleVectorIndividual whose parameters on average
+ * produced the highest best-fitness-of-run runs in the base system.  This is gathered
+ * using the standard statistics procedures.  Second it gathers the best individual discovered
+ * among the various &lt;i&gt;base runs&lt;/i&gt;.  This individual is reported, at the end, during
+ * the &lt;b&gt;describe(...)&lt;/b&gt; method, and appears at the end of the statistics file
+ * if you are using SimpleStatistics at the meta-level.
+ * 
+ * &lt;p&gt;Finally, &lt;b&gt;yes, MetaProblem can be recursive.&lt;/b&gt;  You can set things up so that you're
+ * evolving the parameters for an EC system which evolves the parameters for an EC system which
+ * evolves the parameters for an EC system.
+ *
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ 
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.file&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;filename&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the filename of the &quot;base&quot; (lower-level) parameter file &lt;i&gt;i&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.runs&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1 (default=1)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the number of base-level evolutionary runs performed to assess the fitness of a meta individual)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.reevaluate&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;boolean (default=true)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(when a meta individual has its evaluated flag set, should we reevaluate it anyway?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.set-random&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;boolean (default=false)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(Should we silence the stdout and stderr logs of the Output of the base EA?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.num-params&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1&lt;/td&gt;
+ &lt;td valign=top&gt;(How many parameters are being evolved?  This should match the genome length of the meta-level EA individuals)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.param.&lt;i&gt;number&lt;/i&gt;&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/td&gt;
+ &lt;td valign=top&gt;(The parameter name)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.param.&lt;i&gt;number&lt;/i&gt;.type&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String, one of: &lt;tt&gt; integer boolean float&lt;/tt&gt; (or not defined if &lt;tt&gt;num-vals&lt;/tt&gt; is defined)&lt;/td&gt;
+ &lt;td valign=top&gt;The parameter type&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.param.&lt;i&gt;number&lt;/i&gt;.num-vals&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1&lt;/td&gt;
+ &lt;td valign=top&gt;(The number of values (Strings) a parameter may take on, if it is a multi-string type)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.param.&lt;i&gt;number&lt;/i&gt;.val.&lt;i&gt;val-number&lt;/i&gt;&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/td&gt;
+ &lt;td valign=top&gt;(A possible value that a parameter may take on, if it is a multi-string type)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;/table&gt;
+ * 
+ *
+ * @author Sean Luke
+ * @version 1.0  
+ */
+
+<span class="nc" id="L264">public class MetaProblem extends Problem implements SimpleProblemForm</span>
+    {
+    public static final String P_FILE = &quot;file&quot;;
+    public static final String P_RUNS = &quot;runs&quot;;
+    public static final String P_REEVALUATE_INDIVIDUALS = &quot;reevaluate&quot;;
+    public static final String P_NUM_PARAMS = &quot;num-params&quot;;
+    public static final String P_PARAM = &quot;param&quot;;
+    public static final String P_TYPE = &quot;type&quot;;
+    public static final String V_INTEGER = &quot;integer&quot;;
+    public static final String V_BOOLEAN = &quot;boolean&quot;;
+    public static final String V_FLOAT = &quot;float&quot;;
+    public static final String P_NUM_VALS = &quot;num-vals&quot;;
+    public static final String P_VAL = &quot;val&quot;;
+    public static final String P_MUZZLE = &quot;muzzle&quot;;
+    public static final String P_SET_RANDOM = &quot;set-random&quot;;
+    
+    
+    /** The parameter base from which the MetaProblem was loaded. */
+    public Parameter base;
+    
+    /** A prototypical parameter database for the underlying (base-level) evolutionary computation system.  This is never directly used, just cloned. */
+    public ParameterDatabase p_database;
+
+    /** This points to the database presently used by the underlying (base-level) evolutionary computation system.  It is a cloned and modified version
+        of p_database. */
+    public ParameterDatabase currentDatabase;
+    
+    /** The number of base-level evolutionary runs to perform to evaluate an individual.  */
+    public int runs;
+    
+    /** Whether to reevaluate individuals if and when they appear for evaluation in the future.  */
+    public boolean reevaluateIndividuals;
+    
+    
+    /** The best underlying individual array, one per subpopulation.
+        We retain the best underlying individual here rather than
+        storing it in (say) the associated fitness because fitnesses
+        are *averaged* over trials, so we wouldn't be able to keep track
+        of the *max* fitness and associated individual that way.  So we
+        do it here.  
+    */
+    
+    // Note that this requires a lock to synchronize on
+    // because multiple MetaProblems, perhaps in different threads, may
+    // be accessing this array simultaneously trying to update statistics.
+    
+    public Individual[] bestUnderlyingIndividual;  // not deep cloned
+    
+    /** Acquire this lock before accessing bestUnderlyingIndividual */
+    
+<span class="nc" id="L314">    public Object lock = new Object[0];  // not deep cloned</span>
+    
+    
+    
+    /** A list of domain information, one per parameter in the genome. */
+    
+    // Domain information is represented by arrays, each at present one of:
+    // 
+    // 1. double[0].   Float values.  Note array is 0 length.
+    // 2. int[0].         Integer values.  Note array is 0 length.
+    // 3. String[n].  An integer-valued interval from 0 ... n-1 inclusive, 
+    //                mapping to the parameter strings string[0] through string[n-1]
+    // 4. boolean[0]. Boolean values.  Note array is 0 length.
+    //
+    // We may need more than this but it'll suffice for now.
+    
+    public Object[] domain;  // not deep cloned
+    
+    boolean setRandom;
+    
+    // default form does nothing
+    public void setup(final EvolutionState state, final Parameter base) 
+        {
+<span class="nc" id="L337">        super.setup(state,base);</span>
+<span class="nc" id="L338">        this.base = base;</span>
+<span class="nc" id="L339">        File file = state.parameters.getFile(base.push(P_FILE),null);</span>
+        try
+            {
+<span class="nc" id="L342">            p_database = new ParameterDatabase(file, new String[] { &quot;-file&quot;, file.getCanonicalPath() });  // command line has just the parameter database</span>
+            }
+<span class="nc" id="L344">        catch (IOException e)</span>
+            {
+<span class="nc" id="L346">            state.output.fatal(&quot;Exception loading meta-parameter-database:\n&quot; + e,</span>
+<span class="nc" id="L347">                base.push(P_FILE));</span>
+<span class="nc" id="L348">            }</span>
+<span class="nc" id="L349">        runs = state.parameters.getInt(base.push(P_RUNS), null, 1);</span>
+<span class="nc bnc" id="L350" title="All 2 branches missed.">        if (runs &lt; 1)</span>
+<span class="nc" id="L351">            state.output.fatal(&quot;Number of runs must be &gt;= 1&quot;,</span>
+<span class="nc" id="L352">                base.push(P_RUNS));</span>
+
+<span class="nc" id="L354">        reevaluateIndividuals = state.parameters.getBoolean(base.push(P_REEVALUATE_INDIVIDUALS), null, true);</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_MUZZLE), null))</span>
+<span class="nc" id="L356">            state.output.warning(&quot;&quot; + base.push(P_MUZZLE) + &quot; no longer exists.  Use 'silent' in the lower-level EA parameters instead.&quot;);</span>
+
+<span class="nc" id="L358">        Parameter pop = new Parameter(Initializer.P_POP);</span>
+<span class="nc" id="L359">        int subpopsLength = state.parameters.getInt(pop.push(Population.P_SIZE), null, 1);</span>
+<span class="nc" id="L360">        bestUnderlyingIndividual = new Individual[subpopsLength];</span>
+        
+<span class="nc" id="L362">        setRandom = state.parameters.getBoolean(base.push(P_SET_RANDOM), null, false);</span>
+        
+<span class="nc" id="L364">        loadDomain(state, base);</span>
+<span class="nc" id="L365">        }</span>
+    
+    
+    protected void loadDomain(EvolutionState state, Parameter base)
+        {
+        // Load domain and check for parameters
+        
+<span class="nc" id="L372">        int numParams = state.parameters.getInt(base.push(P_NUM_PARAMS), null, 1);</span>
+<span class="nc bnc" id="L373" title="All 2 branches missed.">        if (numParams &lt; 1)</span>
+<span class="nc" id="L374">            state.output.fatal(&quot;Number of parameters must be &gt;= 1&quot;,</span>
+<span class="nc" id="L375">                base.push(P_NUM_PARAMS));</span>
+                
+<span class="nc" id="L377">        domain = new Object[numParams];</span>
+
+<span class="nc" id="L379">        Parameter pb = base.push(P_PARAM);</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">        for(int i = 0; i &lt; numParams ; i++)  // just keep rising</span>
+            {
+            // check parameter
+<span class="nc" id="L383">            Parameter p = pb.push(&quot;&quot; + i);</span>
+<span class="nc bnc" id="L384" title="All 2 branches missed.">            if (!state.parameters.exists(p, null))  // guess that's it</span>
+<span class="nc" id="L385">                break;</span>
+                
+            // load parameter domain
+<span class="nc bnc" id="L388" title="All 2 branches missed.">            else if (state.parameters.exists(p.push(P_TYPE), null))</span>
+                {
+<span class="nc" id="L390">                String type = state.parameters.getString(p.push(P_TYPE), null);</span>
+<span class="nc bnc" id="L391" title="All 2 branches missed.">                if (type.equalsIgnoreCase(V_INTEGER))</span>
+                    {
+<span class="nc" id="L393">                    domain[i] = new int[0];</span>
+                    }
+<span class="nc bnc" id="L395" title="All 2 branches missed.">                else if (type.equalsIgnoreCase(V_FLOAT))</span>
+                    {
+<span class="nc" id="L397">                    domain[i] = new double[0];</span>
+                    }
+<span class="nc bnc" id="L399" title="All 2 branches missed.">                else if (type.equalsIgnoreCase(V_BOOLEAN))</span>
+                    {
+<span class="nc" id="L401">                    domain[i] = new boolean[0];</span>
+                    }
+                else
+<span class="nc" id="L404">                    state.output.fatal(&quot;Meta parameter number &quot; + i + &quot; has a malformed type declaration.&quot;, p.push(P_TYPE), null);</span>
+                
+                // double-check
+<span class="nc bnc" id="L407" title="All 2 branches missed.">                if (state.parameters.exists(p.push(P_NUM_VALS), null))</span>
+<span class="nc" id="L408">                    state.output.fatal(&quot;Meta parameter number &quot; + i + &quot; has both a type declaration and a num-vals declaration.&quot;, p.push(P_TYPE),  p.push(P_NUM_VALS));</span>
+<span class="nc" id="L409">                }</span>
+<span class="nc bnc" id="L410" title="All 2 branches missed.">            else if (state.parameters.exists(p.push(P_NUM_VALS), null))</span>
+                {
+<span class="nc" id="L412">                int len = state.parameters.getInt(p.push(P_NUM_VALS), null, 1);</span>
+<span class="nc bnc" id="L413" title="All 2 branches missed.">                if (len &gt; 0)</span>
+                    {
+<span class="nc" id="L415">                    String[] tags = new String[len];</span>
+<span class="nc bnc" id="L416" title="All 2 branches missed.">                    for (int j = 0; j &lt; len; j++)</span>
+                        {
+<span class="nc" id="L418">                        tags[j] = state.parameters.getString(p.push(P_VAL).push(&quot;&quot; + j), null);</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                        if (tags[j] == null)</span>
+<span class="nc" id="L420">                            state.output.fatal(&quot;Meta parameter number &quot; + i + &quot; is missing value number &quot; + j + &quot;.&quot;, p.push(P_VAL).push(&quot;&quot; + j));</span>
+                        }
+<span class="nc" id="L422">                    domain[i] = tags;</span>
+<span class="nc" id="L423">                    }</span>
+<span class="nc" id="L424">                else state.output.fatal(&quot;Meta parameter number &quot; + i + &quot; has a malformed domain.&quot;, p.push(P_NUM_VALS));</span>
+<span class="nc" id="L425">                }</span>
+<span class="nc" id="L426">            else state.output.fatal(&quot;Meta parameter number &quot; + i + &quot; has no type declaration or num-vals declaration.&quot;, p.push(P_TYPE), p.push(P_NUM_VALS));</span>
+            }
+<span class="nc" id="L428">        }</span>
+
+
+    protected String map(EvolutionState state, double[] genome, FloatVectorSpecies species, int index)
+        {
+<span class="nc bnc" id="L433" title="All 4 branches missed.">        if (index &lt; 0 || index &gt;= domain.length)</span>
+<span class="nc" id="L434">            state.output.fatal(&quot;No domain provided for meta parameter number &quot; + index + &quot;.&quot;);</span>
+
+<span class="nc" id="L436">        Object d = domain[index];</span>
+<span class="nc" id="L437">        double min = species.minGene(index);</span>
+<span class="nc" id="L438">        double max = species.maxGene(index);</span>
+<span class="nc" id="L439">        double gene = genome[index];</span>
+         
+<span class="nc bnc" id="L441" title="All 2 branches missed.">        if (d instanceof boolean[])</span>
+            {
+<span class="nc bnc" id="L443" title="All 4 branches missed.">            if (gene &lt; min || gene &gt; max)</span>
+<span class="nc" id="L444">                state.output.fatal(&quot;Gene index &quot; + index + &quot; has a value (&quot; + gene + &quot;) outside the min-max range (from &quot; + min + &quot; to &quot; + max + &quot; inclusive).  Did you forget to bound the mutation?&quot;);</span>
+<span class="nc bnc" id="L445" title="All 2 branches missed.">            else if (gene &lt; (min + max) / 2.0) return &quot;false&quot;;</span>
+<span class="nc" id="L446">            else return &quot;true&quot;;</span>
+            }
+<span class="nc bnc" id="L448" title="All 2 branches missed.">        else if (d instanceof int[])</span>
+            {
+<span class="nc" id="L450">            return &quot;&quot; + (int)(Math.floor(gene));</span>
+            }
+<span class="nc bnc" id="L452" title="All 2 branches missed.">        else if (d instanceof double[])</span>
+            {
+<span class="nc" id="L454">            return &quot;&quot; + gene;</span>
+            }
+<span class="nc bnc" id="L456" title="All 2 branches missed.">        else if (d instanceof String[])</span>
+            {
+<span class="nc" id="L458">            String[] dom = (String[]) d;</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">            if (min != 0)</span>
+<span class="nc" id="L460">                state.output.fatal(&quot;Invalid min-gene value (&quot; + min + &quot;) for a string type in MetaProblem.  Gene index was &quot; + index + &quot;.  Should have been 0.&quot;);</span>
+<span class="nc bnc" id="L461" title="All 2 branches missed.">            else if (max != dom.length - 1)</span>
+<span class="nc" id="L462">                state.output.fatal(&quot;Invalid max-gene value (&quot; + max + &quot;) for a string type in MetaProblem.  Gene index was &quot; + index + &quot;.  Should have been &quot; + (dom.length - 1) + &quot;, that is, the number of vals - 1.&quot;);</span>
+<span class="nc bnc" id="L463" title="All 4 branches missed.">            else if (gene &lt; min || gene &gt; max)</span>
+<span class="nc" id="L464">                state.output.fatal(&quot;Gene index &quot; + index + &quot; has a value (&quot; + gene + &quot;) outside the min-max range (from &quot; + min + &quot; to &quot; + max + &quot; inclusive).  Did you forget to bound the mutation?&quot;);</span>
+<span class="nc" id="L465">            else return dom[(int)(Math.floor(gene))];</span>
+<span class="nc" id="L466">            }</span>
+<span class="nc" id="L467">        else state.output.fatal(&quot;INTERNAL ERROR.  Invalid mapping for domain of meta parameter number &quot; + index + &quot; in MetaProblem.&quot;);</span>
+<span class="nc" id="L468">        return null;  // never happens</span>
+        }
+
+
+    /** Override this method to revise the provided parameter database to reflect the &quot;parameters&quot; specified in the 
+        given meta-individual.  'Run' is the current run number for this individual's evaluation.  */
+    public void modifyParameters(EvolutionState state, ParameterDatabase database, int run, Individual metaIndividual)
+        {
+<span class="nc bnc" id="L476" title="All 2 branches missed.">        if (!(metaIndividual instanceof DoubleVectorIndividual))</span>
+<span class="nc" id="L477">            state.output.fatal(&quot;Meta-individual is not a DoubleVectorIndividual.&quot;);</span>
+<span class="nc" id="L478">        DoubleVectorIndividual individual = (DoubleVectorIndividual)metaIndividual;</span>
+<span class="nc" id="L479">        FloatVectorSpecies species = (FloatVectorSpecies) individual.species;</span>
+<span class="nc" id="L480">        double[] genome = individual.genome;</span>
+        
+<span class="nc" id="L482">        Parameter pb = base.push(P_PARAM);</span>
+<span class="nc bnc" id="L483" title="All 2 branches missed.">        for(int i = 0; i &lt; genome.length; i++)</span>
+            {
+<span class="nc" id="L485">            Parameter p = pb.push(&quot;&quot; + i);</span>
+<span class="nc" id="L486">            String param = state.parameters.getString(p, null);</span>
+<span class="nc bnc" id="L487" title="All 2 branches missed.">            if (param == null) </span>
+<span class="nc" id="L488">                state.output.fatal(&quot;Meta parameter number &quot; + i + &quot; missing.&quot;, p);</span>
+            // load it
+<span class="nc" id="L490">            database.set(new Parameter(param), &quot;&quot; + map(state, genome, species, i));</span>
+            }
+<span class="nc" id="L492">        }</span>
+
+
+    public void evaluate(EvolutionState state,
+        Individual ind,
+        int subpopulation,
+        int threadnum)
+        {
+<span class="nc bnc" id="L500" title="All 4 branches missed.">        if (ind.evaluated &amp;&amp; !reevaluateIndividuals) return;</span>
+        
+<span class="nc" id="L502">        ArrayList fits = new ArrayList();</span>
+        
+<span class="nc" id="L504">        Individual bestOfRuns = null;</span>
+<span class="nc bnc" id="L505" title="All 2 branches missed.">        for(int run = 0; run &lt; runs; run++)</span>
+            {
+            // too annoying
+            //state.output.message(&quot;Thread &quot; + threadnum + &quot; Run &quot; + run);
+            try {
+<span class="nc" id="L510">                currentDatabase = (ParameterDatabase)(DataPipe.copy(p_database));  // ugly hack</span>
+                }
+<span class="nc" id="L512">            catch (Exception e)</span>
+                {
+<span class="nc" id="L514">                state.output.fatal(&quot;Exception copying database.\n&quot; + e);</span>
+<span class="nc" id="L515">                }</span>
+<span class="nc" id="L516">            modifyParameters(state, currentDatabase, run, ind);</span>
+            
+<span class="nc" id="L518">            Output out = new Output(false);          // do not store messages, just print them</span>
+<span class="nc" id="L519">            out.addLog(ec.util.Log.D_STDOUT,false);</span>
+<span class="nc" id="L520">            out.addLog(ec.util.Log.D_STDERR,true);</span>
+<span class="nc" id="L521">            out.setThrowsErrors(true);  // don't do System.exit(1);</span>
+                            
+<span class="nc" id="L523">            EvolutionState evaluatedState = null;</span>
+            try
+                {
+<span class="nc" id="L526">                evaluatedState = Evolve.initialize(currentDatabase, 0, out);</span>
+                
+                // should we override the seeds?
+<span class="nc bnc" id="L529" title="All 2 branches missed.">                if (setRandom)</span>
+                    {
+                    // we use the random number generator to seed the generators
+                    // of the underlying process.  This isn't optimal but it should
+                    // probably do okay.  To be extra careful we prime the generators.
+                        
+<span class="nc bnc" id="L535" title="All 2 branches missed.">                    for(int i = 0; i &lt; evaluatedState.random.length; i++)</span>
+                        {
+<span class="nc" id="L537">                        int seed = state.random[threadnum].nextInt();</span>
+<span class="nc" id="L538">                        evaluatedState.random[i] = Evolve.primeGenerator(new MersenneTwisterFast(seed));</span>
+                        }
+                    }
+                
+<span class="nc" id="L542">                evaluatedState.run(EvolutionState.C_STARTED_FRESH);</span>
+            
+                // Issue a warning if there's more than one subpopulation
+<span class="nc bnc" id="L545" title="All 2 branches missed.">                if (evaluatedState.population.subpops.size() &gt; 1)</span>
+<span class="nc" id="L546">                    state.output.warnOnce(&quot;MetaProblem used, but underlying evolution state has more than one subpopulation: only the results from subpopulation 0 will be considered.&quot;);</span>
+            
+            
+                // Identify the best fitness of the underlying EvolutionState run, 
+                        
+                // we can only easily detect if the underlying EvolutionState has a proper Statistics
+                // object we can use AFTER we've run it because the Statistics object is set up during
+                // run().  We could modify this but I'm too lazy to do so, so...
+        
+<span class="nc" id="L555">                Individual[] inds = null;  // will get set, don't worry</span>
+<span class="nc bnc" id="L556" title="All 6 branches missed.">                if (evaluatedState.statistics != null &amp;&amp; </span>
+                        (evaluatedState.statistics instanceof SimpleStatistics ||
+                        evaluatedState.statistics instanceof SimpleShortStatistics))
+                    {
+<span class="nc" id="L560">                    inds = null;</span>
+                
+                    // obviously we need an interface here rather than this nonsense
+<span class="nc bnc" id="L563" title="All 2 branches missed.">                    if (evaluatedState.statistics instanceof SimpleStatistics)</span>
+<span class="nc" id="L564">                        inds = ((SimpleStatistics)(evaluatedState.statistics)).getBestSoFar();</span>
+<span class="nc" id="L565">                    else inds = ((SimpleShortStatistics)(evaluatedState.statistics)).getBestSoFar();</span>
+<span class="nc bnc" id="L566" title="All 2 branches missed.">                    if (inds == null)</span>
+<span class="nc" id="L567">                        state.output.fatal(&quot;Underlying evolution state has a Statistics object which provides a null best-so-far array.  Can't extract fitness.&quot;);</span>
+<span class="nc" id="L568">                    fits.add((Fitness)(inds[0].fitness));</span>
+                    //System.err.println(&quot;&quot; + inds[0] + &quot; &quot; + inds[0].fitness);
+                    }
+<span class="nc bnc" id="L571" title="All 2 branches missed.">                else if (evaluatedState.statistics == null)</span>
+<span class="nc" id="L572">                    state.output.fatal(&quot;Underlying evolution state has a null Statistics object.  Can't extract fitness.&quot;);</span>
+                else 
+<span class="nc" id="L574">                    state.output.fatal(&quot;Underlying evolution state has a Statistics object which doesn't implement ProvidesBestSoFar.  Can't extract fitness.&quot;);</span>
+                                    
+                        
+                // Now we need to suck out the best individual discovered so far.  If the underlying
+                // evoluationary system itself has a MetaProblem, we need to do this recursively.
+                // We presume that the MetaProblem exists in subpopulation 0.
+            
+<span class="nc bnc" id="L581" title="All 2 branches missed.">                if (evaluatedState.evaluator.p_problem instanceof MetaProblem)</span>
+                    {
+<span class="nc" id="L583">                    MetaProblem mp = (MetaProblem)(evaluatedState.evaluator.p_problem);</span>
+<span class="nc" id="L584">                    synchronized(mp.lock)</span>
+                        {
+<span class="nc" id="L586">                        Individual bestind = mp.bestUnderlyingIndividual[0];</span>
+                    
+<span class="nc bnc" id="L588" title="All 4 branches missed.">                        if (bestOfRuns == null || bestind.fitness.betterThan(bestOfRuns.fitness))</span>
+<span class="nc" id="L589">                            bestOfRuns = (Individual)(bestind.clone());</span>
+<span class="nc" id="L590">                        }</span>
+<span class="nc" id="L591">                    }</span>
+                // otherwise we grab the best individual found in the underlying evolutionary run,
+                // gathered from the inds array we used earlier.
+                else
+                    {
+                    // gather the best individual found during the runs
+<span class="nc bnc" id="L597" title="All 4 branches missed.">                    if (bestOfRuns == null || inds[0].fitness.betterThan(bestOfRuns.fitness))</span>
+<span class="nc" id="L598">                        bestOfRuns = (Individual)(inds[0].clone());</span>
+                    }
+                
+            
+                // now clean up
+<span class="nc" id="L603">                Evolve.cleanup(evaluatedState);</span>
+                }
+<span class="nc" id="L605">            catch (Output.OutputExitException e)</span>
+                {
+                // looks like an error occurred.
+<span class="nc" id="L608">                state.output.warning(&quot;Error occurred in underlying evolutionary run.  NOTE: multiple threads may still be running:\n&quot; + e.getMessage());</span>
+                }
+<span class="nc" id="L610">            catch (OutOfMemoryError e)</span>
+                {
+                // Let's try fixing things
+<span class="nc" id="L613">                evaluatedState = null;</span>
+<span class="nc" id="L614">                System.gc();</span>
+<span class="nc" id="L615">                state.output.warning(&quot;An Out of Memory error occurred in underlying evolutionary run.  Attempting to recover and reset.  NOTE: multiple threads may still be running:\n&quot; + e.getMessage());</span>
+<span class="nc" id="L616">                }</span>
+            }
+        
+        
+        // Load the fitness into our individual 
+<span class="nc" id="L621">        Fitness[] fits2 = new Fitness[fits.size()];</span>
+<span class="nc bnc" id="L622" title="All 2 branches missed.">        for(int i = 0; i &lt; fits2.length; i++)</span>
+<span class="nc" id="L623">            fits2[i] = (Fitness)(fits.get(i)); </span>
+<span class="nc" id="L624">        combine(state, fits2, ind.fitness);</span>
+<span class="nc" id="L625">        ind.evaluated = true;</span>
+
+        // store the best individual found during the runs if it's superior.  
+        // We need to do a lock here, which is rare in ECJ.  This is because the
+        // bestUnderlyingIndividual array is shared among MetaProblem instances
+<span class="nc" id="L630">        synchronized(lock)</span>
+            {
+<span class="nc bnc" id="L632" title="All 4 branches missed.">            if (bestOfRuns != null &amp;&amp;</span>
+                    (bestUnderlyingIndividual[subpopulation] == null ||
+<span class="nc bnc" id="L634" title="All 2 branches missed.">                    bestOfRuns.fitness.betterThan(bestUnderlyingIndividual[subpopulation].fitness)))</span>
+                {
+<span class="nc" id="L636">                bestUnderlyingIndividual[subpopulation] = bestOfRuns;  // no clone necessary</span>
+                }
+<span class="nc" id="L638">            }</span>
+
+<span class="nc" id="L640">        }</span>
+        
+    /** Combines fitness results from multiple runs into a final Fitness.  By default this
+        is done by using setToMeanOf. */
+    public void combine(EvolutionState state, Fitness[] runs, Fitness finalFitness)
+        {
+<span class="nc" id="L646">        finalFitness.setToMeanOf(state, runs);</span>
+<span class="nc" id="L647">        }</span>
+
+    public void describe(EvolutionState state, Individual ind, int subpopulation, int threadnum, int log) 
+        {
+        // the default implementation works just like the default implementation of modifyParameters(...)
+        
+<span class="nc" id="L653">        state.output.println(&quot;\nParameters:&quot;, log);</span>
+<span class="nc bnc" id="L654" title="All 2 branches missed.">        if (!(ind instanceof DoubleVectorIndividual))</span>
+<span class="nc" id="L655">            state.output.fatal(&quot;Meta-individual is not a DoubleVectorIndividual.&quot;);</span>
+<span class="nc" id="L656">        DoubleVectorIndividual individual = (DoubleVectorIndividual)ind;</span>
+<span class="nc" id="L657">        FloatVectorSpecies species = (FloatVectorSpecies) individual.species;</span>
+<span class="nc" id="L658">        double[] genome = individual.genome;</span>
+        
+<span class="nc" id="L660">        Parameter pb = base.push(P_PARAM);</span>
+<span class="nc bnc" id="L661" title="All 2 branches missed.">        for(int i = 0; i &lt; genome.length; i++)</span>
+            {
+<span class="nc" id="L663">            Parameter p = pb.push(&quot;&quot; + i);</span>
+<span class="nc" id="L664">            String param = state.parameters.getString(p, null);</span>
+<span class="nc bnc" id="L665" title="All 2 branches missed.">            if (param == null) </span>
+<span class="nc" id="L666">                state.output.fatal(&quot;Meta parameter number &quot; + i + &quot; missing.&quot;, p);</span>
+            // print it
+<span class="nc" id="L668">            state.output.println(&quot;&quot; + param + &quot; = &quot; + map(state, genome, species, i), log);</span>
+            }
+
+
+        // We need to do a lock here, which is rare in ECJ.  This is because the
+        // bestUnderlyingIndividual array is shared among MetaProblem instances
+<span class="nc" id="L674">        synchronized(lock)</span>
+            {
+<span class="nc bnc" id="L676" title="All 2 branches missed.">            if (bestUnderlyingIndividual[subpopulation] != null)</span>
+                {
+<span class="nc" id="L678">                state.output.println(&quot;\nUnderlying Individual:&quot;, log);</span>
+<span class="nc" id="L679">                bestUnderlyingIndividual[subpopulation].printIndividualForHumans(state, log);</span>
+                }
+<span class="nc" id="L681">            }</span>
+<span class="nc" id="L682">        }</span>
+    }
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

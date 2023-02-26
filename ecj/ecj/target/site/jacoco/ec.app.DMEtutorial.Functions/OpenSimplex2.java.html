@@ -1,0 +1,767 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OpenSimplex2.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.Functions</a> &gt; <span class="el_source">OpenSimplex2.java</span></div><h1>OpenSimplex2.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.Functions;
+
+/**
+ * K.jpg's OpenSimplex 2, faster variant
+ * &lt;https://github.com/KdotJPG/OpenSimplex2/blob/master/java/OpenSimplex2.java&gt;
+ * slight modifications made
+ */
+
+ import ec.util.MersenneTwisterFast;
+
+ public class OpenSimplex2 {
+
+    private static final long PRIME_X = 0x5205402B9270C86FL;
+    private static final long PRIME_Y = 0x598CD327003817B5L;
+    private static final long PRIME_Z = 0x5BCC226E9FA0BACBL;
+    private static final long PRIME_W = 0x56CC5227E58F554BL;
+    private static final long HASH_MULTIPLIER = 0x53A3F72DEEC546F5L;
+    private static final long SEED_FLIP_3D = -0x52D547B2E96ED629L;
+    private static final long SEED_OFFSET_4D = 0xE83DC3E0DA7164DL;
+
+    private static final double ROOT2OVER2 = 0.7071067811865476;
+    private static final double SKEW_2D = 0.366025403784439;
+    private static final double UNSKEW_2D = -0.21132486540518713;
+
+    private static final double ROOT3OVER3 = 0.577350269189626;
+    private static final double FALLBACK_ROTATE_3D = 2.0 / 3.0;
+    private static final double ROTATE_3D_ORTHOGONALIZER = UNSKEW_2D;
+
+    private static final float SKEW_4D = -0.138196601125011f;
+    private static final float UNSKEW_4D = 0.309016994374947f;
+    private static final float LATTICE_STEP_4D = 0.2f;
+
+    private static final int N_GRADS_2D_EXPONENT = 7;
+    private static final int N_GRADS_3D_EXPONENT = 8;
+    private static final int N_GRADS_4D_EXPONENT = 9;
+    private static final int N_GRADS_2D = 1 &lt;&lt; N_GRADS_2D_EXPONENT;
+    private static final int N_GRADS_3D = 1 &lt;&lt; N_GRADS_3D_EXPONENT;
+    private static final int N_GRADS_4D = 1 &lt;&lt; N_GRADS_4D_EXPONENT;
+
+    private static final double NORMALIZER_2D = 0.01001634121365712;
+    private static final double NORMALIZER_3D = 0.07969837668935331;
+    private static final double NORMALIZER_4D = 0.0220065933241897;
+
+    private static final float RSQUARED_2D = 0.5f;
+    private static final float RSQUARED_3D = 0.6f;
+    private static final float RSQUARED_4D = 0.6f;
+
+    private static long SEED;
+
+<span class="nc" id="L50">    public OpenSimplex2(long seed) {</span>
+<span class="nc" id="L51">        SEED = seed;</span>
+<span class="nc" id="L52">    }</span>
+
+    /*
+     * Noise Evaluators
+     */
+
+    /**
+     * 2D Simplex noise, standard lattice orientation.
+     */
+    public float noise2(double x, double y) {
+
+        // Get points for A2* lattice
+<span class="nc" id="L64">        double s = SKEW_2D * (x + y);</span>
+<span class="nc" id="L65">        double xs = x + s, ys = y + s;</span>
+
+<span class="nc" id="L67">        return noise2_UnskewedBase(SEED, xs, ys);</span>
+    }
+
+    /**
+     * 2D Simplex noise, with Y pointing down the main diagonal.
+     * Might be better for a 2D sandbox style game, where Y is vertical.
+     * Probably slightly less optimal for heightmaps or continent maps,
+     * unless your map is centered around an equator. It's a subtle
+     * difference, but the option is here to make it an easy choice.
+     */
+    public static float noise2_ImproveX(long seed, double x, double y) {
+
+        // Skew transform and rotation baked into one.
+<span class="nc" id="L80">        double xx = x * ROOT2OVER2;</span>
+<span class="nc" id="L81">        double yy = y * (ROOT2OVER2 * (1 + 2 * SKEW_2D));</span>
+
+<span class="nc" id="L83">        return noise2_UnskewedBase(seed, yy + xx, yy - xx);</span>
+    }
+
+    /**
+     * 2D Simplex noise base.
+     */
+    private static float noise2_UnskewedBase(long seed, double xs, double ys) {
+
+        // Get base points and offsets.
+<span class="nc" id="L92">        int xsb = fastFloor(xs), ysb = fastFloor(ys);</span>
+<span class="nc" id="L93">        float xi = (float)(xs - xsb), yi = (float)(ys - ysb);</span>
+
+        // Prime pre-multiplication for hash.
+<span class="nc" id="L96">        long xsbp = xsb * PRIME_X, ysbp = ysb * PRIME_Y;</span>
+
+        // Unskew.
+<span class="nc" id="L99">        float t = (xi + yi) * (float)UNSKEW_2D;</span>
+<span class="nc" id="L100">        float dx0 = xi + t, dy0 = yi + t;</span>
+
+        // First vertex.
+<span class="nc" id="L103">        float value = 0;</span>
+<span class="nc" id="L104">        float a0 = RSQUARED_2D - dx0 * dx0 - dy0 * dy0;</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        if (a0 &gt; 0) {</span>
+<span class="nc" id="L106">            value = (a0 * a0) * (a0 * a0) * grad(seed, xsbp, ysbp, dx0, dy0);</span>
+        }
+
+        // Second vertex.
+<span class="nc" id="L110">        float a1 = (float)(2 * (1 + 2 * UNSKEW_2D) * (1 / UNSKEW_2D + 2)) * t + ((float)(-2 * (1 + 2 * UNSKEW_2D) * (1 + 2 * UNSKEW_2D)) + a0);</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if (a1 &gt; 0) {</span>
+<span class="nc" id="L112">            float dx1 = dx0 - (float)(1 + 2 * UNSKEW_2D);</span>
+<span class="nc" id="L113">            float dy1 = dy0 - (float)(1 + 2 * UNSKEW_2D);</span>
+<span class="nc" id="L114">            value += (a1 * a1) * (a1 * a1) * grad(seed, xsbp + PRIME_X, ysbp + PRIME_Y, dx1, dy1);</span>
+        }
+
+        // Third vertex.
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        if (dy0 &gt; dx0) {</span>
+<span class="nc" id="L119">            float dx2 = dx0 - (float)UNSKEW_2D;</span>
+<span class="nc" id="L120">            float dy2 = dy0 - (float)(UNSKEW_2D + 1);</span>
+<span class="nc" id="L121">            float a2 = RSQUARED_2D - dx2 * dx2 - dy2 * dy2;</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">            if (a2 &gt; 0) {</span>
+<span class="nc" id="L123">                value += (a2 * a2) * (a2 * a2) * grad(seed, xsbp, ysbp + PRIME_Y, dx2, dy2);</span>
+            }
+<span class="nc" id="L125">        }</span>
+        else
+        {
+<span class="nc" id="L128">            float dx2 = dx0 - (float)(UNSKEW_2D + 1);</span>
+<span class="nc" id="L129">            float dy2 = dy0 - (float)UNSKEW_2D;</span>
+<span class="nc" id="L130">            float a2 = RSQUARED_2D - dx2 * dx2 - dy2 * dy2;</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            if (a2 &gt; 0) {</span>
+<span class="nc" id="L132">                value += (a2 * a2) * (a2 * a2) * grad(seed, xsbp + PRIME_X, ysbp, dx2, dy2);</span>
+            }
+        }
+
+<span class="nc" id="L136">        return value;</span>
+    }
+
+    /**
+     * 3D OpenSimplex2 noise, with better visual isotropy in (X, Y).
+     * Recommended for 3D terrain and time-varied animations.
+     * The Z coordinate should always be the &quot;different&quot; coordinate in whatever your use case is.
+     * If Y is vertical in world coordinates, call noise3_ImproveXZ(x, z, Y) or use noise3_XZBeforeY.
+     * If Z is vertical in world coordinates, call noise3_ImproveXZ(x, y, Z).
+     * For a time varied animation, call noise3_ImproveXY(x, y, T).
+     */
+    public static float noise3_ImproveXY(long seed, double x, double y, double z) {
+
+        // Re-orient the cubic lattices without skewing, so Z points up the main lattice diagonal,
+        // and the planes formed by XY are moved far out of alignment with the cube faces.
+        // Orthonormal rotation. Not a skew transform.
+<span class="nc" id="L152">        double xy = x + y;</span>
+<span class="nc" id="L153">        double s2 = xy * ROTATE_3D_ORTHOGONALIZER;</span>
+<span class="nc" id="L154">        double zz = z * ROOT3OVER3;</span>
+<span class="nc" id="L155">        double xr = x + s2 + zz;</span>
+<span class="nc" id="L156">        double yr = y + s2 + zz;</span>
+<span class="nc" id="L157">        double zr = xy * -ROOT3OVER3 + zz;</span>
+
+        // Evaluate both lattices to form a BCC lattice.
+<span class="nc" id="L160">        return noise3_UnrotatedBase(seed, xr, yr, zr);</span>
+    }
+
+    /**
+     * 3D OpenSimplex2 noise, with better visual isotropy in (X, Z).
+     * Recommended for 3D terrain and time-varied animations.
+     * The Y coordinate should always be the &quot;different&quot; coordinate in whatever your use case is.
+     * If Y is vertical in world coordinates, call noise3_ImproveXZ(x, Y, z).
+     * If Z is vertical in world coordinates, call noise3_ImproveXZ(x, Z, y) or use noise3_ImproveXY.
+     * For a time varied animation, call noise3_ImproveXZ(x, T, y) or use noise3_ImproveXY.
+     */
+    public static float noise3_ImproveXZ(long seed, double x, double y, double z) {
+
+        // Re-orient the cubic lattices without skewing, so Y points up the main lattice diagonal,
+        // and the planes formed by XZ are moved far out of alignment with the cube faces.
+        // Orthonormal rotation. Not a skew transform.
+<span class="nc" id="L176">        double xz = x + z;</span>
+<span class="nc" id="L177">        double s2 = xz * ROTATE_3D_ORTHOGONALIZER;</span>
+<span class="nc" id="L178">        double yy = y * ROOT3OVER3;</span>
+<span class="nc" id="L179">        double xr = x + s2 + yy;</span>
+<span class="nc" id="L180">        double zr = z + s2 + yy;</span>
+<span class="nc" id="L181">        double yr = xz * -ROOT3OVER3 + yy;</span>
+
+        // Evaluate both lattices to form a BCC lattice.
+<span class="nc" id="L184">        return noise3_UnrotatedBase(seed, xr, yr, zr);</span>
+    }
+
+    /**
+     * 3D OpenSimplex2 noise, fallback rotation option
+     * Use noise3_ImproveXY or noise3_ImproveXZ instead, wherever appropriate.
+     * They have less diagonal bias. This function's best use is as a fallback.
+     */
+    public static float noise3_Fallback(long seed, double x, double y, double z) {
+
+        // Re-orient the cubic lattices via rotation, to produce a familiar look.
+        // Orthonormal rotation. Not a skew transform.
+<span class="nc" id="L196">        double r = FALLBACK_ROTATE_3D * (x + y + z);</span>
+<span class="nc" id="L197">        double xr = r - x, yr = r - y, zr = r - z;</span>
+
+        // Evaluate both lattices to form a BCC lattice.
+<span class="nc" id="L200">        return noise3_UnrotatedBase(seed, xr, yr, zr);</span>
+    }
+
+    /**
+     * Generate overlapping cubic lattices for 3D OpenSimplex2 noise.
+     */
+    private static float noise3_UnrotatedBase(long seed, double xr, double yr, double zr) {
+
+        // Get base points and offsets.
+<span class="nc" id="L209">        int xrb = fastRound(xr), yrb = fastRound(yr), zrb = fastRound(zr);</span>
+<span class="nc" id="L210">        float xri = (float)(xr - xrb), yri = (float)(yr - yrb), zri = (float)(zr - zrb);</span>
+
+        // -1 if positive, 1 if negative.
+<span class="nc" id="L213">        int xNSign = (int)(-1.0f - xri) | 1, yNSign = (int)(-1.0f - yri) | 1, zNSign = (int)(-1.0f - zri) | 1;</span>
+
+        // Compute absolute values, using the above as a shortcut. This was faster in my tests for some reason.
+<span class="nc" id="L216">        float ax0 = xNSign * -xri, ay0 = yNSign * -yri, az0 = zNSign * -zri;</span>
+
+        // Prime pre-multiplication for hash.
+<span class="nc" id="L219">        long xrbp = xrb * PRIME_X, yrbp = yrb * PRIME_Y, zrbp = zrb * PRIME_Z;</span>
+
+        // Loop: Pick an edge on each lattice copy.
+<span class="nc" id="L222">        float value = 0;</span>
+<span class="nc" id="L223">        float a = (RSQUARED_3D - xri * xri) - (yri * yri + zri * zri);</span>
+<span class="nc" id="L224">        for (int l = 0; ; l++) {</span>
+
+            // Closest point on cube.
+<span class="nc bnc" id="L227" title="All 2 branches missed.">            if (a &gt; 0) {</span>
+<span class="nc" id="L228">                value += (a * a) * (a * a) * grad(seed, xrbp, yrbp, zrbp, xri, yri, zri);</span>
+            }
+
+            // Second-closest point.
+<span class="nc bnc" id="L232" title="All 4 branches missed.">            if (ax0 &gt;= ay0 &amp;&amp; ax0 &gt;= az0) {</span>
+<span class="nc" id="L233">                float b = a + ax0 + ax0;</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">                if (b &gt; 1) {</span>
+<span class="nc" id="L235">                    b -= 1;</span>
+<span class="nc" id="L236">                    value += (b * b) * (b * b) * grad(seed, xrbp - xNSign * PRIME_X, yrbp, zrbp, xri + xNSign, yri, zri);</span>
+                }
+<span class="nc" id="L238">            }</span>
+<span class="nc bnc" id="L239" title="All 4 branches missed.">            else if (ay0 &gt; ax0 &amp;&amp; ay0 &gt;= az0) {</span>
+<span class="nc" id="L240">                float b = a + ay0 + ay0;</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                if (b &gt; 1) {</span>
+<span class="nc" id="L242">                    b -= 1;</span>
+<span class="nc" id="L243">                    value += (b * b) * (b * b) * grad(seed, xrbp, yrbp - yNSign * PRIME_Y, zrbp, xri, yri + yNSign, zri);</span>
+                }
+<span class="nc" id="L245">            }</span>
+            else
+            {
+<span class="nc" id="L248">                float b = a + az0 + az0;</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">                if (b &gt; 1) {</span>
+<span class="nc" id="L250">                    b -= 1;</span>
+<span class="nc" id="L251">                    value += (b * b) * (b * b) * grad(seed, xrbp, yrbp, zrbp - zNSign * PRIME_Z, xri, yri, zri + zNSign);</span>
+                }
+            }
+
+            // Break from loop if we're done, skipping updates below.
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            if (l == 1) break;</span>
+
+            // Update absolute value.
+<span class="nc" id="L259">            ax0 = 0.5f - ax0;</span>
+<span class="nc" id="L260">            ay0 = 0.5f - ay0;</span>
+<span class="nc" id="L261">            az0 = 0.5f - az0;</span>
+
+            // Update relative coordinate.
+<span class="nc" id="L264">            xri = xNSign * ax0;</span>
+<span class="nc" id="L265">            yri = yNSign * ay0;</span>
+<span class="nc" id="L266">            zri = zNSign * az0;</span>
+
+            // Update falloff.
+<span class="nc" id="L269">            a += (0.75f - ax0) - (ay0 + az0);</span>
+
+            // Update prime for hash.
+<span class="nc" id="L272">            xrbp += (xNSign &gt;&gt; 1) &amp; PRIME_X;</span>
+<span class="nc" id="L273">            yrbp += (yNSign &gt;&gt; 1) &amp; PRIME_Y;</span>
+<span class="nc" id="L274">            zrbp += (zNSign &gt;&gt; 1) &amp; PRIME_Z;</span>
+
+            // Update the reverse sign indicators.
+<span class="nc" id="L277">            xNSign = -xNSign;</span>
+<span class="nc" id="L278">            yNSign = -yNSign;</span>
+<span class="nc" id="L279">            zNSign = -zNSign;</span>
+
+            // And finally update the seed for the other lattice copy.
+<span class="nc" id="L282">            seed ^= SEED_FLIP_3D;</span>
+        }
+
+<span class="nc" id="L285">        return value;</span>
+    }
+
+    /**
+     * 4D OpenSimplex2 noise, with XYZ oriented like noise3_ImproveXY
+     * and W for an extra degree of freedom. W repeats eventually.
+     * Recommended for time-varied animations which texture a 3D object (W=time)
+     * in a space where Z is vertical
+     */
+    public static float noise4_ImproveXYZ_ImproveXY(long seed, double x, double y, double z, double w) {
+
+<span class="nc" id="L296">        double xy = x + y;</span>
+<span class="nc" id="L297">        double s2 = xy * -0.21132486540518699998;</span>
+<span class="nc" id="L298">        double zz = z * 0.28867513459481294226;</span>
+<span class="nc" id="L299">        double ww = w * 0.2236067977499788;</span>
+<span class="nc" id="L300">        double xr = x + (zz + ww + s2), yr = y + (zz + ww + s2);</span>
+<span class="nc" id="L301">        double zr = xy * -0.57735026918962599998 + (zz + ww);</span>
+<span class="nc" id="L302">        double wr = z * -0.866025403784439 + ww;</span>
+
+<span class="nc" id="L304">        return noise4_UnskewedBase(seed, xr, yr, zr, wr);</span>
+    }
+
+    /**
+     * 4D OpenSimplex2 noise, with XYZ oriented like noise3_ImproveXZ
+     * and W for an extra degree of freedom. W repeats eventually.
+     * Recommended for time-varied animations which texture a 3D object (W=time)
+     * in a space where Y is vertical
+     */
+    public static float noise4_ImproveXYZ_ImproveXZ(long seed, double x, double y, double z, double w) {
+
+<span class="nc" id="L315">        double xz = x + z;</span>
+<span class="nc" id="L316">        double s2 = xz * -0.21132486540518699998;</span>
+<span class="nc" id="L317">        double yy = y * 0.28867513459481294226;</span>
+<span class="nc" id="L318">        double ww = w * 0.2236067977499788;</span>
+<span class="nc" id="L319">        double xr = x + (yy + ww + s2), zr = z + (yy + ww + s2);</span>
+<span class="nc" id="L320">        double yr = xz * -0.57735026918962599998 + (yy + ww);</span>
+<span class="nc" id="L321">        double wr = y * -0.866025403784439 + ww;</span>
+
+<span class="nc" id="L323">        return noise4_UnskewedBase(seed, xr, yr, zr, wr);</span>
+    }
+
+    /**
+     * 4D OpenSimplex2 noise, with XYZ oriented like noise3_Fallback
+     * and W for an extra degree of freedom. W repeats eventually.
+     * Recommended for time-varied animations which texture a 3D object (W=time)
+     * where there isn't a clear distinction between horizontal and vertical
+     */
+    public static float noise4_ImproveXYZ(long seed, double x, double y, double z, double w) {
+
+<span class="nc" id="L334">        double xyz = x + y + z;</span>
+<span class="nc" id="L335">        double ww = w * 0.2236067977499788;</span>
+<span class="nc" id="L336">        double s2 = xyz * -0.16666666666666666 + ww;</span>
+<span class="nc" id="L337">        double xs = x + s2, ys = y + s2, zs = z + s2, ws = -0.5 * xyz + ww;</span>
+
+<span class="nc" id="L339">        return noise4_UnskewedBase(seed, xs, ys, zs, ws);</span>
+    }
+    
+    /**
+     * 4D OpenSimplex2 noise, with XY and ZW forming orthogonal triangular-based planes.
+     * Recommended for 3D terrain, where X and Y (or Z and W) are horizontal.
+     * Recommended for noise(x, y, sin(time), cos(time)) trick.
+     */
+    public static float noise4_ImproveXY_ImproveZW(long seed, double x, double y, double z, double w) {
+        
+<span class="nc" id="L349">        double s2 = (x + y) * -0.178275657951399372 + (z + w) * 0.215623393288842828;</span>
+<span class="nc" id="L350">        double t2 = (z + w) * -0.403949762580207112 + (x + y) * -0.375199083010075342;</span>
+<span class="nc" id="L351">        double xs = x + s2, ys = y + s2, zs = z + t2, ws = w + t2;</span>
+        
+<span class="nc" id="L353">        return noise4_UnskewedBase(seed, xs, ys, zs, ws);</span>
+    }
+
+    /**
+     * 4D OpenSimplex2 noise, fallback lattice orientation.
+     */
+    public static float noise4_Fallback(long seed, double x, double y, double z, double w) {
+
+        // Get points for A4 lattice
+<span class="nc" id="L362">        double s = SKEW_4D * (x + y + z + w);</span>
+<span class="nc" id="L363">        double xs = x + s, ys = y + s, zs = z + s, ws = w + s;</span>
+
+<span class="nc" id="L365">        return noise4_UnskewedBase(seed, xs, ys, zs, ws);</span>
+    }
+
+    /**
+     * 4D OpenSimplex2 noise base.
+     */
+    private static float noise4_UnskewedBase(long seed, double xs, double ys, double zs, double ws) {
+
+        // Get base points and offsets
+<span class="nc" id="L374">        int xsb = fastFloor(xs), ysb = fastFloor(ys), zsb = fastFloor(zs), wsb = fastFloor(ws);</span>
+<span class="nc" id="L375">        float xsi = (float)(xs - xsb), ysi = (float)(ys - ysb), zsi = (float)(zs - zsb), wsi = (float)(ws - wsb);</span>
+
+        // Determine which lattice we can be confident has a contributing point its corresponding cell's base simplex.
+        // We only look at the spaces between the diagonal planes. This proved effective in all of my tests.
+<span class="nc" id="L379">        float siSum = (xsi + ysi) + (zsi + wsi);</span>
+<span class="nc" id="L380">        int startingLattice = (int)(siSum * 1.25);</span>
+
+        // Offset for seed based on first lattice copy.
+<span class="nc" id="L383">        seed += startingLattice * SEED_OFFSET_4D;</span>
+
+        // Offset for lattice point relative positions (skewed)
+<span class="nc" id="L386">        float startingLatticeOffset = startingLattice * -LATTICE_STEP_4D;</span>
+<span class="nc" id="L387">        xsi += startingLatticeOffset; ysi += startingLatticeOffset; zsi += startingLatticeOffset; wsi += startingLatticeOffset;</span>
+
+        // Prep for vertex contributions.
+<span class="nc" id="L390">        float ssi = (siSum + startingLatticeOffset * 4) * UNSKEW_4D;</span>
+
+        // Prime pre-multiplication for hash.
+<span class="nc" id="L393">        long xsvp = xsb * PRIME_X, ysvp = ysb * PRIME_Y, zsvp = zsb * PRIME_Z, wsvp = wsb * PRIME_W;</span>
+
+        // Five points to add, total, from five copies of the A4 lattice.
+<span class="nc" id="L396">        float value = 0;</span>
+<span class="nc" id="L397">        for (int i = 0; ; i++) {</span>
+
+            // Next point is the closest vertex on the 4-simplex whose base vertex is the aforementioned vertex.
+<span class="nc" id="L400">            double score0 = 1.0 + ssi * (-1.0 / UNSKEW_4D); // Seems slightly faster than 1.0-xsi-ysi-zsi-wsi</span>
+<span class="nc bnc" id="L401" title="All 8 branches missed.">            if (xsi &gt;= ysi &amp;&amp; xsi &gt;= zsi &amp;&amp; xsi &gt;= wsi &amp;&amp; xsi &gt;= score0) {</span>
+<span class="nc" id="L402">                xsvp += PRIME_X;</span>
+<span class="nc" id="L403">                xsi -= 1;</span>
+<span class="nc" id="L404">                ssi -= UNSKEW_4D;</span>
+            }
+<span class="nc bnc" id="L406" title="All 8 branches missed.">            else if (ysi &gt; xsi &amp;&amp; ysi &gt;= zsi &amp;&amp; ysi &gt;= wsi &amp;&amp; ysi &gt;= score0) {</span>
+<span class="nc" id="L407">                ysvp += PRIME_Y;</span>
+<span class="nc" id="L408">                ysi -= 1;</span>
+<span class="nc" id="L409">                ssi -= UNSKEW_4D;</span>
+            }
+<span class="nc bnc" id="L411" title="All 8 branches missed.">            else if (zsi &gt; xsi &amp;&amp; zsi &gt; ysi &amp;&amp; zsi &gt;= wsi &amp;&amp; zsi &gt;= score0) {</span>
+<span class="nc" id="L412">                zsvp += PRIME_Z;</span>
+<span class="nc" id="L413">                zsi -= 1;</span>
+<span class="nc" id="L414">                ssi -= UNSKEW_4D;</span>
+            }
+<span class="nc bnc" id="L416" title="All 8 branches missed.">            else if (wsi &gt; xsi &amp;&amp; wsi &gt; ysi &amp;&amp; wsi &gt; zsi &amp;&amp; wsi &gt;= score0) {</span>
+<span class="nc" id="L417">                wsvp += PRIME_W;</span>
+<span class="nc" id="L418">                wsi -= 1;</span>
+<span class="nc" id="L419">                ssi -= UNSKEW_4D;</span>
+            }
+
+            // gradient contribution with falloff.
+<span class="nc" id="L423">            float dx = xsi + ssi, dy = ysi + ssi, dz = zsi + ssi, dw = wsi + ssi;</span>
+<span class="nc" id="L424">            float a = (dx * dx + dy * dy) + (dz * dz + dw * dw);</span>
+<span class="nc bnc" id="L425" title="All 2 branches missed.">            if (a &lt; RSQUARED_4D) {</span>
+<span class="nc" id="L426">                a -= RSQUARED_4D;</span>
+<span class="nc" id="L427">                a *= a;</span>
+<span class="nc" id="L428">                value += a * a * grad(seed, xsvp, ysvp, zsvp, wsvp, dx, dy, dz, dw);</span>
+            }
+
+            // Break from loop if we're done, skipping updates below.
+<span class="nc bnc" id="L432" title="All 2 branches missed.">            if (i == 4) break;</span>
+
+            // Update for next lattice copy shifted down by &lt;-0.2, -0.2, -0.2, -0.2&gt;.
+<span class="nc" id="L435">            xsi += LATTICE_STEP_4D; ysi += LATTICE_STEP_4D; zsi += LATTICE_STEP_4D; wsi += LATTICE_STEP_4D;</span>
+<span class="nc" id="L436">            ssi += LATTICE_STEP_4D * 4 * UNSKEW_4D;</span>
+<span class="nc" id="L437">            seed -= SEED_OFFSET_4D;</span>
+
+            // Because we don't always start on the same lattice copy, there's a special reset case.
+<span class="nc bnc" id="L440" title="All 2 branches missed.">            if (i == startingLattice) {</span>
+<span class="nc" id="L441">                xsvp -= PRIME_X;</span>
+<span class="nc" id="L442">                ysvp -= PRIME_Y;</span>
+<span class="nc" id="L443">                zsvp -= PRIME_Z;</span>
+<span class="nc" id="L444">                wsvp -= PRIME_W;</span>
+<span class="nc" id="L445">                seed += SEED_OFFSET_4D * 5;</span>
+            }
+        }
+
+<span class="nc" id="L449">        return value;</span>
+    }
+
+    /*
+     * Utility
+     */
+
+    private static float grad(long seed, long xsvp, long ysvp, float dx, float dy) {
+<span class="nc" id="L457">        long hash = seed ^ xsvp ^ ysvp;</span>
+<span class="nc" id="L458">        hash *= HASH_MULTIPLIER;</span>
+<span class="nc" id="L459">        hash ^= hash &gt;&gt; (64 - N_GRADS_2D_EXPONENT + 1);</span>
+<span class="nc" id="L460">        int gi = (int)hash &amp; ((N_GRADS_2D - 1) &lt;&lt; 1);</span>
+<span class="nc" id="L461">        return GRADIENTS_2D[gi | 0] * dx + GRADIENTS_2D[gi | 1] * dy;</span>
+    }
+
+    private static float grad(long seed, long xrvp, long yrvp, long zrvp, float dx, float dy, float dz) {
+<span class="nc" id="L465">        long hash = (seed ^ xrvp) ^ (yrvp ^ zrvp);</span>
+<span class="nc" id="L466">        hash *= HASH_MULTIPLIER;</span>
+<span class="nc" id="L467">        hash ^= hash &gt;&gt; (64 - N_GRADS_3D_EXPONENT + 2);</span>
+<span class="nc" id="L468">        int gi = (int)hash &amp; ((N_GRADS_3D - 1) &lt;&lt; 2);</span>
+<span class="nc" id="L469">        return GRADIENTS_3D[gi | 0] * dx + GRADIENTS_3D[gi | 1] * dy + GRADIENTS_3D[gi | 2] * dz;</span>
+    }
+
+    private static float grad(long seed, long xsvp, long ysvp, long zsvp, long wsvp, float dx, float dy, float dz, float dw) {
+<span class="nc" id="L473">        long hash = seed ^ (xsvp ^ ysvp) ^ (zsvp ^ wsvp);</span>
+<span class="nc" id="L474">        hash *= HASH_MULTIPLIER;</span>
+<span class="nc" id="L475">        hash ^= hash &gt;&gt; (64 - N_GRADS_4D_EXPONENT + 2);</span>
+<span class="nc" id="L476">        int gi = (int)hash &amp; ((N_GRADS_4D - 1) &lt;&lt; 2);</span>
+<span class="nc" id="L477">        return (GRADIENTS_4D[gi | 0] * dx + GRADIENTS_4D[gi | 1] * dy) + (GRADIENTS_4D[gi | 2] * dz + GRADIENTS_4D[gi | 3] * dw);</span>
+    }
+
+    private static int fastFloor(double x) {
+<span class="nc" id="L481">        int xi = (int)x;</span>
+<span class="nc bnc" id="L482" title="All 2 branches missed.">        return x &lt; xi ? xi - 1 : xi;</span>
+    }
+
+    private static int fastRound(double x) {
+<span class="nc bnc" id="L486" title="All 2 branches missed.">        return x &lt; 0 ? (int)(x - 0.5) : (int)(x + 0.5);</span>
+    }
+
+    /*
+     * gradients
+     */
+
+    private static float[] GRADIENTS_2D;
+    private static float[] GRADIENTS_3D;
+    private static float[] GRADIENTS_4D;
+    static {
+
+<span class="nc" id="L498">        GRADIENTS_2D = new float[N_GRADS_2D * 2];</span>
+<span class="nc" id="L499">        float[] grad2 = {</span>
+             0.38268343236509f,   0.923879532511287f,
+             0.923879532511287f,  0.38268343236509f,
+             0.923879532511287f, -0.38268343236509f,
+             0.38268343236509f,  -0.923879532511287f,
+            -0.38268343236509f,  -0.923879532511287f,
+            -0.923879532511287f, -0.38268343236509f,
+            -0.923879532511287f,  0.38268343236509f,
+            -0.38268343236509f,   0.923879532511287f,
+            //-------------------------------------//
+             0.130526192220052f,  0.99144486137381f,
+             0.608761429008721f,  0.793353340291235f,
+             0.793353340291235f,  0.608761429008721f,
+             0.99144486137381f,   0.130526192220051f,
+             0.99144486137381f,  -0.130526192220051f,
+             0.793353340291235f, -0.60876142900872f,
+             0.608761429008721f, -0.793353340291235f,
+             0.130526192220052f, -0.99144486137381f,
+            -0.130526192220052f, -0.99144486137381f,
+            -0.608761429008721f, -0.793353340291235f,
+            -0.793353340291235f, -0.608761429008721f,
+            -0.99144486137381f,  -0.130526192220052f,
+            -0.99144486137381f,   0.130526192220051f,
+            -0.793353340291235f,  0.608761429008721f,
+            -0.608761429008721f,  0.793353340291235f,
+            -0.130526192220052f,  0.99144486137381f,
+        };
+<span class="nc bnc" id="L526" title="All 2 branches missed.">        for (int i = 0; i &lt; grad2.length; i++) {</span>
+<span class="nc" id="L527">            grad2[i] = (float)(grad2[i] / NORMALIZER_2D);</span>
+        }
+<span class="nc bnc" id="L529" title="All 2 branches missed.">        for (int i = 0, j = 0; i &lt; GRADIENTS_2D.length; i++, j++) {</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">            if (j == grad2.length) j = 0;</span>
+<span class="nc" id="L531">            GRADIENTS_2D[i] = grad2[j];</span>
+        }
+
+<span class="nc" id="L534">        GRADIENTS_3D = new float[N_GRADS_3D * 4];</span>
+<span class="nc" id="L535">        float[] grad3 = {</span>
+             2.22474487139f,       2.22474487139f,      -1.0f,                 0.0f,
+             2.22474487139f,       2.22474487139f,       1.0f,                 0.0f,
+             3.0862664687972017f,  1.1721513422464978f,  0.0f,                 0.0f,
+             1.1721513422464978f,  3.0862664687972017f,  0.0f,                 0.0f,
+            -2.22474487139f,       2.22474487139f,      -1.0f,                 0.0f,
+            -2.22474487139f,       2.22474487139f,       1.0f,                 0.0f,
+            -1.1721513422464978f,  3.0862664687972017f,  0.0f,                 0.0f,
+            -3.0862664687972017f,  1.1721513422464978f,  0.0f,                 0.0f,
+            -1.0f,                -2.22474487139f,      -2.22474487139f,       0.0f,
+             1.0f,                -2.22474487139f,      -2.22474487139f,       0.0f,
+             0.0f,                -3.0862664687972017f, -1.1721513422464978f,  0.0f,
+             0.0f,                -1.1721513422464978f, -3.0862664687972017f,  0.0f,
+            -1.0f,                -2.22474487139f,       2.22474487139f,       0.0f,
+             1.0f,                -2.22474487139f,       2.22474487139f,       0.0f,
+             0.0f,                -1.1721513422464978f,  3.0862664687972017f,  0.0f,
+             0.0f,                -3.0862664687972017f,  1.1721513422464978f,  0.0f,
+            //--------------------------------------------------------------------//
+            -2.22474487139f,      -2.22474487139f,      -1.0f,                 0.0f,
+            -2.22474487139f,      -2.22474487139f,       1.0f,                 0.0f,
+            -3.0862664687972017f, -1.1721513422464978f,  0.0f,                 0.0f,
+            -1.1721513422464978f, -3.0862664687972017f,  0.0f,                 0.0f,
+            -2.22474487139f,      -1.0f,                -2.22474487139f,       0.0f,
+            -2.22474487139f,       1.0f,                -2.22474487139f,       0.0f,
+            -1.1721513422464978f,  0.0f,                -3.0862664687972017f,  0.0f,
+            -3.0862664687972017f,  0.0f,                -1.1721513422464978f,  0.0f,
+            -2.22474487139f,      -1.0f,                 2.22474487139f,       0.0f,
+            -2.22474487139f,       1.0f,                 2.22474487139f,       0.0f,
+            -3.0862664687972017f,  0.0f,                 1.1721513422464978f,  0.0f,
+            -1.1721513422464978f,  0.0f,                 3.0862664687972017f,  0.0f,
+            -1.0f,                 2.22474487139f,      -2.22474487139f,       0.0f,
+             1.0f,                 2.22474487139f,      -2.22474487139f,       0.0f,
+             0.0f,                 1.1721513422464978f, -3.0862664687972017f,  0.0f,
+             0.0f,                 3.0862664687972017f, -1.1721513422464978f,  0.0f,
+            -1.0f,                 2.22474487139f,       2.22474487139f,       0.0f,
+             1.0f,                 2.22474487139f,       2.22474487139f,       0.0f,
+             0.0f,                 3.0862664687972017f,  1.1721513422464978f,  0.0f,
+             0.0f,                 1.1721513422464978f,  3.0862664687972017f,  0.0f,
+             2.22474487139f,      -2.22474487139f,      -1.0f,                 0.0f,
+             2.22474487139f,      -2.22474487139f,       1.0f,                 0.0f,
+             1.1721513422464978f, -3.0862664687972017f,  0.0f,                 0.0f,
+             3.0862664687972017f, -1.1721513422464978f,  0.0f,                 0.0f,
+             2.22474487139f,      -1.0f,                -2.22474487139f,       0.0f,
+             2.22474487139f,       1.0f,                -2.22474487139f,       0.0f,
+             3.0862664687972017f,  0.0f,                -1.1721513422464978f,  0.0f,
+             1.1721513422464978f,  0.0f,                -3.0862664687972017f,  0.0f,
+             2.22474487139f,      -1.0f,                 2.22474487139f,       0.0f,
+             2.22474487139f,       1.0f,                 2.22474487139f,       0.0f,
+             1.1721513422464978f,  0.0f,                 3.0862664687972017f,  0.0f,
+             3.0862664687972017f,  0.0f,                 1.1721513422464978f,  0.0f,
+        };
+<span class="nc bnc" id="L586" title="All 2 branches missed.">        for (int i = 0; i &lt; grad3.length; i++) {</span>
+<span class="nc" id="L587">            grad3[i] = (float)(grad3[i] / NORMALIZER_3D);</span>
+        }
+<span class="nc bnc" id="L589" title="All 2 branches missed.">        for (int i = 0, j = 0; i &lt; GRADIENTS_3D.length; i++, j++) {</span>
+<span class="nc bnc" id="L590" title="All 2 branches missed.">            if (j == grad3.length) j = 0;</span>
+<span class="nc" id="L591">            GRADIENTS_3D[i] = grad3[j];</span>
+        }
+
+<span class="nc" id="L594">        GRADIENTS_4D = new float[N_GRADS_4D * 4];</span>
+<span class="nc" id="L595">        float[] grad4 = {</span>
+            -0.6740059517812944f,   -0.3239847771997537f,   -0.3239847771997537f,    0.5794684678643381f,
+            -0.7504883828755602f,   -0.4004672082940195f,    0.15296486218853164f,   0.5029860367700724f,
+            -0.7504883828755602f,    0.15296486218853164f,  -0.4004672082940195f,    0.5029860367700724f,
+            -0.8828161875373585f,    0.08164729285680945f,   0.08164729285680945f,   0.4553054119602712f,
+            -0.4553054119602712f,   -0.08164729285680945f,  -0.08164729285680945f,   0.8828161875373585f,
+            -0.5029860367700724f,   -0.15296486218853164f,   0.4004672082940195f,    0.7504883828755602f,
+            -0.5029860367700724f,    0.4004672082940195f,   -0.15296486218853164f,   0.7504883828755602f,
+            -0.5794684678643381f,    0.3239847771997537f,    0.3239847771997537f,    0.6740059517812944f,
+            -0.6740059517812944f,   -0.3239847771997537f,    0.5794684678643381f,   -0.3239847771997537f,
+            -0.7504883828755602f,   -0.4004672082940195f,    0.5029860367700724f,    0.15296486218853164f,
+            -0.7504883828755602f,    0.15296486218853164f,   0.5029860367700724f,   -0.4004672082940195f,
+            -0.8828161875373585f,    0.08164729285680945f,   0.4553054119602712f,    0.08164729285680945f,
+            -0.4553054119602712f,   -0.08164729285680945f,   0.8828161875373585f,   -0.08164729285680945f,
+            -0.5029860367700724f,   -0.15296486218853164f,   0.7504883828755602f,    0.4004672082940195f,
+            -0.5029860367700724f,    0.4004672082940195f,    0.7504883828755602f,   -0.15296486218853164f,
+            -0.5794684678643381f,    0.3239847771997537f,    0.6740059517812944f,    0.3239847771997537f,
+            -0.6740059517812944f,    0.5794684678643381f,   -0.3239847771997537f,   -0.3239847771997537f,
+            -0.7504883828755602f,    0.5029860367700724f,   -0.4004672082940195f,    0.15296486218853164f,
+            -0.7504883828755602f,    0.5029860367700724f,    0.15296486218853164f,  -0.4004672082940195f,
+            -0.8828161875373585f,    0.4553054119602712f,    0.08164729285680945f,   0.08164729285680945f,
+            -0.4553054119602712f,    0.8828161875373585f,   -0.08164729285680945f,  -0.08164729285680945f,
+            -0.5029860367700724f,    0.7504883828755602f,   -0.15296486218853164f,   0.4004672082940195f,
+            -0.5029860367700724f,    0.7504883828755602f,    0.4004672082940195f,   -0.15296486218853164f,
+            -0.5794684678643381f,    0.6740059517812944f,    0.3239847771997537f,    0.3239847771997537f,
+             0.5794684678643381f,   -0.6740059517812944f,   -0.3239847771997537f,   -0.3239847771997537f,
+             0.5029860367700724f,   -0.7504883828755602f,   -0.4004672082940195f,    0.15296486218853164f,
+             0.5029860367700724f,   -0.7504883828755602f,    0.15296486218853164f,  -0.4004672082940195f,
+             0.4553054119602712f,   -0.8828161875373585f,    0.08164729285680945f,   0.08164729285680945f,
+             0.8828161875373585f,   -0.4553054119602712f,   -0.08164729285680945f,  -0.08164729285680945f,
+             0.7504883828755602f,   -0.5029860367700724f,   -0.15296486218853164f,   0.4004672082940195f,
+             0.7504883828755602f,   -0.5029860367700724f,    0.4004672082940195f,   -0.15296486218853164f,
+             0.6740059517812944f,   -0.5794684678643381f,    0.3239847771997537f,    0.3239847771997537f,
+            //------------------------------------------------------------------------------------------//
+            -0.753341017856078f,    -0.37968289875261624f,  -0.37968289875261624f,  -0.37968289875261624f,
+            -0.7821684431180708f,   -0.4321472685365301f,   -0.4321472685365301f,    0.12128480194602098f,
+            -0.7821684431180708f,   -0.4321472685365301f,    0.12128480194602098f,  -0.4321472685365301f,
+            -0.7821684431180708f,    0.12128480194602098f,  -0.4321472685365301f,   -0.4321472685365301f,
+            -0.8586508742123365f,   -0.508629699630796f,     0.044802370851755174f,  0.044802370851755174f,
+            -0.8586508742123365f,    0.044802370851755174f, -0.508629699630796f,     0.044802370851755174f,
+            -0.8586508742123365f,    0.044802370851755174f,  0.044802370851755174f, -0.508629699630796f,
+            -0.9982828964265062f,   -0.03381941603233842f,  -0.03381941603233842f,  -0.03381941603233842f,
+            -0.37968289875261624f,  -0.753341017856078f,    -0.37968289875261624f,  -0.37968289875261624f,
+            -0.4321472685365301f,   -0.7821684431180708f,   -0.4321472685365301f,    0.12128480194602098f,
+            -0.4321472685365301f,   -0.7821684431180708f,    0.12128480194602098f,  -0.4321472685365301f,
+             0.12128480194602098f,  -0.7821684431180708f,   -0.4321472685365301f,   -0.4321472685365301f,
+            -0.508629699630796f,    -0.8586508742123365f,    0.044802370851755174f,  0.044802370851755174f,
+             0.044802370851755174f, -0.8586508742123365f,   -0.508629699630796f,     0.044802370851755174f,
+             0.044802370851755174f, -0.8586508742123365f,    0.044802370851755174f, -0.508629699630796f,
+            -0.03381941603233842f,  -0.9982828964265062f,   -0.03381941603233842f,  -0.03381941603233842f,
+            -0.37968289875261624f,  -0.37968289875261624f,  -0.753341017856078f,    -0.37968289875261624f,
+            -0.4321472685365301f,   -0.4321472685365301f,   -0.7821684431180708f,    0.12128480194602098f,
+            -0.4321472685365301f,    0.12128480194602098f,  -0.7821684431180708f,   -0.4321472685365301f,
+             0.12128480194602098f,  -0.4321472685365301f,   -0.7821684431180708f,   -0.4321472685365301f,
+            -0.508629699630796f,     0.044802370851755174f, -0.8586508742123365f,    0.044802370851755174f,
+             0.044802370851755174f, -0.508629699630796f,    -0.8586508742123365f,    0.044802370851755174f,
+             0.044802370851755174f,  0.044802370851755174f, -0.8586508742123365f,   -0.508629699630796f,
+            -0.03381941603233842f,  -0.03381941603233842f,  -0.9982828964265062f,   -0.03381941603233842f,
+            -0.37968289875261624f,  -0.37968289875261624f,  -0.37968289875261624f,  -0.753341017856078f,
+            -0.4321472685365301f,   -0.4321472685365301f,    0.12128480194602098f,  -0.7821684431180708f,
+            -0.4321472685365301f,    0.12128480194602098f,  -0.4321472685365301f,   -0.7821684431180708f,
+             0.12128480194602098f,  -0.4321472685365301f,   -0.4321472685365301f,   -0.7821684431180708f,
+            -0.508629699630796f,     0.044802370851755174f,  0.044802370851755174f, -0.8586508742123365f,
+             0.044802370851755174f, -0.508629699630796f,     0.044802370851755174f, -0.8586508742123365f,
+             0.044802370851755174f,  0.044802370851755174f, -0.508629699630796f,    -0.8586508742123365f,
+            -0.03381941603233842f,  -0.03381941603233842f,  -0.03381941603233842f,  -0.9982828964265062f,
+            -0.3239847771997537f,   -0.6740059517812944f,   -0.3239847771997537f,    0.5794684678643381f,
+            -0.4004672082940195f,   -0.7504883828755602f,    0.15296486218853164f,   0.5029860367700724f,
+             0.15296486218853164f,  -0.7504883828755602f,   -0.4004672082940195f,    0.5029860367700724f,
+             0.08164729285680945f,  -0.8828161875373585f,    0.08164729285680945f,   0.4553054119602712f,
+            -0.08164729285680945f,  -0.4553054119602712f,   -0.08164729285680945f,   0.8828161875373585f,
+            -0.15296486218853164f,  -0.5029860367700724f,    0.4004672082940195f,    0.7504883828755602f,
+             0.4004672082940195f,   -0.5029860367700724f,   -0.15296486218853164f,   0.7504883828755602f,
+             0.3239847771997537f,   -0.5794684678643381f,    0.3239847771997537f,    0.6740059517812944f,
+            -0.3239847771997537f,   -0.3239847771997537f,   -0.6740059517812944f,    0.5794684678643381f,
+            -0.4004672082940195f,    0.15296486218853164f,  -0.7504883828755602f,    0.5029860367700724f,
+             0.15296486218853164f,  -0.4004672082940195f,   -0.7504883828755602f,    0.5029860367700724f,
+             0.08164729285680945f,   0.08164729285680945f,  -0.8828161875373585f,    0.4553054119602712f,
+            -0.08164729285680945f,  -0.08164729285680945f,  -0.4553054119602712f,    0.8828161875373585f,
+            -0.15296486218853164f,   0.4004672082940195f,   -0.5029860367700724f,    0.7504883828755602f,
+             0.4004672082940195f,   -0.15296486218853164f,  -0.5029860367700724f,    0.7504883828755602f,
+             0.3239847771997537f,    0.3239847771997537f,   -0.5794684678643381f,    0.6740059517812944f,
+            -0.3239847771997537f,   -0.6740059517812944f,    0.5794684678643381f,   -0.3239847771997537f,
+            -0.4004672082940195f,   -0.7504883828755602f,    0.5029860367700724f,    0.15296486218853164f,
+             0.15296486218853164f,  -0.7504883828755602f,    0.5029860367700724f,   -0.4004672082940195f,
+             0.08164729285680945f,  -0.8828161875373585f,    0.4553054119602712f,    0.08164729285680945f,
+            -0.08164729285680945f,  -0.4553054119602712f,    0.8828161875373585f,   -0.08164729285680945f,
+            -0.15296486218853164f,  -0.5029860367700724f,    0.7504883828755602f,    0.4004672082940195f,
+             0.4004672082940195f,   -0.5029860367700724f,    0.7504883828755602f,   -0.15296486218853164f,
+             0.3239847771997537f,   -0.5794684678643381f,    0.6740059517812944f,    0.3239847771997537f,
+            -0.3239847771997537f,   -0.3239847771997537f,    0.5794684678643381f,   -0.6740059517812944f,
+            -0.4004672082940195f,    0.15296486218853164f,   0.5029860367700724f,   -0.7504883828755602f,
+             0.15296486218853164f,  -0.4004672082940195f,    0.5029860367700724f,   -0.7504883828755602f,
+             0.08164729285680945f,   0.08164729285680945f,   0.4553054119602712f,   -0.8828161875373585f,
+            -0.08164729285680945f,  -0.08164729285680945f,   0.8828161875373585f,   -0.4553054119602712f,
+            -0.15296486218853164f,   0.4004672082940195f,    0.7504883828755602f,   -0.5029860367700724f,
+             0.4004672082940195f,   -0.15296486218853164f,   0.7504883828755602f,   -0.5029860367700724f,
+             0.3239847771997537f,    0.3239847771997537f,    0.6740059517812944f,   -0.5794684678643381f,
+            -0.3239847771997537f,    0.5794684678643381f,   -0.6740059517812944f,   -0.3239847771997537f,
+            -0.4004672082940195f,    0.5029860367700724f,   -0.7504883828755602f,    0.15296486218853164f,
+             0.15296486218853164f,   0.5029860367700724f,   -0.7504883828755602f,   -0.4004672082940195f,
+             0.08164729285680945f,   0.4553054119602712f,   -0.8828161875373585f,    0.08164729285680945f,
+            -0.08164729285680945f,   0.8828161875373585f,   -0.4553054119602712f,   -0.08164729285680945f,
+            -0.15296486218853164f,   0.7504883828755602f,   -0.5029860367700724f,    0.4004672082940195f,
+             0.4004672082940195f,    0.7504883828755602f,   -0.5029860367700724f,   -0.15296486218853164f,
+             0.3239847771997537f,    0.6740059517812944f,   -0.5794684678643381f,    0.3239847771997537f,
+            -0.3239847771997537f,    0.5794684678643381f,   -0.3239847771997537f,   -0.6740059517812944f,
+            -0.4004672082940195f,    0.5029860367700724f,    0.15296486218853164f,  -0.7504883828755602f,
+             0.15296486218853164f,   0.5029860367700724f,   -0.4004672082940195f,   -0.7504883828755602f,
+             0.08164729285680945f,   0.4553054119602712f,    0.08164729285680945f,  -0.8828161875373585f,
+            -0.08164729285680945f,   0.8828161875373585f,   -0.08164729285680945f,  -0.4553054119602712f,
+            -0.15296486218853164f,   0.7504883828755602f,    0.4004672082940195f,   -0.5029860367700724f,
+             0.4004672082940195f,    0.7504883828755602f,   -0.15296486218853164f,  -0.5029860367700724f,
+             0.3239847771997537f,    0.6740059517812944f,    0.3239847771997537f,   -0.5794684678643381f,
+             0.5794684678643381f,   -0.3239847771997537f,   -0.6740059517812944f,   -0.3239847771997537f,
+             0.5029860367700724f,   -0.4004672082940195f,   -0.7504883828755602f,    0.15296486218853164f,
+             0.5029860367700724f,    0.15296486218853164f,  -0.7504883828755602f,   -0.4004672082940195f,
+             0.4553054119602712f,    0.08164729285680945f,  -0.8828161875373585f,    0.08164729285680945f,
+             0.8828161875373585f,   -0.08164729285680945f,  -0.4553054119602712f,   -0.08164729285680945f,
+             0.7504883828755602f,   -0.15296486218853164f,  -0.5029860367700724f,    0.4004672082940195f,
+             0.7504883828755602f,    0.4004672082940195f,   -0.5029860367700724f,   -0.15296486218853164f,
+             0.6740059517812944f,    0.3239847771997537f,   -0.5794684678643381f,    0.3239847771997537f,
+             0.5794684678643381f,   -0.3239847771997537f,   -0.3239847771997537f,   -0.6740059517812944f,
+             0.5029860367700724f,   -0.4004672082940195f,    0.15296486218853164f,  -0.7504883828755602f,
+             0.5029860367700724f,    0.15296486218853164f,  -0.4004672082940195f,   -0.7504883828755602f,
+             0.4553054119602712f,    0.08164729285680945f,   0.08164729285680945f,  -0.8828161875373585f,
+             0.8828161875373585f,   -0.08164729285680945f,  -0.08164729285680945f,  -0.4553054119602712f,
+             0.7504883828755602f,   -0.15296486218853164f,   0.4004672082940195f,   -0.5029860367700724f,
+             0.7504883828755602f,    0.4004672082940195f,   -0.15296486218853164f,  -0.5029860367700724f,
+             0.6740059517812944f,    0.3239847771997537f,    0.3239847771997537f,   -0.5794684678643381f,
+             0.03381941603233842f,   0.03381941603233842f,   0.03381941603233842f,   0.9982828964265062f,
+            -0.044802370851755174f, -0.044802370851755174f,  0.508629699630796f,     0.8586508742123365f,
+            -0.044802370851755174f,  0.508629699630796f,    -0.044802370851755174f,  0.8586508742123365f,
+            -0.12128480194602098f,   0.4321472685365301f,    0.4321472685365301f,    0.7821684431180708f,
+             0.508629699630796f,    -0.044802370851755174f, -0.044802370851755174f,  0.8586508742123365f,
+             0.4321472685365301f,   -0.12128480194602098f,   0.4321472685365301f,    0.7821684431180708f,
+             0.4321472685365301f,    0.4321472685365301f,   -0.12128480194602098f,   0.7821684431180708f,
+             0.37968289875261624f,   0.37968289875261624f,   0.37968289875261624f,   0.753341017856078f,
+             0.03381941603233842f,   0.03381941603233842f,   0.9982828964265062f,    0.03381941603233842f,
+            -0.044802370851755174f,  0.044802370851755174f,  0.8586508742123365f,    0.508629699630796f,
+            -0.044802370851755174f,  0.508629699630796f,     0.8586508742123365f,   -0.044802370851755174f,
+            -0.12128480194602098f,   0.4321472685365301f,    0.7821684431180708f,    0.4321472685365301f,
+             0.508629699630796f,    -0.044802370851755174f,  0.8586508742123365f,   -0.044802370851755174f,
+             0.4321472685365301f,   -0.12128480194602098f,   0.7821684431180708f,    0.4321472685365301f,
+             0.4321472685365301f,    0.4321472685365301f,    0.7821684431180708f,   -0.12128480194602098f,
+             0.37968289875261624f,   0.37968289875261624f,   0.753341017856078f,     0.37968289875261624f,
+             0.03381941603233842f,   0.9982828964265062f,    0.03381941603233842f,   0.03381941603233842f,
+            -0.044802370851755174f,  0.8586508742123365f,   -0.044802370851755174f,  0.508629699630796f,
+            -0.044802370851755174f,  0.8586508742123365f,    0.508629699630796f,    -0.044802370851755174f,
+            -0.12128480194602098f,   0.7821684431180708f,    0.4321472685365301f,    0.4321472685365301f,
+             0.508629699630796f,     0.8586508742123365f,   -0.044802370851755174f, -0.044802370851755174f,
+             0.4321472685365301f,    0.7821684431180708f,   -0.12128480194602098f,   0.4321472685365301f,
+             0.4321472685365301f,    0.7821684431180708f,    0.4321472685365301f,   -0.12128480194602098f,
+             0.37968289875261624f,   0.753341017856078f,     0.37968289875261624f,   0.37968289875261624f,
+             0.9982828964265062f,    0.03381941603233842f,   0.03381941603233842f,   0.03381941603233842f,
+             0.8586508742123365f,   -0.044802370851755174f, -0.044802370851755174f,  0.508629699630796f,
+             0.8586508742123365f,   -0.044802370851755174f,  0.508629699630796f,    -0.044802370851755174f,
+             0.7821684431180708f,   -0.12128480194602098f,   0.4321472685365301f,    0.4321472685365301f,
+             0.8586508742123365f,    0.508629699630796f,    -0.044802370851755174f, -0.044802370851755174f,
+             0.7821684431180708f,    0.4321472685365301f,   -0.12128480194602098f,   0.4321472685365301f,
+             0.7821684431180708f,    0.4321472685365301f,    0.4321472685365301f,   -0.12128480194602098f,
+             0.753341017856078f,     0.37968289875261624f,   0.37968289875261624f,   0.37968289875261624f,
+        };
+<span class="nc bnc" id="L758" title="All 2 branches missed.">        for (int i = 0; i &lt; grad4.length; i++) {</span>
+<span class="nc" id="L759">            grad4[i] = (float)(grad4[i] / NORMALIZER_4D);</span>
+        }
+<span class="nc bnc" id="L761" title="All 2 branches missed.">        for (int i = 0, j = 0; i &lt; GRADIENTS_4D.length; i++, j++) {</span>
+<span class="nc bnc" id="L762" title="All 2 branches missed.">            if (j == grad4.length) j = 0;</span>
+<span class="nc" id="L763">            GRADIENTS_4D[i] = grad4[j];</span>
+        }
+<span class="nc" id="L765">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

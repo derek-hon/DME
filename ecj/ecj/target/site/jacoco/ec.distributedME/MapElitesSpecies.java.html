@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MapElitesSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">MapElitesSpecies.java</span></div><h1>MapElitesSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.distributedME;
+
+import ec.Prototype;
+import ec.Fitness;
+import ec.EvolutionState;
+
+import ec.util.Parameter;
+
+import ec.gp.GPIndividual;
+
+import java.util.HashMap;
+
+import java.io.LineNumberReader;
+import java.io.IOException;
+import java.io.DataInput;
+
+/**
+ * MapElitesSpecies.java
+ *
+ * @see ec.Species
+ * 
+ * Modifications: 
+ * 
+ * Created: 25 January, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+<span class="nc" id="L34">public abstract class MapElitesSpecies implements Prototype {</span>
+    public static final String P_INDIVIDUAL = &quot;ind&quot;;
+    public static final String P_PIPE = &quot;pipe&quot;;
+    public static final String P_FITNESS = &quot;fitness&quot;;
+
+    /** The prototypical individual for this species. */
+    public Elite i_prototype;
+
+    /** The prototypical breeding pipeline for this species. */
+    public MapElitesBreedingSource pipe_prototype;
+
+    /** The prototypical fitness for individuals of this species. */
+    public Fitness f_prototype;
+
+    public Object clone() {
+        try {
+<span class="nc" id="L50">            MapElitesSpecies myobj = (MapElitesSpecies) (super.clone());</span>
+<span class="nc" id="L51">            myobj.i_prototype = (Elite) i_prototype.clone();</span>
+<span class="nc" id="L52">            myobj.f_prototype = (Fitness) f_prototype.clone();</span>
+<span class="nc" id="L53">            myobj.pipe_prototype = (MapElitesBreedingSource) pipe_prototype.clone();</span>
+<span class="nc" id="L54">            return myobj;</span>
+<span class="nc" id="L55">        } catch (Exception e) {</span>
+<span class="nc" id="L56">            throw new InternalError();</span>
+        } // never happens
+    }
+
+    /**
+     * Provides a brand-new individual to fill in a population. The default form
+     * simply calls clone(), creates a fitness, sets evaluated to false, and sets
+     * the species. If you need to make a more custom genotype (as is the case for
+     * GPSpecies, which requires a light rather than deep clone), you will need to
+     * override this method as you see fit.
+     */
+
+    public Elite newIndividual(final EvolutionState state, int thread) {
+<span class="nc" id="L69">        Elite newind = (Elite) (i_prototype.clone());</span>
+
+        // Set the fitness
+<span class="nc" id="L72">        newind.fitness = (Fitness) (f_prototype.clone());</span>
+<span class="nc" id="L73">        newind.evaluated = false;</span>
+
+        // Set the species to me
+<span class="nc" id="L76">        newind.species = this;</span>
+
+        // ...and we're ready!
+<span class="nc" id="L79">        return newind;</span>
+    }
+
+    /**
+     * Provides an individual read from a stream, including the fitness; the
+     * individual will appear as it was written by printIndividual(...). Doesn't
+     * close the stream. Sets evaluated to false and sets the species. If you need
+     * to make a more custom mechanism (as is the case for GPSpecies, which requires
+     * a light rather than deep clone), you will need to override this method as you
+     * see fit.
+     */
+
+    public Elite newIndividual(final EvolutionState state, final LineNumberReader reader) throws IOException {
+<span class="nc" id="L92">        Elite newind = (Elite) (i_prototype.clone());</span>
+
+        // Set the fitness
+<span class="nc" id="L95">        newind.fitness = (Fitness) (f_prototype.clone());</span>
+<span class="nc" id="L96">        newind.evaluated = false; // for sanity's sake, though it's a useless line</span>
+
+        // load that sucker
+<span class="nc" id="L99">        newind.readIndividual(state, reader);</span>
+
+        // Set the species to me
+<span class="nc" id="L102">        newind.species = this;</span>
+
+        // and we're ready!
+<span class="nc" id="L105">        return newind;</span>
+    }
+
+    /**
+     * Provides an individual read from a DataInput source, including the fitness.
+     * Doesn't close the DataInput. Sets evaluated to false and sets the species. If
+     * you need to make a more custom mechanism (as is the case for GPSpecies, which
+     * requires a light rather than deep clone), you will need to override this
+     * method as you see fit.
+     */
+
+    public Elite newIndividual(final EvolutionState state, final DataInput dataInput) throws IOException {
+<span class="nc" id="L117">        Elite newind = (Elite) (i_prototype.clone());</span>
+
+        // Set the fitness
+<span class="nc" id="L120">        newind.fitness = (Fitness) (f_prototype.clone());</span>
+<span class="nc" id="L121">        newind.evaluated = false; // for sanity's sake, though it's a useless line</span>
+
+        // Set the species to me
+<span class="nc" id="L124">        newind.species = this;</span>
+
+        // load that sucker
+<span class="nc" id="L127">        newind.readIndividual(state, dataInput);</span>
+
+        // and we're ready!
+<span class="nc" id="L130">        return newind;</span>
+    }
+
+    /**
+     * The default version of setup(...) loads requested pipelines and calls
+     * setup(...) on them and normalizes their probabilities. If your individual
+     * prototype might need to know special things about the species (like
+     * parameters stored in it), then when you override this setup method, you'll
+     * need to set those parameters BEFORE you call super.setup(...), because the
+     * setup(...) code in Species sets up the prototype.
+     * 
+     * @see Prototype#setup(EvolutionState,Parameter)
+     */
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L145">        Parameter def = defaultBase();</span>
+
+        // load the breeding pipeline
+<span class="nc" id="L148">        pipe_prototype = (MapElitesBreedingPipeline) (state.parameters.getInstanceForParameter(base.push(P_PIPE),</span>
+<span class="nc" id="L149">                def.push(P_PIPE), MapElitesBreedingPipeline.class));</span>
+<span class="nc" id="L150">        pipe_prototype.setup(state, base.push(P_PIPE));</span>
+
+        // I promised over in BreedingSource.java that this method would get called.
+<span class="nc" id="L153">        state.output.exitIfErrors();</span>
+        // load our individual prototype
+<span class="nc" id="L155">        i_prototype = (Elite) (state.parameters.getInstanceForParameter(base.push(P_INDIVIDUAL), def.push(P_INDIVIDUAL),</span>
+                GPIndividual.class));
+        // set the species to me before setting up the individual, so they know who I am
+<span class="nc" id="L158">        i_prototype.species = this;</span>
+<span class="nc" id="L159">        i_prototype.setup(state, base.push(P_INDIVIDUAL));</span>
+
+        // load our fitness
+<span class="nc" id="L162">        f_prototype = (Fitness) state.parameters.getInstanceForParameter(base.push(P_FITNESS), def.push(P_FITNESS),</span>
+                Fitness.class);
+<span class="nc" id="L164">        f_prototype.setup(state, base.push(P_FITNESS));</span>
+<span class="nc" id="L165">    }</span>
+
+    /** Copied from ec.Species.java */
+    public HashMap&lt;String, Object&gt; buildMisc(EvolutionState state, int subpopIndex, int thread) {
+<span class="nc" id="L169">        return new HashMap&lt;String, Object&gt;();</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

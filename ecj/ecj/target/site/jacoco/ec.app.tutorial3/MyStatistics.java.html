@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MyStatistics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.tutorial3</a> &gt; <span class="el_source">MyStatistics.java</span></div><h1>MyStatistics.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.tutorial3;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+import ec.vector.*;
+
+<span class="nc" id="L14">public class MyStatistics extends Statistics</span>
+    {
+    // The parameter string and log number of the file for our readable population
+    public static final String P_POPFILE = &quot;pop-file&quot;;
+    public int popLog;
+
+    // The parameter string and log number of the file for our best-genome-#3 individual
+    public static final String P_INFOFILE = &quot;info-file&quot;;
+    public int infoLog;
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // DO NOT FORGET to call super.setup(...) !!
+<span class="nc" id="L27">        super.setup(state,base);</span>
+
+        // set up popFile
+<span class="nc" id="L30">        File popFile = state.parameters.getFile(</span>
+<span class="nc" id="L31">            base.push(P_POPFILE),null);</span>
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        if (popFile!=null) try</span>
+                               {
+<span class="nc" id="L34">                               popLog = state.output.addLog(popFile,true);</span>
+                               }
+<span class="nc" id="L36">            catch (IOException i)</span>
+                {
+<span class="nc" id="L38">                state.output.fatal(&quot;An IOException occurred while trying to create the log &quot; + </span>
+                    popFile + &quot;:\n&quot; + i);
+<span class="nc" id="L40">                }</span>
+
+        // set up infoFile
+<span class="nc" id="L43">        File infoFile = state.parameters.getFile(</span>
+<span class="nc" id="L44">            base.push(P_INFOFILE),null);</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (infoFile!=null) try</span>
+                                {
+<span class="nc" id="L47">                                infoLog = state.output.addLog(infoFile,true);</span>
+                                }
+<span class="nc" id="L49">            catch (IOException i)</span>
+                {
+<span class="nc" id="L51">                state.output.fatal(&quot;An IOException occurred while trying to create the log &quot; + </span>
+                    infoFile + &quot;:\n&quot; + i);
+<span class="nc" id="L53">                }</span>
+
+<span class="nc" id="L55">        }</span>
+
+    public void postEvaluationStatistics(final EvolutionState state)
+        {
+        // be certain to call the hook on super!
+<span class="nc" id="L60">        super.postEvaluationStatistics(state);</span>
+
+        // write out a warning that the next generation is coming 
+<span class="nc" id="L63">        state.output.println(&quot;-----------------------\nGENERATION &quot; + </span>
+            state.generation + &quot;\n-----------------------&quot;, popLog);
+
+        // print out the population 
+<span class="nc" id="L67">        state.population.printPopulation(state,popLog);</span>
+
+        // print out best genome #3 individual in subpop 0
+<span class="nc" id="L70">        int best = 0;</span>
+<span class="nc" id="L71">        double best_val = ((DoubleVectorIndividual) state.population.subpops.get(0).individuals.get(0)).genome[3];</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        for(int y = 1; y&lt; state.population.subpops.get(0).individuals.size(); y++)</span>
+            {
+            // We'll be unsafe and assume the individual is a DoubleVectorIndividual
+<span class="nc" id="L75">            double val = ((DoubleVectorIndividual) state.population.subpops.get(0).individuals.get(y)).genome[3];</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            if (val &gt; best_val)</span>
+                {
+<span class="nc" id="L78">                best = y;</span>
+<span class="nc" id="L79">                best_val = val;</span>
+                }
+            }
+<span class="nc" id="L82">        state.population.subpops.get(0).individuals.get(best).printIndividualForHumans(state,infoLog);</span>
+<span class="nc" id="L83">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

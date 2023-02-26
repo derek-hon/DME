@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RandomBranch.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.build</a> &gt; <span class="el_source">RandomBranch.java</span></div><h1>RandomBranch.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.build;
+import ec.gp.*;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * RandomBranch.java
+ * 
+ * Created: Mon Dec 13 14:26:02 1999
+ * By: Sean Luke
+ */
+
+/**
+ * RandomBranch implements the &lt;tt&gt;Random_Branch&lt;/tt&gt; tree generation
+ * method described in 
+ *
+ * &lt;p&gt; Chellapilla, K. 1998.  Evolving Modular Programs without Crossover.
+ * in &lt;i&gt;Proceedings of the Third Annual Genetic Programming Conference&lt;/i&gt;
+ * (GP98), J.R. Koza &lt;i&gt;et al&lt;/i&gt;, editors.  San Fransisco: Morgan Kaufmann.
+ * 23--31.
+ *
+ * &lt;p&gt; This algorithm attempts to create a tree of size &lt;tt&gt;requestedSize&lt;/tt&gt;,
+ * or &quot;slightly less&quot;.
+ *
+ * If the pipeline does not specify a size it wants (it uses &lt;tt&gt;NOSIZEGIVEN&lt;/tt&gt;),
+ * the algorithm picks a size at random from either [minSize...maxSize] or from
+ * sizeDistribution (one of the two &lt;b&gt;must&lt;/b&gt; be defined), and attempts to create
+ * a tree of that size or &quot;slightly less&quot;.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L41">public class RandomBranch extends GPNodeBuilder </span>
+    {
+    public static final String P_RANDOMBRANCH = &quot;random-branch&quot;;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L47">        return GPBuildDefaults.base().push(P_RANDOMBRANCH);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L52">        super.setup(state,base);</span>
+
+        // we use size distributions -- did the user specify any?
+<span class="nc bnc" id="L55" title="All 2 branches missed.">        if (!canPick())</span>
+<span class="nc" id="L56">            state.output.fatal(&quot;RandomBranch requires some kind of size distribution set, either with &quot; + P_MINSIZE + &quot;/&quot; + P_MAXSIZE + &quot;, or with &quot; + P_NUMSIZES + &quot;.&quot;,</span>
+<span class="nc" id="L57">                base, defaultBase());</span>
+<span class="nc" id="L58">        }</span>
+
+    public GPNode newRootedTree(final EvolutionState state,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final GPFunctionSet set,
+        final int argposition,
+        final int requestedSize)
+        {
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (requestedSize == NOSIZEGIVEN)  // pick from the distribution</span>
+<span class="nc" id="L69">            return randomBranch(state,type,pickSize(state,thread),thread,parent,argposition,set);</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        if (requestedSize &lt; 1)</span>
+<span class="nc" id="L71">            state.output.fatal(&quot;ec.gp.build.RandomBranch requested to build a tree, but a requested size was given that is &lt; 1.&quot;);</span>
+<span class="nc" id="L72">        return randomBranch(state,type,requestedSize,thread,parent,argposition,set);</span>
+        }
+
+    private GPNode randomBranch(final EvolutionState state,
+        final GPType type,
+        final int maxLength, 
+        final int thread,
+        final GPNodeParent parent,
+        final int argposition,
+        final GPFunctionSet set) 
+        {
+        // randomBranch can mess up if there are no available terminals for a given type.  If this occurs,
+        // and we find ourselves unable to pick a terminal when we want to do so, we will issue a warning,
+        // and pick a nonterminal, violating the maximum-size contract.  This can lead to pathological situations
+        // where the system will continue to go on and on unable to stop because it can't pick a terminal,
+        // resulting in running out of memory or some such.  But there are cases where we'd want to let
+        // this work itself out.
+<span class="nc" id="L89">        boolean triedTerminals = false;</span>
+
+<span class="nc" id="L91">        int t = type.type;</span>
+<span class="nc" id="L92">        GPNode[] terminals = set.terminals[t];</span>
+<span class="nc" id="L93">        GPNode[] nonterminals = set.nonterminals[t];</span>
+<span class="nc" id="L94">        GPNode[] nodes = set.nodes[t];          </span>
+
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (nodes.length == 0)</span>
+<span class="nc" id="L97">            errorAboutNoNodeWithType(type, state);   // total failure</span>
+
+<span class="nc bnc" id="L99" title="All 4 branches missed.">        if ((   maxLength == 1 ||                                                       // if the desired length is 1</span>
+<span class="nc bnc" id="L100" title="All 6 branches missed.">                warnAboutNonterminal(nonterminals.length==0, type, false, state)) &amp;&amp;    // OR if there are NO nonterminals!</span>
+            // this will freak out the static checkers
+            (triedTerminals = true) &amp;&amp;                                                  // [first set triedTerminals]
+            terminals.length != 0)                                                      // AND if there are available terminals
+            {
+<span class="nc" id="L105">            GPNode n = (GPNode)(terminals[state.random[thread].nextInt(terminals.length)].lightClone());</span>
+<span class="nc" id="L106">            n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L107">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L108">            n.parent = parent;</span>
+<span class="nc" id="L109">            return n;</span>
+            }
+        else
+            {
+<span class="nc bnc" id="L113" title="All 2 branches missed.">            if (triedTerminals) warnAboutNoTerminalWithType(type, false, state);        // we tried terminals and we're here because there were none!</span>
+                        
+            // grab all the nodes whose arity is &lt;= maxlength-1
+<span class="nc" id="L116">            int len = set.nonterminalsUnderArity[type.type].length-1;</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">            if (len &gt; maxLength-1) len = maxLength-1;</span>
+<span class="nc" id="L118">            GPNode[] okayNonterms = set.nonterminalsUnderArity[type.type][len];</span>
+
+<span class="nc bnc" id="L120" title="All 2 branches missed.">            if (okayNonterms.length == 0) // no nodes, pick a terminal</span>
+                {
+<span class="nc bnc" id="L122" title="All 2 branches missed.">                if (terminals.length == 0) </span>
+<span class="nc" id="L123">                    errorAboutNoNodeWithType(type, state);   // total failure</span>
+                                
+<span class="nc" id="L125">                GPNode n = (GPNode)(terminals[state.random[thread].nextInt(terminals.length)].lightClone());</span>
+<span class="nc" id="L126">                n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L127">                n.argposition = (byte)argposition;</span>
+<span class="nc" id="L128">                n.parent = parent;</span>
+<span class="nc" id="L129">                return n;</span>
+                }
+            else // we've got nonterminals, pick one at random
+                {
+<span class="nc" id="L133">                GPNode n = (GPNode)(okayNonterms[state.random[thread].nextInt(okayNonterms.length)].lightClone());</span>
+<span class="nc" id="L134">                n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L135">                n.argposition = (byte)argposition;</span>
+<span class="nc" id="L136">                n.parent = parent;</span>
+
+                // Populate the node...
+<span class="nc" id="L139">                GPType[] childtypes = n.constraints(((GPInitializer)state.initializer)).childtypes;</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                for(int x=0;x&lt;childtypes.length;x++)</span>
+<span class="nc" id="L141">                    n.children[x] = randomBranch(</span>
+                        state,childtypes[x],
+                        (maxLength-1)/childtypes.length, // note int division
+                        thread,n,x,set);
+<span class="nc" id="L145">                return n;</span>
+                }
+            }
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

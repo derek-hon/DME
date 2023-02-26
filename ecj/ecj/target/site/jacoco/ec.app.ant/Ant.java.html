@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Ant.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.ant</a> &gt; <span class="el_source">Ant.java</span></div><h1>Ant.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.ant;
+import ec.app.ant.func.*;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import java.io.*;
+import java.util.*;
+import ec.simple.*;
+
+/* 
+ * Ant.java
+ * 
+ * Created: Mon Nov  1 15:46:19 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Ant implements the Artificial Ant problem.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.gp.GPData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the Ant problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;file&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(filename of the .trl file for the Ant problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;turns&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/td&gt;
+ &lt;td valign=top&gt;(maximal number of moves the ant may make)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L51">public class Ant extends GPProblem implements SimpleProblemForm</span>
+    {
+    public static final String P_FILE = &quot;file&quot;;
+    public static final String P_MOVES = &quot;moves&quot;;
+
+    // map point descriptions
+    public static final int ERROR = 0;
+    public static final int FOOD = -1;
+    public static final int EMPTY = 1;
+    public static final int TRAIL = 2;
+    public static final int ATE = 3;
+
+    // orientations
+    public static final int O_UP = 0;
+    public static final int O_LEFT = 1;
+    public static final int O_DOWN = 2;
+    public static final int O_RIGHT = 3;
+
+    // maximum number of moves
+    public int maxMoves;
+
+    // how much food we have
+    public int food;
+
+    // our map
+    public int map[][];
+    
+    // store the positions of food so we can reset our map
+    // don't need to be deep-cloned, they're read-only
+    public int foodx[];
+    public int foody[];
+
+    // map[][]'s bounds
+    public int maxx;
+    public int maxy;
+
+    // our position
+    public int posx;
+    public int posy;
+
+    // how many points we've gotten
+    public int sum;
+    
+    // our orientation
+    public int orientation;
+
+    // how many moves we've made
+    public int moves;
+
+    // print modulo for doing the abcdefg.... thing at print-time
+    public int pmod;
+
+    public Object clone()
+        {
+<span class="nc" id="L105">        Ant myobj = (Ant) (super.clone());</span>
+<span class="nc" id="L106">        myobj.map = new int[map.length][];</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        for(int x=0;x&lt;map.length;x++)</span>
+<span class="nc" id="L108">            myobj.map[x] = (int[])(map[x].clone());</span>
+<span class="nc" id="L109">        return myobj;</span>
+        }
+
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L116">        super.setup(state,base);</span>
+
+        // No need to verify the GPData object
+
+        // not using any default base -- it's not safe
+
+        // how many maxMoves?
+<span class="nc" id="L123">        maxMoves = state.parameters.getInt(base.push(P_MOVES),null,1);</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (maxMoves==0)</span>
+<span class="nc" id="L125">            state.output.error(&quot;The number of moves an ant has to make must be &gt;0&quot;);</span>
+        
+        // load our file
+        //File filename = state.parameters.getFile(base.push(P_FILE),null);
+        //if (filename==null)
+        //    state.output.fatal(&quot;Ant trail file name not provided.&quot;);
+<span class="nc" id="L131">        InputStream str = state.parameters.getResource(base.push(P_FILE), null);</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (str == null)</span>
+<span class="nc" id="L133">            state.output.fatal(&quot;Error loading file or resource&quot;, base.push(P_FILE), null);</span>
+        
+<span class="nc" id="L135">        food = 0;</span>
+<span class="nc" id="L136">        LineNumberReader lnr = null;</span>
+        try
+            {
+<span class="nc" id="L139">            lnr = </span>
+                //new LineNumberReader(new FileReader(filename));
+                new LineNumberReader(new InputStreamReader(str));
+            
+<span class="nc" id="L143">            StringTokenizer st = new StringTokenizer(lnr.readLine()); // ugh</span>
+<span class="nc" id="L144">            maxx = Integer.parseInt(st.nextToken());</span>
+<span class="nc" id="L145">            maxy = Integer.parseInt(st.nextToken());</span>
+<span class="nc" id="L146">            map = new int[maxx][maxy];</span>
+            int y;
+<span class="nc bnc" id="L148" title="All 2 branches missed.">            for(y=0;y&lt;maxy;y++)</span>
+                {
+<span class="nc" id="L150">                String s = lnr.readLine();</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                if (s==null)</span>
+                    {
+<span class="nc" id="L153">                    state.output.warning(&quot;Ant trail file ended prematurely&quot;);</span>
+<span class="nc" id="L154">                    break;</span>
+                    }
+                int x;
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                for(x=0;x&lt;s.length();x++)</span>
+                    {
+<span class="nc bnc" id="L159" title="All 2 branches missed.">                    if (s.charAt(x)==' ')</span>
+<span class="nc" id="L160">                        map[x][y]=EMPTY;</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                    else if (s.charAt(x)=='#')</span>
+<span class="nc" id="L162">                        { map[x][y]=FOOD; food++; }</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">                    else if (s.charAt(x)=='.')</span>
+<span class="nc" id="L164">                        map[x][y]=TRAIL;</span>
+<span class="nc" id="L165">                    else state.output.error(&quot;Bad character '&quot; + s.charAt(x) + &quot;' on line number &quot; + lnr.getLineNumber() + &quot; of the Ant trail file.&quot;);</span>
+                    }
+                // fill out rest of X's
+<span class="nc bnc" id="L168" title="All 2 branches missed.">                for(int z=x;z&lt;maxx;z++)</span>
+<span class="nc" id="L169">                    map[z][y]=EMPTY;</span>
+                }
+            // fill out rest of Y's
+<span class="nc bnc" id="L172" title="All 2 branches missed.">            for (int z=y;z&lt;maxy;z++)</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                for(int x=0;x&lt;maxx;x++)</span>
+<span class="nc" id="L174">                    map[x][z]=EMPTY;</span>
+            }
+<span class="nc" id="L176">        catch (NumberFormatException e)</span>
+            {
+<span class="nc" id="L178">            state.output.fatal(&quot;The Ant trail file does not begin with x and y integer values.&quot;);</span>
+            }
+<span class="nc" id="L180">        catch (IOException e)</span>
+            {
+<span class="nc" id="L182">            state.output.fatal(&quot;The Ant trail file could not be read due to an IOException:\n&quot; + e);</span>
+            }
+        finally
+            {
+<span class="nc bnc" id="L186" title="All 2 branches missed.">            try { if (lnr != null) lnr.close(); } catch (IOException e) { }</span>
+            }
+<span class="nc" id="L188">        state.output.exitIfErrors();</span>
+
+        // load foodx and foody reset arrays
+<span class="nc" id="L191">        foodx = new int[food];</span>
+<span class="nc" id="L192">        foody = new int[food];</span>
+<span class="nc" id="L193">        int tmpf = 0;</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">        for(int x=0;x&lt;map.length;x++)</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">            for(int y=0;y&lt;map[0].length;y++)</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">                if (map[x][y]==FOOD) </span>
+<span class="nc" id="L197">                    { foodx[tmpf] = x; foody[tmpf] = y; tmpf++; }</span>
+<span class="nc" id="L198">        }</span>
+
+    public void evaluate(final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L205" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+<span class="nc" id="L207">            sum = 0;            </span>
+<span class="nc" id="L208">            posx = 0;</span>
+<span class="nc" id="L209">            posy = 0;</span>
+<span class="nc" id="L210">            orientation = O_RIGHT;</span>
+
+<span class="nc bnc" id="L212" title="All 4 branches missed.">            for(moves=0;moves&lt;maxMoves &amp;&amp; sum&lt;food; )</span>
+<span class="nc" id="L213">                ((GPIndividual)ind).trees[0].child.eval(</span>
+                    state,threadnum,input,stack,((GPIndividual)ind),this);
+                
+            // the fitness better be KozaFitness!
+<span class="nc" id="L217">            KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc" id="L218">            f.setStandardizedFitness(state,(food - sum));</span>
+<span class="nc" id="L219">            f.hits = sum;</span>
+<span class="nc" id="L220">            ind.evaluated = true;</span>
+
+            // clean up array
+<span class="nc bnc" id="L223" title="All 2 branches missed.">            for(int y=0;y&lt;food;y++)</span>
+<span class="nc" id="L224">                map[foodx[y]][foody[y]] = FOOD;</span>
+            }
+<span class="nc" id="L226">        }</span>
+
+    public void describe(
+        final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation, 
+        final int threadnum,
+        final int log)
+
+        {
+<span class="nc" id="L236">        state.output.println(&quot;\n\nBest Individual's Map\n=====================&quot;, log);</span>
+
+<span class="nc" id="L238">        sum = 0;</span>
+<span class="nc" id="L239">        pmod = 97; /** ascii a */</span>
+<span class="nc" id="L240">        posx = 0;</span>
+<span class="nc" id="L241">        posy = 0;</span>
+<span class="nc" id="L242">        orientation = O_RIGHT;</span>
+
+<span class="nc" id="L244">        int[][] map2 = new int[map.length][];</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">        for(int x=0;x&lt;map.length;x++)</span>
+<span class="nc" id="L246">            map2[x] = (int[])(map[x].clone());</span>
+
+<span class="nc" id="L248">        map2[posx][posy] = pmod; pmod++;</span>
+<span class="nc bnc" id="L249" title="All 4 branches missed.">        for(moves=0; moves&lt;maxMoves &amp;&amp; sum&lt;food; )</span>
+<span class="nc" id="L250">            ((EvalPrint)(((GPIndividual)ind).trees[0].child)).evalPrint(</span>
+                state,threadnum,input,stack,((GPIndividual)ind),this,
+                map2);
+        // print out the map
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        for(int y=0;y&lt;map2.length;y++)</span>
+            {
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            for(int x=0;x&lt;map2.length;x++)</span>
+                {
+<span class="nc bnc" id="L258" title="All 5 branches missed.">                switch(map2[x][y])</span>
+                    {
+                    case FOOD: 
+<span class="nc" id="L261">                        state.output.print(&quot;#&quot;,log);</span>
+<span class="nc" id="L262">                        break;</span>
+                    case EMPTY: 
+<span class="nc" id="L264">                        state.output.print(&quot;.&quot;,log);</span>
+<span class="nc" id="L265">                        break;</span>
+                    case TRAIL: 
+<span class="nc" id="L267">                        state.output.print(&quot;+&quot;,log);</span>
+<span class="nc" id="L268">                        break;</span>
+                    case ATE:
+<span class="nc" id="L270">                        state.output.print(&quot;?&quot;,log);</span>
+<span class="nc" id="L271">                        break;</span>
+                    default:
+<span class="nc" id="L273">                        state.output.print(&quot;&quot;+((char)map2[x][y]),log);</span>
+                        break;
+                    }
+                }
+<span class="nc" id="L277">            state.output.println(&quot;&quot;,log);</span>
+            }
+
+<span class="nc" id="L280">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

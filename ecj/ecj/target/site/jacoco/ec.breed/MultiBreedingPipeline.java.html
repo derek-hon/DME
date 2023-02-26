@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MultiBreedingPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.breed</a> &gt; <span class="el_source">MultiBreedingPipeline.java</span></div><h1>MultiBreedingPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.breed;
+import ec.*;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * MultiBreedingPipeline.java
+ * 
+ * Created: December 28, 1999
+ * By: Sean Luke
+ */
+
+/**
+ * MultiBreedingPipeline is a BreedingPipeline stores some &lt;i&gt;n&lt;/i&gt; child sources; 
+ * each time it must produce an individual or two, 
+ * it picks one of these sources at random and has it do the production.
+ 
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ If by &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;generate-max&lt;/tt&gt; is &lt;tt&gt;true&lt;/tt&gt;, then always the maximum
+ number of the typical numbers of any child source.  If &lt;tt&gt;false&lt;/itt&gt;, then varies
+ depending on the child source picked.
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ Dynamic.  As many as the user specifies.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;generate-max&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; (default) or &lt;tt&gt;false&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(Each time produce(...) is called, should the MultiBreedingPipeline
+ force all its sources to produce exactly the same number of individuals as the largest
+ typical number of individuals produced by any source in the group?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ breed.multibreed
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L52">public class MultiBreedingPipeline extends BreedingPipeline</span>
+    {
+    public static final String P_GEN_MAX = &quot;generate-max&quot;;
+    public static final String P_MULTIBREED = &quot;multibreed&quot;;
+
+    public int maxGeneratable;
+    public boolean generateMax;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L62">        return BreedDefaults.base().push(P_MULTIBREED);</span>
+        }
+
+<span class="nc" id="L65">    public int numSources() { return DYNAMIC_SOURCES; }    </span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L69">        super.setup(state,base);</span>
+
+<span class="nc" id="L71">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L73">        double total = 0.0;</span>
+        
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (sources.length == 0)  // uh oh</span>
+<span class="nc" id="L76">            state.output.fatal(&quot;num-sources must be provided and &gt; 0 for MultiBreedingPipeline&quot;,</span>
+<span class="nc" id="L77">                base.push(P_NUMSOURCES), def.push(P_NUMSOURCES));</span>
+        
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        for(int x=0;x&lt;sources.length;x++)</span>
+            {
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            if (sources[x].probability&lt;0.0) // null checked from state.output.error above</span>
+<span class="nc" id="L82">                state.output.error(&quot;Pipe #&quot; + x + &quot; must have a probability &gt;= 0.0&quot;,base);  // convenient that NO_PROBABILITY is -1...</span>
+<span class="nc" id="L83">            else total += sources[x].probability;</span>
+            }
+
+<span class="nc" id="L86">        state.output.exitIfErrors();</span>
+
+        // Now check for nonzero probability (we know it's positive)
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (total == 0.0)</span>
+<span class="nc" id="L90">            state.output.warning(&quot;MultiBreedingPipeline's children have all zero probabilities -- this will be treated as a uniform distribution.  This could be an error.&quot;, base);</span>
+
+        // allow all zero probabilities
+<span class="nc" id="L93">        BreedingSource.setupProbabilities(sources);</span>
+
+<span class="nc" id="L95">        generateMax = state.parameters.getBoolean(base.push(P_GEN_MAX),def.push(P_GEN_MAX),true);</span>
+<span class="nc" id="L96">        maxGeneratable=0;  // indicates that I don't know what it is yet.  </span>
+                
+        // declare that likelihood isn't used
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (likelihood &lt; 1.0)</span>
+<span class="nc" id="L100">            state.output.warning(&quot;MultiBreedingPipeline does not respond to the 'likelihood' parameter.&quot;,</span>
+<span class="nc" id="L101">                base.push(P_LIKELIHOOD), def.push(P_LIKELIHOOD));</span>
+<span class="nc" id="L102">        }</span>
+
+    /** Returns the max of typicalIndsProduced() of all its children */
+    public int typicalIndsProduced()
+        { 
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if (maxGeneratable==0) // not determined yet</span>
+<span class="nc" id="L108">            maxGeneratable = maxChildProduction();</span>
+<span class="nc" id="L109">        return maxGeneratable; </span>
+        }
+
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+
+        {
+<span class="nc" id="L121">        int start = inds.size();</span>
+
+<span class="nc" id="L123">        BreedingSource s = sources[BreedingSource.pickRandom(sources,state.random[thread].nextDouble())];</span>
+        int total;
+        
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        if (generateMax)</span>
+            {
+<span class="nc bnc" id="L128" title="All 2 branches missed.">            if (maxGeneratable==0)</span>
+<span class="nc" id="L129">                maxGeneratable = maxChildProduction();</span>
+<span class="nc" id="L130">            int n = maxGeneratable;</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            if (n &lt; min) n = min;</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">            if (n &gt; max) n = max;</span>
+
+<span class="nc" id="L134">            total = s.produce(n,n,subpopulation,inds, state,thread, misc);</span>
+<span class="nc" id="L135">            }</span>
+        else
+            {
+<span class="nc" id="L138">            total = s.produce(min,max,subpopulation,inds, state,thread, misc);</span>
+            }
+            
+<span class="nc" id="L141">        return total;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

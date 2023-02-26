@@ -1,0 +1,599 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Func_Math.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.proctexture</a> &gt; <span class="el_source">Func_Math.java</span></div><h1>Func_Math.java</h1><pre class="source lang-java linenums">package ec.proctexture;
+
+import ec.*;
+import ec.gp.*;
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L7">public abstract class Func_Math extends GPNode implements SimplifyableGPNode</span>
+{
+	
+	@Override 
+<span class="nc" id="L11">	public boolean IsVolatile(){ return false; }</span>
+	@Override 
+	public GPNode  GetSimplifiedReplacement(EvolutionState state)
+	{ 
+<span class="nc" id="L15">		return SimplifyableGPNode.SimplifyableGPNodeImpl.GetSimplifiedReplacement(state, this); </span>
+	}
+
+<span class="nc" id="L18">	public static class Add extends Func_Math</span>
+	{
+<span class="nc" id="L20">	    public String toString()         { return &quot;+&quot;; }</span>
+<span class="nc" id="L21">	    public int    expectedChildren() { return 2;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double c1, c2;
+<span class="nc" id="L32">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L34">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L35">	        c1 = rd.GetD();</span>
+<span class="nc" id="L36">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L37">			c2 = rd.GetD();</span>
+
+<span class="nc" id="L39">	        rd.SetTo(  c1 + c2  );</span>
+<span class="nc" id="L40">	    }</span>
+	}
+
+<span class="nc" id="L43">	public static class Sub extends Func_Math</span>
+	{
+<span class="nc" id="L45">	    public String toString()         { return &quot;-&quot;; }</span>
+<span class="nc" id="L46">	    public int    expectedChildren() { return 2;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double c1, c2;
+<span class="nc" id="L57">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L59">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L60">	        c1 = rd.GetD();</span>
+<span class="nc" id="L61">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L62">			c2 = rd.GetD();</span>
+
+<span class="nc" id="L64">	        rd.SetTo(  c1 - c2  );</span>
+<span class="nc" id="L65">	    }</span>
+	}
+
+<span class="nc" id="L68">	public static class Neg extends Func_Math</span>
+	{
+<span class="nc" id="L70">	    public String toString()         { return &quot;-&quot;; }</span>
+<span class="nc" id="L71">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double val;
+<span class="nc" id="L82">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L84">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L85">	        val = rd.GetD();</span>
+
+<span class="nc" id="L87">	        rd.SetTo(  0.0 - val  );</span>
+<span class="nc" id="L88">	    }</span>
+	}
+
+<span class="nc" id="L91">	public static class Mul extends Func_Math</span>
+	{
+<span class="nc" id="L93">	    public String toString()         { return &quot;*&quot;; }</span>
+<span class="nc" id="L94">	    public int    expectedChildren() { return 2;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double c1, c2;
+<span class="nc" id="L105">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L107">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L108">	        c1 = rd.GetD();</span>
+<span class="nc" id="L109">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L110">			c2 = rd.GetD();</span>
+
+<span class="nc" id="L112">	        rd.SetTo(  c1 * c2  );</span>
+<span class="nc" id="L113">	    }</span>
+	}
+
+<span class="nc" id="L116">	public static class Div extends Func_Math</span>
+	{
+<span class="nc" id="L118">	    public String toString()         { return &quot;/&quot;; }</span>
+<span class="nc" id="L119">	    public int    expectedChildren() { return 2;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double num, div;
+<span class="nc" id="L130">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L132">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L133">	        num = rd.GetD();</span>
+<span class="nc" id="L134">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L135">			div = rd.GetD();</span>
+
+<span class="nc bnc" id="L137" title="All 2 branches missed.">	        rd.SetTo(  (div!= 0) ? (num/div) : 0  );</span>
+<span class="nc" id="L138">	    }</span>
+	}
+
+<span class="nc" id="L141">	public static class Sin extends Func_Math</span>
+	{
+<span class="nc" id="L143">	    public String toString()         { return &quot;sin&quot;; }</span>
+<span class="nc" id="L144">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L155">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L157">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L158">	        v = rd.GetD();</span>
+
+<span class="nc" id="L160">	        rd.SetTo(  Math.sin(v)  );</span>
+<span class="nc" id="L161">	    }</span>
+	}
+
+<span class="nc" id="L164">	public static class Cos extends Func_Math</span>
+	{
+<span class="nc" id="L166">	    public String toString()         { return &quot;cos&quot;; }</span>
+<span class="nc" id="L167">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L178">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L180">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L181">	        v = rd.GetD();</span>
+
+<span class="nc" id="L183">	        rd.SetTo(  Math.cos(v)  );</span>
+<span class="nc" id="L184">	    }</span>
+	}
+
+<span class="nc" id="L187">	public static class Tan extends Func_Math</span>
+	{
+<span class="nc" id="L189">	    public String toString()         { return &quot;tan&quot;; }</span>
+<span class="nc" id="L190">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L201">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L203">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L204">	        v = rd.GetD();</span>
+
+<span class="nc" id="L206">	        v = Math.tan(v);</span>
+<span class="nc bnc" id="L207" title="All 4 branches missed.">	        if(Double.isInfinite(v) || Double.isNaN(v))</span>
+<span class="nc" id="L208">	        	v = 0.0;</span>
+
+<span class="nc" id="L210">	        rd.SetTo(  v  );</span>
+<span class="nc" id="L211">	    }</span>
+	}
+
+<span class="nc" id="L214">	public static class Abs extends Func_Math</span>
+	{
+<span class="nc" id="L216">	    public String toString()         { return &quot;abs&quot;; }</span>
+<span class="nc" id="L217">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L228">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L230">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L231">	        v = rd.GetD();</span>
+
+<span class="nc" id="L233">	        rd.SetTo(  Math.abs(v)  );</span>
+<span class="nc" id="L234">	    }</span>
+	}
+
+<span class="nc" id="L237">	public static class Pow extends Func_Math</span>
+	{
+<span class="nc" id="L239">	    public String toString()         { return &quot;pow&quot;; }</span>
+<span class="nc" id="L240">	    public int    expectedChildren() { return 2;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double base, exp;
+<span class="nc" id="L251">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L253">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L254">	        base = rd.GetD();</span>
+<span class="nc" id="L255">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L256">			exp = rd.GetD();</span>
+
+<span class="nc" id="L258">	        rd.SetTo(  Math.pow(base, exp)  );</span>
+<span class="nc" id="L259">	    }</span>
+	}
+
+<span class="nc" id="L262">	public static class Exp extends Func_Math</span>
+	{
+<span class="nc" id="L264">	    public String toString()         { return &quot;exp&quot;; }</span>
+<span class="nc" id="L265">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double exp;
+<span class="nc" id="L276">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L278">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L279">	        exp = rd.GetD();</span>
+
+<span class="nc" id="L281">	        rd.SetTo(  Math.exp(exp)  );</span>
+<span class="nc" id="L282">	    }</span>
+	}
+
+<span class="nc" id="L285">	public static class Sqrt extends Func_Math</span>
+	{
+<span class="nc" id="L287">	    public String toString()         { return &quot;sqrt&quot;; }</span>
+<span class="nc" id="L288">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L299">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L301">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L302">	        v = rd.GetD();</span>
+
+<span class="nc" id="L304">	        rd.SetTo(  Math.sqrt(Math.abs(v))  );</span>
+<span class="nc" id="L305">	    }</span>
+	}
+
+<span class="nc" id="L308">	public static class Square extends Func_Math</span>
+	{
+<span class="nc" id="L310">	    public String toString()         { return &quot;pow2&quot;; }</span>
+<span class="nc" id="L311">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L322">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L324">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L325">	        v = rd.GetD();</span>
+
+<span class="nc" id="L327">	        rd.SetTo(  Math.pow(v,2.0)  );</span>
+<span class="nc" id="L328">	    }</span>
+	}
+<span class="nc" id="L330">	public static class Cube extends Func_Math</span>
+	{
+<span class="nc" id="L332">	    public String toString()         { return &quot;pow3&quot;; }</span>
+<span class="nc" id="L333">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L344">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L346">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L347">	        v = rd.GetD();</span>
+
+<span class="nc" id="L349">	        rd.SetTo(  Math.pow(v,3.0)  );</span>
+<span class="nc" id="L350">	    }</span>
+	}
+
+<span class="nc" id="L353">	public static class Max extends Func_Math</span>
+	{
+<span class="nc" id="L355">	    public String toString()         { return &quot;max&quot;; }</span>
+<span class="nc" id="L356">	    public int    expectedChildren() { return 2;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double c1, c2;
+<span class="nc" id="L367">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L369">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L370">	        c1 = rd.GetD();</span>
+<span class="nc" id="L371">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L372">			c2 = rd.GetD();</span>
+
+<span class="nc" id="L374">	        rd.SetTo(  Math.max(c1, c2)  );</span>
+<span class="nc" id="L375">	    }</span>
+	}
+
+<span class="nc" id="L378">	public static class Min extends Func_Math</span>
+	{
+<span class="nc" id="L380">	    public String toString()         { return &quot;min&quot;; }</span>
+<span class="nc" id="L381">	    public int    expectedChildren() { return 2;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double c1, c2;
+<span class="nc" id="L392">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L394">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L395">	        c1 = rd.GetD();</span>
+<span class="nc" id="L396">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L397">			c2 = rd.GetD();</span>
+
+<span class="nc" id="L399">	        rd.SetTo(  Math.min(c1, c2)  );</span>
+<span class="nc" id="L400">	    }</span>
+	}
+
+<span class="nc" id="L403">	public static class Avg extends Func_Math</span>
+	{
+<span class="nc" id="L405">	    public String toString()         { return &quot;avg&quot;; }</span>
+<span class="nc" id="L406">	    public int    expectedChildren() { return 2;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double c1, c2;
+<span class="nc" id="L417">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L419">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L420">	        c1 = rd.GetD();</span>
+<span class="nc" id="L421">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L422">			c2 = rd.GetD();</span>
+
+<span class="nc" id="L424">	        rd.SetTo(  (c1+c2)/2.0  );</span>
+<span class="nc" id="L425">	    }</span>
+	}
+
+<span class="nc" id="L428">	public static class Log10 extends Func_Math</span>
+	{
+<span class="nc" id="L430">	    public String toString()         { return &quot;log_10&quot;; }</span>
+<span class="nc" id="L431">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L442">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L444">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L445">	        v = rd.GetD();</span>
+
+<span class="nc" id="L447">	        rd.SetTo(  Math.log10(v)  );</span>
+<span class="nc" id="L448">	    }</span>
+	}
+
+<span class="nc" id="L451">	public static class LogE extends Func_Math</span>
+	{
+<span class="nc" id="L453">	    public String toString()         { return &quot;log_e&quot;; }</span>
+<span class="nc" id="L454">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L465">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L467">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L468">	        v = rd.GetD();</span>
+
+<span class="nc" id="L470">	        rd.SetTo(  Math.log(v)  );</span>
+<span class="nc" id="L471">	    }</span>
+	}
+
+<span class="nc" id="L474">	public static class Round extends Func_Math</span>
+	{
+<span class="nc" id="L476">	    public String toString()         { return &quot;round&quot;; }</span>
+<span class="nc" id="L477">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L488">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L490">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L491">	        v = rd.GetD();</span>
+
+<span class="nc" id="L493">	        rd.SetTo(  Math.round(v)  );</span>
+<span class="nc" id="L494">	    }</span>
+	}
+
+<span class="nc" id="L497">	public static class Floor extends Func_Math</span>
+	{
+<span class="nc" id="L499">	    public String toString()         { return &quot;floor&quot;; }</span>
+<span class="nc" id="L500">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L511">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L513">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L514">	        v = rd.GetD();</span>
+
+<span class="nc" id="L516">	        rd.SetTo(  Math.floor(v)  );</span>
+<span class="nc" id="L517">	    }</span>
+	}
+
+<span class="nc" id="L520">	public static class Ceil extends Func_Math</span>
+	{
+<span class="nc" id="L522">	    public String toString()         { return &quot;ceil&quot;; }</span>
+<span class="nc" id="L523">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L534">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L536">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L537">	        v = rd.GetD();</span>
+
+<span class="nc" id="L539">	        rd.SetTo(  Math.ceil(v)  );</span>
+<span class="nc" id="L540">	    }</span>
+	}
+
+<span class="nc" id="L543">	public static class Lerp extends Func_Math</span>
+	{
+<span class="nc" id="L545">	    public String toString()         { return &quot;lerp&quot;; }</span>
+<span class="nc" id="L546">	    public int    expectedChildren() { return 3;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v1, v2, w, v;
+<span class="nc" id="L557">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L559">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L560">	        v1 = rd.GetD();</span>
+<span class="nc" id="L561">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L562">	        v2 = rd.GetD();</span>
+<span class="nc" id="L563">	        children[2].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L564">	        w = rd.GetD();</span>
+
+<span class="nc" id="L566">	        w = Math.max(Math.min(1.0, w), 0.0);</span>
+<span class="nc" id="L567">	        v = (v2 - v1);</span>
+<span class="nc" id="L568">	        v = (v*w) + v1;</span>
+
+<span class="nc" id="L570">	        rd.SetTo(  v  );</span>
+<span class="nc" id="L571">	    }</span>
+	}
+	
+<span class="nc" id="L574">	public static class Heavyside extends Func_Math</span>
+	{
+<span class="nc" id="L576">	    public String toString()         { return &quot;H&quot;; }</span>
+<span class="nc" id="L577">	    public int    expectedChildren() { return 1;   }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double v;
+<span class="nc" id="L588">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L590">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L591">	        v = rd.GetD();</span>
+	        
+<span class="nc bnc" id="L593" title="All 2 branches missed.">	        rd.SetTo(  (v &gt;= 0)? 1 : 0  );</span>
+<span class="nc" id="L594">	    }</span>
+	}
+	
+	
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

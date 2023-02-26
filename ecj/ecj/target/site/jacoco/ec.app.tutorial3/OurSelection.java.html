@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OurSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.tutorial3</a> &gt; <span class="el_source">OurSelection.java</span></div><h1>OurSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.tutorial3;
+import java.util.ArrayList;
+
+import ec.*;
+import ec.util.*;
+
+<span class="nc" id="L14">public class OurSelection extends SelectionMethod</span>
+    {
+    // We have to specify a default base
+    public static final String P_OURSELECTION = &quot;our-selection&quot;;
+<span class="nc" id="L18">    public Parameter defaultBase() { return new Parameter(P_OURSELECTION); }</span>
+
+    public static final String P_MIDDLEPROBABILITY = &quot;middle-probability&quot;;  // our parameter name
+
+    public double middleProbability;
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L26">        super.setup(state,base);   // always call super.setup(...) first if it exists!</span>
+
+<span class="nc" id="L28">        Parameter def = defaultBase();</span>
+
+        // gets a double between min (0.0) and max (1.0), from the parameter
+        // database, returning a value of min-1 (-1.0) if the parameter doesn't exist or was 
+        // outside this range.
+<span class="nc" id="L33">        middleProbability = state.parameters.getDoubleWithMax(base.push(P_MIDDLEPROBABILITY),</span>
+<span class="nc" id="L34">            def.push(P_MIDDLEPROBABILITY),0.0,1.0);</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (middleProbability &lt; 0.0)</span>
+<span class="nc" id="L36">            state.output.fatal(&quot;Middle-Probability must be between 0.0 and 1.0&quot;,</span>
+<span class="nc" id="L37">                base.push(P_MIDDLEPROBABILITY),def.push(P_MIDDLEPROBABILITY));</span>
+<span class="nc" id="L38">        } </span>
+
+    public int produce(final int subpopulation, final EvolutionState state, final int thread)
+        {
+        //toss a coin
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        if (state.random[thread].nextBoolean(middleProbability))</span>
+            {
+            //pick three individuals, return the middle one
+<span class="nc" id="L46">            ArrayList&lt;Individual&gt; inds = state.population.subpops.get(subpopulation).individuals;</span>
+<span class="nc" id="L47">            int one = state.random[thread].nextInt(inds.size());</span>
+<span class="nc" id="L48">            int two = state.random[thread].nextInt(inds.size());</span>
+<span class="nc" id="L49">            int three = state.random[thread].nextInt(inds.size());</span>
+            // generally the betterThan(...) method imposes an ordering,
+            // so you shouldn't see any cycles here except in very unusual domains...
+<span class="nc bnc" id="L52" title="All 2 branches missed.">            if (inds.get(two).fitness.betterThan(inds.get(one).fitness))</span>
+                {
+<span class="nc bnc" id="L54" title="All 2 branches missed.">                if (inds.get(three).fitness.betterThan(inds.get(two).fitness)) //  1 &lt; 2 &lt; 3</span>
+<span class="nc" id="L55">                    return two;</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                else if (inds.get(three).fitness.betterThan(inds.get(one).fitness)) //  1 &lt; 3 &lt; 2</span>
+<span class="nc" id="L57">                    return three;</span>
+                else //  3 &lt; 1 &lt; 2
+<span class="nc" id="L59">                    return one;</span>
+                }
+<span class="nc bnc" id="L61" title="All 2 branches missed.">            else if (inds.get(three).fitness.betterThan(inds.get(one).fitness)) //  2 &lt; 1 &lt; 3</span>
+<span class="nc" id="L62">                return one;</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            else if (inds.get(three).fitness.betterThan(inds.get(two).fitness)) //  2 &lt; 3 &lt; 1</span>
+<span class="nc" id="L64">                return three;</span>
+            else //  3 &lt; 2 &lt; 1
+<span class="nc" id="L66">                return two;</span>
+            }
+        else        //select a random individual's index
+            {
+<span class="nc" id="L70">            return state.random[thread].nextInt(</span>
+<span class="nc" id="L71">                state.population.subpops.get(subpopulation).individuals.size());</span>
+            }
+        }
+    }  // close the class
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

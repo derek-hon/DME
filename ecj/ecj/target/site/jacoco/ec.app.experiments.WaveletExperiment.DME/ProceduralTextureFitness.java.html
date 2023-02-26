@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProceduralTextureFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.DME</a> &gt; <span class="el_source">ProceduralTextureFitness.java</span></div><h1>ProceduralTextureFitness.java</h1><pre class="source lang-java linenums">package ec.app.experiments.WaveletExperiment.DME;
+
+import ec.util.Parameter;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import javax.imageio.ImageIO;
+import java.io.IOException;
+import java.util.Arrays;
+
+import ec.gp.koza.*;
+import ec.distributedME.*;
+import ec.EvolutionState;
+import ec.app.experiments.WaveletExperiment.wavelets.*;
+import ec.app.experiments.WaveletExperiment.wavelets.Haar.ImageQueryData;
+import ec.app.experiments.DME.ImageLoad;
+import ec.app.experiments.GeneralandFitness.PSDExtensions;
+import ec.app.experiments.GeneralandFitness.TextureElite;
+
+/**
+ * ProceduralTextureFitness.java Created: 05/05/2020 By: Derek Hon
+ **/
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L24">public class ProceduralTextureFitness extends ImageLoad {</span>
+
+    // public BufferedImage TargetImage_ColourScheme = null;
+    // DirectMatch TargetMatch = null;
+    double[] TargetSample;
+    // simple_haar Target = null;
+    // Haar haar = new Haar();
+<span class="nc" id="L31">    Haar Target = null;</span>
+<span class="nc" id="L32">    ImageQueryData solutionHaar = null;</span>
+<span class="nc" id="L33">    int width = 0, height = 0;</span>
+    ImageQueryData TargetData;
+<span class="nc" id="L35">    String savePath = &quot;&quot;;</span>
+    // double ZERO = 0.00001;
+    // ColorHistogram target;
+    // int Size;
+    // public static final String P_SAVE_PATH = &quot;save-path&quot;;
+    // public String savePath;
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L44">        super.setup(state, base);</span>
+
+<span class="nc" id="L46">        savePath = state.parameters.getString(base.push(P_SAVE_PATH), null);</span>
+
+<span class="nc" id="L48">        width = TargetImage.getWidth();</span>
+<span class="nc" id="L49">        height = TargetImage.getHeight();</span>
+
+<span class="nc" id="L51">        Target = new Haar(state, TargetImage);</span>
+<span class="nc" id="L52">        TargetData = Target.getHaarData();</span>
+<span class="nc" id="L53">    }</span>
+
+    @Override
+    public void evaluate(EvolutionState state, Elite ind, int submap, int threadnum) {
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if(ind.evaluated) return;</span>
+<span class="nc" id="L58">        super.evaluate(state, ind, submap, threadnum);</span>
+
+<span class="nc" id="L60">        Haar solution = new Haar(state, ind);</span>
+<span class="nc" id="L61">        solutionHaar = solution.getHaarData();</span>
+<span class="nc" id="L62">        double fitness = TargetData.compareTo(solutionHaar);</span>
+        // state.output.message(fitness + &quot;&quot;);
+
+<span class="nc" id="L65">        KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc" id="L66">        f.setStandardizedFitness(state, fitness);</span>
+<span class="nc" id="L67">        ind.evaluated = true;</span>
+<span class="nc" id="L68">    } // evaluate</span>
+
+    @Override
+    public void describe(final EvolutionState state, final Elite ind, final int submap, final int threadnum, final int log) {
+<span class="nc" id="L72">        super.describe(state, ind, submap, threadnum, log);</span>
+<span class="nc" id="L73">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

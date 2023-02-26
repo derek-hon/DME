@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BestSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">BestSelection.java</span></div><h1>BestSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.select;
+import ec.util.*;
+
+import java.util.ArrayList;
+
+import ec.*;
+/* 
+ * BestSelection.java
+ * 
+ * Created: Thu Feb 10 18:52:09 2000
+ * By: Sean Luke
+ */
+
+/**
+ * Performs a tournament selection restricted to only the best, or worst, &lt;i&gt;n&lt;/i&gt;
+ * indivdiuals in the population.  If the best individuals, then tournament selection
+ * will prefer the better among them; if the worst individuals, then tournament selection
+ * will prefer the worse among them.  The procedure for performing restriction is expensive to
+ * set up and bring down, so it's not appropriate for steady-state evolution.  Like
+ * TournamentSelection, the size of the tournament can be any 
+ * If you're not familiar with the relative advantages of 
+ * selection methods and just want a good one,
+ * use TournamentSelection instead.   Not appropriate for
+ * multiobjective fitnesses.
+ *
+ * &lt;p&gt;The tournament &lt;i&gt;size&lt;/i&gt; can be any floating point value &gt;= 1.0.  If it is a non-
+ * integer value &lt;i&gt;x&lt;/i&gt; then either a tournament of size ceil(x) is used
+ * (with probability x - floor(x)), else a tournament of size floor(x) is used.
+ *
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;pick-worst&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we pick from among the &lt;i&gt;worst n&lt;/i&gt; individuals in the tournament instead of the &lt;i&gt;best n&lt;/i&gt;?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;double &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the tournament size)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;n&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; int &gt; 0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the number of best-individuals to select from)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;n-fraction&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; 0.0 &lt;= double &lt; 1.0 (default is 1)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the number of best-individuals to select from, as a fraction of the total population)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.best
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L63">public class BestSelection extends SelectionMethod </span>
+    {
+    /** Default base */
+    public static final String P_BEST = &quot;best&quot;;
+    
+    public static final String P_N = &quot;n&quot;;
+    public static final String P_N_FRACTION = &quot;n-fraction&quot;;
+    public static final String P_PICKWORST = &quot;pick-worst&quot;;
+    public static final String P_SIZE = &quot;size&quot;;
+
+    /** Base size of the tournament; this may change.  */
+    public int size;
+
+    /** Probablity of picking the size plus one. */
+    public double probabilityOfPickingSizePlusOne;
+    
+    /** Do we pick the worst instead of the best? */
+    public boolean pickWorst;
+    
+    /** Sorted, normalized, totalized fitnesses for the population */
+    public int[] sortedPop;
+
+    public static final int NOT_SET = -1;
+<span class="nc" id="L86">    public int bestn = NOT_SET;</span>
+<span class="nc" id="L87">    public double bestnFrac = NOT_SET;</span>
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L91">        return SelectDefaults.base().push(P_BEST);</span>
+        }
+
+    // don't need clone etc. 
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L98">        super.setup(state,base);</span>
+        
+<span class="nc" id="L100">        Parameter def = defaultBase();</span>
+        
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if ( state.parameters.exists(base.push(P_N),def.push(P_N)) )</span>
+            {
+<span class="nc" id="L104">            bestn =</span>
+<span class="nc" id="L105">                state.parameters.getInt(base.push(P_N),def.push(P_N),1);</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">            if (bestn == 0 )</span>
+<span class="nc" id="L107">                state.output.fatal(&quot;n must be an integer greater than 0&quot;, base.push(P_N),def.push(P_N));</span>
+            }
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        else if (state.parameters.exists(base.push(P_N_FRACTION),def.push(P_N_FRACTION)) )</span>
+            {
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_N),def.push(P_N)) )</span>
+<span class="nc" id="L112">                state.output.fatal(&quot;Both n and n-fraction specified for BestSelection.&quot;, base.push(P_N),def.push(P_N));</span>
+<span class="nc" id="L113">            bestnFrac =</span>
+<span class="nc" id="L114">                state.parameters.getDoubleWithMax(base.push(P_N_FRACTION),def.push(P_N_FRACTION),0.0,1.0);</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">            if (bestnFrac &lt;= 0.0)</span>
+<span class="nc" id="L116">                state.output.fatal(&quot;n-fraction must be a double floating-point value greater than 0.0 and &lt;= 1.0&quot;, base.push(P_N_FRACTION),def.push(P_N_FRACTION));</span>
+            }
+<span class="nc" id="L118">        else state.output.fatal(&quot;Either n or n-fraction must be defined for BestSelection.&quot;, base.push(P_N),def.push(P_N));</span>
+                
+<span class="nc" id="L120">        pickWorst = state.parameters.getBoolean(base.push(P_PICKWORST),def.push(P_PICKWORST),false);</span>
+
+<span class="nc" id="L122">        double val = state.parameters.getDouble(base.push(P_SIZE),def.push(P_SIZE),1.0);</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (val &lt; 1.0)</span>
+<span class="nc" id="L124">            state.output.fatal(&quot;Tournament size must be &gt;= 1.&quot;,base.push(P_SIZE),def.push(P_SIZE));</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        else if (val == (int) val)  // easy, it's just an integer</span>
+            {
+<span class="nc" id="L127">            size = (int) val;</span>
+<span class="nc" id="L128">            probabilityOfPickingSizePlusOne = 0.0;</span>
+            }
+        else
+            {
+<span class="nc" id="L132">            size = (int) Math.floor(val);</span>
+<span class="nc" id="L133">            probabilityOfPickingSizePlusOne = val - size;  // for example, if we have 5.4, then the probability of picking *6* is 0.4</span>
+            }
+<span class="nc" id="L135">        }</span>
+
+    public void prepareToProduce(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L141">        super.prepareToProduce(s, subpopulation, thread);</span>
+
+        // load sortedPop integers
+<span class="nc" id="L144">        final ArrayList&lt;Individual&gt; i = s.population.subpops.get(subpopulation).individuals;</span>
+
+<span class="nc" id="L146">        sortedPop = new int[i.size()];</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        for(int x=0;x&lt;sortedPop.length;x++) sortedPop[x] = x;</span>
+
+        // sort sortedPop in increasing fitness order
+<span class="nc" id="L150">        QuickSort.qsort(sortedPop, </span>
+            new SortComparatorL()
+<span class="nc" id="L152">                {</span>
+                public boolean lt(long a, long b)
+                    {
+<span class="nc" id="L155">                    return ((Individual)(i.get((int)b))).fitness.betterThan(</span>
+<span class="nc" id="L156">                        ((Individual)(i.get((int)a))).fitness);</span>
+                    }
+
+                public boolean gt(long a, long b)
+                    {
+<span class="nc" id="L161">                    return ((Individual)(i.get((int)a))).fitness.betterThan(</span>
+<span class="nc" id="L162">                        ((Individual)(i.get((int)b))).fitness);</span>
+                    }
+                });
+
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (!pickWorst)  // gotta reverse it</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">            for(int x = 0; x &lt; sortedPop.length / 2; x++)</span>
+                {
+<span class="nc" id="L169">                int p = sortedPop[x];</span>
+<span class="nc" id="L170">                sortedPop[x] = sortedPop[sortedPop.length - x - 1];</span>
+<span class="nc" id="L171">                sortedPop[sortedPop.length - x - 1] = p;</span>
+                }
+                        
+        // figure out bestn
+<span class="nc bnc" id="L175" title="All 2 branches missed.">        if (bestnFrac != NOT_SET)</span>
+            {
+<span class="nc" id="L177">            bestn = (int) Math.max(Math.floor(s.population.subpops.get(subpopulation).individuals.size() * bestnFrac), 1);</span>
+            }
+<span class="nc" id="L179">        }</span>
+
+
+    /** Returns a tournament size to use, at random, based on base size and probability of picking the size plus one. */
+    int getTournamentSizeToUse(MersenneTwisterFast random)
+        {
+<span class="nc" id="L185">        double p = probabilityOfPickingSizePlusOne;   // pulls us to under 35 bytes</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        if (p == 0.0) return size;</span>
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        return size + (random.nextBoolean(p) ? 1 : 0);</span>
+        }
+
+    public int produce(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+        // pick size random individuals, then pick the best.
+        //Individual[] oldinds = state.population.subpops.get(subpopulation).individuals;
+<span class="nc" id="L196">        ArrayList&lt;Individual&gt; oldinds = state.population.subpops.get(subpopulation).individuals;</span>
+<span class="nc" id="L197">        int best = state.random[thread].nextInt(bestn);  // only among the first N</span>
+<span class="nc" id="L198">        int s = getTournamentSizeToUse(state.random[thread]);</span>
+                
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        if (pickWorst)</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            for (int x=1;x&lt;s;x++)</span>
+                {
+<span class="nc" id="L203">                int j = state.random[thread].nextInt(bestn);  // only among the first N</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                if (!(oldinds.get(sortedPop[j]).fitness.betterThan(oldinds.get(sortedPop[best]).fitness)))  // j isn't better than best</span>
+<span class="nc" id="L205">                    best = j;</span>
+                }
+        else
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            for (int x=1;x&lt;s;x++)</span>
+                {
+<span class="nc" id="L210">                int j = state.random[thread].nextInt(bestn);  // only among the first N</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">                if (oldinds.get(sortedPop[j]).fitness.betterThan(oldinds.get(sortedPop[best]).fitness))  // j is better than best</span>
+<span class="nc" id="L212">                    best = j;</span>
+                }
+        
+<span class="nc" id="L215">        return sortedPop[best];</span>
+        }
+    
+    public void finishProducing(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L222">        super.finishProducing(s, subpopulation, thread);</span>
+
+        // release the distributions so we can quickly 
+        // garbage-collect them if necessary
+<span class="nc" id="L226">        sortedPop = null;</span>
+<span class="nc" id="L227">        }    </span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

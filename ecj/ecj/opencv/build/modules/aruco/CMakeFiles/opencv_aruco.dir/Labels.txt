@@ -1,0 +1,35 @@
+# Target labels
+ Extra
+ opencv_aruco
+ Module
+# Source files and their labels
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/aruco/include/opencv2/aruco.hpp
+ Extra
+ opencv_aruco
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/aruco/include/opencv2/aruco/aruco_calib.hpp
+ Extra
+ opencv_aruco
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/aruco/include/opencv2/aruco/charuco.hpp
+ Extra
+ opencv_aruco
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/aruco/src/aruco.cpp
+ Extra
+ opencv_aruco
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/aruco/src/aruco_calib.cpp
+ Extra
+ opencv_aruco
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/aruco/src/charuco.cpp
+ Extra
+ opencv_aruco
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/aruco/src/precomp.hpp
+ Extra
+ opencv_aruco
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/cvconfig.h
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/opencv2/opencv_modules.hpp

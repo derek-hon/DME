@@ -1,0 +1,1572 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPNode.java</span></div><h1>GPNode.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+import java.util.*;
+
+/* 
+ * GPNode.java
+ * 
+ * Created: Fri Aug 27 17:14:12 1999
+ * By: Sean Luke
+ */
+
+/**
+ * GPNode is a GPNodeParent which is the abstract superclass of
+ * all GP function nodes in trees.  GPNode contains quite a few functions
+ * for cloning subtrees in special ways, counting the number of nodes
+ * in subtrees in special ways, and finding specific nodes in subtrees.
+ *
+ * GPNode's lightClone() method does not clone its children (it copies the
+ * array, but that's it).  If you want to deep-clone a tree or subtree, you
+ * should use one of the cloneReplacing(...) methods instead.
+ *
+ * &lt;p&gt;GPNodes contain a number of important items:
+ * &lt;ul&gt;&lt;li&gt;A &lt;i&gt;constraints&lt;/i&gt; object which defines the name of the node,
+ * its arity, and its type constraints. This
+ * object is shared with all GPNodes of the same function name/arity/returntype/childtypes.
+ * &lt;li&gt;A &lt;i&gt;parent&lt;/i&gt;.  This is either another GPNode, or (if this node
+ * is the root) a GPTree.
+ * &lt;li&gt;Zero or more &lt;i&gt;children&lt;/i&gt;, which are GPNodes.
+ * &lt;li&gt;An argument position in its parent.
+ * &lt;/ul&gt;
+ *
+
+ * &lt;p&gt;In addition to serialization for checkpointing, GPNodes may read and write themselves to streams in three ways.
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;writeNode(...,DataOutput)/readNode(...,DataInput)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This method
+ * transmits or receives a GPNode in binary.  It is the most efficient approach to sending
+ * GPNodes over networks, etc.  The default versions of writeNode/readNode both generate errors.
+ * GPNode subclasses should override them to provide more functionality, particularly if you're planning on using
+ * ECJ in a distributed fashion.  Both of these functions are called by GPNode's readRootedTree/writeRootedTree
+ * respectively, which handle the reading/printing of the trees as a whole.
+ *
+ * &lt;li&gt;&lt;b&gt;printNode(...,PrintWriter)/readNode(...,LineNumberReader)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach transmits or receives a GPNode in text encoded such that the GPNode is largely readable
+ * by humans but can be read back in 100% by ECJ as well.  To do this, these methods will typically encode numbers
+ * using the &lt;tt&gt;ec.util.Code&lt;/tt&gt; class.  These methods are mostly used to write out populations to
+ * files for inspection, slight modification, then reading back in later on.  Both of these functions are called by GPNode's readRootedTree/writeRootedTree
+ * respectively, which handle the reading/printing of the trees as a whole.  Notably readRootedNode
+ * will try to determine what kind of node is next, then call &lt;b&gt;readNode&lt;/b&gt; on the prototype for that
+ * node to generate the node.  &lt;b&gt;printNode&lt;/b&gt; by default calls toString() and
+ * prints the result, though subclasses often override this to provide additional functionality (notably
+ * ERCs).
+ *
+ * &lt;li&gt;&lt;b&gt;printNodeForHumans(...,PrintWriter)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach prints a GPNode in a fashion intended for human consumption only.
+ * &lt;b&gt;printNodeForHumans&lt;/b&gt; by default calls toStringForHumans() (which by default calls toString()) and
+ * prints the result.  printNodeForHumans is called by &lt;b&gt;printRootedTreeForHumans&lt;/b&gt;, which handles
+ * printing of the entire GPNode tree.
+ * &lt;/ul&gt;
+
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;nc&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(name of the node constraints for the GPNode)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.node
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L86">public abstract class GPNode implements GPNodeParent, Prototype</span>
+    {
+    public static final String P_NODE = &quot;node&quot;;
+    public static final String P_NODECONSTRAINTS = &quot;nc&quot;;
+    public static final String GPNODEPRINTTAB = &quot;    &quot;;
+    public static final int MAXPRINTBYTES = 40;
+
+    public static final int NODESEARCH_ALL = 0;
+    public static final int NODESEARCH_TERMINALS = 1;
+    public static final int NODESEARCH_NONTERMINALS = 2;
+    static final int NODESEARCH_CUSTOM = 3;  // should not be public
+
+    public static final int CHILDREN_UNKNOWN = -1;
+    
+    // beats me if Java compilers will take advantage of the int-&gt;byte shortening.
+    // They may want everything aligned, in which case they may buffer the object
+    // anyway, hope not!
+
+    /** The GPNode's parent.  4 bytes.  :-(  But it really helps simplify breeding. */
+    public GPNodeParent parent;
+    public GPNode children[];
+    /** The argument position of the child in its parent. 
+        This is a byte to save space (GPNode is the critical object space-wise) -- 
+        besides, how often do you have 256 children? You can change this to a short
+        or int easily if you absolutely need to.  It's possible to eliminate even
+        this and have the child find itself in its parent, but that's an O(children[])
+        operation, and probably not inlinable, so I figure a byte is okay. */
+    public byte argposition;
+    /** The GPNode's constraints.  This is a byte to save space -- how often do
+        you have 256 different GPNodeConstraints?  Well, I guess it's not infeasible.
+        You can increase this to an int without much trouble.  You typically 
+        shouldn't access the constraints through this variable -- use the constraints(state)
+        method instead. */
+    public byte constraints;
+
+    /* Returns the GPNode's constraints.  A good JIT compiler should inline this. */
+    public final GPNodeConstraints constraints(final GPInitializer initializer) 
+        { 
+<span class="nc" id="L124">        return initializer.nodeConstraints[constraints]; </span>
+        }
+
+    /** The default base for GPNodes -- defined even though
+        GPNode is abstract so you don't have to in subclasses. */
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L131">        return GPDefaults.base().push(P_NODE);</span>
+        }
+
+    /** You ought to override this method to check to make sure that the
+        constraints are valid as best you can tell.  Things you might
+        check for:
+
+        &lt;ul&gt;
+        &lt;li&gt; children.length is correct
+        &lt;li&gt; certain arguments in constraints.childtypes are 
+        swap-compatible with each other
+        &lt;li&gt; constraints.returntype is swap-compatible with appropriate 
+        arguments in constraints.childtypes
+        &lt;/ul&gt;
+        
+        You can't check for everything, of course, but you might try some
+        obvious checks for blunders.  The default version of this method
+        simply calls numChildren() if it's defined (it returns something &gt;= 0).
+        If the value doesn't match the current number of children, an error is raised.
+        This is a simple constraints check.
+
+        The ultimate caller of this method must guarantee that he will eventually
+        call state.output.exitIfErrors(), so you can freely use state.output.error
+        instead of state.output.fatal(), which will help a lot.
+        
+        Warning: this method may get called more than once.
+    */
+
+    public void checkConstraints(final EvolutionState state,
+        final int tree,
+        final GPIndividual typicalIndividual,
+        final Parameter individualBase)
+        {
+<span class="nc" id="L164">        int numChildren = expectedChildren();</span>
+<span class="nc bnc" id="L165" title="All 4 branches missed.">        if (numChildren &gt;= 0 &amp;&amp; children.length != numChildren)  // uh oh</span>
+<span class="nc" id="L166">            state.output.error(&quot;Incorrect number of children for node &quot; + toStringForError() + &quot; at &quot; + individualBase + </span>
+                &quot;, was expecting &quot; + numChildren + &quot; but got &quot; + children.length);
+<span class="nc" id="L168">        }</span>
+        
+    /** 
+        Returns the number of children this node expects to have.  This method is
+        only called by the default implementation of checkConstraints(...), and by default
+        it returns CHILDREN_UNKNOWN.  You can override this method to return a value &gt;= 0,
+        which will be checked for in the default checkConstraints(...), or you can leave
+        this method alone and override checkConstraints(...) to check for more complex constraints
+        as you see fit.
+    */
+        
+<span class="nc" id="L179">    public int expectedChildren() { return CHILDREN_UNKNOWN; }</span>
+
+    /** 
+        Sets up a &lt;i&gt;prototypical&lt;/i&gt; GPNode with those features all nodes of that
+        prototype share, and nothing more.  So no filled-in children, 
+        no argposition, no parent.  Yet.
+
+        This must be called &lt;i&gt;after&lt;/i&gt; the GPTypes and GPNodeConstraints 
+        have been set up.  Presently they're set up in GPInitializer,
+        which gets called before this does, so we're safe. 
+        
+        You should override this if you need to load some special features on
+        a per-function basis.  Note that base hangs off of a function set, so
+        this method may get called for different instances in the same GPNode
+        class if they're being set up as prototypes for different GPFunctionSets.
+
+        If you absolutely need some global base, then you should use something
+        hanging off of GPDefaults.base().
+
+        The ultimate caller of this method must guarantee that he will eventually
+        call state.output.exitIfErrors(), so you can freely use state.output.error
+        instead of state.output.fatal(), which will help a lot.
+    */
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L205">        Parameter def = defaultBase();</span>
+
+        // determine my constraints -- at this point, the constraints should have been loaded.
+<span class="nc" id="L208">        String s = state.parameters.getString(base.push(P_NODECONSTRAINTS),</span>
+<span class="nc" id="L209">            def.push(P_NODECONSTRAINTS));</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        if (s==null)</span>
+<span class="nc" id="L211">            state.output.fatal(&quot;No node constraints are defined for the GPNode &quot; + </span>
+<span class="nc" id="L212">                toStringForError(),base.push(P_NODECONSTRAINTS),</span>
+<span class="nc" id="L213">                def.push(P_NODECONSTRAINTS));</span>
+<span class="nc" id="L214">        else constraints = GPNodeConstraints.constraintsFor(s,state).constraintNumber;</span>
+
+        // The number of children is determined by the constraints.  Though
+        // for some special versions of GPNode, we may have to enforce certain
+        // rules, checked in children versions of setup(...)
+
+<span class="nc" id="L220">        GPNodeConstraints constraintsObj = constraints(((GPInitializer)state.initializer));</span>
+<span class="nc" id="L221">        int len = constraintsObj.childtypes.length;</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        if (len == 0) children = constraintsObj.zeroChildren;</span>
+<span class="nc" id="L223">        else children = new GPNode[len];</span>
+<span class="nc" id="L224">        }</span>
+
+    /** Returns the argument type of the slot that I fit into in my parent.  
+        If I'm the root, returns the treetype of the GPTree. */
+    public final GPType parentType(final GPInitializer initializer)
+        {
+<span class="nc bnc" id="L230" title="All 2 branches missed.">        if (parent instanceof GPNode)</span>
+<span class="nc" id="L231">            return ((GPNode)parent).constraints(initializer).childtypes[argposition];</span>
+        else // it's a tree root
+<span class="nc" id="L233">            return ((GPTree)parent).constraints(initializer).treetype;</span>
+        }
+
+
+    /** Verification of validity of the node in the tree -- strictly for debugging purposes only */
+    final int verify(EvolutionState state, GPFunctionSet set, int index)
+        {
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        if (!(state.initializer instanceof GPInitializer))</span>
+<span class="nc" id="L241">            { state.output.error(&quot;&quot; + index + &quot;: Initializer is not a GPInitializer&quot;); return index+1; }</span>
+            
+<span class="nc" id="L243">        GPInitializer initializer = (GPInitializer)(state.initializer);</span>
+        
+        // 1. Is the parent and argposition right?
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        if (parent == null)</span>
+<span class="nc" id="L247">            { state.output.error(&quot;&quot; + index + &quot;: null parent&quot;); return index+1; }</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (argposition &lt; 0)</span>
+<span class="nc" id="L249">            { state.output.error(&quot;&quot; + index + &quot;: negative argposition&quot;); return index+1; }</span>
+<span class="nc bnc" id="L250" title="All 4 branches missed.">        if (parent instanceof GPTree &amp;&amp; ((GPTree)parent).child != this)</span>
+<span class="nc" id="L251">            { state.output.error(&quot;&quot; + index + &quot;: I think I am a root node, but my GPTree does not think I am a root node&quot;); return index+1; }</span>
+<span class="nc bnc" id="L252" title="All 4 branches missed.">        if (parent instanceof GPTree &amp;&amp; argposition != 0)</span>
+<span class="nc" id="L253">            { state.output.error(&quot;&quot; + index + &quot;: I think I am a root node, but my argposition is not 0&quot;); return index+1; }</span>
+<span class="nc bnc" id="L254" title="All 4 branches missed.">        if (parent instanceof GPNode &amp;&amp; argposition &gt;= ((GPNode)parent).children.length)</span>
+<span class="nc" id="L255">            { state.output.error(&quot;&quot; + index + &quot;: argposition outside range of parent's children array&quot;); return index+1; }</span>
+<span class="nc bnc" id="L256" title="All 4 branches missed.">        if (parent instanceof GPNode &amp;&amp; ((GPNode)parent).children[argposition] != this)</span>
+<span class="nc" id="L257">            { state.output.error(&quot;&quot; + index + &quot;: I am not found in the provided argposition (&quot;+argposition+&quot;) of my parent's children array&quot;); return index+1; }</span>
+
+        // 2. Are the parents and argpositions right for my kids? [need to double check]
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        if (children==null)</span>
+<span class="nc" id="L261">            { state.output.error(&quot;&quot; + index + &quot;: Null Children Array&quot;); return index+1; }</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+            {
+<span class="nc bnc" id="L264" title="All 2 branches missed.">            if (children[x] == null)</span>
+<span class="nc" id="L265">                { state.output.error(&quot;&quot; + index + &quot;: Null Child (#&quot; + x + &quot; )&quot;); return index+1; }</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">            if (children[x].parent != this)</span>
+<span class="nc" id="L267">                { state.output.error(&quot;&quot; + index + &quot;: child #&quot;+x+&quot; does not have me as a parent&quot;); return index+1; }</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">            if (children[x].argposition &lt; 0)</span>
+<span class="nc" id="L269">                { state.output.error(&quot;&quot; + index + &quot;: child #&quot;+x+&quot; argposition is negative&quot;); return index+1; }</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">            if (children[x].argposition != x)</span>
+<span class="nc" id="L271">                { state.output.error(&quot;&quot; + index + &quot;: child #&quot;+x+&quot; argposition does not match position in the children array&quot;); return index+1; }</span>
+            }
+        
+        // 3. Do I have valid constraints?
+<span class="nc bnc" id="L275" title="All 4 branches missed.">        if (constraints &lt; 0 || constraints &gt;= initializer.numNodeConstraints)</span>
+<span class="nc" id="L276">            { state.output.error(&quot;&quot; + index + &quot;: Preposterous node constraints (&quot; + constraints + &quot;)&quot;); return index+1; }</span>
+        
+        // 4. Am I swap-compatable with my parent?
+<span class="nc bnc" id="L279" title="All 4 branches missed.">        if (parent instanceof GPNode &amp;&amp; !constraints(initializer).returntype.compatibleWith(initializer, </span>
+<span class="nc" id="L280">                ((GPNode)(parent)).constraints(initializer).childtypes[argposition]))</span>
+<span class="nc" id="L281">            { state.output.error(&quot;&quot; + index + &quot;: Incompatable GP type between me and my parent&quot;); return index+1; }</span>
+<span class="nc bnc" id="L282" title="All 4 branches missed.">        if (parent instanceof GPTree &amp;&amp; !constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L283">                ((GPTree)(parent)).constraints(initializer).treetype))</span>
+<span class="nc" id="L284">            { state.output.error(&quot;&quot; + index + &quot;: I am root, but incompatable GP type between me and my tree return type&quot;); return index+1; }</span>
+        
+        // 5. Is my class in the GPFunctionSet?
+<span class="nc" id="L287">        GPNode[] nodes = set.nodesByArity[constraints(initializer).returntype.type][children.length];</span>
+<span class="nc" id="L288">        boolean there = false;</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">        for(int x=0;x&lt;nodes.length;x++)</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">            if (nodes[x].getClass() == this.getClass()) { there = true; break; }</span>
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        if (!there)</span>
+<span class="nc" id="L292">            { state.output.error(&quot;&quot; + index + &quot;: I'm not in the function set.&quot;); return index+1; }</span>
+            
+        // otherwise we've passed -- go to next node
+<span class="nc" id="L295">        index++;</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L297">            index = children[x].verify(state, set, index);</span>
+<span class="nc" id="L298">        state.output.exitIfErrors();</span>
+<span class="nc" id="L299">        return index;</span>
+        }
+
+
+    /** Returns true if I can swap into node's position. */
+
+    public final boolean swapCompatibleWith(final GPInitializer initializer,
+        final GPNode node)
+        {
+        // I'm atomically compatible with him; a fast check
+<span class="nc bnc" id="L309" title="All 2 branches missed.">        if (constraints(initializer).returntype==node.constraints(initializer).returntype)  // no need to check for compatibility</span>
+<span class="nc" id="L310">            return true;</span>
+
+        // I'm set compatible with his parent's swap-position
+        GPType type;
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        if (node.parent instanceof GPNode)  // it's a GPNode</span>
+<span class="nc" id="L315">            type = </span>
+<span class="nc" id="L316">                ((GPNode)(node.parent)).constraints(initializer).childtypes[node.argposition];</span>
+        else // it's a tree root; I'm set compatible with the GPTree type
+<span class="nc" id="L318">            type = </span>
+<span class="nc" id="L319">                ((GPTree)(node.parent)).constraints(initializer).treetype;</span>
+        
+<span class="nc" id="L321">        return constraints(initializer).returntype.compatibleWith(initializer,type);</span>
+        }
+
+    /** Returns the number of nodes, constrained by g.test(...)
+        in the subtree for which this GPNode is root.  This might
+        be sped up by caching the value.  O(n). */
+    public int numNodes(final GPNodeGatherer g)
+        {
+<span class="nc" id="L329">        int s=0;</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++) s += children[x].numNodes(g);</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        return s + (g.test(this) ? 1 : 0);</span>
+        }
+
+    /** Returns the number of nodes, constrained by nodesearch,
+        in the subtree for which this GPNode is root.
+        This might be sped up by cacheing the value somehow.  O(n). */
+    public int numNodes(final int nodesearch)
+        {
+<span class="nc" id="L339">        int s=0;</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++) s += children[x].numNodes(nodesearch);</span>
+<span class="nc bnc" id="L341" title="All 10 branches missed.">        return s + ((nodesearch==NODESEARCH_ALL ||</span>
+                (nodesearch==NODESEARCH_TERMINALS &amp;&amp; children.length==0) ||
+<span class="nc" id="L343">                (nodesearch==NODESEARCH_NONTERMINALS &amp;&amp; children.length&gt;0)) ? 1 : 0);</span>
+        }
+
+    /** Returns the depth of the tree, which is a value &gt;= 1.  O(n). */
+    public int depth()
+        {
+<span class="nc" id="L349">        int d=0;</span>
+        int newdepth;
+<span class="nc bnc" id="L351" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+            {
+<span class="nc" id="L353">            newdepth = children[x].depth();</span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">            if (newdepth&gt;d) d = newdepth;</span>
+            }
+<span class="nc" id="L356">        return d + 1;</span>
+        }
+        
+    /** Returns the path length of the tree, which is the sum of all paths from all nodes to the root.   O(n). */
+<span class="nc" id="L360">    public int pathLength(int nodesearch) { return pathLength(NODESEARCH_ALL, 0); }</span>
+    
+    int pathLength(int nodesearch, int currentDepth)
+        {
+<span class="nc" id="L364">        int sum = currentDepth;</span>
+<span class="nc bnc" id="L365" title="All 8 branches missed.">        if (nodesearch == NODESEARCH_NONTERMINALS &amp;&amp; children.length==0 ||  // I'm a leaf, don't include me</span>
+            nodesearch == NODESEARCH_TERMINALS &amp;&amp; children.length &gt; 0)  // I'm a nonleaf, don't include me
+<span class="nc" id="L367">            sum = 0;</span>
+            
+<span class="nc bnc" id="L369" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L370">            sum += pathLength(nodesearch, currentDepth + 1);</span>
+<span class="nc" id="L371">        return sum;</span>
+        }
+        
+    /** Returns the mean depth of the tree, which is path length (sum of all paths from all nodes to the root) divided by the number of nodes.  O(n). */
+    int meanDepth(int nodesearch)
+        {
+<span class="nc" id="L377">        return pathLength(nodesearch) / numNodes(nodesearch);</span>
+        }
+
+    /** Returns the depth at which I appear in the tree, which is a value &gt;= 0. O(ln n) avg.*/
+    public int atDepth()
+        {
+        // -- new code, no need for recursion
+<span class="nc" id="L384">        GPNodeParent cparent = parent;</span>
+<span class="nc" id="L385">        int count=0;</span>
+
+<span class="nc bnc" id="L387" title="All 4 branches missed.">        while(cparent!=null &amp;&amp; cparent instanceof GPNode)</span>
+            {
+<span class="nc" id="L389">            count++;</span>
+<span class="nc" id="L390">            cparent = ((GPNode)(cparent)).parent;</span>
+            }
+<span class="nc" id="L392">        return count;</span>
+
+        /* // -- old code
+           if (parent==null) return 0;
+           if (!(parent instanceof GPNode))  // found the root!
+           return 0;
+           else return 1 + ((GPNode)parent).atDepth();
+        */
+        }
+
+    /** Returns an iterator over all the GPNodes in the subtree rooted by this GPNode,
+        filtered by the provided GPNodeGatherer. */
+    public Iterator iterator(final GPNodeGatherer g)
+        {
+<span class="nc" id="L406">        return new Iterator()</span>
+<span class="nc" id="L407">            {</span>
+            GPNode current;
+<span class="nc" id="L409">            Iterator iter = iterator();</span>
+                        
+            void fill()
+                {
+<span class="nc bnc" id="L413" title="All 2 branches missed.">                if (current == null)</span>
+<span class="nc bnc" id="L414" title="All 2 branches missed.">                    while(iter.hasNext())</span>
+                        {
+<span class="nc" id="L416">                        GPNode node = (GPNode)(iter.next());</span>
+<span class="nc bnc" id="L417" title="All 2 branches missed.">                        if (g.test(node))</span>
+                            {
+<span class="nc" id="L419">                            current = node;</span>
+<span class="nc" id="L420">                            break;</span>
+                            }
+<span class="nc" id="L422">                        }</span>
+<span class="nc" id="L423">                }</span>
+                        
+            public boolean hasNext()
+                {
+<span class="nc" id="L427">                fill();</span>
+<span class="nc bnc" id="L428" title="All 2 branches missed.">                return (current != null);</span>
+                }
+                                
+            public Object next()
+                {
+<span class="nc" id="L433">                fill();</span>
+<span class="nc" id="L434">                Object obj = current;</span>
+<span class="nc" id="L435">                current = null;</span>
+<span class="nc" id="L436">                return obj;</span>
+                }
+                                
+            public void remove()
+                {
+<span class="nc" id="L441">                throw new UnsupportedOperationException();</span>
+                }
+            };
+        }
+
+    /** Returns an iterator over all the GPNodes in the subtree rooted by this GPNode,
+        filtered by the provided nodesearch option (either NODSEARCH_TERMINALS, NODESEARCH_NONTERMINALS, 
+        or NODESEARCH_ALL) */
+    public Iterator iterator(final int nodesearch)
+        {
+<span class="nc" id="L451">        return iterator(new GPNodeGatherer()</span>
+<span class="nc" id="L452">            {</span>
+            public boolean test(GPNode node)
+                {
+<span class="nc bnc" id="L455" title="All 10 branches missed.">                return (nodesearch==NODESEARCH_ALL ||</span>
+                    (nodesearch==NODESEARCH_TERMINALS &amp;&amp; node.children.length==0) ||
+                    (nodesearch==NODESEARCH_NONTERMINALS &amp;&amp; node.children.length&gt;0));
+                }
+            });
+        }
+                
+    /** Returns an iterator over all the GPNodes in the subtree rooted by this GPNode. */
+    public Iterator iterator()
+        {
+<span class="nc" id="L465">        return new Iterator()</span>
+<span class="nc" id="L466">            {</span>
+<span class="nc" id="L467">            GPNode current = GPNode.this;</span>
+<span class="nc" id="L468">            boolean used = false;</span>
+                        
+            void fill()
+                {
+<span class="nc bnc" id="L472" title="All 4 branches missed.">                if (used &amp;&amp; current != null)</span>
+                    { 
+                    // are we at a terminal node?
+<span class="nc bnc" id="L475" title="All 4 branches missed.">                    if (current.children == null || current.children.length == 0)</span>
+                        {
+<span class="nc" id="L477">                        GPNode node = current;</span>
+                                        
+                        while(true)  // look for a valid parent
+                            {
+<span class="nc bnc" id="L481" title="All 2 branches missed.">                            if (node == GPNode.this)  // no parent, give up</span>
+                                {
+<span class="nc" id="L483">                                current = null;</span>
+<span class="nc" id="L484">                                break;</span>
+                                }
+                            else
+                                {
+<span class="nc" id="L488">                                GPNode par = (GPNode)(node.parent);  // this is safe because we're not the root at this point</span>
+                                                
+<span class="nc bnc" id="L490" title="All 2 branches missed.">                                if (node.argposition + 1 &lt; par.children.length)  // go here</span>
+                                    {
+<span class="nc" id="L492">                                    current = par.children[node.argposition + 1];</span>
+<span class="nc" id="L493">                                    break;</span>
+                                    }
+                                else  // find another parent
+                                    {
+<span class="nc" id="L497">                                    node = par;</span>
+                                    }
+<span class="nc" id="L499">                                }</span>
+                            }
+<span class="nc" id="L501">                        }</span>
+                    else  // go down to first child
+                        {
+<span class="nc" id="L504">                        current = current.children[0];</span>
+                        }
+<span class="nc" id="L506">                    used = false;</span>
+                    }
+<span class="nc" id="L508">                }</span>
+                                
+            public boolean hasNext()
+                {
+<span class="nc" id="L512">                fill();</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">                return (current != null);</span>
+                }
+                                
+            public Object next()
+                {
+<span class="nc" id="L518">                fill();</span>
+<span class="nc" id="L519">                used = true;</span>
+<span class="nc" id="L520">                return current;</span>
+                }
+                                
+            public void remove()
+                {
+<span class="nc" id="L525">                throw new UnsupportedOperationException();</span>
+                }
+            };
+        }
+
+    /** Returns the p'th node, constrained by nodesearch,
+        in the subtree for which this GPNode is root.
+        Use numNodes(nodesearch) to determine the total number.  
+        g.test(...) is used as the constraining predicate.
+        p ranges from 0 to this number minus 1. O(n). The
+        resultant node is returned in &lt;i&gt;g&lt;/i&gt;.*/
+    public GPNode nodeInPosition(int p, GPNodeGatherer g)
+        {
+<span class="nc" id="L538">        nodeInPosition(p, g, NODESEARCH_CUSTOM);</span>
+<span class="nc" id="L539">        return g.node;</span>
+        }
+
+    /** Returns the p'th node, constrained by nodesearch,
+        in the subtree for which this GPNode is root.
+        Use numNodes(nodesearch) to determine the total number.  
+        g.test(...) is used as the constraining predicate.
+        p ranges from 0 to this number minus 1. O(n). The
+        resultant node is returned in &lt;i&gt;g&lt;/i&gt;.*/
+    public GPNode nodeInPosition(int p, int nodesearch)
+        {
+<span class="nc" id="L550">        GPNodeGatherer g = new GPNodeGatherer() { public boolean test(GPNode node) { return true; } };</span>
+<span class="nc" id="L551">        nodeInPosition(p, g , nodesearch);</span>
+<span class="nc" id="L552">        return g.node;</span>
+        }
+
+    /* Returns the p'th node, constrained by nodesearch,
+       in the subtree for which this GPNode is root.
+       Use numNodes(nodesearch) to determine the total number.  Or if
+       you used numNodes(g), then when
+       nodesearch == NODESEARCH_CUSTOM, g.test(...) is used
+       as the constraining predicate.
+       p ranges from 0 to this number minus 1. O(n). The
+       resultant node is returned in &lt;i&gt;g&lt;/i&gt;.*/
+    int nodeInPosition(int p, final GPNodeGatherer g, final int nodesearch)
+        {
+        // am I of the type I'm looking for?
+<span class="nc bnc" id="L566" title="All 12 branches missed.">        if (nodesearch==NODESEARCH_ALL ||</span>
+            (nodesearch==NODESEARCH_TERMINALS &amp;&amp; children.length==0) ||
+            (nodesearch==NODESEARCH_NONTERMINALS &amp;&amp; children.length&gt;0) ||
+<span class="nc bnc" id="L569" title="All 2 branches missed.">            (nodesearch==NODESEARCH_CUSTOM &amp;&amp; g.test(this)))</span>
+            {
+            // is the count now at 0?  Is it me?
+<span class="nc bnc" id="L572" title="All 2 branches missed.">            if (p==0)</span>
+                {
+<span class="nc" id="L574">                g.node = this; </span>
+<span class="nc" id="L575">                return -1; // found it</span>
+                }
+            // if it's not me, drop the count by 1
+<span class="nc" id="L578">            else p--;</span>
+            }
+        
+        // regardless, check my children if I've not returned by now
+<span class="nc bnc" id="L582" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+            {
+<span class="nc" id="L584">            p = children[x].nodeInPosition(p,g,nodesearch);</span>
+<span class="nc bnc" id="L585" title="All 2 branches missed.">            if (p==-1) return -1; // found it</span>
+            }
+<span class="nc" id="L587">        return p;</span>
+        }
+
+    /** Returns the root ancestor of this node.  O(ln n) average case,
+        O(n) worst case. */
+
+    public GPNodeParent rootParent()
+        {
+
+        // -- new code, no need for recursion
+<span class="nc" id="L597">        GPNodeParent cparent = this;</span>
+<span class="nc bnc" id="L598" title="All 4 branches missed.">        while(cparent!=null &amp;&amp; cparent instanceof GPNode)</span>
+<span class="nc" id="L599">            cparent = ((GPNode)(cparent)).parent;</span>
+<span class="nc" id="L600">        return cparent; </span>
+        }
+
+    /** Returns true if the subtree rooted at this node contains subnode.  O(n). */
+    public boolean contains(final GPNode subnode)
+        {
+<span class="nc bnc" id="L606" title="All 2 branches missed.">        if (subnode==this) return true;</span>
+<span class="nc bnc" id="L607" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc bnc" id="L608" title="All 2 branches missed.">            if (children[x].contains(subnode)) return true;</span>
+<span class="nc" id="L609">        return false;</span>
+        }
+
+
+    /** Starts a node in a new life immediately after it has been cloned.
+        The default version of this function does nothing.  The purpose of
+        this function is to give ERCs a chance to set themselves to a new
+        random value after they've been cloned from the prototype.
+        You should not assume that the node is properly connected to other
+        nodes in the tree at the point this method is called. */
+
+<span class="nc" id="L620">    public void resetNode(final EvolutionState state, final int thread) { }</span>
+
+    /** A convenience function for identifying a GPNode in an error message */
+<span class="nc" id="L623">    public String errorInfo() { return &quot;GPNode &quot; + toString() + &quot; in the function set for tree &quot; + ((GPTree)(rootParent())).treeNumber(); }</span>
+
+
+    public GPNode lightClone()
+        { 
+        try
+            {
+<span class="nc" id="L630">            GPNode obj = (GPNode)(super.clone());</span>
+<span class="nc" id="L631">            int len = children.length;</span>
+<span class="nc bnc" id="L632" title="All 2 branches missed.">            if (len == 0) obj.children = children;  // we'll share arrays -- probably just using GPNodeConstraints.zeroChildren anyway</span>
+<span class="nc" id="L633">            else obj.children = new GPNode[len];</span>
+<span class="nc" id="L634">            return obj;</span>
+            }
+<span class="nc" id="L636">        catch (CloneNotSupportedException e)</span>
+<span class="nc" id="L637">            { throw new InternalError(); } // never happens</span>
+        }
+
+    /** Deep-clones the tree rooted at this node, and returns the entire
+        copied tree.  The result has everything set except for the root
+        node's parent and argposition.  This method is identical to
+        cloneReplacing for historical reasons, except that it returns
+        the object as an Object, not a GPNode. */    
+ 
+    public Object clone()
+        { 
+<span class="nc" id="L648">        GPNode newnode = (GPNode)(lightClone());</span>
+<span class="nc bnc" id="L649" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+            {
+<span class="nc" id="L651">            newnode.children[x] = (GPNode)(children[x].cloneReplacing()); </span>
+            // if you think about it, the following CAN'T be implemented by
+            // the children's clone method.  So it's set here.
+<span class="nc" id="L654">            newnode.children[x].parent = newnode;</span>
+<span class="nc" id="L655">            newnode.children[x].argposition = (byte)x;</span>
+            }
+<span class="nc" id="L657">        return newnode;</span>
+        }
+
+    /** Deep-clones the tree rooted at this node, and returns the entire
+        copied tree.  The result has everything set except for the root
+        node's parent and argposition.  This method is identical to
+        cloneReplacing for historical reasons, except that it returns
+        the object as a GPNode, not an Object. 
+        @deprecated use clone() instead.
+    */    
+ 
+    public final GPNode cloneReplacing() 
+        {
+<span class="nc" id="L670">        return (GPNode)clone();</span>
+        }
+
+
+    /** Deep-clones the tree rooted at this node, and returns the entire
+        copied tree.  If the node oldSubtree is located somewhere in this
+        tree, then its subtree is replaced with a deep-cloned copy of
+        newSubtree.  The result has everything set except for the root
+        node's parent and argposition. */
+ 
+    public final GPNode cloneReplacing(final GPNode newSubtree, final GPNode oldSubtree) 
+        {
+<span class="nc bnc" id="L682" title="All 2 branches missed.">        if (this==oldSubtree)</span>
+<span class="nc" id="L683">            return newSubtree.cloneReplacing();</span>
+        else
+            {
+<span class="nc" id="L686">            GPNode newnode = (GPNode)(lightClone());</span>
+<span class="nc bnc" id="L687" title="All 2 branches missed.">            for(int x=0;x&lt;children.length;x++)</span>
+                {
+<span class="nc" id="L689">                newnode.children[x] = (GPNode)(children[x].cloneReplacing(newSubtree,oldSubtree)); </span>
+                // if you think about it, the following CAN'T be implemented by
+                // the children's clone method.  So it's set here.
+<span class="nc" id="L692">                newnode.children[x].parent = newnode;</span>
+<span class="nc" id="L693">                newnode.children[x].argposition = (byte)x;</span>
+                }
+<span class="nc" id="L695">            return newnode;     </span>
+            }
+        }
+
+
+
+    /** Deep-clones the tree rooted at this node, and returns the entire
+        copied tree.  If the node oldSubtree is located somewhere in this
+        tree, then its subtree is replaced with
+        newSubtree (&lt;i&gt;not&lt;/i&gt; a copy of newSubtree).  
+        The result has everything set except for the root
+        node's parent and argposition. */
+ 
+    public final GPNode cloneReplacingNoSubclone(final GPNode newSubtree, final GPNode oldSubtree) 
+        {
+<span class="nc bnc" id="L710" title="All 2 branches missed.">        if (this==oldSubtree)</span>
+            {
+<span class="nc" id="L712">            return newSubtree;</span>
+            }
+        else
+            {
+<span class="nc" id="L716">            GPNode newnode = (GPNode)(lightClone());</span>
+<span class="nc bnc" id="L717" title="All 2 branches missed.">            for(int x=0;x&lt;children.length;x++)</span>
+                {
+<span class="nc" id="L719">                newnode.children[x] = (GPNode)(children[x].cloneReplacingNoSubclone(newSubtree,oldSubtree)); </span>
+                // if you think about it, the following CAN'T be implemented by
+                // the children's clone method.  So it's set here.
+<span class="nc" id="L722">                newnode.children[x].parent = newnode;</span>
+<span class="nc" id="L723">                newnode.children[x].argposition = (byte)x;</span>
+                }
+<span class="nc" id="L725">            return newnode;     </span>
+            }
+        }
+
+
+
+
+
+
+    /** Deep-clones the tree rooted at this node, and returns the entire
+        copied tree.  If a node in oldSubtrees is located somewhere in this
+        tree, then its subtree is replaced with a deep-cloned copy of the
+        subtree rooted at its equivalent number in 
+        newSubtrees.  The result has everything set except for the root
+        node's parent and argposition. */
+ 
+    public final GPNode cloneReplacing(final GPNode[] newSubtrees, final GPNode[] oldSubtrees) 
+        {
+        // am I a candidate?
+<span class="nc" id="L744">        int candidate = -1;</span>
+<span class="nc bnc" id="L745" title="All 2 branches missed.">        for(int x=0;x&lt;oldSubtrees.length;x++)</span>
+<span class="nc bnc" id="L746" title="All 2 branches missed.">            if (this==oldSubtrees[x]) { candidate=x; break; }</span>
+
+<span class="nc bnc" id="L748" title="All 2 branches missed.">        if (candidate &gt;= 0)</span>
+<span class="nc" id="L749">            return newSubtrees[candidate].cloneReplacing(newSubtrees,oldSubtrees);</span>
+        else
+            {
+<span class="nc" id="L752">            GPNode newnode = (GPNode)(lightClone());</span>
+<span class="nc bnc" id="L753" title="All 2 branches missed.">            for(int x=0;x&lt;children.length;x++)</span>
+                {
+<span class="nc" id="L755">                newnode.children[x] = (GPNode)(children[x].cloneReplacing(newSubtrees,oldSubtrees)); </span>
+                // if you think about it, the following CAN'T be implemented by
+                // the children's clone method.  So it's set here.
+<span class="nc" id="L758">                newnode.children[x].parent = newnode;</span>
+<span class="nc" id="L759">                newnode.children[x].argposition = (byte)x;</span>
+                }
+<span class="nc" id="L761">            return newnode;     </span>
+            }
+        }
+
+
+    
+    /** Clones a new subtree, but with the single node oldNode 
+        (which may or may not be in the subtree) 
+        replaced with a newNode (not a clone of newNode).  
+        These nodes should be
+        type-compatible both in argument and return types, and should have
+        the same number of arguments obviously.  This function will &lt;i&gt;not&lt;/i&gt;
+        check for this, and if they are not the result is undefined. */
+
+
+    public final GPNode cloneReplacingAtomic(final GPNode newNode, final GPNode oldNode) 
+        {
+        int numArgs;
+        GPNode curnode;
+<span class="nc bnc" id="L780" title="All 2 branches missed.">        if (this==oldNode)</span>
+            {
+<span class="nc" id="L782">            numArgs = Math.max(newNode.children.length,children.length);</span>
+<span class="nc" id="L783">            curnode = newNode;</span>
+            }
+        else
+            {
+<span class="nc" id="L787">            numArgs = children.length;</span>
+<span class="nc" id="L788">            curnode = (GPNode)lightClone();</span>
+            }
+
+        // populate
+
+<span class="nc bnc" id="L793" title="All 2 branches missed.">        for(int x=0;x&lt;numArgs;x++)</span>
+            {
+<span class="nc" id="L795">            curnode.children[x] = (GPNode)(children[x].cloneReplacingAtomic(newNode,oldNode)); </span>
+            // if you think about it, the following CAN'T be implemented by
+            // the children's clone method.  So it's set here.
+<span class="nc" id="L798">            curnode.children[x].parent = curnode;</span>
+<span class="nc" id="L799">            curnode.children[x].argposition = (byte)x;</span>
+            }
+<span class="nc" id="L801">        return curnode;</span>
+        }
+
+
+
+
+
+    /** Clones a new subtree, but with each node in oldNodes[] respectively
+        (which may or may not be in the subtree) replaced with
+        the equivalent
+        nodes in newNodes[] (and not clones).  
+        The length of oldNodes[] and newNodes[] should
+        be the same of course.  These nodes should be
+        type-compatible both in argument and return types, and should have
+        the same number of arguments obviously.  This function will &lt;i&gt;not&lt;/i&gt;
+        check for this, and if they are not the result is undefined. */
+
+
+    public final GPNode cloneReplacingAtomic(final GPNode[] newNodes, final GPNode[] oldNodes) 
+        {
+        int numArgs;
+        GPNode curnode;
+<span class="nc" id="L823">        int found = -1;</span>
+        
+<span class="nc bnc" id="L825" title="All 2 branches missed.">        for(int x=0;x&lt;newNodes.length;x++)</span>
+            {
+<span class="nc bnc" id="L827" title="All 2 branches missed.">            if (this==oldNodes[x]) { found=x; break; }</span>
+            }
+
+<span class="nc bnc" id="L830" title="All 2 branches missed.">        if (found &gt; -1)</span>
+            {
+<span class="nc" id="L832">            numArgs = Math.max(newNodes[found].children.length,</span>
+                children.length);
+<span class="nc" id="L834">            curnode = newNodes[found];</span>
+            }
+        else
+            {
+<span class="nc" id="L838">            numArgs = children.length;</span>
+<span class="nc" id="L839">            curnode = (GPNode)lightClone();</span>
+            }
+
+        // populate
+
+<span class="nc bnc" id="L844" title="All 2 branches missed.">        for(int x=0;x&lt;numArgs;x++)</span>
+            {
+<span class="nc" id="L846">            curnode.children[x] = (GPNode)(children[x].cloneReplacingAtomic(newNodes,oldNodes)); </span>
+            // if you think about it, the following CAN'T be implemented by
+            // the children's clone method.  So it's set here.
+<span class="nc" id="L849">            curnode.children[x].parent = curnode;</span>
+<span class="nc" id="L850">            curnode.children[x].argposition = (byte)x;</span>
+            }
+<span class="nc" id="L852">        return curnode;</span>
+        }
+
+
+
+
+
+    /** Replaces the node with another node in its position in the tree. 
+        newNode should already have been cloned and ready to go.
+        We presume that the other node is type-compatible and
+        of the same arity (these things aren't checked).  */
+        
+    public final void replaceWith(final GPNode newNode)
+        {
+        // copy the parent and argposition
+<span class="nc" id="L867">        newNode.parent = parent;</span>
+<span class="nc" id="L868">        newNode.argposition = argposition;</span>
+        
+        // replace the parent pointer
+<span class="nc bnc" id="L871" title="All 2 branches missed.">        if (parent instanceof GPNode)</span>
+<span class="nc" id="L872">            ((GPNode)(parent)).children[argposition] = newNode;</span>
+        else
+<span class="nc" id="L874">            ((GPTree)(parent)).child = newNode;</span>
+            
+        // replace the child pointers
+<span class="nc bnc" id="L877" title="All 2 branches missed.">        for(byte x = 0;x&lt;children.length;x++)</span>
+            {
+<span class="nc" id="L879">            newNode.children[x] = children[x];</span>
+<span class="nc" id="L880">            newNode.children[x].parent = newNode;</span>
+<span class="nc" id="L881">            newNode.children[x].argposition = x;</span>
+            }
+<span class="nc" id="L883">        }</span>
+    
+    /** Returns true if I and the provided node are the same kind of
+        node -- that is, we could have both been cloned() and reset() from
+        the same prototype node.  The default form of this function returns
+        true if I and the node have the same class, the same length children
+        array, and the same constraints.  You may wish to override this in
+        certain circumstances.   Here's an example of how nodeEquivalentTo(node)
+        differs from nodeEquals(node): two ERCs, both of
+        the same class, but one holding '1.23' and the other holding '2.45', which
+        came from the same prototype node in the same function set.
+        They should NOT be nodeEquals(...) but *should* be nodeEquivalent(...). */
+    public boolean nodeEquivalentTo(GPNode node)
+        {
+<span class="nc bnc" id="L897" title="All 6 branches missed.">        return (this.getClass().equals(node.getClass()) &amp;&amp; </span>
+            children.length == node.children.length &amp;&amp;
+            constraints == node.constraints);
+        }
+
+
+    /** Returns a hashcode usually associated with all nodes that are 
+        equal to you (using nodeEquals(...)).  The default form
+        of this method returns the hashcode of the node's class.
+        ERCs in particular probably will want to override this method.
+    */
+    public int nodeHashCode()
+        {
+<span class="nc" id="L910">        return (this.getClass().hashCode());</span>
+        }
+
+    /** Returns a hashcode associated with all the nodes in the tree.  
+        The default version adds the hash of the node plus its child
+        trees, rotated one-off each time, which seems reasonable. */
+    public int rootedTreeHashCode()
+        {
+<span class="nc" id="L918">        int hash = nodeHashCode();</span>
+
+<span class="nc bnc" id="L920" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+            // rotate hash and XOR
+<span class="nc" id="L922">            hash =</span>
+                (hash &lt;&lt; 1 | hash &gt;&gt;&gt; 31 ) ^
+<span class="nc" id="L924">                children[x].rootedTreeHashCode();</span>
+<span class="nc" id="L925">        return hash;</span>
+        }
+
+    /** Returns true if I am the &quot;genetically&quot; identical to this node, and our
+        children arrays are the same length, though
+        we may have different parents and children.  The default form
+        of this method simply calls the much weaker nodeEquivalentTo(node).  
+        You may need to override this to perform exact comparisons, if you're
+        an ERC, ADF, or ADM for example.  Here's an example of how nodeEquivalentTo(node)
+        differs from nodeEquals(node): two ERCs, both of
+        the same class, but one holding '1.23' and the other holding '2.45', which
+        came from the same prototype node in the same function set.
+        They should NOT be nodeEquals(...) but *should* be nodeEquivalent(...).  */
+    public boolean nodeEquals(final GPNode node)
+        {
+<span class="nc" id="L940">        return nodeEquivalentTo(node);</span>
+        }
+
+    /** Returns true if the two rooted trees are &quot;genetically&quot; equal, though
+        they may have different parents.  O(n). */
+    public boolean rootedTreeEquals(final GPNode node)
+        {
+<span class="nc bnc" id="L947" title="All 2 branches missed.">        if (!nodeEquals(node)) return false;</span>
+<span class="nc bnc" id="L948" title="All 2 branches missed.">        for (int x=0;x&lt;children.length;x++)</span>
+<span class="nc bnc" id="L949" title="All 2 branches missed.">            if (!(children[x].rootedTreeEquals(node.children[x])))</span>
+<span class="nc" id="L950">                return false;</span>
+<span class="nc" id="L951">        return true;</span>
+        }
+
+    /** Prints out a human-readable and Lisp-like atom for the node, 
+        and returns the number of bytes in the string that you sent
+        to the log (use print(),
+        not println()).  The default version gets the atom from
+        toStringForHumans(). 
+    */
+    public int printNodeForHumans(final EvolutionState state,
+        final int log)
+        {
+<span class="nc" id="L963">        return printNodeForHumans(state, log, Output.V_VERBOSE);</span>
+        }
+
+    /** Prints out a human-readable and Lisp-like atom for the node, 
+        and returns the number of bytes in the string that you sent
+        to the log (use print(),
+        not println()).  The default version gets the atom from
+        toStringForHumans(). 
+        @deprecated Verbosity no longer has an effect. 
+    */
+    public int printNodeForHumans(final EvolutionState state,
+        final int log, 
+        final int verbosity)
+        {
+<span class="nc" id="L977">        String n = toStringForHumans();</span>
+<span class="nc" id="L978">        state.output.print(n,log);</span>
+<span class="nc" id="L979">        return n.length();</span>
+        }
+
+
+    /** Prints out a COMPUTER-readable and Lisp-like atom for the node, which
+        is also suitable for readNode to read, and returns
+        the number of bytes in the string that you sent to the log (use print(),
+        not println()).  The default version gets the atom from toString().
+        O(1). 
+    */
+    public int printNode(final EvolutionState state, final int log)
+        {
+<span class="nc" id="L991">        printNode(state, log, Output.V_VERBOSE);</span>
+<span class="nc" id="L992">        String n = toString();</span>
+<span class="nc" id="L993">        return n.length();</span>
+        }
+
+    /** Prints out a COMPUTER-readable and Lisp-like atom for the node, which
+        is also suitable for readNode to read, and returns
+        the number of bytes in the string that you sent to the log (use print(),
+        not println()).  The default version gets the atom from toString().
+        O(1). 
+        @deprecated Verbosity no longer has an effect. 
+    */
+    public int printNode(final EvolutionState state, final int log, 
+        final int verbosity)
+        {
+<span class="nc" id="L1006">        String n = toString();</span>
+<span class="nc" id="L1007">        state.output.print(n,log);</span>
+<span class="nc" id="L1008">        return n.length();</span>
+        }
+
+
+    /** Prints out a COMPUTER-readable and Lisp-like atom for the node, which
+        is also suitable for readNode to read, and returns
+        the number of bytes in the string that you sent to the log (use print(),
+        not println()).  The default version gets the atom from toString().
+        O(1). */
+
+    public int printNode(final EvolutionState state,
+        final PrintWriter writer)
+        {
+<span class="nc" id="L1021">        String n = toString();</span>
+<span class="nc" id="L1022">        writer.print(n);</span>
+<span class="nc" id="L1023">        return n.length();</span>
+        }
+                
+    /** Returns a Lisp-like atom for the node and any nodes of the same class.
+        This will almost always be identical to the result of toString() (and the default
+        does exactly this), but for ERCs it'll be different: toString will include the
+        encoded constant data, whereas name() will not include this information and will
+        be the same for all ERCs of this type.  If two nodes are nodeEquivalentTo(...)
+        each other, then they will have the same name().  If two nodes are nodeEquals(...)
+        each other, then they will have the same toString().  */
+                
+<span class="nc" id="L1034">    public String name() { return toString(); }</span>
+
+    /** Returns a Lisp-like atom for the node which can be read in again by computer.
+        If you need to encode an integer or a float or whatever for some reason
+        (perhaps if it's an ERC), you should use the ec.util.Code library.  */
+
+    public abstract String toString();
+
+    /** Returns a Lisp-like atom for the node which is intended for human
+        consumption, and not to be read in again.  The default version
+        just calls toString(). */
+
+<span class="nc" id="L1046">    public String toStringForHumans() { return toString(); }</span>
+
+    /** Returns a description of the node that can make it easy to identify
+        in error messages (by default, at least its name and the tree it's found in).
+        It's okay if this is a reasonably expensive procedure -- it won't be called
+        a lot.  */
+
+    public String toStringForError() 
+        {
+<span class="nc" id="L1055">        GPTree rootp = (GPTree)rootParent();</span>
+<span class="nc bnc" id="L1056" title="All 2 branches missed.">        if (rootp!=null)</span>
+            {
+<span class="nc" id="L1058">            int tnum = ((GPTree)(rootParent())).treeNumber();</span>
+<span class="nc bnc" id="L1059" title="All 2 branches missed.">            return toString() + (tnum == GPTree.NO_TREENUM ? &quot;&quot; : &quot; in tree &quot; + tnum);</span>
+            }
+<span class="nc" id="L1061">        else return toString();</span>
+        }
+
+    /** Produces the Graphviz code for a Graphviz tree of the subtree rooted at this node.
+        For this to work, the output of toString() must not contain a double-quote. 
+        Note that this isn't particularly efficient and should only be used to generate
+        occasional trees for display, not for storing individuals or sending them over networks. */
+    public String makeGraphvizTree()
+        {
+<span class="nc" id="L1070">        return &quot;digraph g {\ngraph [ordering=out];\nnode [shape=rectangle];\n&quot; + makeGraphvizSubtree(&quot;n&quot;) + &quot;}\n&quot;;</span>
+        }
+    
+    /** Produces the inner code for a graphviz subtree.  Called from makeGraphvizTree(). 
+        Note that this isn't particularly efficient and should only be used to generate
+        occasional trees for display, not for storing individuals or sending them over networks. */
+    protected String makeGraphvizSubtree(String prefix)
+        {
+<span class="nc" id="L1078">        String body = prefix + &quot;[label = \&quot;&quot; + toStringForHumans() + &quot;\&quot;];\n&quot;;</span>
+<span class="nc bnc" id="L1079" title="All 2 branches missed.">        for(int x = 0; x &lt; children.length; x++)</span>
+            {
+            String newprefix;
+<span class="nc bnc" id="L1082" title="All 2 branches missed.">            if (x &lt; 10) newprefix = prefix + x;</span>
+<span class="nc" id="L1083">            else newprefix = prefix + &quot;n&quot; + x;  // to distinguish it</span>
+            
+<span class="nc" id="L1085">            body = body + children[x].makeGraphvizSubtree(newprefix);</span>
+<span class="nc" id="L1086">            body = body + prefix + &quot; -&gt; &quot; + newprefix + &quot;;\n&quot;;</span>
+            }
+<span class="nc" id="L1088">        return body;</span>
+        }
+
+    /** Produces the LaTeX code for a LaTeX tree of the subtree rooted at this node, using the &lt;tt&gt;epic&lt;/tt&gt;
+        and &lt;tt&gt;fancybox&lt;/tt&gt; packages, as described in sections 10.5.2 (page 307) 
+        and 10.1.3 (page 278) of &lt;i&gt;The LaTeX Companion&lt;/i&gt;, respectively.  For this to
+        work, the output of toStringForHumans() must not contain any weird latex characters, notably { or } or % or \,
+        unless you know what you're doing. See the documentation for ec.gp.GPTree for information
+        on how to take this code snippet and insert it into your LaTeX file. 
+        Note that this isn't particularly efficient and should only be used to generate
+        occasional trees for display, not for storing individuals or sending them over networks. */
+    
+    public String makeLatexTree()
+        {
+<span class="nc bnc" id="L1102" title="All 2 branches missed.">        if (children.length==0)</span>
+<span class="nc" id="L1103">            return &quot;\\gpbox{&quot;+toStringForHumans()+&quot;}&quot;;</span>
+            
+<span class="nc" id="L1105">        String s = &quot;\\begin{bundle}{\\gpbox{&quot;+toStringForHumans()+&quot;}}&quot;;</span>
+<span class="nc bnc" id="L1106" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L1107">            s = s + &quot;\\chunk{&quot;+children[x].makeLatexTree()+&quot;}&quot;;</span>
+<span class="nc" id="L1108">        s = s + &quot;\\end{bundle}&quot;;</span>
+<span class="nc" id="L1109">        return s;</span>
+        }
+        
+    /** Producess a String consisting of the tree in pseudo-C form, given that the parent already will wrap the
+        expression in parentheses (or not).  In pseudo-C form, functions with one child are printed out as a(b), 
+        functions with more than two children are printed out as a(b, c, d, ...), and functions with exactly two
+        children are either printed as a(b, c) or in operator form as (b a c) -- for example, (b * c).  Whether
+        or not to do this depends on the setting of &lt;tt&gt;useOperatorForm&lt;/tt&gt;.  Additionally, terminals will be
+        printed out either in variable form -- a -- or in zero-argument function form -- a() -- depending on
+        the setting of &lt;tt&gt;printTerminalsAsVariables&lt;/tt&gt;.
+        Note that this isn't particularly efficient and should only be used to generate
+        occasional trees for display, not for storing individuals or sending them over networks. 
+    */
+                
+    public String makeCTree(boolean parentMadeParens, boolean printTerminalsAsVariables, boolean useOperatorForm)
+        {
+<span class="nc bnc" id="L1125" title="All 2 branches missed.">        if (children.length==0)</span>
+<span class="nc bnc" id="L1126" title="All 2 branches missed.">            return (printTerminalsAsVariables ? toStringForHumans() : toStringForHumans() + &quot;()&quot;);</span>
+<span class="nc bnc" id="L1127" title="All 2 branches missed.">        else if (children.length==1)</span>
+<span class="nc" id="L1128">            return toStringForHumans() + &quot;(&quot; + children[0].makeCTree(true, printTerminalsAsVariables, useOperatorForm) + &quot;)&quot;;</span>
+<span class="nc bnc" id="L1129" title="All 4 branches missed.">        else if (children.length==2 &amp;&amp; useOperatorForm)</span>
+<span class="nc bnc" id="L1130" title="All 2 branches missed.">            return (parentMadeParens ? &quot;&quot; : &quot;(&quot;) + </span>
+<span class="nc" id="L1131">                children[0].makeCTree(false, printTerminalsAsVariables, useOperatorForm) + &quot; &quot; + </span>
+<span class="nc" id="L1132">                toStringForHumans() + &quot; &quot; + children[1].makeCTree(false, printTerminalsAsVariables, useOperatorForm) + </span>
+<span class="nc bnc" id="L1133" title="All 2 branches missed.">                (parentMadeParens ? &quot;&quot; : &quot;)&quot;);</span>
+        else
+            {
+<span class="nc" id="L1136">            String s = toStringForHumans() + &quot;(&quot; + children[0].makeCTree(true, printTerminalsAsVariables, useOperatorForm);</span>
+<span class="nc bnc" id="L1137" title="All 2 branches missed.">            for(int x = 1; x &lt; children.length;x++)</span>
+<span class="nc" id="L1138">                s = s + &quot;, &quot; + children[x].makeCTree(true, printTerminalsAsVariables, useOperatorForm);</span>
+<span class="nc" id="L1139">            return s + &quot;)&quot;;</span>
+            }
+        }
+
+    /**
+       Produces a tree for human consumption in Lisp form similar to that generated by printTreeForHumans().
+       Note that this isn't particularly efficient and should only be used to generate
+       occasional trees for display, not for storing individuals or sending them over networks.
+    */
+    public StringBuilder makeLispTree(StringBuilder buf)
+        {
+<span class="nc bnc" id="L1150" title="All 2 branches missed.">        if (children.length==0)</span>
+<span class="nc" id="L1151">            return buf.append(toStringForHumans());</span>
+        else
+            {
+<span class="nc" id="L1154">            buf.append(&quot;(&quot;);</span>
+<span class="nc" id="L1155">            buf.append(toStringForHumans());</span>
+<span class="nc bnc" id="L1156" title="All 2 branches missed.">            for(int x=0;x&lt;children.length;x++)</span>
+                {
+<span class="nc" id="L1158">                buf.append(&quot; &quot;);</span>
+<span class="nc" id="L1159">                children[x].makeLispTree(buf);</span>
+                }
+<span class="nc" id="L1161">            buf.append(&quot;)&quot;);</span>
+<span class="nc" id="L1162">            return buf;</span>
+            //return s + &quot;)&quot;;
+            }
+        }
+
+    public String makeLispTree()
+        {
+<span class="nc" id="L1169">        return makeLispTree(new StringBuilder()).toString();</span>
+        }
+
+
+    /** Prints out the tree on a single line, with no ending \n, in a fashion that can
+        be read in later by computer. O(n).  
+        You should call this method with printbytes == 0. 
+    */
+    
+    public int printRootedTree(final EvolutionState state,
+        final int log, int printbytes)
+        {
+<span class="nc" id="L1181">        return printRootedTree(state, log, Output.V_VERBOSE, printbytes);</span>
+        }
+
+
+    /** Prints out the tree on a single line, with no ending \n, in a fashion that can
+        be read in later by computer. O(n).  
+        You should call this method with printbytes == 0. 
+        @deprecated Verbosity no longer has an effect.
+    */
+    
+    public int printRootedTree(final EvolutionState state,
+        final int log, final int verbosity,
+        int printbytes)
+        {
+<span class="nc bnc" id="L1195" title="All 2 branches missed.">        if (children.length&gt;0) { state.output.print(&quot; (&quot;,verbosity,log); printbytes += 2; }</span>
+<span class="nc" id="L1196">        else { state.output.print(&quot; &quot;,log); printbytes += 1; }</span>
+
+<span class="nc" id="L1198">        printbytes += printNode(state,log);</span>
+
+<span class="nc bnc" id="L1200" title="All 2 branches missed.">        for (int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L1201">            printbytes = children[x].printRootedTree(state,log,printbytes);</span>
+<span class="nc bnc" id="L1202" title="All 2 branches missed.">        if (children.length&gt;0) { state.output.print(&quot;)&quot;,log); printbytes += 1; }</span>
+<span class="nc" id="L1203">        return printbytes;</span>
+        }
+
+
+    /** Prints out the tree on a single line, with no ending \n, in a fashion that can
+        be read in later by computer. O(n).  Returns the number of bytes printed.
+        You should call this method with printbytes == 0. */
+    
+    public int printRootedTree(final EvolutionState state, final PrintWriter writer,
+        int printbytes)
+        {
+<span class="nc bnc" id="L1214" title="All 2 branches missed.">        if (children.length&gt;0) { writer.print(&quot; (&quot;); printbytes += 2; }</span>
+<span class="nc" id="L1215">        else { writer.print(&quot; &quot;); printbytes += 1; }</span>
+
+<span class="nc" id="L1217">        printbytes += printNode(state,writer);</span>
+
+<span class="nc bnc" id="L1219" title="All 2 branches missed.">        for (int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L1220">            printbytes = children[x].printRootedTree(state,writer,printbytes);</span>
+<span class="nc bnc" id="L1221" title="All 2 branches missed.">        if (children.length&gt;0) { writer.print(&quot;)&quot;); printbytes += 1; }</span>
+<span class="nc" id="L1222">        return printbytes;</span>
+        }
+
+
+    /** Prints out the tree in a readable Lisp-like multi-line fashion. O(n).  
+        You should call this method with tablevel and printbytes == 0.  
+        No ending '\n' is printed.  
+    */
+    
+    public int printRootedTreeForHumans(final EvolutionState state, final int log,
+        int tablevel, int printbytes)
+        {
+<span class="nc" id="L1234">        return printRootedTreeForHumans(state, log, Output.V_VERBOSE, tablevel, printbytes);</span>
+        }
+
+    /** Prints out the tree in a readable Lisp-like multi-line fashion. O(n).  
+        You should call this method with tablevel and printbytes == 0.  
+        No ending '\n' is printed.  
+        @deprecated Verbosity no longer has an effect.
+    */
+    
+    public int printRootedTreeForHumans(final EvolutionState state, final int log,
+        final int verbosity,
+        int tablevel, int printbytes)
+        {
+<span class="nc bnc" id="L1247" title="All 2 branches missed.">        if (printbytes&gt;MAXPRINTBYTES)</span>
+            { 
+<span class="nc" id="L1249">            state.output.print(&quot;\n&quot;,log);</span>
+<span class="nc" id="L1250">            tablevel++;</span>
+<span class="nc" id="L1251">            printbytes = 0;</span>
+<span class="nc bnc" id="L1252" title="All 2 branches missed.">            for(int x=0;x&lt;tablevel;x++)</span>
+<span class="nc" id="L1253">                state.output.print(GPNODEPRINTTAB,log);</span>
+            }
+
+<span class="nc bnc" id="L1256" title="All 2 branches missed.">        if (children.length&gt;0) { state.output.print(&quot; (&quot;,log); printbytes += 2; }</span>
+<span class="nc" id="L1257">        else { state.output.print(&quot; &quot;,log); printbytes += 1; }</span>
+
+<span class="nc" id="L1259">        printbytes += printNodeForHumans(state,log);</span>
+
+<span class="nc bnc" id="L1261" title="All 2 branches missed.">        for (int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L1262">            printbytes = children[x].printRootedTreeForHumans(state,log,tablevel,printbytes);</span>
+<span class="nc bnc" id="L1263" title="All 2 branches missed.">        if (children.length&gt;0) { state.output.print(&quot;)&quot;,log); printbytes += 1; }</span>
+<span class="nc" id="L1264">        return printbytes;</span>
+        }
+
+
+    /** Reads the node symbol,
+        advancing the DecodeReturn to the first character in the string
+        beyond the node symbol, and returns a new, empty GPNode of the
+        appropriate class representing that symbol, else null if the
+        node symbol is not of the correct type for your GPNode class. You may
+        assume that initial whitespace has been eliminated.  Generally should
+        be case-SENSITIVE, unlike in Lisp.  The default
+        version usually works for &quot;simple&quot; function names, that is, not ERCs
+        or other stuff where you have to encode the symbol. */
+    public GPNode readNode(DecodeReturn dret) 
+        {
+<span class="nc" id="L1279">        int len = dret.data.length();</span>
+
+        // get my name
+<span class="nc" id="L1282">        String str2 = toString();</span>
+<span class="nc" id="L1283">        int len2 = str2.length();</span>
+
+<span class="nc bnc" id="L1285" title="All 2 branches missed.">        if (dret.pos + len2 &gt; len)  // uh oh, not enough space</span>
+<span class="nc" id="L1286">            return null;</span>
+
+        // check it out
+<span class="nc bnc" id="L1289" title="All 2 branches missed.">        for(int x=0; x &lt; len2 ; x++)</span>
+<span class="nc bnc" id="L1290" title="All 2 branches missed.">            if (dret.data.charAt(dret.pos + x) != str2.charAt(x))</span>
+<span class="nc" id="L1291">                return null;</span>
+
+        // looks good!  Check to make sure that
+        // the symbol's all there is
+<span class="nc bnc" id="L1295" title="All 2 branches missed.">        if (dret.data.length() &gt; dret.pos+len2)</span>
+            {
+<span class="nc" id="L1297">            char c = dret.data.charAt(dret.pos+len2);</span>
+<span class="nc bnc" id="L1298" title="All 6 branches missed.">            if (!Character.isWhitespace(c) &amp;&amp;</span>
+                c != ')' &amp;&amp; c != '(') // uh oh
+<span class="nc" id="L1300">                return null;</span>
+            }
+
+        // we're happy!
+<span class="nc" id="L1304">        dret.pos += len2;</span>
+<span class="nc" id="L1305">        return (GPNode)lightClone();</span>
+        }
+
+
+    public void writeRootedTree(final EvolutionState state,final GPType expectedType,
+        final GPFunctionSet set, final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L1312">        dataOutput.writeInt(children.length);</span>
+<span class="nc bnc" id="L1313" title="All 2 branches missed.">        boolean isTerminal = (children.length == 0);</span>
+
+        // identify the node
+<span class="nc bnc" id="L1316" title="All 2 branches missed.">        GPNode[] gpfi = isTerminal ? </span>
+<span class="nc" id="L1317">            set.terminals[expectedType.type] : </span>
+<span class="nc" id="L1318">            set.nonterminals[expectedType.type];</span>
+        
+<span class="nc" id="L1320">        int index=0;</span>
+<span class="nc bnc" id="L1321" title="All 2 branches missed.">        for( /*int index=0 */; index &lt;gpfi.length;index++)</span>
+<span class="nc bnc" id="L1322" title="All 2 branches missed.">            if ((gpfi[index].nodeEquivalentTo(this))) break;</span>
+        
+<span class="nc bnc" id="L1324" title="All 2 branches missed.">        if (index==gpfi.length)  // uh oh</span>
+<span class="nc" id="L1325">            state.output.fatal(&quot;No node in the function set can be found that is equivalent to the node &quot; + this +     </span>
+                &quot; when performing writeRootedTree(EvolutionState, GPType, GPFunctionSet, DataOutput).&quot;);
+<span class="nc" id="L1327">        dataOutput.writeInt(index);  // what kind of node it is</span>
+<span class="nc" id="L1328">        writeNode(state,dataOutput);</span>
+
+<span class="nc" id="L1330">        GPInitializer initializer = ((GPInitializer)state.initializer);        </span>
+<span class="nc bnc" id="L1331" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L1332">            children[x].writeRootedTree(state,constraints(initializer).childtypes[x],set,dataOutput);</span>
+<span class="nc" id="L1333">        }</span>
+
+
+    public static GPNode readRootedTree(final EvolutionState state,
+        final DataInput dataInput,
+        GPType expectedType,
+        GPFunctionSet set,
+        GPNodeParent parent,
+        int argposition) throws IOException
+        {
+<span class="nc" id="L1343">        int len = dataInput.readInt();      // num children</span>
+<span class="nc" id="L1344">        int index = dataInput.readInt();    // index in function set</span>
+        
+<span class="nc bnc" id="L1346" title="All 2 branches missed.">        boolean isTerminal = (len == 0);</span>
+<span class="nc bnc" id="L1347" title="All 2 branches missed.">        GPNode[] gpfi = isTerminal ? </span>
+<span class="nc" id="L1348">            set.terminals[expectedType.type] : </span>
+<span class="nc" id="L1349">            set.nonterminals[expectedType.type];</span>
+
+<span class="nc" id="L1351">        GPNode node = ((GPNode)(gpfi[index].lightClone()));</span>
+        
+<span class="nc bnc" id="L1353" title="All 4 branches missed.">        if (node.children == null || node.children.length != len)</span>
+<span class="nc" id="L1354">            state.output.fatal(&quot;Mismatch in number of children (&quot; + len + </span>
+                &quot;) when performing readRootedTree(...DataInput...) on &quot; + node);
+        
+<span class="nc" id="L1357">        node.parent = parent;</span>
+<span class="nc" id="L1358">        node.argposition = (byte)argposition;</span>
+<span class="nc" id="L1359">        node.readNode(state,dataInput);</span>
+
+        // do its children
+<span class="nc" id="L1362">        GPInitializer initializer = ((GPInitializer)state.initializer);        </span>
+<span class="nc bnc" id="L1363" title="All 2 branches missed.">        for(int x=0;x&lt;node.children.length;x++)</span>
+<span class="nc" id="L1364">            node.children[x] = readRootedTree(state,dataInput,node.constraints(initializer).childtypes[x],set, node, x);</span>
+
+<span class="nc" id="L1366">        return node;</span>
+        }
+
+    /** Override this to write any additional node-specific information to dataOutput besides: the number of arguments, 
+        the specific node class, the children, and the parent.  The default version of this method does nothing. */
+    public void writeNode(final EvolutionState state, final DataOutput dataOutput) throws IOException
+        {
+        // do nothing
+<span class="nc" id="L1374">        }</span>
+        
+    /** Override this to read any additional node-specific information from dataInput besides: the number of arguments,
+        the specific node class, the children, and the parent.  The default version of this method does nothing. */
+    public void readNode(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+        // do nothing
+<span class="nc" id="L1381">        }</span>
+
+    /** Reads the node and its children from the form printed out by printRootedTree. */
+    public static GPNode readRootedTree(int linenumber,
+        DecodeReturn dret, 
+        GPType expectedType,
+        GPFunctionSet set,
+        GPNodeParent parent,
+        int argposition,
+        EvolutionState state) 
+        {
+<span class="nc" id="L1392">        final char REPLACEMENT_CHAR = '@';</span>
+
+        // eliminate whitespace if any
+<span class="nc" id="L1395">        boolean isTerminal = true;</span>
+<span class="nc" id="L1396">        int len = dret.data.length();</span>
+<span class="nc bnc" id="L1397" title="All 2 branches missed.">        for(  ;  dret.pos &lt; len &amp;&amp; </span>
+<span class="nc bnc" id="L1398" title="All 2 branches missed.">                  Character.isWhitespace(dret.data.charAt(dret.pos)) ; dret.pos++);</span>
+        
+        // if I'm out of space, complain
+        
+<span class="nc bnc" id="L1402" title="All 2 branches missed.">        if (dret.pos &gt;= len)</span>
+<span class="nc" id="L1403">            state.output.fatal(&quot;Reading line &quot; + linenumber + &quot;: &quot; + &quot;Premature end of tree structure -- did you forget a close-parenthesis?\nThe tree was&quot; + dret.data);</span>
+         
+        // if I've found a ')', complain
+<span class="nc bnc" id="L1406" title="All 2 branches missed.">        if (dret.data.charAt(dret.pos) == ')')</span>
+            {
+<span class="nc" id="L1408">            StringBuilder sb = new StringBuilder(dret.data);</span>
+<span class="nc" id="L1409">            sb.setCharAt(dret.pos,REPLACEMENT_CHAR);</span>
+<span class="nc" id="L1410">            dret.data = sb.toString();</span>
+<span class="nc" id="L1411">            state.output.fatal(&quot;Reading line &quot; + linenumber + &quot;: &quot; + &quot;Premature ')' which I have replaced with a '&quot; + REPLACEMENT_CHAR + &quot;', in tree:\n&quot; + dret.data);</span>
+            }
+        
+        // determine if I'm a terminal or not
+<span class="nc bnc" id="L1415" title="All 2 branches missed.">        if (dret.data.charAt(dret.pos) == '(')</span>
+            {
+<span class="nc" id="L1417">            isTerminal=false;</span>
+<span class="nc" id="L1418">            dret.pos++;</span>
+            // strip following whitespace
+<span class="nc bnc" id="L1420" title="All 2 branches missed.">            for(  ;  dret.pos &lt; len &amp;&amp; </span>
+<span class="nc bnc" id="L1421" title="All 2 branches missed.">                      Character.isWhitespace(dret.data.charAt(dret.pos)) ; dret.pos++);</span>
+            }
+        
+        // check again if I'm out of space
+        
+<span class="nc bnc" id="L1426" title="All 2 branches missed.">        if (dret.pos &gt;= len)</span>
+<span class="nc" id="L1427">            state.output.fatal(&quot;Reading line &quot; + linenumber + &quot;: &quot; + &quot;Premature end of tree structure -- did you forget a close-parenthesis?\nThe tree was&quot; + dret.data);</span>
+        
+        // check again if I found a ')'
+<span class="nc bnc" id="L1430" title="All 2 branches missed.">        if (dret.data.charAt(dret.pos) == ')')</span>
+            {
+<span class="nc" id="L1432">            StringBuilder sb = new StringBuilder(dret.data);</span>
+<span class="nc" id="L1433">            sb.setCharAt(dret.pos,REPLACEMENT_CHAR);</span>
+<span class="nc" id="L1434">            dret.data = sb.toString();</span>
+<span class="nc" id="L1435">            state.output.fatal(&quot;Reading line &quot; + linenumber + &quot;: &quot; + &quot;Premature ')' which I have replaced with a '&quot; + REPLACEMENT_CHAR + &quot;', in tree:\n&quot; + dret.data);</span>
+            }
+        
+        
+        // find that node!
+<span class="nc bnc" id="L1440" title="All 2 branches missed.">        GPNode[] gpfi = isTerminal ? </span>
+<span class="nc" id="L1441">            set.terminals[expectedType.type] : </span>
+<span class="nc" id="L1442">            set.nonterminals[expectedType.type];</span>
+        
+<span class="nc" id="L1444">        GPNode node = null;</span>
+<span class="nc bnc" id="L1445" title="All 2 branches missed.">        for(int x=0;x&lt;gpfi.length;x++)</span>
+<span class="nc bnc" id="L1446" title="All 2 branches missed.">            if ((node = gpfi[x].readNode(dret)) != null) break;</span>
+        
+        // did I find one?
+        
+<span class="nc bnc" id="L1450" title="All 2 branches missed.">        if (node==null)</span>
+            {
+<span class="nc bnc" id="L1452" title="All 2 branches missed.">            if (dret.pos!=0) </span>
+                {
+<span class="nc" id="L1454">                StringBuilder sb = new StringBuilder(dret.data);</span>
+<span class="nc" id="L1455">                sb.setCharAt(dret.pos,REPLACEMENT_CHAR);</span>
+<span class="nc" id="L1456">                dret.data = sb.toString();</span>
+<span class="nc" id="L1457">                }</span>
+<span class="nc" id="L1458">            else dret.data = &quot;&quot; + REPLACEMENT_CHAR + dret.data;</span>
+<span class="nc" id="L1459">            state.output.fatal(&quot;Reading line &quot; + linenumber + &quot;: &quot; + &quot;I came across a symbol which I could not match up with a type-valid node.\nI have replaced the position immediately before the node in question with a '&quot; + REPLACEMENT_CHAR + &quot;':\n&quot; + dret.data);</span>
+            }
+        
+<span class="nc" id="L1462">        node.parent = parent;</span>
+<span class="nc" id="L1463">        node.argposition = (byte)argposition;</span>
+<span class="nc" id="L1464">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+        
+        // do its children
+<span class="nc bnc" id="L1467" title="All 2 branches missed.">        for(int x=0;x&lt;node.children.length;x++)</span>
+<span class="nc" id="L1468">            node.children[x] = readRootedTree(linenumber,dret,node.constraints(initializer).childtypes[x],set,node,x,state);</span>
+        
+        // if I'm not a terminal, look for a ')'
+        
+<span class="nc bnc" id="L1472" title="All 2 branches missed.">        if (!isTerminal)</span>
+            {
+            // clear whitespace
+<span class="nc bnc" id="L1475" title="All 2 branches missed.">            for(  ;  dret.pos &lt; len &amp;&amp; </span>
+<span class="nc bnc" id="L1476" title="All 2 branches missed.">                      Character.isWhitespace(dret.data.charAt(dret.pos)) ; dret.pos++);</span>
+            
+<span class="nc bnc" id="L1478" title="All 2 branches missed.">            if (dret.pos &gt;= len)</span>
+<span class="nc" id="L1479">                state.output.fatal(&quot;Reading line &quot; + linenumber + &quot;: &quot; + &quot;Premature end of tree structure -- did you forget a close-parenthesis?\nThe tree was&quot; + dret.data);</span>
+            
+<span class="nc bnc" id="L1481" title="All 2 branches missed.">            if (dret.data.charAt(dret.pos) != ')')</span>
+                {
+<span class="nc bnc" id="L1483" title="All 2 branches missed.">                if (dret.pos!=0) </span>
+                    {
+<span class="nc" id="L1485">                    StringBuilder sb = new StringBuilder(dret.data);</span>
+<span class="nc" id="L1486">                    sb.setCharAt(dret.pos,REPLACEMENT_CHAR);</span>
+<span class="nc" id="L1487">                    dret.data = sb.toString();</span>
+<span class="nc" id="L1488">                    }</span>
+<span class="nc" id="L1489">                else dret.data = &quot;&quot; + REPLACEMENT_CHAR + dret.data;</span>
+<span class="nc" id="L1490">                state.output.fatal(&quot;Reading line &quot; + linenumber + &quot;: &quot; + &quot;A nonterminal node has too many arguments.  I have put a '&quot; + </span>
+                    REPLACEMENT_CHAR + &quot;' just before the offending argument.\n&quot; + dret.data);
+                }
+<span class="nc" id="L1493">            else dret.pos++;  // get rid of the ')'</span>
+            }
+        
+        // return the node
+<span class="nc" id="L1497">        return node;</span>
+        }
+    
+
+    /** Evaluates the node with the given thread, state, individual, problem, and stack.
+        Your random number generator will be state.random[thread].  
+        The node should, as appropriate, evaluate child nodes with these same items
+        passed to eval(...).
+
+        &lt;p&gt;About &lt;b&gt;input&lt;/b&gt;: &lt;tt&gt;input&lt;/tt&gt; is special; it is how data is passed between
+        parent and child nodes.  If children &quot;receive&quot; data from their parent node when
+        it evaluates them, they should receive this data stored in &lt;tt&gt;input&lt;/tt&gt;.
+        If (more likely) the parent &quot;receives&quot; results from its children, it should
+        pass them an &lt;tt&gt;input&lt;/tt&gt; object, which they'll fill out, then it should
+        check this object for the returned value.
+
+        &lt;p&gt;A tree is typically evaluated by dropping a GPData into the root.  When the
+        root returns, the resultant &lt;tt&gt;input&lt;/tt&gt; should hold the return value.
+
+        &lt;p&gt;In general, you should not be creating new GPDatas.  
+        If you think about it, in most conditions (excepting ADFs and ADMs) you 
+        can use and reuse &lt;tt&gt;input&lt;/tt&gt; for most communications purposes between
+        parents and children.  
+
+        &lt;p&gt;So, let's say that your GPNode function implements the boolean AND function,
+        and expects its children to return return boolean values (as it does itself).
+        You've implemented your GPData subclass to be, uh, &lt;b&gt;BooleanData&lt;/b&gt;, which
+        looks like 
+        
+        * &lt;tt&gt;&lt;pre&gt;public class BooleanData extends GPData 
+        *    {
+        *    public boolean result;
+        *    public GPData copyTo(GPData gpd)
+        *      {
+        *      ((BooleanData)gpd).result = result;
+        *      }
+        *    }&lt;/pre&gt;&lt;/tt&gt;
+
+        &lt;p&gt;...so, you might implement your eval(...) function as follows:
+
+        * &lt;tt&gt;&lt;pre&gt;public void eval(final EvolutionState state,
+        *                     final int thread,
+        *                     final GPData input,
+        *                     final ADFStack stack,
+        *                     final GPIndividual individual,
+        *                     final Problem problem
+        *    {
+        *    BooleanData dat = (BooleanData)input;
+        *    boolean x;
+        *
+        *    // evaluate the first child
+        *    children[0].eval(state,thread,input,stack,individual,problem);
+        *  
+        *    // store away its result
+        *    x = dat.result;
+        *
+        *    // evaluate the second child
+        *    children[1].eval(state,thread,input,stack,individual,problem);
+        *
+        *    // return (in input) the result of the two ANDed
+        *
+        *    dat.result = dat.result &amp;&amp; x;
+        *    return;
+        *    }
+        &lt;/pre&gt;&lt;/tt&gt;
+    */
+    
+    public abstract void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem);
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

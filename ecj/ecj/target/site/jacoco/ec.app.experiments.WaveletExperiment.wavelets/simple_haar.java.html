@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>simple_haar.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets</a> &gt; <span class="el_source">simple_haar.java</span></div><h1>simple_haar.java</h1><pre class="source lang-java linenums">
+
+package ec.app.experiments.WaveletExperiment.wavelets;
+
+import java.util.*;
+
+import ec.EvolutionState;
+import ec.app.experiments.WaveletExperiment.wavelets.wavelet_util.*;
+
+/**
+ *
+&lt;p&gt;
+  Class simple_haar
+
+&lt;p&gt;
+   This object calcalculates the &quot;ordered fast Haar wavelet
+   transform&quot;.  The algorithm used is the a simple Haar wavelet
+   algorithm that does &lt;u&gt;not&lt;/u&gt; calculate the wavelet transform
+   in-place.  The function works on Java double values.
+&lt;p&gt; 
+   The wavelet_calc function is passed an &lt;b&gt;array&lt;/b&gt; of doubles from
+   which it calculates the Haar wavelet transform.  The transform is
+   not calculated in place.  The result consists of a single value and
+   a Vector of coefficients arrays, ordered by increasing frequency.
+   The number of data points in the data used to calculate the wavelet
+   must be a power of two.
+&lt;p&gt;
+   The Haar wavelet transform is based on calculating the Haar step
+   function and the Haar wavelet from two adjacent values.  For
+   an array of values S0, S1, S2 .. Sn, the step function and
+   wavelet are calculated as follows for two adjacent points,
+   S0 and S1:
+
+&lt;pre&gt;
+      &lt;i&gt;HaarStep&lt;/i&gt; = (S0 + S1)/2  &lt;i&gt;// average of S0 and S1&lt;/i&gt;
+      &lt;i&gt;HaarWave&lt;/i&gt; = (S0 - S1)/2  &lt;i&gt;// average difference of S0 and S1&lt;/i&gt;
+&lt;/pre&gt;
+
+&lt;p&gt;
+   This yields two vectors: &lt;b&gt;a&lt;/b&gt;, which contains the
+   &lt;i&gt;HaarStep&lt;/i&gt; values and &lt;b&gt;c&lt;/b&gt;, which contains the
+   &lt;i&gt;HaarWave&lt;/i&gt; values.
+
+&lt;p&gt; The result of the &lt;tt&gt;wavelet_calc&lt;/tt&gt; is the single Haar value
+    and a set of coefficients.  There will be ceil( log&lt;sub&gt;2&lt;/sub&gt;(
+    values.length() )) coefficients.
+
+@author Ian Kaplan   
+
+@see &lt;i&gt;Wavelets Made Easy by Yves Nieverglt, Birkhauser, 1999&lt;/i&gt;
+
+  
+&lt;h4&gt;
+   Copyright and Use
+&lt;/h4&gt;
+
+&lt;p&gt;
+   You may use this source code without limitation and without
+   fee as long as you include:
+&lt;/p&gt;
+&lt;blockquote&gt;
+     This software was written and is copyrighted by Ian Kaplan, Bear
+     Products International, www.bearcave.com, 2001.
+&lt;/blockquote&gt;
+&lt;p&gt;
+   This software is provided &quot;as is&quot;, without any warrenty or
+   claim as to its usefulness.  Anyone who uses this source code
+   uses it at their own risk.  Nor is any support provided by
+   Ian Kaplan and Bear Products International.
+&lt;p&gt;
+   Please send any bug fixes or suggested source changes to:
+&lt;pre&gt;
+     iank@bearcave.com
+&lt;/pre&gt;
+
+
+ */
+
+<span class="nc" id="L79">public class simple_haar extends wavelet_base {</span>
+  private double haar_value;  // the final Haar step value
+  private Vector&lt;double[]&gt; coef;        // The Haar coefficients
+  private double[] data;
+
+  /**
+   * Return the haar value in order for it to be used for
+   * wavelet comparison
+   * @return haar value
+   */
+  public double get_haar_value() {
+<span class="nc" id="L90">    return haar_value;</span>
+  }
+
+  public double[] getCoefficients(EvolutionState state) {
+<span class="nc" id="L94">    double[] coefficients = null;</span>
+<span class="nc" id="L95">    ArrayList&lt;Double&gt; coeffs = new ArrayList&lt;&gt;();</span>
+    // state.output.fatal(&quot;length: &quot; + data.length);
+
+<span class="nc bnc" id="L98" title="All 2 branches missed.">    for (int i = 0 ; i &lt; coef.size() ; i ++) {</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">      for (double d : coef.get(i))</span>
+<span class="nc" id="L100">        coeffs.add(d);</span>
+    }
+
+<span class="nc" id="L103">    coefficients = new double[coeffs.size()];</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">    for (int i = 0 ; i &lt; coeffs.size() ; i ++)</span>
+<span class="nc" id="L105">      coefficients[i] = coeffs.get(i);</span>
+    //   state.output.message(&quot;index &quot; + i + &quot;: &quot; + Arrays.toString(coef.elementAt(i)) + &quot;&quot;);
+    // state.output.fatal(&quot;end&quot;);
+    // for (int i = 0 ; i &lt; coefficients.length ; i ++)
+    //   coefficients[i] = (double)coef.get(i);
+<span class="nc" id="L110">    return coefficients;</span>
+  }
+
+/**
+ *      
+&lt;p&gt;
+   Calculate the Haar wavelet transform
+   (the ordered fast Haar wavelet tranform).
+   This calculation is &lt;u&gt;not&lt;/u&gt; done in place.
+
+&lt;p&gt;
+  @param values
+         a &lt;tt&gt;values&lt;/tt&gt;: an array of double
+         values on which the Haar transform is
+         applied.
+
+ */
+  public void wavelet_calc( double[] values )
+  {
+    
+<span class="nc bnc" id="L130" title="All 2 branches missed.">    if (values != null) {</span>
+<span class="nc" id="L131">      data = values;</span>
+<span class="nc" id="L132">      coef = new Vector&lt;double[]&gt;();</span>
+<span class="nc" id="L133">      haar_value = haar_calc( values );</span>
+<span class="nc" id="L134">      reverseCoef();</span>
+    }
+<span class="nc" id="L136">  } // wavelet_calc</span>
+
+
+  /**
+
+    The Haar transform coefficients are generated from the longest
+    coefficient vector (highest frequency) to the shortest (lowest
+    frequency).  However, the reverse Haar transform and the display
+    of the values uses the coefficients from the lowest to the
+    highest frequency.  This function reverses the coefficient 
+    order, so they will be ordered from lowest to highest frequency.
+
+   */
+  private void reverseCoef() {
+<span class="nc" id="L150">    int size = coef.size();</span>
+    double[] tmp;
+
+<span class="nc bnc" id="L153" title="All 2 branches missed.">    for (int i = 0, j = size-1; i &lt; j; i++, j--) {</span>
+<span class="nc" id="L154">      tmp = coef.elementAt(i);</span>
+<span class="nc" id="L155">      coef.setElementAt(coef.elementAt(j), i);</span>
+<span class="nc" id="L156">      coef.setElementAt(tmp, j);</span>
+    } // for
+<span class="nc" id="L158">  } // reverseCoef</span>
+
+
+  
+  /**
+   * 
+
+    Recursively calculate the Haar transform.  The result
+    of the Haar transform is a single integer value
+    and a Vector of coefficients.  The coefficients are
+    calculated from the highest to the lowest frequency.
+&lt;p&gt;
+    The number of elements in &lt;tt&gt;values&lt;/tt&gt; must be a power of two.
+
+   */
+  private double haar_calc( double[] values )
+  {
+<span class="nc" id="L175">    double retVal = 0;;</span>
+<span class="nc" id="L176">    int length = values.length / 2;</span>
+<span class="nc" id="L177">    double[] a = new double[length];</span>
+<span class="nc" id="L178">    double[] c = new double[length];</span>
+    double[] aClone;
+
+<span class="nc bnc" id="L181" title="All 2 branches missed.">    for (int i = 0, j = 0; i &lt; values.length; i += 2, j++) {</span>
+<span class="nc" id="L182">      a[j] = (values[i] + values[i+1])/2;</span>
+<span class="nc" id="L183">      c[j] = (values[i] - values[i+1])/2;</span>
+    }
+
+<span class="nc bnc" id="L186" title="All 2 branches missed.">    while (length &gt; 1) {</span>
+<span class="nc" id="L187">      aClone = a.clone();</span>
+
+<span class="nc" id="L189">      a = new double[length/2];</span>
+<span class="nc" id="L190">      c = new double[length/2];</span>
+
+<span class="nc bnc" id="L192" title="All 2 branches missed.">      for (int i = 0, j = 0; i &lt; length; i += 2, j++) {</span>
+<span class="nc" id="L193">        a[j] = (aClone[i] + aClone[i + 1]) / 2;</span>
+<span class="nc" id="L194">        c[j] = (aClone[i] - aClone[i + 1]) / 2;</span>
+      }
+
+<span class="nc" id="L197">      coef.addElement(c);</span>
+<span class="nc" id="L198">      length /= 2;</span>
+    }
+
+<span class="nc" id="L201">    retVal = a[0];</span>
+
+    // double[] a = new double[ values.length/2 ];
+    // double[] c = new double[ values.length/2 ];
+
+    // for (int i = 0, j = 0; i &lt; values.length; i += 2, j++) {
+    //   a[j] = (values[i] + values[i+1])/2;
+    //   c[j] = (values[i] - values[i+1])/2;
+    // }
+    // coef.addElement( c );
+    
+    // if (a.length == 1)
+    //   retVal = a[0];
+    // else
+    //   retVal = haar_calc( a );
+
+<span class="nc" id="L217">    return retVal;</span>
+  } // haar_calc
+
+
+  /**
+   *
+
+&lt;p&gt;
+     Calculate the inverse haar transform from the coefficients
+     and the Haar value.
+&lt;p&gt;
+     The inverse function will overwrite the original data
+     that was used to calculate the Haar transform.  Since this
+     data is initialized by the caller, the caller should
+     make a copy if the data should not be overwritten.
+&lt;p&gt;
+     The coefficients are stored in in a Java &lt;tt&gt;Vector&lt;/tt&gt;
+     container.  The length of the coefficient arrays is ordered in
+     powers of two (e.g., 1, 2, 4, 8...).  The inverse Haar function
+     is calculated using a butterfly pattern to write into the data
+     array.  An initial step writes the Haar value into data[0].  In
+     the case of the example below this would be
+
+&lt;pre&gt;
+     data[0] = 5.0;
+&lt;/pre&gt;
+&lt;p&gt;
+     Then a butterfly pattern is shown below.  Arrays indices start at
+     0, so in this example &lt;tt&gt;c[1,1] is the second element of the
+     second coefficient vector.
+
+&lt;pre&gt;
+wavelet:
+{[5.0];
+-3.0;
+0.0, -1.0;
+1.0, -2.0, 1.0, 0.0}
+
+tmp = d[0];
+d[0] = tmp + c[0, 0]
+d[4] = tmp - c[0, 0]
+
+tmp = d[0];
+d[0] = tmp + c[1, 0]
+d[2] = tmp - c[1, 0]
+tmp = d[4];
+d[4] = tmp + c[1, 1]
+d[6] = tmp - c[1, 1]
+
+tmp = d[0];
+d[0] = tmp + c[2, 0]
+d[1] = tmp - c[2, 0]
+tmp = d[2];
+d[2] = tmp + c[2, 1]
+d[3] = tmp - c[2, 1]
+tmp = d[4];
+d[4] = tmp + c[2, 2]
+d[5] = tmp - c[2, 2]
+tmp = d[6];
+d[6] = tmp + c[2, 3]
+d[7] = tmp - c[2, 3]
+&lt;/pre&gt;
+
+   */
+  public void inverse() {
+<span class="nc bnc" id="L282" title="All 6 branches missed.">    if (data != null &amp;&amp; coef != null &amp;&amp; coef.size() &gt; 0) {</span>
+<span class="nc" id="L283">      int len = data.length;</span>
+
+<span class="nc" id="L285">      data[0] = haar_value;</span>
+
+<span class="nc bnc" id="L287" title="All 2 branches missed.">      if (len &gt; 0) {</span>
+	// System.out.println(&quot;inverse()&quot;);
+<span class="nc" id="L289">        byte log = binary.log2( len );</span>
+
+<span class="nc" id="L291">        len = binary.power2( log );  // calculation must be on 2 ** n values</span>
+
+<span class="nc" id="L293">	int vec_ix = 0;</span>
+<span class="nc" id="L294">	int last_p = 0;</span>
+<span class="nc" id="L295">	byte p_adj = 1;</span>
+
+<span class="nc bnc" id="L297" title="All 2 branches missed.">        for (byte l = (byte)(log-1); l &gt;= 0; l--) {</span>
+
+<span class="nc" id="L299">          int p = binary.power2( l );</span>
+<span class="nc" id="L300">	  double c[] = (double[])coef.elementAt( vec_ix );</span>
+
+<span class="nc" id="L302">	  int coef_ix = 0;</span>
+<span class="nc bnc" id="L303" title="All 2 branches missed.">          for (int j = 0; j &lt; len; j++) {</span>
+<span class="nc" id="L304">            int a_1 = p * (2 * j);</span>
+<span class="nc" id="L305">	    int a_2 = p * ((2 * j) + 1);</span>
+
+<span class="nc bnc" id="L307" title="All 2 branches missed.">            if (a_2 &lt; len) {</span>
+<span class="nc" id="L308">	      double tmp = data[a_1];</span>
+<span class="nc" id="L309">	      data[ a_1 ] = tmp + c[coef_ix];</span>
+<span class="nc" id="L310">	      data[ a_2 ] = tmp - c[coef_ix];</span>
+<span class="nc" id="L311">	      coef_ix++;</span>
+            }
+            else {
+              break;
+            }
+          } // for j
+<span class="nc" id="L317">	  last_p = p;</span>
+<span class="nc" id="L318">	  p_adj++;</span>
+<span class="nc" id="L319">	  vec_ix++;</span>
+        } // for l
+      }
+      
+    }
+<span class="nc" id="L324">  } // inverse</span>
+
+
+  /**
+      Print the simple Haar object (e.g, the
+      final Haar step value and the coefficients.
+
+   */
+  public void pr() {
+<span class="nc bnc" id="L333" title="All 2 branches missed.">    if (coef != null) {</span>
+<span class="nc" id="L334">      System.out.print(&quot;{[&quot; + haar_value + &quot;]&quot;);</span>
+<span class="nc" id="L335">      int size = coef.size();</span>
+      double[] a;
+      
+<span class="nc bnc" id="L338" title="All 2 branches missed.">      for (int i = 0; i &lt; size; i++) {</span>
+<span class="nc" id="L339">	System.out.println(&quot;;&quot;);</span>
+<span class="nc" id="L340">	a = (double[])coef.elementAt(i);</span>
+<span class="nc bnc" id="L341" title="All 2 branches missed.">	for (int j = 0; j &lt; a.length; j++) {</span>
+<span class="nc" id="L342">	  System.out.print( a[j] );</span>
+<span class="nc bnc" id="L343" title="All 2 branches missed.">	  if (j &lt; a.length-1) {</span>
+<span class="nc" id="L344">	    System.out.print(&quot;, &quot;);</span>
+	  }
+	} // for j
+      } // for i
+<span class="nc" id="L348">      System.out.println(&quot;}&quot;);</span>
+    }
+<span class="nc" id="L350">  } // pr</span>
+
+
+  /**
+   *
+
+&lt;p&gt;
+     Print the data values.
+
+&lt;p&gt;
+     The &lt;tt&gt;pr()&lt;/tt&gt; method prints the coefficients in increasing
+     frequency.  This function prints the data values which were
+     used to generate the Haar transform.
+
+   */
+  public void pr_values() {
+<span class="nc bnc" id="L366" title="All 2 branches missed.">    if (data != null) {</span>
+<span class="nc" id="L367">      System.out.print(&quot;{&quot;);</span>
+<span class="nc bnc" id="L368" title="All 2 branches missed.">      for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="nc" id="L369">	System.out.print( data[i] );</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">	if (i &lt; data.length-1)</span>
+<span class="nc" id="L371">	  System.out.print(&quot;, &quot;);</span>
+      }
+<span class="nc" id="L373">      System.out.println(&quot;}&quot;);</span>
+    }
+<span class="nc" id="L375">  } // pr_values</span>
+
+
+} // simple_haar
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

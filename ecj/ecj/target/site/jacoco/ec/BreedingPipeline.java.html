@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BreedingPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">BreedingPipeline.java</span></div><h1>BreedingPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+import ec.util.*;
+
+import java.util.ArrayList;
+
+import ec.steadystate.*;
+import java.util.HashMap;
+
+/* 
+ * BreedingPipeline.java
+ * 
+ * Created: Tue Aug 17 21:37:10 1999
+ * By: Sean Luke
+ */
+
+/**
+ * A BreedingPipeline is a BreedingSource which provides &quot;fresh&quot; individuals which
+ * can be used to fill a new population.  BreedingPipelines might include
+ * Crossover pipelines, various Mutation pipelines, etc.  This abstract class
+ * provides some default versions of various methods to simplify matters for you.
+ * It also contains an array of breeding sources for your convenience.  You don't
+ * have to use them of course, but this means you have to customize the
+ * default methods below to make sure they get distributed to your special
+ * sources.  Note that these sources may contain references to the same
+ * object -- they're not necessarily distinct.  This is to provide both
+ * some simple DAG features and also to conserve space.
+ *
+ *
+ * &lt;p&gt;A BreedingPipeline implements SteadyStateBSourceForm, meaning that
+ * it receives the individualReplaced(...) and sourcesAreProperForm(...) messages.
+ * however by default it doesn't do anything with these except distribute them
+ * to its sources.  You might override these to do something more interesting.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-sources&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(User-specified number of sources to the pipeline.  
+ Some pipelines have hard-coded numbers of sources; others indicate 
+ (with the java constant DYNAMIC_SOURCES) that the number of sources is determined by this
+ user parameter instead.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;source.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != BreedingSource, or the value &lt;tt&gt;same&lt;/tt&gt;, or the value &lt;tt&gt;stub&lt;/tt&gt;&lt;br&gt;
+ &lt;td valign=top&gt;(Source &lt;i&gt;n&lt;/i&gt; for this BreedingPipeline.
+ If the value is set to &lt;tt&gt;same&lt;/tt&gt;, then this source is the
+ exact same source object as &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;source.&lt;/tt&gt;&lt;i&gt;n-1&lt;/i&gt;, and
+ further parameters for this object will be ignored and treated as the same 
+ as those for &lt;i&gt;n-1&lt;/i&gt;.  &lt;tt&gt;same&lt;tt&gt; is not valid for 
+ &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;source.0&lt;/tt&gt;)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;source.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;td&gt;Source &lt;i&gt;n&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="fc" id="L71">public abstract class BreedingPipeline extends BreedingSource implements SteadyStateBSourceForm</span>
+    {
+    /** Indicates that a source is the exact same source as the previous source. */
+    public static final String V_SAME = &quot;same&quot;;
+    
+    /** Indicates that the source will be filled later via a call to setStubs(). */
+    public static final String V_STUB = &quot;stub&quot;;
+
+    /** Indicates the probability that the Breeding Pipeline will perform its mutative action instead of just doing reproduction. */
+    public static final String P_LIKELIHOOD = &quot;likelihood&quot;;
+
+    /** Indicates that the number of sources is not hard coded but is determined by the user in the parameter file. */
+    public static final int DYNAMIC_SOURCES = -1;
+
+    /** Standard parameter for number of sources (only used if numSources returns DYNAMIC_SOURCES) */
+    public static final String P_NUMSOURCES = &quot;num-sources&quot;;
+
+    /** Standard parameter for individual-selectors associated with a BreedingPipeline */
+    public static final String P_SOURCE = &quot;source&quot;;
+
+    /** My parameter base -- I keep it around so I can print some messages that are useful with it (not deep cloned) */
+    public Parameter mybase;
+
+    public double likelihood;
+
+    /** Array of sources feeding the pipeline */
+    public BreedingSource[] sources;
+
+    /** Returns the number of sources to this pipeline.  Called during
+        BreedingPipeline's setup.  Be sure to return a value &gt; 0, or
+        DYNAMIC_SOURCES which indicates that setup should check the parameter
+        file for the parameter &quot;num-sources&quot; to make its determination. */
+
+    public abstract int numSources();
+            
+    /** Returns the minimum among the typicalIndsProduced() for any children --
+        a function that's useful internally, not very useful for you to call externally. */
+    public int minChildProduction() 
+        {
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">        if (sources.length==0) return 0;</span>
+<span class="fc" id="L111">        int min = sources[0].typicalIndsProduced();</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">        for(int x=1;x&lt;sources.length;x++)</span>
+            {
+<span class="fc" id="L114">            int cur = sources[x].typicalIndsProduced();</span>
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">            if (min &gt; cur) min = cur;</span>
+            }
+<span class="fc" id="L117">        return min;</span>
+        }
+
+    /** Returns the maximum among the typicalIndsProduced() for any children --
+        a function that's useful internally, not very useful for you to call externally. */
+    public int maxChildProduction() 
+        {
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (sources.length==0) return 0;</span>
+<span class="nc" id="L125">        int max = sources[0].typicalIndsProduced();</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        for(int x=1;x&lt;sources.length;x++)</span>
+            {
+<span class="nc" id="L128">            int cur = sources[x].typicalIndsProduced();</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            if (max &lt; cur) max = cur;</span>
+            }
+<span class="nc" id="L131">        return max;</span>
+        }
+
+    public void fillStubs(final EvolutionState state, BreedingSource source)
+        {
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        for(int x=0;x&lt;sources.length;x++)</span>
+            {
+<span class="pc bpc" id="L138" title="1 of 2 branches missed.">            if (sources[x] == null) // fill the stub</span>
+                {
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                if (source == null)</span>
+<span class="nc" id="L141">                    state.output.fatal(&quot;BreedingPipeline needed to fill a stub, but no BreedingSource was provided to fill it.\n&quot; +</span>
+                        &quot;This is probably because no parent pipeline was a StubPipeline.&quot;);
+<span class="nc" id="L143">                sources[x] = source;</span>
+                }
+            else
+<span class="fc" id="L146">                sources[x].fillStubs(state, source);</span>
+            }
+<span class="fc" id="L148">        }</span>
+
+    /** Returns the &quot;typical&quot; number of individuals produced -- by default
+        this is the minimum typical number of individuals produced by any
+        children sources of the pipeline.  If you'd prefer something different,
+        override this method. */
+    public int typicalIndsProduced()
+        {
+<span class="nc" id="L156">        return minChildProduction();</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L161">        super.setup(state,base);</span>
+<span class="fc" id="L162">        mybase = base;</span>
+        
+<span class="fc" id="L164">        Parameter def = defaultBase();</span>
+
+<span class="fc" id="L166">        likelihood = state.parameters.getDoubleWithDefault(base.push(P_LIKELIHOOD), def.push(P_LIKELIHOOD), 1.0);</span>
+<span class="pc bpc" id="L167" title="2 of 4 branches missed.">        if (likelihood &lt; 0.0 || likelihood &gt; 1.0)</span>
+<span class="nc" id="L168">            state.output.fatal(&quot;Breeding Pipeline likelihood must be a value between 0.0 and 1.0 inclusive&quot;, base.push(P_LIKELIHOOD), def.push(P_LIKELIHOOD));</span>
+
+
+<span class="fc" id="L171">        int numsources = numSources();</span>
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">        if (numsources == DYNAMIC_SOURCES)</span>
+            {
+            // figure it from the file
+<span class="nc" id="L175">            numsources = state.parameters.getInt(base.push(P_NUMSOURCES), def.push(P_NUMSOURCES),0);</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">            if (numsources==-1)</span>
+<span class="nc" id="L177">                state.output.fatal(&quot;Breeding pipeline num-sources value must exist and be &gt;= 0&quot;, base.push(P_NUMSOURCES), def.push(P_NUMSOURCES)); </span>
+            }
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">        else if (numsources &lt;= DYNAMIC_SOURCES)  // it's negative</span>
+            {
+<span class="nc" id="L181">            throw new RuntimeException(&quot;In &quot; + this + &quot; numSources() returned &lt; DYNAMIC_SOURCES (that is, &lt; -1)&quot;);</span>
+            }
+        else
+            {
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">            if (state.parameters.exists(base.push(P_NUMSOURCES), def.push(P_NUMSOURCES))) // uh oh</span>
+<span class="nc" id="L186">                state.output.warning(&quot;Breeding pipeline's number of sources is hard-coded to &quot; + numsources + &quot; yet num-sources was provided: num-sources will be ignored.&quot;,</span>
+<span class="nc" id="L187">                    base.push(P_NUMSOURCES), def.push(P_NUMSOURCES));</span>
+            }
+
+<span class="fc" id="L190">        sources = new BreedingSource[numsources];</span>
+
+<span class="fc bfc" id="L192" title="All 2 branches covered.">        for(int x=0;x&lt;sources.length;x++)</span>
+            {
+<span class="fc" id="L194">            Parameter p = base.push(P_SOURCE).push(&quot;&quot;+x);</span>
+<span class="fc" id="L195">            Parameter d = def.push(P_SOURCE).push(&quot;&quot;+x);</span>
+
+<span class="fc" id="L197">            String s = state.parameters.getString(p,d);</span>
+<span class="pc bpc" id="L198" title="1 of 4 branches missed.">            if (s!=null &amp;&amp; s.equals(V_SAME))</span>
+                {
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">                if (x==0)  // oops</span>
+<span class="nc" id="L201">                    state.output.fatal(</span>
+                        &quot;Source #0 cannot be declared with the value \&quot;same\&quot;.&quot;,
+                        p,d);
+                
+                // else the source is the same source as before
+<span class="fc" id="L206">                sources[x] = sources[x-1];</span>
+                }
+<span class="pc bpc" id="L208" title="2 of 4 branches missed.">            else if (s != null &amp;&amp; s.equals(V_STUB))</span>
+                {
+<span class="nc" id="L210">                sources[x] = null;</span>
+                }
+            else
+                {
+<span class="fc" id="L214">                sources[x] = (BreedingSource)</span>
+<span class="fc" id="L215">                    (state.parameters.getInstanceForParameter(</span>
+                        p,d,BreedingSource.class));
+<span class="fc" id="L217">                sources[x].setup(state,p);</span>
+                }
+            }
+<span class="fc" id="L220">        state.output.exitIfErrors();</span>
+<span class="fc" id="L221">        }</span>
+
+
+    public Object clone()
+        {
+<span class="fc" id="L226">        BreedingPipeline c = (BreedingPipeline)(super.clone());</span>
+        
+        // make a new array
+<span class="fc" id="L229">        c.sources = new BreedingSource[sources.length];</span>
+
+        // clone the sources -- we won't go through the hassle of
+        // determining if we have a DAG or not -- we'll just clone
+        // it out to a tree.  I doubt it's worth it.
+
+<span class="fc bfc" id="L235" title="All 2 branches covered.">        for(int x=0;x&lt;sources.length;x++)</span>
+            {
+<span class="pc bpc" id="L237" title="1 of 2 branches missed.">            if (sources[x] == null) // a stub</span>
+                {
+                // do nothing
+                }
+<span class="pc bpc" id="L241" title="1 of 4 branches missed.">            else if (x==0 || sources[x] != sources[x-1])  // not &quot;same&quot;</span>
+<span class="fc" id="L242">                c.sources[x] = (BreedingSource)(sources[x].clone());</span>
+            else 
+<span class="fc" id="L244">                c.sources[x] = c.sources[x-1];</span>
+            }
+
+<span class="fc" id="L247">        return c;</span>
+        }
+
+    public boolean produces(final EvolutionState state,
+        final Population newpop,
+        final int subpopulation,
+        int thread)
+        {
+<span class="fc bfc" id="L255" title="All 2 branches covered.">        for(int x=0;x&lt;sources.length;x++)</span>
+<span class="pc bpc" id="L256" title="1 of 4 branches missed.">            if (x==0 || sources[x]!=sources[x-1])</span>
+<span class="pc bpc" id="L257" title="1 of 2 branches missed.">                if (!sources[x].produces(state,newpop,subpopulation,thread))</span>
+<span class="nc" id="L258">                    return false;</span>
+<span class="fc" id="L259">        return true;</span>
+        }
+
+    public void prepareToProduce(final EvolutionState state,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="fc bfc" id="L266" title="All 2 branches covered.">        for(int x=0;x&lt;sources.length;x++) </span>
+            {
+<span class="pc bpc" id="L268" title="1 of 2 branches missed.">            if (sources[x] == null)  // uh oh</span>
+                {
+<span class="nc" id="L270">                state.output.fatal(&quot;Stub not filled in Breeding Pipeline.&quot;);</span>
+                }
+<span class="pc bpc" id="L272" title="1 of 4 branches missed.">            if (x==0 || sources[x] != sources[x-1])</span>
+                {
+<span class="fc" id="L274">                sources[x].prepareToProduce(state,subpopulation,thread);</span>
+                }
+            }
+<span class="fc" id="L277">        }</span>
+
+    public void finishProducing(final EvolutionState state,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="fc bfc" id="L283" title="All 2 branches covered.">        for(int x=0;x&lt;sources.length;x++) </span>
+<span class="pc bpc" id="L284" title="1 of 4 branches missed.">            if (x==0 || sources[x]!=sources[x-1])</span>
+<span class="fc" id="L285">                sources[x].finishProducing(state,subpopulation,thread);</span>
+<span class="fc" id="L286">        }</span>
+
+    public void preparePipeline(Object hook)
+        {
+        // the default form calls this on all the sources.
+        // note that it follows all the source paths even if they're
+        // duplicates
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        for(int x=0; x&lt;sources.length;x++) </span>
+<span class="nc" id="L294">            sources[x].preparePipeline(hook);</span>
+<span class="nc" id="L295">        }</span>
+        
+    public void individualReplaced(final SteadyStateEvolutionState state,
+        final int subpopulation,
+        final int thread,
+        final int individual)
+        {
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        for(int x=0; x&lt;sources.length;x++) </span>
+<span class="nc" id="L303">            ((SteadyStateBSourceForm)(sources[x])).individualReplaced(state,subpopulation,thread,individual);</span>
+<span class="nc" id="L304">        }</span>
+
+    public void sourcesAreProperForm(final SteadyStateEvolutionState state)
+        {
+<span class="nc bnc" id="L308" title="All 2 branches missed.">        for(int x=0; x&lt;sources.length;x++) </span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">            if (! (sources[x] instanceof SteadyStateBSourceForm))</span>
+                {
+<span class="nc" id="L311">                state.output.error(&quot;The following breeding source is not of SteadyStateBSourceForm.&quot;, </span>
+<span class="nc" id="L312">                    mybase.push(P_SOURCE).push(&quot;&quot;+x), defaultBase().push(P_SOURCE).push(&quot;&quot;+x));</span>
+                }
+            else 
+<span class="nc" id="L315">                ((SteadyStateBSourceForm)(sources[x])).sourcesAreProperForm(state);</span>
+<span class="nc" id="L316">        }</span>
+
+    }
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

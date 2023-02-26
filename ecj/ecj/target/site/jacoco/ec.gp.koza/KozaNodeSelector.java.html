@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KozaNodeSelector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.koza</a> &gt; <span class="el_source">KozaNodeSelector.java</span></div><h1>KozaNodeSelector.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.koza;
+import ec.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * KozaNodeSelector.java
+ * 
+ * Created: Tue Oct 12 17:21:28 1999
+ * By: Sean Luke
+ */
+
+/**
+ * KozaNodeSelector is a GPNodeSelector which picks nodes in trees a-la Koza I,
+ * with the addition of having a probability of always picking the root.
+ * The method divides the range 0.0...1.0 into four probability areas: 
+
+ &lt;ul&gt;
+ &lt;li&gt;One area specifies that the selector must pick a terminal.
+ &lt;li&gt;Another area specifies that the selector must pick a nonterminal (if there is one, else a terminal).
+ &lt;li&gt;The third area specifies that the selector pick the root node.
+ &lt;li&gt;The fourth area specifies that the selector pick any random node.
+ &lt;/ul&gt;
+
+ * &lt;p&gt;The KozaNodeSelector chooses by probability between these four situations.
+ * Then, based on the situation it has picked, it selects either a random 
+ * terminal, nonterminal, root, or arbitrary node from the tree and returns it.
+ *
+ * &lt;p&gt;As the selector picks a node, it builds up some statistics information
+ * which makes it able to pick a little faster in subsequent passes.  Thus
+ * if you want to reuse this selector on another tree, you need to call
+ * reset() first.
+ *
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;terminals&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0,&lt;br&gt;
+ nonterminals + terminals + root &lt;= 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the probability we must pick a terminal)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;nonterminals&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0,&lt;br&gt;
+ nonterminals + terminals + root &lt;= 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the probability we must pick a nonterminal if possible)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;root&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0,&lt;br&gt;
+ nonterminals + terminals + root &lt;= 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the probability we must pick the root)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;DefaultBase&lt;/b&gt;&lt;br&gt;
+ gp.koza.ns
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+public class KozaNodeSelector implements GPNodeSelector 
+    {
+    public static final String P_NODESELECTOR = &quot;ns&quot;;
+    public static final String P_TERMINAL_PROBABILITY = &quot;terminals&quot;;
+    public static final String P_NONTERMINAL_PROBABILITY = &quot;nonterminals&quot;;
+    public static final String P_ROOT_PROBABILITY = &quot;root&quot;;
+
+    /** The probability the root must be chosen */
+    public double rootProbability;
+    
+    /** The probability a terminal must be chosen */
+    public double terminalProbability;
+
+    /** The probability a nonterminal must be chosen. */
+    public double nonterminalProbability;
+
+    /** The number of nonterminals in the tree, -1 if unknown. */
+    public int nonterminals;
+    /** The number of terminals in the tree, -1 if unknown. */
+    public int terminals;
+    /** The number of nodes in the tree, -1 if unknown. */
+    public int nodes;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L93">        return GPKozaDefaults.base().push(P_NODESELECTOR);</span>
+        }
+
+    public KozaNodeSelector() 
+<span class="nc" id="L97">        {</span>
+<span class="nc" id="L98">        reset();</span>
+<span class="nc" id="L99">        }</span>
+
+    public Object clone()
+        {
+        try
+            {
+<span class="nc" id="L105">            KozaNodeSelector s = (KozaNodeSelector)(super.clone());</span>
+<span class="nc" id="L106">            s.reset();</span>
+<span class="nc" id="L107">            return s;</span>
+            }
+<span class="nc" id="L109">        catch (CloneNotSupportedException e)</span>
+<span class="nc" id="L110">            { throw new InternalError(); } // never happens</span>
+        }
+
+
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L117">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L119">        terminalProbability = state.parameters.getDoubleWithMax(</span>
+<span class="nc" id="L120">            base.push(P_TERMINAL_PROBABILITY),</span>
+<span class="nc" id="L121">            def.push(P_TERMINAL_PROBABILITY), 0.0, 1.0);</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (terminalProbability==-1.0)</span>
+<span class="nc" id="L123">            state.output.fatal(&quot;Invalid terminal probability for KozaNodeSelector &quot;,</span>
+<span class="nc" id="L124">                base.push(P_TERMINAL_PROBABILITY),</span>
+<span class="nc" id="L125">                def.push(P_TERMINAL_PROBABILITY));</span>
+        
+<span class="nc" id="L127">        nonterminalProbability = state.parameters.getDoubleWithMax(</span>
+<span class="nc" id="L128">            base.push(P_NONTERMINAL_PROBABILITY), </span>
+<span class="nc" id="L129">            def.push(P_NONTERMINAL_PROBABILITY),0.0, 1.0);</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        if (nonterminalProbability==-1.0)</span>
+<span class="nc" id="L131">            state.output.fatal(&quot;Invalid nonterminal probability for KozaNodeSelector &quot;,</span>
+<span class="nc" id="L132">                base.push(P_NONTERMINAL_PROBABILITY), </span>
+<span class="nc" id="L133">                def.push(P_NONTERMINAL_PROBABILITY));</span>
+
+<span class="nc" id="L135">        rootProbability = state.parameters.getDoubleWithMax(</span>
+<span class="nc" id="L136">            base.push(P_ROOT_PROBABILITY),</span>
+<span class="nc" id="L137">            def.push(P_ROOT_PROBABILITY),0.0, 1.0);</span>
+        
+<span class="nc bnc" id="L139" title="All 2 branches missed.">        if (rootProbability==-1.0)</span>
+<span class="nc" id="L140">            state.output.fatal(&quot;Invalid root probability for KozaNodeSelector &quot;,</span>
+<span class="nc" id="L141">                base.push(P_ROOT_PROBABILITY),</span>
+<span class="nc" id="L142">                def.push(P_ROOT_PROBABILITY));</span>
+
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (rootProbability+terminalProbability+nonterminalProbability &gt; 1.0f)</span>
+<span class="nc" id="L145">            state.output.fatal(&quot;The terminal, nonterminal, and root for KozaNodeSelector&quot; + base + &quot; may not sum to more than 1.0. (&quot; + terminalProbability + &quot; &quot; + nonterminalProbability + &quot; &quot; + rootProbability + &quot;)&quot;,base);</span>
+
+<span class="nc" id="L147">        reset();</span>
+<span class="nc" id="L148">        }</span>
+
+
+    public void reset()
+        {
+<span class="nc" id="L153">        nonterminals = terminals = nodes = -1;</span>
+<span class="nc" id="L154">        }</span>
+
+    public GPNode pickNode(final EvolutionState s,
+        final int subpopulation,
+        final int thread,
+        final GPIndividual ind,
+        final GPTree tree)
+        {
+<span class="nc" id="L162">        double rnd = s.random[thread].nextDouble();</span>
+        
+<span class="nc bnc" id="L164" title="All 2 branches missed.">        if (rnd &gt; nonterminalProbability + terminalProbability + rootProbability)  // pick anyone</span>
+            {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            if (nodes==-1) nodes=tree.child.numNodes(GPNode.NODESEARCH_ALL);</span>
+                {
+<span class="nc" id="L168">                return tree.child.nodeInPosition(s.random[thread].nextInt(nodes), GPNode.NODESEARCH_ALL);</span>
+                }
+            }
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        else if (rnd &gt; nonterminalProbability + terminalProbability)  // pick the root</span>
+            {
+<span class="nc" id="L173">            return tree.child;</span>
+            }
+<span class="nc bnc" id="L175" title="All 2 branches missed.">        else if (rnd &gt; nonterminalProbability)  // pick terminals</span>
+            {
+<span class="nc bnc" id="L177" title="All 2 branches missed.">            if (terminals==-1) terminals = tree.child.numNodes(GPNode.NODESEARCH_TERMINALS);</span>
+<span class="nc" id="L178">            return tree.child.nodeInPosition(s.random[thread].nextInt(terminals), GPNode.NODESEARCH_TERMINALS);</span>
+            }
+        else  // pick nonterminals if you can
+            {
+<span class="nc bnc" id="L182" title="All 2 branches missed.">            if (nonterminals==-1) nonterminals = tree.child.numNodes(GPNode.NODESEARCH_NONTERMINALS);</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">            if (nonterminals &gt; 0) // there are some nonterminals</span>
+                {
+<span class="nc" id="L185">                return tree.child.nodeInPosition(s.random[thread].nextInt(nonterminals), GPNode.NODESEARCH_NONTERMINALS);</span>
+                }
+            else // there ARE no nonterminals!  It must be the root node
+                {
+<span class="nc" id="L189">                return tree.child;</span>
+                }
+            }
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,658 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MultiObjectiveFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.multiobjective</a> &gt; <span class="el_source">MultiObjectiveFitness.java</span></div><h1>MultiObjectiveFitness.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.multiobjective;
+
+import java.io.*;
+import ec.util.DecodeReturn;
+import ec.util.Parameter;
+import ec.util.Code;
+import ec.Fitness;
+import ec.EvolutionState;
+import java.util.*;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * MultiObjectiveFitness.java
+ * 
+ * Created: Tue Aug 10 20:27:38 1999
+ * By: Sean Luke
+ */
+
+/**
+ * MultiObjectiveFitness is a subclass of Fitness which implements basic
+ * multi-objective mechanisms suitable for being used with a variety of
+ * multi-objective selection mechanisms, including ones using pareto-optimality.
+ * 
+ * &lt;p&gt;
+ * The object contains two items: an array of floating point values representing
+ * the various multiple fitnesses, and a flag (maximize) indicating whether
+ * higher is considered better. By default, isIdealFitness() always returns
+ * false; you might want to override that, though it'd be unusual -- what is the
+ * ideal fitness from the perspective of a pareto front?
+ * 
+ * &lt;p&gt;
+ * The object also contains maximum and minimum fitness values suggested for the
+ * problem, on a per-objective basis. By default the maximum values are all 1.0
+ * and the minimum values are all 0.0, but you can change these. Note that
+ * maximum does not mean &quot;best&quot; unless maximize is true.
+ *
+ * &lt;p&gt;The class also contains utility methods or computing pareto dominance, 
+ * Pareto Fronts and Pareto Front Ranks, and distance in multiobjective space.
+ * The default comparison operators use Pareto Dominance, though this is often
+ * overridden by subclasses.
+ *
+ * &lt;p&gt;The fitness() method returns the maximum of the fitness values, which is
+ * clearly nonsensical: you should not be using this method.
+ * 
+ * &lt;p&gt;Subclasses of this class may add certain auxiliary fitness measures which
+ * are printed out by MultiObjectiveStatistics along with the multiple objectives.
+ * To have these values printed out, override the getAuxiliaryFitnessNames()
+ * and getAuxiliaryFitnessValues() methods.
+ *
+ * &lt;p&gt;
+ * &lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-objectives&lt;/tt&gt;&lt;br&gt;
+ * (else)&lt;tt&gt;multi.num-objectives&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the number of fitnesses in the objectives array)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;maximize&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; (default) or &lt;tt&gt;false&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(are higher values considered &quot;better&quot;?)
+ * &lt;/table&gt;
+ * 
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;maximize&lt;/tt&gt;.&lt;i&gt;i&lt;/i&lt;br&gt;
+ * &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; (default) or &lt;tt&gt;false&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(are higher values considered &quot;better&quot;?).  Overrides the
+ * all-objecgive maximization setting.
+ * &lt;/table&gt;
+ * 
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt; double (&lt;tt&gt;1.0&lt;/tt&gt; default)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(maximum fitness value for all objectives)&lt;/table&gt;
+ * 
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max&lt;/tt&gt;.&lt;i&gt;i&lt;/i&gt;&lt;br&gt;
+ * &lt;font size=-1&gt; double (&lt;tt&gt;1.0&lt;/tt&gt; default)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(maximum fitness value for objective &lt;i&gt;i&lt;/i&gt;. Overrides the
+ * all-objective maximum fitness.)&lt;/table&gt;
+ * 
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt; double (&lt;tt&gt;0.0&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(minimum fitness value for all objectives)&lt;/table&gt;
+ * 
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min&lt;/tt&gt;.&lt;i&gt;i&lt;/i&gt;&lt;br&gt;
+ * &lt;font size=-1&gt; double = &lt;tt&gt;0.0&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(minimum fitness value for objective &lt;i&gt;i&lt;/i&gt;. Overrides the
+ * all-objective minimum fitness.)&lt;/table&gt;
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ * multi.fitness
+ * 
+ * @author Sean Luke
+ * @version 1.1
+ */
+
+<span class="fc" id="L110">public class MultiObjectiveFitness extends Fitness</span>
+    {
+    public static final String MULTI_FITNESS_POSTAMBLE = &quot;[&quot;;
+    public static final String FITNESS_POSTAMBLE = &quot;]&quot;;
+
+    /** parameter for size of objectives */
+    public static final String P_NUMOBJECTIVES = &quot;num-objectives&quot;;
+
+    /** parameter for max fitness values */
+    public static final String P_MAXOBJECTIVES = &quot;max&quot;;
+
+    /** parameter for min fitness values */
+    public static final String P_MINOBJECTIVES = &quot;min&quot;;
+
+    /** Is higher better? */
+    public static final String P_MAXIMIZE = &quot;maximize&quot;;
+
+    /** Desired maximum fitness values. By default these are 1.0. Shared. */
+    public double[] maxObjective;
+
+    /** Desired minimum fitness values. By default these are 0.0. Shared. */
+    public double[] minObjective;
+
+    /** Maximization.  Shared. */
+    public boolean[] maximize;
+
+    /** The various fitnesses. */
+    protected double[] objectives; // values range from 0 (worst) to 1 INCLUSIVE
+
+    /** Returns auxilliary fitness value names to be printed by the statistics object.
+        By default, an empty array is returned, but various algorithms may override this to provide additional columns.
+    */
+<span class="nc" id="L142">    public String[] getAuxilliaryFitnessNames() { return new String[] { }; }</span>
+
+    /** Returns auxilliary fitness values to be printed by the statistics object.
+        By default, an empty array is returned, but various algorithms may override this to provide additional columns.
+    */
+<span class="nc" id="L147">    public double[] getAuxilliaryFitnessValues() { return new double[] { }; }</span>
+
+    /** 
+        @deprecated Use isMaximizing(objective).  This function now just returns whether the first objective is maximizing.
+    */
+    public boolean isMaximizing()
+        {
+<span class="nc" id="L154">        return maximize[0];</span>
+        }
+
+    public boolean isMaximizing(int objective)
+        {
+<span class="fc" id="L159">        return maximize[objective];</span>
+        }
+        
+
+<span class="fc" id="L163">    public int getNumObjectives() { return objectives.length; }</span>
+        
+    /**
+     * Returns the objectives as an array. Note that this is the *actual array*.
+     * Though you could set values in this array, you should NOT do this --
+     * rather, set them using setObjectives().
+     */
+    public double[] getObjectives()
+        {
+<span class="fc" id="L172">        return objectives;</span>
+        }
+
+    public double getObjective(int i)
+        {
+<span class="fc" id="L177">        return objectives[i];</span>
+        }
+
+    public void setObjectives(final EvolutionState state, double[] newObjectives)
+        {
+<span class="pc bpc" id="L182" title="1 of 2 branches missed.">        if (newObjectives == null)</span>
+            {
+<span class="nc" id="L184">            state.output.fatal(String.format(&quot;Null objective array provided to %s.&quot;, this.getClass().getSimpleName()));</span>
+            }
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">        if (newObjectives.length != objectives.length)</span>
+            {
+<span class="nc" id="L188">            state.output.fatal(String.format(&quot;%s: New objective array length does not match current length.&quot;, this.getClass().getSimpleName()));</span>
+            }
+<span class="fc bfc" id="L190" title="All 2 branches covered.">        for (int i = 0; i &lt; newObjectives.length; i++)</span>
+            {
+<span class="fc" id="L192">            double _f = newObjectives[i];</span>
+<span class="pc bpc" id="L193" title="3 of 6 branches missed.">            if (_f &gt;= Double.POSITIVE_INFINITY || _f &lt;= Double.NEGATIVE_INFINITY || Double.isNaN(_f))</span>
+                {
+<span class="nc" id="L195">                state.output.warning(&quot;Bad objective #&quot; + i + &quot;: &quot; + _f + &quot;, setting to worst value for that objective.&quot;);</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">                if (maximize[i])</span>
+<span class="nc" id="L197">                    newObjectives[i] = minObjective[i];</span>
+                else
+<span class="nc" id="L199">                    newObjectives[i] = maxObjective[i];</span>
+                }
+<span class="pc bpc" id="L201" title="2 of 4 branches missed.">            else if (_f &gt; maxObjective[i] || _f &lt; minObjective[i])</span>
+                {
+<span class="nc" id="L203">                state.output.warnOnce(String.format(&quot;%s: The value of objective #%d is outside the expected bounds [%f, %f].  Did you configure the '%s' and '%s' parameters correctly?&quot;, this.getClass().getSimpleName(), i, minObjective[i], maxObjective[i], P_MINOBJECTIVES, P_MAXOBJECTIVES));</span>
+                }
+            }
+<span class="fc" id="L206">        objectives = newObjectives;</span>
+<span class="fc" id="L207">        }</span>
+
+    public Parameter defaultBase()
+        {
+<span class="fc" id="L211">        return MultiObjectiveDefaults.base().push(P_FITNESS);</span>
+        }
+
+    public Object clone()
+        {
+<span class="fc" id="L216">        MultiObjectiveFitness f = (MultiObjectiveFitness) (super.clone());</span>
+<span class="fc" id="L217">        f.objectives = (double[]) (objectives.clone()); // cloning an array</span>
+
+        // note that we do NOT clone max and min fitness, or maximizing -- they're shared
+<span class="fc" id="L220">        return f;</span>
+        }
+
+    /**
+     * Returns the Max() of objectives, which adheres to Fitness.java's protocol
+     * for this method. Though you should not rely on a selection or statistics
+     * method which requires this.
+     */
+    public double fitness()
+        {
+<span class="nc" id="L230">        double fit = objectives[0];</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        for (int x = 1; x &lt; objectives.length; x++)</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">            if (fit &lt; objectives[x])</span>
+<span class="nc" id="L233">                fit = objectives[x];</span>
+<span class="nc" id="L234">        return fit;</span>
+        }
+
+    /**
+     * Sets up. This must be called at least once in the prototype before
+     * instantiating any fitnesses that will actually be used in evolution.
+     */
+
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="fc" id="L244">        super.setup(state, base); // unnecessary really</span>
+
+<span class="fc" id="L246">        Parameter def = defaultBase();</span>
+        int numFitnesses;
+
+<span class="fc" id="L249">        numFitnesses = state.parameters.getInt(base.push(P_NUMOBJECTIVES), def.push(P_NUMOBJECTIVES), 0);</span>
+<span class="pc bpc" id="L250" title="1 of 2 branches missed.">        if (numFitnesses &lt;= 0)</span>
+<span class="nc" id="L251">            state.output.fatal(&quot;The number of objectives must be an integer &gt;= 1.&quot;, base.push(P_NUMOBJECTIVES), def.push(P_NUMOBJECTIVES));</span>
+
+<span class="fc" id="L253">        objectives = new double[numFitnesses];</span>
+<span class="fc" id="L254">        maxObjective = new double[numFitnesses];</span>
+<span class="fc" id="L255">        minObjective = new double[numFitnesses];</span>
+<span class="fc" id="L256">        maximize = new boolean[numFitnesses];</span>
+                
+<span class="fc bfc" id="L258" title="All 2 branches covered.">        for (int i = 0; i &lt; numFitnesses; i++)</span>
+            {
+            // load default globals
+<span class="fc" id="L261">            minObjective[i] = state.parameters.getDoubleWithDefault(base.push(P_MINOBJECTIVES), def.push(P_MINOBJECTIVES), 0.0);</span>
+<span class="fc" id="L262">            maxObjective[i] = state.parameters.getDoubleWithDefault(base.push(P_MAXOBJECTIVES), def.push(P_MAXOBJECTIVES), 1.0);</span>
+<span class="fc" id="L263">            maximize[i] = state.parameters.getBoolean(base.push(P_MAXIMIZE), def.push(P_MAXIMIZE), true);</span>
+
+            // load specifics if any
+<span class="fc" id="L266">            minObjective[i] = state.parameters.getDoubleWithDefault(base.push(P_MINOBJECTIVES).push(&quot;&quot; + i), def.push(P_MINOBJECTIVES).push(&quot;&quot; + i), minObjective[i]);</span>
+<span class="fc" id="L267">            maxObjective[i] = state.parameters.getDoubleWithDefault(base.push(P_MAXOBJECTIVES).push(&quot;&quot; + i), def.push(P_MAXOBJECTIVES).push(&quot;&quot; + i), maxObjective[i]);</span>
+<span class="fc" id="L268">            maximize[i] = state.parameters.getBoolean(base.push(P_MAXIMIZE).push(&quot;&quot; + i), def.push(P_MAXIMIZE).push(&quot;&quot; + i), maximize[i]);</span>
+            
+            // test for validity
+<span class="pc bpc" id="L271" title="1 of 2 branches missed.">            if (minObjective[i] &gt;= maxObjective[i])</span>
+<span class="nc" id="L272">                state.output.error(&quot;For objective &quot; + i + &quot;the min fitness must be strictly less than the max fitness.&quot;);</span>
+            }
+<span class="fc" id="L274">        state.output.exitIfErrors();</span>
+<span class="fc" id="L275">        }</span>
+
+    /**
+     * Returns true if this fitness is the &quot;ideal&quot; fitness. Default always
+     * returns false. You may want to override this.
+     */
+    public boolean isIdealFitness()
+        {
+<span class="fc" id="L283">        return false;</span>
+        }
+
+    /**
+     * Returns true if I'm equivalent in fitness (neither better nor worse) to
+     * _fitness. The rule I'm using is this: If one of us is better in one or
+     * more criteria, and we are equal in the others, then equivalentTo is
+     * false. If each of us is better in one or more criteria each, or we are
+     * equal in all criteria, then equivalentTo is true.   Multiobjective optimization algorithms may
+     * choose to override this to do something else.
+     */
+
+    public boolean equivalentTo(Fitness _fitness)
+        {
+<span class="nc" id="L297">        MultiObjectiveFitness other = (MultiObjectiveFitness) _fitness;</span>
+<span class="nc" id="L298">        boolean abeatsb = false;</span>
+<span class="nc" id="L299">        boolean bbeatsa = false;</span>
+
+<span class="nc bnc" id="L301" title="All 2 branches missed.">        if (objectives.length != other.objectives.length)</span>
+<span class="nc" id="L302">            throw new RuntimeException(&quot;Attempt made to compare two multiobjective fitnesses; but they have different numbers of objectives.&quot;);</span>
+        
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        for (int x = 0; x &lt; objectives.length; x++)</span>
+            {
+<span class="nc bnc" id="L306" title="All 2 branches missed.">            if (maximize[x] != other.maximize[x])  // uh oh</span>
+<span class="nc" id="L307">                throw new RuntimeException(</span>
+                    &quot;Attempt made to compare two multiobjective fitnesses; but for objective #&quot; + x + 
+                    &quot;, one expects higher values to be better and the other expectes lower values to be better.&quot;);
+
+<span class="nc bnc" id="L311" title="All 2 branches missed.">            if (maximize[x])</span>
+                {
+<span class="nc bnc" id="L313" title="All 2 branches missed.">                if (objectives[x] &gt; other.objectives[x])</span>
+<span class="nc" id="L314">                    abeatsb = true;</span>
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                if (objectives[x] &lt; other.objectives[x])</span>
+<span class="nc" id="L316">                    bbeatsa = true;</span>
+<span class="nc bnc" id="L317" title="All 4 branches missed.">                if (abeatsb &amp;&amp; bbeatsa)</span>
+<span class="nc" id="L318">                    return true;</span>
+                }
+            else
+                {
+<span class="nc bnc" id="L322" title="All 2 branches missed.">                if (objectives[x] &lt; other.objectives[x])</span>
+<span class="nc" id="L323">                    abeatsb = true;</span>
+<span class="nc bnc" id="L324" title="All 2 branches missed.">                if (objectives[x] &gt; other.objectives[x])</span>
+<span class="nc" id="L325">                    bbeatsa = true;</span>
+<span class="nc bnc" id="L326" title="All 4 branches missed.">                if (abeatsb &amp;&amp; bbeatsa)</span>
+<span class="nc" id="L327">                    return true;</span>
+                }
+            }
+<span class="nc bnc" id="L330" title="All 4 branches missed.">        if (abeatsb || bbeatsa)</span>
+<span class="nc" id="L331">            return false;</span>
+<span class="nc" id="L332">        return true;</span>
+        }
+
+    /**
+     * Returns true if I'm better than _fitness. The DEFAULT rule I'm using is this: if
+     * I am better in one or more criteria, and we are equal in the others, then
+     * betterThan is true, else it is false. Multiobjective optimization algorithms may
+     * choose to override this to do something else.
+     */
+
+    public boolean betterThan(Fitness fitness)
+        {
+<span class="nc" id="L344">        return paretoDominates((MultiObjectiveFitness)fitness);</span>
+        }
+
+    /**
+     * Returns true if I'm better than _fitness. The rule I'm using is this: if
+     * I am better in one or more criteria, and we are equal in the others, then
+     * betterThan is true, else it is false.
+     */
+
+    public boolean paretoDominates(MultiObjectiveFitness other)
+        {
+<span class="fc" id="L355">        boolean abeatsb = false;</span>
+
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">        if (objectives.length != other.objectives.length)</span>
+<span class="nc" id="L358">            throw new RuntimeException(&quot;Attempt made to compare two multiobjective fitnesses; but they have different numbers of objectives.&quot;);</span>
+            
+<span class="fc bfc" id="L360" title="All 2 branches covered.">        for (int x = 0; x &lt; objectives.length; x++)</span>
+            {
+<span class="pc bpc" id="L362" title="1 of 2 branches missed.">            if (maximize[x] != other.maximize[x])  // uh oh</span>
+<span class="nc" id="L363">                throw new RuntimeException(</span>
+                    &quot;Attempt made to compare two multiobjective fitnesses; but for objective #&quot; + x + 
+                    &quot;, one expects higher values to be better and the other expectes lower values to be better.&quot;);
+
+<span class="fc bfc" id="L367" title="All 2 branches covered.">            if (maximize[x])</span>
+                {
+<span class="fc bfc" id="L369" title="All 2 branches covered.">                if (objectives[x] &gt; other.objectives[x])</span>
+<span class="fc" id="L370">                    abeatsb = true;</span>
+<span class="fc bfc" id="L371" title="All 2 branches covered.">                else if (objectives[x] &lt; other.objectives[x])</span>
+<span class="fc" id="L372">                    return false;</span>
+                }
+            else
+                {
+<span class="fc bfc" id="L376" title="All 2 branches covered.">                if (objectives[x] &lt; other.objectives[x])</span>
+<span class="fc" id="L377">                    abeatsb = true;</span>
+<span class="fc bfc" id="L378" title="All 2 branches covered.">                else if (objectives[x] &gt; other.objectives[x])</span>
+<span class="fc" id="L379">                    return false;</span>
+                }
+            }
+            
+<span class="fc" id="L383">        return abeatsb;</span>
+        }
+
+    // Remove an individual from the ArrayList, shifting the topmost
+    // individual in his place
+    static void yank(int val, ArrayList&lt;Individual&gt; list)
+        {
+<span class="fc" id="L390">        int size = list.size();</span>
+<span class="fc" id="L391">        list.set(val, list.get(size - 1));</span>
+<span class="fc" id="L392">        list.remove(size - 1);</span>
+<span class="fc" id="L393">        }</span>
+
+    /**
+     * Divides an array of Individuals into the Pareto front and the &quot;nonFront&quot; (everyone else). 
+     * The Pareto front is returned.  You may provide ArrayLists for the front and a nonFront.
+     * If you provide null for the front, an ArrayList will be created for you.  If you provide
+     * null for the nonFront, non-front individuals will not be added to it.  This algorithm is
+     * O(n^2).
+     */
+    public static ArrayList&lt;Individual&gt; partitionIntoParetoFront(ArrayList&lt;Individual&gt; inds, ArrayList&lt;Individual&gt; front, ArrayList&lt;Individual&gt; nonFront)
+        {
+<span class="fc bfc" id="L404" title="All 2 branches covered.">        if (front == null)</span>
+<span class="fc" id="L405">            front = new ArrayList&lt;Individual&gt;();</span>
+                        
+        // put the first guy in the front
+<span class="fc" id="L408">        front.add(inds.get(0));</span>
+                
+        // iterate over all the remaining individuals
+<span class="fc bfc" id="L411" title="All 2 branches covered.">        for (int i = 1; i &lt; inds.size(); i++)</span>
+            {
+<span class="fc" id="L413">            Individual ind = (Individual) (inds.get(i));</span>
+
+<span class="fc" id="L415">            boolean noOneWasBetter = true;</span>
+<span class="fc" id="L416">            int frontSize = front.size();</span>
+                        
+            // iterate over the entire front
+<span class="fc bfc" id="L419" title="All 2 branches covered.">            for (int j = 0; j &lt; frontSize; j++)</span>
+                {
+<span class="fc" id="L421">                Individual frontmember = (Individual) (front.get(j));</span>
+                                
+                // if the front member is better than the individual, dump the individual and go to the next one
+<span class="fc bfc" id="L424" title="All 2 branches covered.">                if (((MultiObjectiveFitness) (frontmember.fitness)).paretoDominates((MultiObjectiveFitness) (ind.fitness)))</span>
+                    {
+<span class="fc bfc" id="L426" title="All 2 branches covered.">                    if (nonFront != null) nonFront.add(ind);</span>
+<span class="fc" id="L427">                    noOneWasBetter = false;</span>
+<span class="fc" id="L428">                    break;  // failed.  He's not in the front</span>
+                    } 
+                // if the individual was better than the front member, dump the front member.  But look over the
+                // other front members (don't break) because others might be dominated by the individual as well.
+<span class="fc bfc" id="L432" title="All 2 branches covered.">                else if (((MultiObjectiveFitness) (ind.fitness)).paretoDominates((MultiObjectiveFitness) (frontmember.fitness)))</span>
+                    {
+<span class="fc" id="L434">                    yank(j, front);</span>
+                    // a front member is dominated by the new individual.  Replace him
+<span class="fc" id="L436">                    frontSize--; // member got removed</span>
+<span class="fc" id="L437">                    j--;  // because there's another guy we now need to consider in his place</span>
+<span class="fc bfc" id="L438" title="All 2 branches covered.">                    if (nonFront != null) nonFront.add(frontmember);</span>
+                    }
+                }
+<span class="fc bfc" id="L441" title="All 2 branches covered.">            if (noOneWasBetter)</span>
+<span class="fc" id="L442">                front.add(ind);</span>
+            }
+<span class="fc" id="L444">        return front;</span>
+        }
+
+    /**
+     * Returns the Pareto Front of the provided Individuals, sorted by objective 0, breaking ties with objective 1, and so on...
+     * &lt;p&gt;This would be useful for printing out statistics.
+     */
+    public static ArrayList&lt;Individual&gt; getSortedParetoFront(ArrayList&lt;Individual&gt; inds)
+        {
+<span class="fc" id="L453">        ArrayList&lt;Individual&gt; front = partitionIntoParetoFront(inds, null, null);</span>
+
+        // sort by objective[0], breaking ties by objective[1], breaking ties by objective[2], etc.
+<span class="fc" id="L456">        Object[] sortedFront = front.toArray();</span>
+<span class="fc" id="L457">        QuickSort.qsort(sortedFront, new SortComparator()</span>
+<span class="fc" id="L458">            {</span>
+            public boolean lt(Object a, Object b)
+                {
+<span class="fc" id="L461">                MultiObjectiveFitness fa = ((MultiObjectiveFitness) (((Individual) a).fitness));</span>
+<span class="fc" id="L462">                MultiObjectiveFitness fb = ((MultiObjectiveFitness) (((Individual) b).fitness));</span>
+                                
+<span class="fc" id="L464">                int objs = fa.getNumObjectives();</span>
+                                
+<span class="fc bfc" id="L466" title="All 2 branches covered.">                for(int i = 0; i &lt; objs; i++)</span>
+                    {
+<span class="fc bfc" id="L468" title="All 2 branches covered.">                    if (fa.getObjective(i) &lt; fb.getObjective(i)) return true;</span>
+<span class="fc bfc" id="L469" title="All 2 branches covered.">                    else if (fa.getObjective(i) &gt; fb.getObjective(i)) return false;</span>
+                    }
+<span class="fc" id="L471">                return false;</span>
+                }
+                        
+            public boolean gt(Object a, Object b)
+                {
+<span class="fc" id="L476">                MultiObjectiveFitness fa = ((MultiObjectiveFitness) (((Individual) a).fitness));</span>
+<span class="fc" id="L477">                MultiObjectiveFitness fb = ((MultiObjectiveFitness) (((Individual) b).fitness));</span>
+                                
+<span class="fc" id="L479">                int objs = fa.getNumObjectives();</span>
+                                
+<span class="pc bpc" id="L481" title="1 of 2 branches missed.">                for(int i = 0; i &lt; objs; i++)</span>
+                    {
+<span class="fc bfc" id="L483" title="All 2 branches covered.">                    if (fa.getObjective(i) &gt; fb.getObjective(i)) return true;</span>
+<span class="fc bfc" id="L484" title="All 2 branches covered.">                    else if (fa.getObjective(i) &lt; fb.getObjective(i)) return false;</span>
+                    }
+<span class="nc" id="L486">                return false;</span>
+                }
+            });
+                
+<span class="fc" id="L490">        final ArrayList&lt;Individual&gt; sorted = new ArrayList&lt;Individual&gt;(sortedFront.length);</span>
+<span class="fc bfc" id="L491" title="All 2 branches covered.">        for (final Object ind : sortedFront)</span>
+<span class="fc" id="L492">            sorted.add((Individual)ind);</span>
+<span class="fc" id="L493">        return sorted;</span>
+        }
+                
+
+    /** Divides inds into pareto front ranks (each an ArrayList), and returns them, in order,
+        stored in an ArrayList. */
+    public static ArrayList&lt;ArrayList&lt;Individual&gt;&gt; partitionIntoRanks(ArrayList&lt;Individual&gt; inds)
+        {
+<span class="fc" id="L501">        ArrayList&lt;ArrayList&lt;Individual&gt;&gt; frontsByRank = new ArrayList&lt;ArrayList&lt;Individual&gt;&gt;();</span>
+
+<span class="fc bfc" id="L503" title="All 2 branches covered.">        while(inds.size() &gt; 0)</span>
+            {
+<span class="fc" id="L505">            ArrayList&lt;Individual&gt; front = new ArrayList&lt;Individual&gt;();</span>
+<span class="fc" id="L506">            ArrayList&lt;Individual&gt; nonFront = new ArrayList&lt;Individual&gt;();</span>
+<span class="fc" id="L507">            MultiObjectiveFitness.partitionIntoParetoFront(inds, front, nonFront);</span>
+                        
+            // build inds out of remainder
+<span class="fc" id="L510">            inds = new ArrayList&lt;Individual&gt;(nonFront);</span>
+<span class="fc" id="L511">            frontsByRank.add(front);</span>
+<span class="fc" id="L512">            }</span>
+<span class="fc" id="L513">        return frontsByRank;</span>
+        }
+
+
+    /** Returns the Pareto rank for each individual.  Rank 0 is the best rank, then rank 1, and so on.  This is O(n) but it has a high constant overhead because it
+        allocates a hashmap and does some autoboxing. */
+    public static int[] getRankings(ArrayList&lt;Individual&gt; inds)
+        {
+<span class="nc" id="L521">        int[] r = new int[inds.size()];</span>
+<span class="nc" id="L522">        ArrayList&lt;ArrayList&lt;Individual&gt;&gt; ranks = partitionIntoRanks(inds);  // get all the ranks</span>
+        
+        // build a mapping of Individual -&gt; index in inds array
+<span class="nc" id="L525">        HashMap&lt;Individual, Integer&gt; m = new HashMap&lt;Individual, Integer&gt;();</span>
+<span class="nc bnc" id="L526" title="All 2 branches missed.">        for(int i = 0; i &lt; inds.size(); i++)</span>
+<span class="nc" id="L527">            m.put(inds.get(i), Integer.valueOf(i));</span>
+        
+<span class="nc" id="L529">        int numRanks = ranks.size();</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">        for(int rank = 0 ; rank &lt; numRanks; rank++)  // for each rank...</span>
+            {
+<span class="nc" id="L532">            ArrayList&lt;Individual&gt; front = ranks.get(rank);</span>
+<span class="nc" id="L533">            int numInds = front.size();</span>
+<span class="nc bnc" id="L534" title="All 2 branches missed.">            for(int ind = 0; ind &lt; numInds; ind++)  // for each individual in that rank ...</span>
+                {
+                // get the index of the individual in the inds array
+<span class="nc" id="L537">                int i = ((Integer)(m.get(front.get(ind)))).intValue();</span>
+<span class="nc" id="L538">                r[i] = rank;  // set the rank in the corresponding ranks array</span>
+                }
+            }
+<span class="nc" id="L541">        return r;</span>
+        }
+
+
+
+    /**
+     * Returns the sum of the squared difference between two Fitnesses in Objective space.
+     */
+    public double sumSquaredObjectiveDistance(MultiObjectiveFitness other, boolean normalize)
+        {
+<span class="fc" id="L551">        double s = 0;</span>
+<span class="fc bfc" id="L552" title="All 2 branches covered.">        for (int i = 0; i &lt; objectives.length; i++)</span>
+            {
+<span class="fc" id="L554">            double a = (objectives[i] - other.objectives[i]);</span>
+<span class="fc bfc" id="L555" title="All 2 branches covered.">            if (normalize)</span>
+<span class="fc" id="L556">                a /= maxObjective[i];</span>
+<span class="fc" id="L557">            s += a * a;</span>
+            }
+<span class="fc" id="L559">        return s;</span>
+        }
+
+
+    /**
+     * Returns the Manhattan difference between two Fitnesses in Objective space.
+     */
+    public double manhattanObjectiveDistance(MultiObjectiveFitness other)
+        {
+<span class="nc" id="L568">        double s = 0;</span>
+<span class="nc bnc" id="L569" title="All 2 branches missed.">        for (int i = 0; i &lt; objectives.length; i++)</span>
+            {
+<span class="nc" id="L571">            s += Math.abs(objectives[i] - other.objectives[i]);</span>
+            }
+<span class="nc" id="L573">        return s;</span>
+        }
+
+
+    public String fitnessToString()
+        {
+<span class="nc" id="L579">        String s = FITNESS_PREAMBLE + MULTI_FITNESS_POSTAMBLE;</span>
+<span class="nc bnc" id="L580" title="All 2 branches missed.">        for (int x = 0; x &lt; objectives.length; x++)</span>
+            {
+<span class="nc bnc" id="L582" title="All 2 branches missed.">            if (x &gt; 0)</span>
+<span class="nc" id="L583">                s = s + &quot; &quot;;</span>
+<span class="nc" id="L584">            s = s + Code.encode(objectives[x]);</span>
+            }
+<span class="nc" id="L586">        return s + FITNESS_POSTAMBLE;</span>
+        }
+
+
+    public String fitnessToStringForHumans()
+        {
+<span class="fc" id="L592">        String s = FITNESS_PREAMBLE + MULTI_FITNESS_POSTAMBLE;</span>
+<span class="fc bfc" id="L593" title="All 2 branches covered.">        for (int x = 0; x &lt; objectives.length; x++)</span>
+            {
+<span class="fc bfc" id="L595" title="All 2 branches covered.">            if (x &gt; 0)</span>
+<span class="fc" id="L596">                s = s + &quot; &quot;;</span>
+<span class="fc" id="L597">            s = s + objectives[x];</span>
+            }
+<span class="fc" id="L599">        return s + FITNESS_POSTAMBLE;</span>
+        }
+
+    public void readFitness(final EvolutionState state, final LineNumberReader reader) throws IOException
+        {
+<span class="nc" id="L604">        DecodeReturn d = Code.checkPreamble(FITNESS_PREAMBLE + MULTI_FITNESS_POSTAMBLE, state, reader);</span>
+<span class="nc bnc" id="L605" title="All 2 branches missed.">        for (int x = 0; x &lt; objectives.length; x++)</span>
+            {
+<span class="nc" id="L607">            Code.decode(d);</span>
+<span class="nc bnc" id="L608" title="All 2 branches missed.">            if (d.type != DecodeReturn.T_DOUBLE)</span>
+<span class="nc" id="L609">                state.output.fatal(&quot;Reading Line &quot; + d.lineNumber + &quot;: &quot; + &quot;Bad Fitness (objectives value #&quot; + x + &quot;).&quot;);</span>
+<span class="nc" id="L610">            objectives[x] = (double) d.d;</span>
+            }
+<span class="nc" id="L612">        }</span>
+
+    public void writeFitness(final EvolutionState state, final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L616">        dataOutput.writeInt(objectives.length);</span>
+<span class="nc bnc" id="L617" title="All 2 branches missed.">        for (int x = 0; x &lt; objectives.length; x++)</span>
+<span class="nc" id="L618">            dataOutput.writeDouble(objectives[x]);</span>
+<span class="nc" id="L619">        writeTrials(state, dataOutput);</span>
+<span class="nc" id="L620">        }</span>
+
+    public void readFitness(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L624">        int len = dataInput.readInt();</span>
+<span class="nc bnc" id="L625" title="All 4 branches missed.">        if (objectives == null || objectives.length != len)</span>
+<span class="nc" id="L626">            objectives = new double[len];</span>
+<span class="nc bnc" id="L627" title="All 2 branches missed.">        for (int x = 0; x &lt; objectives.length; x++)</span>
+<span class="nc" id="L628">            objectives[x] = dataInput.readDouble();</span>
+<span class="nc" id="L629">        readTrials(state, dataInput);</span>
+<span class="nc" id="L630">        }</span>
+
+
+    public void setToBestOf(EvolutionState state, Fitness[] fitnesses)
+        {
+<span class="nc" id="L635">        state.output.fatal(&quot;setToBestOf(EvolutionState, Fitness[]) not implemented in &quot; + this.getClass());</span>
+<span class="nc" id="L636">        }</span>
+
+    public void setToMeanOf(EvolutionState state, Fitness[] fitnesses)
+        {
+        // basically we compute the centroid of the fitnesses
+<span class="nc" id="L641">        double sum = 0.0;</span>
+<span class="nc bnc" id="L642" title="All 2 branches missed.">        for(int i = 0; i &lt; objectives.length; i++)</span>
+            {
+<span class="nc bnc" id="L644" title="All 2 branches missed.">            for(int k = 0; k &lt; fitnesses.length; k++)</span>
+                {
+<span class="nc" id="L646">                MultiObjectiveFitness f = (MultiObjectiveFitness) fitnesses[k];</span>
+<span class="nc" id="L647">                sum += f.objectives[i];</span>
+                }
+<span class="nc" id="L649">            objectives[i] = (double)(sum / fitnesses.length);</span>
+            }
+<span class="nc" id="L651">        }</span>
+
+    public void setToMedianOf(EvolutionState state, Fitness[] fitnesses)
+        {
+<span class="nc" id="L655">        state.output.fatal(&quot;setToMedianOf(EvolutionState, Fitness[]) not implemented in &quot; + this.getClass());</span>
+<span class="nc" id="L656">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

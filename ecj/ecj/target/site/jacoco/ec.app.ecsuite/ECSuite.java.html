@@ -1,0 +1,768 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ECSuite.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.ecsuite</a> &gt; <span class="el_source">ECSuite.java</span></div><h1>ECSuite.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.ecsuite;
+
+import ec.util.*;
+import ec.*;
+import ec.simple.*;
+import ec.vector.*;
+
+/*
+ * ECSuite.java
+ *
+ * Created: Thu Mar 22 16:27:15 2001
+ * By: Liviu Panait and Sean Luke
+ */
+
+/*
+ * @author Liviu Panait and Sean Luke and Khaled Talukder
+ * @version 2.0
+ */
+
+/**
+   Several standard Evolutionary Computation functions are implemented.
+   As the SimpleFitness is used for maximization problems, the mapping f(x) --&gt; -f(x) is used to transform
+   the problems into maximization ones.
+
+   &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+   &lt;table&gt;
+   &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;type&lt;/tt&gt;&lt;br&gt;
+   &lt;font size=-1&gt;String, one of: rosenbrock rastrigin sphere step noisy-quartic kdj-f1 kdj-f2 kdj-f3 kdj-f4 booth griewank median sum product schwefel min rotated-rastrigin rotated-schwefel rotated-griewank langerman lennard-jones lunacek&lt;/font&gt;&lt;/td&gt;
+   &lt;td valign=top&gt;(The vector problem to test against.  Some of the types are synonyms: kdj-f1 = sphere, kdj-f2 = rosenbrock, kdj-f3 = step, kdj-f4 = noisy-quartic.  &quot;kdj&quot; stands for &quot;Ken DeJong&quot;, and the numbers are the problems in his test suite)&lt;/td&gt;&lt;/tr&gt;
+   &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;seed&lt;/tt&gt;&lt;br&gt;
+   &lt;font size=-1&gt;int &gt; 0&lt;/font&gt;&lt;/td&gt;
+   &lt;td valign=top&gt;(Random number seed for rotated problems)&lt;/td&gt;&lt;/tr&gt;
+   &lt;/table&gt;
+
+*/
+
+<span class="fc" id="L44">    public class ECSuite extends Problem implements SimpleProblemForm</span>
+        {
+        public static final String P_SEED = &quot;seed&quot;;
+        public static final String P_WHICH_PROBLEM = &quot;type&quot;;
+
+        public static final String V_ROSENBROCK = &quot;rosenbrock&quot;;
+        public static final String V_RASTRIGIN = &quot;rastrigin&quot;;
+        public static final String V_SPHERE = &quot;sphere&quot;;
+        public static final String V_STEP = &quot;step&quot;;
+        public static final String V_NOISY_QUARTIC = &quot;noisy-quartic&quot;;
+        public static final String V_F1 = &quot;kdj-f1&quot;;
+        public static final String V_F2 = &quot;kdj-f2&quot;;
+        public static final String V_F3 = &quot;kdj-f3&quot;;
+        public static final String V_F4 = &quot;kdj-f4&quot;;
+        public static final String V_BOOTH = &quot;booth&quot;;
+        public static final String V_GRIEWANGK = &quot;griewangk&quot;;
+        public static final String V_GRIEWANK = &quot;griewank&quot;;
+        public static final String V_MEDIAN = &quot;median&quot;;
+        public static final String V_SUM = &quot;sum&quot;;
+        public static final String V_PRODUCT = &quot;product&quot;;
+        public static final String V_SCHWEFEL = &quot;schwefel&quot;;
+        public static final String V_MIN = &quot;min&quot;;
+        public static final String V_ROTATED_RASTRIGIN = &quot;rotated-rastrigin&quot;;
+        public static final String V_ROTATED_SCHWEFEL = &quot;rotated-schwefel&quot;;
+        public static final String V_ROTATED_GRIEWANK = &quot;rotated-griewank&quot;;
+        public static final String V_LANGERMAN = &quot;langerman&quot; ;
+        public static final String V_LENNARDJONES = &quot;lennard-jones&quot; ;
+        public static final String V_LUNACEK = &quot;lunacek&quot; ;
+
+        public static final int PROB_ROSENBROCK = 0;
+        public static final int PROB_RASTRIGIN = 1;
+        public static final int PROB_SPHERE = 2;
+        public static final int PROB_STEP = 3;
+        public static final int PROB_NOISY_QUARTIC = 4;
+        public static final int PROB_BOOTH = 5;
+        public static final int PROB_GRIEWANK = 6;
+        public static final int PROB_MEDIAN = 7;
+        public static final int PROB_SUM = 8;
+        public static final int PROB_PRODUCT = 9;
+        public static final int PROB_SCHWEFEL = 10;
+        public static final int PROB_MIN = 11;
+        public static final int PROB_ROTATED_RASTRIGIN = 12;
+        public static final int PROB_ROTATED_SCHWEFEL = 13;
+        public static final int PROB_ROTATED_GRIEWANK = 14;
+        public static final int PROB_LANGERMAN = 15 ;
+        public static final int PROB_LENNARDJONES = 16 ;
+        public static final int PROB_LUNACEK = 17 ;
+
+
+<span class="fc" id="L93">        public int problemType = PROB_ROSENBROCK;  // defaults on Rosenbrock</span>
+
+<span class="fc" id="L95">        public static final String problemName[] = new String[]</span>
+        {
+        V_ROSENBROCK,
+        V_RASTRIGIN,
+        V_SPHERE,
+        V_STEP,
+        V_NOISY_QUARTIC,
+        V_BOOTH,
+        V_GRIEWANK,
+        V_MEDIAN,
+        V_SUM,
+        V_PRODUCT,
+        V_SCHWEFEL,
+        V_MIN,
+        V_ROTATED_RASTRIGIN,
+        V_ROTATED_SCHWEFEL,
+        V_ROTATED_GRIEWANK,
+        V_LANGERMAN,
+        V_LENNARDJONES,
+        V_LUNACEK
+        };
+
+<span class="fc" id="L117">        public static final double minRange[] = new double[]</span>
+        {
+        -2.048,         // rosenbrock
+        -5.12,          // rastrigin
+        -5.12,          // sphere
+        -5.12,          // step
+        -1.28,          // noisy quartic
+        -5.12,          // booth
+        -600.0,         // griewank
+        0.0,            // median
+        0.0,            // sum
+        0.0,            // product
+        -512.03,        // schwefel
+        0.0,            // min
+        -5.12,          // rotated-rastrigin
+        -512.03,        // rotated-schwefel
+        -600.0,         // rotated-griewank
+        0,              // langerman
+        -3.0,           // lennard-jones
+        -5.0,       // lunacek
+        };
+
+<span class="fc" id="L139">        public static final double maxRange[] = new double[]</span>
+        {
+        2.048,          // rosenbrock
+        5.12,           // rastrigin
+        5.12,           // sphere
+        5.12,           // step
+        1.28,           // noisy quartic
+        5.12,           // booth
+        600.0,          // griewank
+        1.0,            // median
+        1.0,            // sum
+        2.0,            // product
+        511.97,         // schwefel
+        1.0,            // min
+        5.12,           // rotated-rastrigin
+        511.97,         // rotated-schwefel
+        600.0,          // rotated-griewank
+        10,             // langerman
+        3.0,                                // lennard-jones
+        5.0                 // lunacek
+        };
+
+        public long seed;  // rotation seed for rotation problems
+
+<span class="fc" id="L163">        boolean alreadyChecked = false;</span>
+        public void checkRange(EvolutionState state, int problem, double[] genome)
+            {
+<span class="nc bnc" id="L166" title="All 4 branches missed.">            if (alreadyChecked || state.generation &gt; 0) return;</span>
+<span class="nc" id="L167">            alreadyChecked = true;</span>
+
+<span class="nc bnc" id="L169" title="All 2 branches missed.">            for(int i = 0; i &lt; state.population.subpops.size(); i++)</span>
+                {
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                if (!(state.population.subpops.get(i).species instanceof FloatVectorSpecies))</span>
+                    {
+<span class="nc" id="L173">                    state.output.fatal(&quot;ECSuite requires species &quot; + i + &quot; to be a FloatVectorSpecies, but it is a: &quot; +  state.population.subpops.get(i).species);</span>
+                    }
+<span class="nc" id="L175">                FloatVectorSpecies species = (FloatVectorSpecies)(state.population.subpops.get(i).species);</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                for(int k = 0; k &lt; genome.length; k++)</span>
+                    {
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                    if (species.minGene(k) != minRange[problem] ||</span>
+<span class="nc bnc" id="L179" title="All 2 branches missed.">                        species.maxGene(k) != maxRange[problem])</span>
+                        {
+<span class="nc" id="L181">                        state.output.warning(&quot;Gene range is nonstandard for problem &quot; + problemName[problem] + &quot;.\nFirst occurrence: Subpopulation &quot; + i + &quot; Gene &quot; + k +</span>
+<span class="nc" id="L182">                            &quot; range was [&quot; + species.minGene(k) + &quot;, &quot; + species.maxGene(k) +</span>
+                            &quot;], expected [&quot; + minRange[problem] + &quot;, &quot; + maxRange[problem] + &quot;]&quot;);
+<span class="nc" id="L184">                        return;  // done here</span>
+                        }
+                    }
+                }
+
+<span class="nc bnc" id="L189" title="All 2 branches missed.">            if (problemType == PROB_LANGERMAN)</span>
+                {
+                // Langerman has a maximum genome size of 10
+<span class="nc bnc" id="L192" title="All 2 branches missed.">                if (genome.length &gt; 10)</span>
+<span class="nc" id="L193">                    state.output.fatal(&quot;The Langerman function requires that the genome size be a value from 1 to 10 inclusive.  It is presently &quot; + genome.length);</span>
+                }
+
+<span class="nc bnc" id="L196" title="All 2 branches missed.">            else if (problemType == PROB_LENNARDJONES)</span>
+                {
+                // Lennard-Jones requires that its genomes be multiples of 3
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                if (genome.length % 3 != 0)</span>
+<span class="nc" id="L200">                    state.output.fatal(&quot;The Lennard-Jones function requires that the genome size be a multiple of 3.  It is presently &quot; + genome.length);</span>
+                }
+
+<span class="nc" id="L203">            }</span>
+
+        // nothing....
+        public void setup(final EvolutionState state, final Parameter base)
+            {
+<span class="fc" id="L208">            super.setup(state, base);</span>
+<span class="fc" id="L209">            String wp = state.parameters.getStringWithDefault( base.push( P_WHICH_PROBLEM ), null, &quot;&quot; );</span>
+<span class="pc bpc" id="L210" title="3 of 4 branches missed.">            if( wp.compareTo( V_ROSENBROCK ) == 0 || wp.compareTo (V_F2)==0 )</span>
+<span class="fc" id="L211">                problemType = PROB_ROSENBROCK;</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">            else if ( wp.compareTo( V_RASTRIGIN ) == 0 )</span>
+<span class="nc" id="L213">                problemType = PROB_RASTRIGIN;</span>
+<span class="nc bnc" id="L214" title="All 4 branches missed.">            else if ( wp.compareTo( V_SPHERE ) == 0 || wp.compareTo (V_F1)==0)</span>
+<span class="nc" id="L215">                problemType = PROB_SPHERE;</span>
+<span class="nc bnc" id="L216" title="All 4 branches missed.">            else if ( wp.compareTo( V_STEP ) == 0 || wp.compareTo (V_F3)==0)</span>
+<span class="nc" id="L217">                problemType = PROB_STEP;</span>
+<span class="nc bnc" id="L218" title="All 4 branches missed.">            else if ( wp.compareTo( V_NOISY_QUARTIC ) == 0 || wp.compareTo (V_F4)==0)</span>
+<span class="nc" id="L219">                problemType = PROB_NOISY_QUARTIC;</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">            else if( wp.compareTo( V_BOOTH ) == 0 )</span>
+<span class="nc" id="L221">                problemType = PROB_BOOTH;</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">            else if( wp.compareTo( V_GRIEWANK ) == 0 )</span>
+<span class="nc" id="L223">                problemType = PROB_GRIEWANK;</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">            else if (wp.compareTo( V_GRIEWANGK ) == 0 )</span>
+                {
+<span class="nc" id="L226">                state.output.warning(&quot;Incorrect parameter name (\&quot;griewangk\&quot;) used, should be \&quot;griewank\&quot;&quot;, base.push( P_WHICH_PROBLEM ), null );</span>
+<span class="nc" id="L227">                problemType = PROB_GRIEWANK;</span>
+                }
+<span class="nc bnc" id="L229" title="All 2 branches missed.">            else if( wp.compareTo( V_MEDIAN ) == 0 )</span>
+<span class="nc" id="L230">                problemType = PROB_MEDIAN;</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">            else if( wp.compareTo( V_SUM ) == 0 )</span>
+<span class="nc" id="L232">                problemType = PROB_SUM;</span>
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            else if( wp.compareTo( V_PRODUCT ) == 0 )</span>
+<span class="nc" id="L234">                problemType = PROB_PRODUCT;</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">            else if (wp.compareTo( V_SCHWEFEL ) == 0 )</span>
+<span class="nc" id="L236">                problemType = PROB_SCHWEFEL;</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">            else if (wp.compareTo( V_MIN ) == 0 )</span>
+<span class="nc" id="L238">                problemType = PROB_MIN;</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">            else if (wp.compareTo( V_ROTATED_RASTRIGIN) == 0)</span>
+<span class="nc" id="L240">                problemType = PROB_ROTATED_RASTRIGIN;</span>
+<span class="nc bnc" id="L241" title="All 2 branches missed.">            else if (wp.compareTo( V_ROTATED_SCHWEFEL) == 0)</span>
+<span class="nc" id="L242">                problemType = PROB_ROTATED_SCHWEFEL;</span>
+<span class="nc bnc" id="L243" title="All 2 branches missed.">            else if (wp.compareTo( V_ROTATED_GRIEWANK) == 0)</span>
+<span class="nc" id="L244">                problemType = PROB_ROTATED_GRIEWANK;</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">            else if (wp.compareTo(V_LANGERMAN) == 0)</span>
+<span class="nc" id="L246">                problemType = PROB_LANGERMAN ;</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">            else if (wp.compareTo(V_LENNARDJONES) == 0)</span>
+<span class="nc" id="L248">                problemType = PROB_LENNARDJONES ;</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            else if (wp.compareTo(V_LUNACEK) == 0)</span>
+<span class="nc" id="L250">                problemType = PROB_LUNACEK ;</span>
+
+<span class="nc" id="L252">            else state.output.fatal(</span>
+                &quot;Invalid value for parameter, or parameter not found.\n&quot; +
+                &quot;Acceptable values are:\n&quot; +
+                &quot;  &quot; + V_ROSENBROCK + &quot; (or &quot; + V_F2 + &quot;)\n&quot; +
+                &quot;  &quot; + V_RASTRIGIN + &quot;\n&quot; +
+                &quot;  &quot; + V_SPHERE + &quot; (or &quot; + V_F1 + &quot;)\n&quot; +
+                &quot;  &quot; + V_STEP + &quot; (or &quot; + V_F3 + &quot;)\n&quot; +
+                &quot;  &quot; + V_NOISY_QUARTIC + &quot; (or &quot; + V_F4 + &quot;)\n&quot;+
+                &quot;  &quot; + V_BOOTH + &quot;\n&quot; +
+                &quot;  &quot; + V_GRIEWANK + &quot;\n&quot; +
+                &quot;  &quot; + V_MEDIAN + &quot;\n&quot; +
+                &quot;  &quot; + V_SUM + &quot;\n&quot; +
+                &quot;  &quot; + V_PRODUCT + &quot;\n&quot; +
+                &quot;  &quot; + V_SCHWEFEL + &quot;\n&quot;+
+                &quot;  &quot; + V_MIN + &quot;\n&quot;+
+                &quot;  &quot; + V_ROTATED_RASTRIGIN + &quot;\n&quot; +
+                &quot;  &quot; + V_ROTATED_SCHWEFEL + &quot;\n&quot; +
+                &quot;  &quot; + V_ROTATED_GRIEWANK + &quot;\n&quot; +
+                &quot;  &quot; + V_LANGERMAN + &quot;\n&quot; +
+                &quot;  &quot; + V_LENNARDJONES + &quot;\n&quot; +
+                &quot;  &quot; + V_LUNACEK + &quot;\n&quot;,
+<span class="nc" id="L273">                base.push( P_WHICH_PROBLEM ) );</span>
+        
+<span class="fc" id="L275">            seed = state.parameters.getLongWithDefault( base.push( P_SEED ), null, ROTATION_SEED );</span>
+<span class="pc bpc" id="L276" title="1 of 2 branches missed.">            if (seed &lt;= 0)</span>
+<span class="nc" id="L277">                state.output.fatal(&quot;If a rotation seed is provided, it must be &gt; 0&quot;, base.push( P_SEED ), null);</span>
+<span class="fc" id="L278">            }</span>
+
+        public void evaluate(final EvolutionState state,
+            final Individual ind,
+            final int subpopulation,
+            final int threadnum)
+            {
+<span class="nc bnc" id="L285" title="All 2 branches missed.">            if (ind.evaluated)  // don't bother reevaluating</span>
+<span class="nc" id="L286">                return;</span>
+
+<span class="nc bnc" id="L288" title="All 2 branches missed.">            if( !( ind instanceof DoubleVectorIndividual ) )</span>
+<span class="nc" id="L289">                state.output.fatal( &quot;The individuals for this problem should be DoubleVectorIndividuals.&quot; );</span>
+
+<span class="nc" id="L291">            DoubleVectorIndividual temp = (DoubleVectorIndividual)ind;</span>
+<span class="nc" id="L292">            double[] genome = temp.genome;</span>
+            //int len = genome.length;
+
+            // this curious break-out makes it easy to use the isOptimal() and function() methods
+            // for other purposes, such as coevolutionary versions of this class.
+
+            // compute the fitness on a per-function basis
+<span class="nc" id="L299">            double fit = (function(state, problemType, temp.genome, threadnum));</span>
+
+            // compute if we're optimal on a per-function basis
+<span class="nc" id="L302">            boolean isOptimal = isOptimal(problemType, fit);</span>
+
+            // set the fitness appropriately
+<span class="nc bnc" id="L305" title="All 2 branches missed.">            if (fit &lt; (0.0 - Double.MAX_VALUE))  // uh oh -- can be caused by Product for example</span>
+                {
+<span class="nc" id="L307">                ((SimpleFitness)(ind.fitness)).setFitness( state, 0.0 - Double.MAX_VALUE, isOptimal );</span>
+<span class="nc" id="L308">                state.output.warnOnce(&quot;'Product' type used: some fitnesses are negative infinity, setting to lowest legal negative number.&quot;);</span>
+                }
+<span class="nc bnc" id="L310" title="All 2 branches missed.">            else if (fit &gt; Double.MAX_VALUE)  // uh oh -- can be caused by Product for example</span>
+                {
+<span class="nc" id="L312">                ((SimpleFitness)(ind.fitness)).setFitness( state, Double.MAX_VALUE, isOptimal );</span>
+<span class="nc" id="L313">                state.output.warnOnce(&quot;'Product' type used: some fitnesses are negative infinity, setting to lowest legal negative number.&quot;);</span>
+                }
+            else
+                {
+<span class="nc" id="L317">                ((SimpleFitness)(ind.fitness)).setFitness( state, fit, isOptimal );</span>
+                }
+<span class="nc" id="L319">            ind.evaluated = true;</span>
+<span class="nc" id="L320">            }</span>
+
+
+        public boolean isOptimal(int function, double fitness)
+            {
+<span class="nc bnc" id="L325" title="All 2 branches missed.">            switch(problemType)</span>
+                {
+                case PROB_ROSENBROCK:
+                case PROB_RASTRIGIN:
+                case PROB_SPHERE:
+                case PROB_STEP:
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                    return fitness == 0.0;</span>
+
+                case PROB_NOISY_QUARTIC:
+                case PROB_BOOTH:
+                case PROB_GRIEWANK:
+                case PROB_MEDIAN:
+                case PROB_SUM:
+                case PROB_PRODUCT:
+                case PROB_SCHWEFEL:
+                case PROB_ROTATED_RASTRIGIN:    // not sure
+                case PROB_ROTATED_SCHWEFEL:
+                case PROB_ROTATED_GRIEWANK:
+                case PROB_MIN:
+                case PROB_LANGERMAN:        // may be around -1.4
+                case PROB_LENNARDJONES:
+                case PROB_LUNACEK:
+                default:
+<span class="nc" id="L348">                    return false;</span>
+                }
+            }
+
+        public double function(EvolutionState state, int function, double[] genome, int threadnum)
+            {
+
+<span class="nc" id="L355">            checkRange(state, function, genome);</span>
+
+<span class="nc" id="L357">            double value = 0;</span>
+<span class="nc" id="L358">            double len = genome.length;</span>
+<span class="nc bnc" id="L359" title="All 19 branches missed.">            switch(function)</span>
+                {
+                case PROB_ROSENBROCK:
+<span class="nc bnc" id="L362" title="All 2 branches missed.">                    for( int i = 1 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L364">                        double gj = genome[i-1] ;</span>
+<span class="nc" id="L365">                        double gi = genome[i] ;</span>
+<span class="nc" id="L366">                        value += (1 - gj) * (1 - gj) + 100 * (gi - gj*gj) * (gi - gj*gj);</span>
+                        }
+<span class="nc" id="L368">                    return -value;</span>
+
+
+                case PROB_RASTRIGIN:
+<span class="nc" id="L372">                    final double A = 10.0;</span>
+<span class="nc" id="L373">                    value = len * A;</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L376">                        double gi = genome[i]  ;</span>
+<span class="nc" id="L377">                        value += ( gi*gi - A * Math.cos( 2 * Math.PI * gi ) );</span>
+                        }
+<span class="nc" id="L379">                    return -value;</span>
+
+
+                case PROB_SPHERE:
+<span class="nc bnc" id="L383" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L385">                        double gi = genome[i] ;</span>
+<span class="nc" id="L386">                        value += gi * gi;</span>
+                        }
+<span class="nc" id="L388">                    return -value;</span>
+
+
+                case PROB_STEP:
+<span class="nc bnc" id="L392" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L394">                        double gi = genome[i] ;</span>
+                        // The reason for the 6 is that this is the equation De Jong used in the De Jong Test Suite
+<span class="nc" id="L396">                        value += 6 + Math.floor( gi );</span>
+                        }
+<span class="nc" id="L398">                    return -value;</span>
+
+
+                case PROB_NOISY_QUARTIC:
+<span class="nc bnc" id="L402" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L404">                        double gi = genome[i] ;</span>
+<span class="nc" id="L405">                        value += (i+1)*(gi*gi*gi*gi) + state.random[threadnum].nextGaussian();  // gauss(0,1)</span>
+                        }
+<span class="nc" id="L407">                    return -value;</span>
+
+
+                case PROB_BOOTH:
+<span class="nc bnc" id="L411" title="All 2 branches missed.">                    if( len != 2 )</span>
+<span class="nc" id="L412">                        state.output.fatal( &quot;The Booth problem is defined for only two terms, and as a consequence the genome of the DoubleVectorIndividual should have size 2.&quot; );</span>
+<span class="nc" id="L413">                    double g0 = genome[0] ;</span>
+<span class="nc" id="L414">                    double g1 = genome[1] ;</span>
+<span class="nc" id="L415">                    value = (g0 + 2*g1 - 7) * (g0 + 2*g1 - 7) +</span>
+                        (2*g0 + g1 - 5) * (2*g0 + g1 - 5);
+<span class="nc" id="L417">                    return -value;</span>
+
+
+                case PROB_GRIEWANK:
+<span class="nc" id="L421">                    value = 1;</span>
+<span class="nc" id="L422">                    double prod = 1;</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L425">                        double gi = genome[i] ;</span>
+<span class="nc" id="L426">                        value += (gi*gi)/4000.0;</span>
+<span class="nc" id="L427">                        prod *= Math.cos( gi / Math.sqrt(i+1) );</span>
+                        }
+<span class="nc" id="L429">                    value -= prod;</span>
+<span class="nc" id="L430">                    return -value;</span>
+
+
+                case PROB_SCHWEFEL:
+<span class="nc bnc" id="L434" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L436">                        double gi = genome[i] ;</span>
+<span class="nc" id="L437">                        value += -gi * Math.sin(Math.sqrt(Math.abs(gi)));</span>
+                        }
+<span class="nc" id="L439">                    return -value;</span>
+
+
+                case PROB_MEDIAN:           // FIXME, need to do a better median-finding algorithm, such as http://www.ics.uci.edu/~eppstein/161/960130.html
+<span class="nc" id="L443">                    double[] sorted = new double[(int)len];</span>
+<span class="nc" id="L444">                    System.arraycopy(genome, 0, sorted, 0, sorted.length);</span>
+<span class="nc" id="L445">                    ec.util.QuickSort.qsort(sorted);</span>
+<span class="nc" id="L446">                    return sorted[sorted.length / 2] ;               // note positive</span>
+
+                case PROB_SUM:
+<span class="nc" id="L449">                    value = 0.0;</span>
+<span class="nc bnc" id="L450" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L452">                        double gi = genome[i] ;</span>
+<span class="nc" id="L453">                        value += gi;</span>
+                        }
+<span class="nc" id="L455">                    return value;                                                                   // note positive</span>
+
+                case PROB_MIN:
+<span class="nc" id="L458">                    value = genome[0] ;</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">                    for( int i = 1 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L461">                        double gi = genome[i] ;</span>
+<span class="nc bnc" id="L462" title="All 2 branches missed.">                        if (value &gt; gi) value = gi;</span>
+                        }
+<span class="nc" id="L464">                    return value;                                                                   // note positive</span>
+
+                case PROB_PRODUCT:
+<span class="nc" id="L467">                    value = 1.0;</span>
+<span class="nc bnc" id="L468" title="All 2 branches missed.">                    for( int i = 0 ; i &lt; len ; i++ )</span>
+                        {
+<span class="nc" id="L470">                        double gi = genome[i] ;</span>
+<span class="nc" id="L471">                        value *= gi;</span>
+                        }
+<span class="nc" id="L473">                    return value;                                                                   // note positive</span>
+
+                case PROB_ROTATED_RASTRIGIN:
+                    {
+<span class="nc" id="L477">                    synchronized(rotationMatrix)            // synchronizations are rare in ECJ.  :-(</span>
+                        {
+<span class="nc bnc" id="L479" title="All 2 branches missed.">                        if (rotationMatrix[0] == null)</span>
+<span class="nc" id="L480">                            rotationMatrix[0] = buildRotationMatrix(state, seed, (int)len);</span>
+<span class="nc" id="L481">                        }</span>
+
+                    // now we know the matrix exists rotate the matrix and return its value
+<span class="nc" id="L484">                    double[] val = mul(rotationMatrix[0], genome);</span>
+<span class="nc" id="L485">                    return function(state, PROB_RASTRIGIN, val, threadnum);</span>
+                    }
+
+                case PROB_ROTATED_SCHWEFEL:
+                    {
+<span class="nc" id="L490">                    synchronized(rotationMatrix)            // synchronizations are rare in ECJ.  :-(</span>
+                        {
+<span class="nc bnc" id="L492" title="All 2 branches missed.">                        if (rotationMatrix[0] == null)</span>
+<span class="nc" id="L493">                            rotationMatrix[0] = buildRotationMatrix(state, seed, (int)len);</span>
+<span class="nc" id="L494">                        }</span>
+
+                    // now we know the matrix exists rotate the matrix and return its value
+<span class="nc" id="L497">                    double[] val = mul(rotationMatrix[0], genome);</span>
+<span class="nc" id="L498">                    return function(state, PROB_SCHWEFEL, val, threadnum);</span>
+                    }
+
+                case PROB_ROTATED_GRIEWANK:
+                    {
+<span class="nc" id="L503">                    synchronized(rotationMatrix)            // synchronizations are rare in ECJ.  :-(</span>
+                        {
+<span class="nc bnc" id="L505" title="All 2 branches missed.">                        if (rotationMatrix[0] == null)</span>
+<span class="nc" id="L506">                            rotationMatrix[0] = buildRotationMatrix(state, seed, (int)len);</span>
+<span class="nc" id="L507">                        }</span>
+
+                    // now we know the matrix exists rotate the matrix and return its value
+<span class="nc" id="L510">                    double[] val = mul(rotationMatrix[0], genome);</span>
+<span class="nc" id="L511">                    return function(state, PROB_GRIEWANK, val, threadnum);</span>
+                    }
+
+                case PROB_LANGERMAN:
+                    {
+<span class="nc" id="L516">                    return 0.0 - langerman(genome);</span>
+                    }
+
+                case PROB_LENNARDJONES:
+                    {
+<span class="nc" id="L521">                    int numAtoms = genome.length / 3;</span>
+<span class="nc" id="L522">                    double v = 0.0 ;</span>
+
+<span class="nc bnc" id="L524" title="All 2 branches missed.">                    for(int i = 0 ; i &lt; numAtoms - 1 ; i++ )</span>
+                        {
+<span class="nc bnc" id="L526" title="All 2 branches missed.">                        for(int j = i + 1 ; j &lt; numAtoms ; j++ )</span>
+                            {
+                            // double d = dist(genome, i, j);
+<span class="nc" id="L529">                            double a = genome[i * 3] - genome[j * 3];</span>
+<span class="nc" id="L530">                            double b = genome[i * 3 + 1] - genome[j * 3 + 1];</span>
+<span class="nc" id="L531">                            double c = genome[i * 3 + 2] - genome[j * 3 + 2];</span>
+
+<span class="nc" id="L533">                            double d = Math.sqrt(a * a + b * b + c * c);</span>
+
+<span class="nc" id="L535">                            double r12 = Math.pow(d, -12.0);</span>
+<span class="nc" id="L536">                            double r6 = Math.pow(d, -6.0);</span>
+<span class="nc" id="L537">                            double e = r12 - r6 ;</span>
+<span class="nc" id="L538">                            v += e ;</span>
+                            }
+                        }
+<span class="nc" id="L541">                    v *= -4.0 ;</span>
+<span class="nc" id="L542">                    return v;</span>
+                    }
+
+                case PROB_LUNACEK:
+                    {
+                    // Lunacek function: for more information, please see --
+                    // http://arxiv.org/pdf/1207.4318.pdf
+                    // http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.154.1657
+                    // http://www.cs.unm.edu/~neal.holts/dga/benchmarkFunction/lunacek.html
+                    // http://www.cs.colostate.edu/sched/pubs/ppsn08impact.pdf
+                                
+<span class="nc" id="L553">                    double s = 1.0 - (1.0 / (2.0 * Math.sqrt(genome.length + 20.0) - 8.2)) ;</span>
+                
+                    // depth of the sphere, could be 1, 2, 3, or 4. 1 is deeper than 4
+                    // this could be also be a fraction I guess.
+<span class="nc" id="L557">                    double d = 1.0 ; </span>
+<span class="nc" id="L558">                    double mu1 = 2.5 ;</span>
+<span class="nc" id="L559">                    double mu2 = -1.0 * Math.sqrt(Math.abs((mu1 * mu1 - d) / s));  // probably don't need the abs</span>
+<span class="nc" id="L560">                    double sum1 = 0.0;</span>
+<span class="nc" id="L561">                    double sum2 = 0.0;</span>
+<span class="nc" id="L562">                    double sum3 = 0.0;</span>
+
+<span class="nc bnc" id="L564" title="All 2 branches missed.">                    for(int i = 0 ; i &lt; genome.length ; i++)</span>
+                        {
+<span class="nc" id="L566">                        double genomei = genome[i];</span>
+<span class="nc" id="L567">                        sum1 += (genomei - mu1)*(genomei - mu1) ;</span>
+<span class="nc" id="L568">                        sum2 += (genomei - mu2)*(genomei - mu2) ;</span>
+<span class="nc" id="L569">                        sum3 += 1.0 - Math.cos(2.0 * Math.PI * (genomei - mu1));</span>
+                        }
+<span class="nc" id="L571">                    return Math.min(sum1, d * genome.length + s * sum2) + 10.0 * sum3 ;</span>
+                    }
+                        
+                default:
+<span class="nc" id="L575">                    state.output.fatal( &quot;ec.app.ecsuite.ECSuite has an invalid problem -- how on earth did that happen?&quot; );</span>
+<span class="nc" id="L576">                    return 0;  // never happens</span>
+                }
+
+            }
+
+        // magic arrays for the Langerman problem
+
+<span class="fc" id="L583">        private double[][] afox10 =</span>
+            {
+            {9.681, 0.667, 4.783, 9.095, 3.517, 9.325, 6.544, 0.211, 5.122, 2.020},
+            {9.400, 2.041, 3.788, 7.931, 2.882, 2.672, 3.568, 1.284, 7.033, 7.374},
+            {8.025, 9.152, 5.114, 7.621, 4.564, 4.711, 2.996, 6.126, 0.734, 4.982},
+            {2.196, 0.415, 5.649, 6.979, 9.510, 9.166, 6.304, 6.054, 9.377, 1.426},
+            {8.074, 8.777, 3.467, 1.863, 6.708, 6.349, 4.534, 0.276, 7.633, 1.567},
+            {7.650, 5.658, 0.720, 2.764, 3.278, 5.283, 7.474, 6.274, 1.409, 8.208},
+            {1.256, 3.605, 8.623, 6.905, 0.584, 8.133, 6.071, 6.888, 4.187, 5.448},
+            {8.314, 2.261, 4.224, 1.781, 4.124, 0.932, 8.129, 8.658, 1.208, 5.762},
+            {0.226, 8.858, 1.420, 0.945, 1.622, 4.698, 6.228, 9.096, 0.972, 7.637},
+            {7.305, 2.228, 1.242, 5.928, 9.133, 1.826, 4.060, 5.204, 8.713, 8.247},
+            {0.652, 7.027, 0.508, 4.876, 8.807, 4.632, 5.808, 6.937, 3.291, 7.016},
+            {2.699, 3.516, 5.874, 4.119, 4.461, 7.496, 8.817, 0.690, 6.593, 9.789},
+            {8.327, 3.897, 2.017, 9.570, 9.825, 1.150, 1.395, 3.885, 6.354, 0.109},
+            {2.132, 7.006, 7.136, 2.641, 1.882, 5.943, 7.273, 7.691, 2.880, 0.564},
+            {4.707, 5.579, 4.080, 0.581, 9.698, 8.542, 8.077, 8.515, 9.231, 4.670},
+            {8.304, 7.559, 8.567, 0.322, 7.128, 8.392, 1.472, 8.524, 2.277, 7.826},
+            {8.632, 4.409, 4.832, 5.768, 7.050, 6.715, 1.711, 4.323, 4.405, 4.591},
+            {4.887, 9.112, 0.170, 8.967, 9.693, 9.867, 7.508, 7.770, 8.382, 6.740},
+            {2.440, 6.686, 4.299, 1.007, 7.008, 1.427, 9.398, 8.480, 9.950, 1.675},
+            {6.306, 8.583, 6.084, 1.138, 4.350, 3.134, 7.853, 6.061, 7.457, 2.258},
+            {0.652, 0.343, 1.370, 0.821, 1.310, 1.063, 0.689, 8.819, 8.833, 9.070},
+            {5.558, 1.272, 5.756, 9.857, 2.279, 2.764, 1.284, 1.677, 1.244, 1.234},
+            {3.352, 7.549, 9.817, 9.437, 8.687, 4.167, 2.570, 6.540, 0.228, 0.027},
+            {8.798, 0.880, 2.370, 0.168, 1.701, 3.680, 1.231, 2.390, 2.499, 0.064},
+            {1.460, 8.057, 1.336, 7.217, 7.914, 3.615, 9.981, 9.198, 5.292, 1.224},
+            {0.432, 8.645, 8.774, 0.249, 8.081, 7.461, 4.416, 0.652, 4.002, 4.644},
+            {0.679, 2.800, 5.523, 3.049, 2.968, 7.225, 6.730, 4.199, 9.614, 9.229},
+            {4.263, 1.074, 7.286, 5.599, 8.291, 5.200, 9.214, 8.272, 4.398, 4.506},
+            {9.496, 4.830, 3.150, 8.270, 5.079, 1.231, 5.731, 9.494, 1.883, 9.732},
+            {4.138, 2.562, 2.532, 9.661, 5.611, 5.500, 6.886, 2.341, 9.699, 6.500}
+            };
+
+<span class="fc" id="L617">        private double[] cfox10 =</span>
+            {
+            0.806,  0.517,  1.5,    0.908,  0.965,
+            0.669,  0.524,  0.902,  0.531,  0.876,
+            0.462,  0.491,  0.463,  0.714,  0.352,
+            0.869,  0.813,  0.811,  0.828,  0.964,
+            0.789,  0.360,  0.369,  0.992,  0.332,
+            0.817,  0.632,  0.883,  0.608,  0.326
+            };
+
+        private double langerman(double genome[])
+            {
+
+<span class="nc" id="L630">            double  sum = 0 ;</span>
+
+<span class="nc bnc" id="L632" title="All 2 branches missed.">            for ( int i = 0 ; i &lt; 30 ; i++ )</span>
+                {
+                // compute squared distance
+<span class="nc" id="L635">                double distsq = 0.0;</span>
+                double t;
+<span class="nc" id="L637">                double[] afox10i = afox10[i];</span>
+<span class="nc bnc" id="L638" title="All 2 branches missed.">                for(int j = 0; j &lt; genome.length; j++)</span>
+                    {
+<span class="nc" id="L640">                    t = genome[j] - afox10i[j];</span>
+<span class="nc" id="L641">                    distsq += t * t;</span>
+                    }
+
+<span class="nc" id="L644">                sum += cfox10[i] * Math.exp(-distsq / Math.PI) * Math.cos(distsq * Math.PI);</span>
+                }
+<span class="nc" id="L646">            return 0 - sum;</span>
+            }
+
+
+
+
+        /*
+
+          -----------------
+          Rotation facility
+          -----------------
+
+          This code is just used by the Rotated Schwefel and Rotated Rastrigin functions to rotate their
+          functions by a certain amount.  The code is largely based on the rotation scheme described in
+          &quot;Completely Derandomized Self-Adaptation in Evolutionary Strategies&quot;,
+          Nikolaus Hansen and Andreas Ostermeier, Evolutionary Computation 9(2): 159--195.
+
+          We fix a hard-coded rotation matrix which is the same for all problems, in order to guarantee
+          correctness in gathering results over multiple jobs.  But you can change that easily if you like.
+
+        */
+
+<span class="fc" id="L668">        public static double[][][] rotationMatrix = new double[1][][];  // the actual matrix is stored in rotationMatrix[0] -- a hack</span>
+
+        /** Dot product between two column vectors.  Does not modify the original vectors. */
+        public static double dot(double[] x, double[] y)
+            {
+<span class="nc" id="L673">            double val = 0;</span>
+<span class="nc bnc" id="L674" title="All 2 branches missed.">            for(int i =0; i &lt; x.length; i++)</span>
+<span class="nc" id="L675">                val += x[i] * y[i];</span>
+<span class="nc" id="L676">            return val;</span>
+            }
+
+        /** Multiply a column vector against a matrix[row][column].  Does not modify the original vector or matrix. */
+        public static double[] mul(double [/* row */ ][ /* column */] matrix, double[] x)
+            {
+<span class="nc" id="L682">            double[] val = new double[matrix.length];</span>
+<span class="nc bnc" id="L683" title="All 2 branches missed.">            for(int i = 0; i &lt; matrix.length; i++)</span>
+                {
+<span class="nc" id="L685">                double sum = 0.0;</span>
+<span class="nc" id="L686">                double[] m = matrix[i];</span>
+<span class="nc bnc" id="L687" title="All 2 branches missed.">                for(int j = 0; j &lt; m.length; j++)</span>
+<span class="nc" id="L688">                    sum += m[j] * x[j];</span>
+<span class="nc" id="L689">                val[i] = sum;</span>
+                }
+<span class="nc" id="L691">            return val;</span>
+            }
+
+        /** Scalar multiply against a column vector. Does not modify the original vector. */
+        public static double[] scalarMul(double scalar, double[] x)
+            {
+<span class="nc" id="L697">            double[] val = new double[x.length];</span>
+<span class="nc bnc" id="L698" title="All 2 branches missed.">            for(int i =0; i &lt; x.length; i++)</span>
+<span class="nc" id="L699">                val[i] = x[i] * scalar;</span>
+<span class="nc" id="L700">            return val;</span>
+            }
+
+        /** Subtract two column vectors.  Does not modify the original vectors. */
+        public static double[] sub(double[] x, double[] y)
+            {
+<span class="nc" id="L706">            double[] val = new double[x.length];</span>
+<span class="nc bnc" id="L707" title="All 2 branches missed.">            for(int i =0; i &lt; x.length; i++)</span>
+<span class="nc" id="L708">                val[i] = x[i] - y[i];</span>
+<span class="nc" id="L709">            return val;</span>
+            }
+
+        /** Normalize a column vector.  Does not modify the original vector. */
+        public static double[] normalize(double[] x)
+            {
+<span class="nc" id="L715">            double[] val = new double[x.length];</span>
+<span class="nc" id="L716">            double sumsq = 0;</span>
+<span class="nc bnc" id="L717" title="All 2 branches missed.">            for(int i =0; i &lt; x.length; i++)</span>
+<span class="nc" id="L718">                sumsq += x[i] * x[i];</span>
+<span class="nc" id="L719">            sumsq = Math.sqrt(sumsq);</span>
+<span class="nc bnc" id="L720" title="All 2 branches missed.">            for(int i =0; i &lt; x.length; i++)</span>
+<span class="nc" id="L721">                val[i] = x[i] / sumsq;</span>
+<span class="nc" id="L722">            return val;</span>
+            }
+
+
+        /** Fixed rotation seed so all jobs use exactly the same rotation space. */
+        public static final long ROTATION_SEED = 9731297;
+
+        /** Build an NxN rotation matrix[row][column] with a given seed. */
+        public static double[ /* row */ ][ /* column */] buildRotationMatrix(EvolutionState state, long rotationSeed, int N)
+            {
+<span class="nc bnc" id="L732" title="All 2 branches missed.">            if (rotationSeed == ROTATION_SEED)</span>
+<span class="nc" id="L733">                state.output.warnOnce(&quot;Default rotation seed being used (&quot; + rotationSeed + &quot;)&quot;);</span>
+                
+<span class="nc" id="L735">            MersenneTwisterFast rand = new MersenneTwisterFast(rotationSeed);  // it's rare to need to do this, but we need to guarantee the same rotation space</span>
+<span class="nc bnc" id="L736" title="All 2 branches missed.">            for(int i = 0; i &lt; 624 * 4; i++) // prime the MT for 4 full sample iterations to get it warmed up</span>
+<span class="nc" id="L737">                rand.nextInt();</span>
+        
+<span class="nc" id="L739">            double o[ /* row */ ][ /* column */ ] = new double[N][N];</span>
+
+            // make random values
+<span class="nc bnc" id="L742" title="All 2 branches missed.">            for(int i = 0; i &lt; N; i++)</span>
+<span class="nc bnc" id="L743" title="All 2 branches missed.">                for(int k = 0; k &lt; N; k++)</span>
+<span class="nc" id="L744">                    o[i][k] = rand.nextGaussian();</span>
+
+            // build random values
+<span class="nc bnc" id="L747" title="All 2 branches missed.">            for(int i = 0; i &lt; N; i++)</span>
+                {
+                // extract o[i] -&gt; no
+<span class="nc" id="L750">                double[] no = new double[N];</span>
+<span class="nc bnc" id="L751" title="All 2 branches missed.">                for(int k=0; k &lt; N; k++)</span>
+<span class="nc" id="L752">                    no[k] = o[i][k];</span>
+
+                // go through o[i] and o[j], modifying no
+<span class="nc bnc" id="L755" title="All 2 branches missed.">                for(int j = 0; j &lt; i; j++)</span>
+                    {
+<span class="nc" id="L757">                    double d = dot(o[i], o[j]);</span>
+<span class="nc" id="L758">                    double[] val = scalarMul(d, o[j]);</span>
+<span class="nc" id="L759">                    no = sub(no, val);</span>
+                    }
+<span class="nc" id="L761">                o[i] = normalize(no);</span>
+                }
+
+<span class="nc" id="L764">            return o;</span>
+            }
+
+        }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

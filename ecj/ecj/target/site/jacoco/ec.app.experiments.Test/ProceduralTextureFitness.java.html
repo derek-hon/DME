@@ -1,0 +1,428 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProceduralTextureFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.Test</a> &gt; <span class="el_source">ProceduralTextureFitness.java</span></div><h1>ProceduralTextureFitness.java</h1><pre class="source lang-java linenums">package ec.app.experiments.Test;
+
+import ec.util.Parameter;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+
+import javax.imageio.ImageIO;
+
+import ec.Individual;
+
+import ec.gp.koza.*;
+import ec.proctexture.ColorHistogram;
+import ec.distributedME.*;
+import ec.EvolutionState;
+import ec.app.experiments.Vanilla.ImageLoad;
+import ec.app.experiments.GeneralandFitness.PSDExtensions;
+// import ec.app.experiments.GeneralandFitness.SSIM.*;
+import ec.app.experiments.WaveletExperiment.wavelets.*;
+import ec.app.experiments.WaveletExperiment.wavelets.Haar.ImageQueryData;
+// import ec.app.experiments.GeneralandFitness.;
+import ec.app.experiments.GeneralandFitness.jssim.*;
+import ec.app.experiments.Evaluations.EvaluationFunctions;
+import ec.app.experiments.GeneralandFitness.*;
+
+/**
+ * ProceduralTextureFitness.java Created: 05/05/2020 By: Derek Hon
+ **/
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L32">public class ProceduralTextureFitness extends ImageLoad {</span>
+
+    double[] TargetSample;
+<span class="nc" id="L35">    int width = 0, height = 0;</span>
+    // SSIM TargetSSIM = null;
+<span class="nc" id="L37">    ColorHistogram TargetHistogram = null;</span>
+<span class="nc" id="L38">    Haar TargetHaar = null;</span>
+<span class="nc" id="L39">    SsimCalculator TargetSSIMCalculator = null;</span>
+<span class="nc" id="L40">    DirectMatch match = null;</span>
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L44">        super.setup(state, base);</span>
+
+        // Load targets from existing image
+
+        // width = Target64;
+        // height = Target64;
+<span class="nc" id="L50">        int rgb = 0;</span>
+
+<span class="nc" id="L52">        testSuite(state);</span>
+        
+        // TargetSample = new double[width * height];
+        // TargetSSIMCalculator = new SsimCalculator(TargetImage);
+
+        // this.TargetSSIM = new SSIM(state, targetFile, TargetImage);
+        try {
+<span class="nc" id="L59">            TargetImage = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/testImages/forest1.png&quot;));</span>
+<span class="nc" id="L60">            TargetSSIMCalculator = new SsimCalculator(TargetImage);</span>
+<span class="nc" id="L61">        } catch (SsimException | IOException e) {</span>
+<span class="nc" id="L62">            state.output.fatal(e.toString());</span>
+<span class="nc" id="L63">        }</span>
+
+        // TargetHaar = new Haar(state, TargetImage);
+<span class="nc" id="L66">    }</span>
+
+    private void testSuite(EvolutionState state) {
+<span class="nc" id="L69">        BufferedImage[] forest = new BufferedImage[3];</span>
+<span class="nc" id="L70">        BufferedImage[] water = new BufferedImage[3];</span>
+<span class="nc" id="L71">        ColorHistogram[] forestHistogram = new ColorHistogram[3];</span>
+<span class="nc" id="L72">        ColorHistogram[] waterHistogram = new ColorHistogram[3];</span>
+<span class="nc" id="L73">        SsimCalculator[] forestSSIM = new SsimCalculator[3];</span>
+<span class="nc" id="L74">        SsimCalculator[] waterSSIM = new SsimCalculator[3];</span>
+<span class="nc" id="L75">        Haar[] forestHaar = new Haar[3];</span>
+<span class="nc" id="L76">        Haar[] waterHaar = new Haar[3];</span>
+        
+        
+        // System.out.println(System.getProperty(&quot;user.dir&quot;) + &quot;&quot;);
+        try {
+            // System.out.println(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/thesisExperiments/barcodeSmall.png&quot;);
+            // System.out.println((new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/thesisExperiments/barcodeSmall.png&quot;)).exists());
+            //behaviour test
+<span class="nc" id="L84">            BufferedImage vangogh = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/thesisExperiments/vangoghSmall.png&quot;));</span>
+<span class="nc" id="L85">            BufferedImage vanGP = ImageIO.read(new File(&quot;../../Thesis/baselinegp/GP18.png&quot;));</span>
+<span class="nc" id="L86">            BufferedImage vanIM = ImageIO.read(new File(&quot;../../Thesis/baselineIM/IM30.png&quot;));</span>
+<span class="nc" id="L87">            System.out.println(&quot;test&quot;);</span>
+<span class="nc" id="L88">            BufferedImage vanME = ImageIO.read(new File(&quot;../../Thesis/baselineME/ME24.png&quot;));</span>
+<span class="nc" id="L89">            BufferedImage vanDME = ImageIO.read(new File(&quot;../../Thesis/baselineDME/DME25.png&quot;));</span>
+
+<span class="nc" id="L91">            BufferedImage funIM1 = ImageIO.read(new File(&quot;../../Thesis/funIM/subpopOne/IM20.png&quot;));</span>
+<span class="nc" id="L92">            BufferedImage funIM2 = ImageIO.read(new File(&quot;../../Thesis/funIM/subpopOne/IM23.png&quot;));</span>
+<span class="nc" id="L93">            BufferedImage funIM3 = ImageIO.read(new File(&quot;../../Thesis/funIM/subpopOne/IM7.png&quot;));</span>
+
+<span class="nc" id="L95">            BufferedImage funDME1 = ImageIO.read(new File(&quot;../../Thesis/funDME/subpopOne/DME5.png&quot;));</span>
+<span class="nc" id="L96">            BufferedImage funDME2 = ImageIO.read(new File(&quot;../../Thesis/funDME/subpopOne/DME26.png&quot;));</span>
+<span class="nc" id="L97">            BufferedImage funDME3 = ImageIO.read(new File(&quot;../../Thesis/funDME/subpopOne/DME4.png&quot;));</span>
+
+<span class="nc" id="L99">            BufferedImage barcode = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/thesisExperiments/barcodeSmall.png&quot;));</span>
+<span class="nc" id="L100">            System.out.println(&quot;1&quot;);</span>
+<span class="nc" id="L101">            BufferedImage smile = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/thesisExperiments/smileSmall.png&quot;));</span>
+<span class="nc" id="L102">            BufferedImage sunset = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/thesisExperiments/sunsetSmall.png&quot;));</span>
+<span class="nc" id="L103">            System.out.println(&quot;2&quot;);</span>
+<span class="nc" id="L104">            BufferedImage barcodeME = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/haarWavelet/ME/best_20_Entropy3.42Mean Gray108.0_submap_0_196.png&quot;));</span>
+<span class="nc" id="L105">            System.out.println(&quot;3&quot;);</span>
+<span class="nc" id="L106">            BufferedImage barcodeDME = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/haarWavelet/DME/best_30_Entropy1.14Mean Gray36.0_submap_1_200.png&quot;));</span>
+<span class="nc" id="L107">            System.out.println(&quot;4&quot;);</span>
+<span class="nc" id="L108">            BufferedImage smileME = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/haarWavelet2/ME/best_26_Entropy2.28Mean Gray36.0_submap_0_566.png&quot;));</span>
+<span class="nc" id="L109">            System.out.println(&quot;5&quot;);</span>
+<span class="nc" id="L110">            BufferedImage smileDME = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/haarWavelet2/DME/best_28_Entropy3.42Mean Gray36.0_submap_2_400.png&quot;));</span>
+<span class="nc" id="L111">            System.out.println(&quot;5&quot;);</span>
+<span class="nc" id="L112">            BufferedImage sunsetGP = ImageIO.read(new File(&quot;../../Thesis/waveletGP/sunset/GP11.png&quot;));</span>
+<span class="nc" id="L113">            BufferedImage sunsetIM = ImageIO.read(new File(&quot;../../Thesis/waveletIM/sunset/IM9.png&quot;));</span>
+<span class="nc" id="L114">            System.out.println(&quot;5&quot;);</span>
+<span class="nc" id="L115">            BufferedImage sunsetME = ImageIO.read(new File(&quot;../../Thesis/waveletME/sunset/ME8.png&quot;));</span>
+<span class="nc" id="L116">            System.out.println(&quot;5&quot;);</span>
+<span class="nc" id="L117">            BufferedImage sunsetDME = ImageIO.read(new File(&quot;../../Thesis/waveletDME/sunset/DME17.png&quot;));</span>
+<span class="nc" id="L118">            System.out.println(&quot;6&quot;);</span>
+<span class="nc" id="L119">            BufferedImage smileGP = ImageIO.read(new File(&quot;../../Thesis/waveletGP/smile/GP1.png&quot;));</span>
+<span class="nc" id="L120">            BufferedImage smileIM = ImageIO.read(new File(&quot;../../Thesis/waveletIM/smile/IM1.png&quot;));</span>
+
+<span class="nc" id="L122">            BufferedImage barcodeGP = ImageIO.read(new File(&quot;../../Thesis/waveletGP/barcode/GP5.png&quot;));</span>
+<span class="nc" id="L123">            BufferedImage barcodeIM = ImageIO.read(new File(&quot;../../Thesis/waveletIM/barcode/IM14.png&quot;));</span>
+            // BufferedImage target = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/thesisExperiments/barcode.png&quot;));
+            // BufferedImage image = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/lumCLRExp/BaselineGP/BEST_subpop_0_run13.png&quot;));
+
+<span class="nc" id="L127">            BufferedImage SSIMGP = ImageIO.read(new File(&quot;../../Thesis/SSIMGP/GP16.png&quot;));</span>
+<span class="nc" id="L128">            BufferedImage SSIMIM = ImageIO.read(new File(&quot;../../Thesis/SSIMIM/IM5.png&quot;));</span>
+<span class="nc" id="L129">            BufferedImage SSIMME = ImageIO.read(new File(&quot;../../Thesis/SSIMME/ME4.png&quot;));</span>
+<span class="nc" id="L130">            BufferedImage SSIMDME = ImageIO.read(new File(&quot;../../Thesis/SSIMDME/DME22.png&quot;));</span>
+
+<span class="nc" id="L132">            EvaluationFunctions function = new EvaluationFunctions();</span>
+            // state.output.fatal(function.entropy(state) + &quot;\t&quot; + function.averageLuminance(state));
+<span class="nc" id="L134">            int red = 0, green = 0, blue = 0, lum = 0;</span>
+<span class="nc" id="L135">            int targetLum = 0;</span>
+<span class="nc" id="L136">            int[][] vanPixels = new int[64][64];</span>
+<span class="nc" id="L137">            int[][] vanGPPixels = new int[64][64];</span>
+<span class="nc" id="L138">            int[][] vanIMPixels = new int[64][64];</span>
+<span class="nc" id="L139">            int[][] vanMEPixels = new int[64][64];</span>
+<span class="nc" id="L140">            int[][] vanDMEPixels = new int[64][64];</span>
+<span class="nc" id="L141">            int[][] funIM1Pixels = new int[64][64];</span>
+<span class="nc" id="L142">            int[][] funIM2Pixels = new int[64][64];</span>
+<span class="nc" id="L143">            int[][] funIM3Pixels = new int[64][64];</span>
+<span class="nc" id="L144">            int[][] funDME1Pixels = new int[64][64];</span>
+<span class="nc" id="L145">            int[][] funDME2Pixels = new int[64][64];</span>
+<span class="nc" id="L146">            int[][] funDME3Pixels = new int[64][64];</span>
+<span class="nc" id="L147">            int[][] sunsetPixels = new int[64][64];</span>
+<span class="nc" id="L148">            int[][] barcodePixels = new int[64][64];</span>
+<span class="nc" id="L149">            int[][] smilePixels = new int[64][64];</span>
+<span class="nc" id="L150">            int[][] barcodeGPPixels = new int[64][64];</span>
+<span class="nc" id="L151">            int[][] barcodeIMPixels = new int[64][64];</span>
+<span class="nc" id="L152">            int[][] barcodeMEPixels = new int[64][64];</span>
+<span class="nc" id="L153">            int[][] barcodeDMEPixels = new int[64][64];</span>
+<span class="nc" id="L154">            int[][] smileMEPixels = new int[64][64];</span>
+<span class="nc" id="L155">            int[][] smileDMEPixels = new int[64][64];</span>
+<span class="nc" id="L156">            int[][] smileGPPixels = new int[64][64];</span>
+<span class="nc" id="L157">            int[][] smileIMPixels = new int[64][64];</span>
+<span class="nc" id="L158">            int[][] ssimGPPixels = new int[64][64];</span>
+<span class="nc" id="L159">            int[][] ssimIMPixels = new int[64][64];</span>
+<span class="nc" id="L160">            int[][] ssimMEPixels = new int[64][64];</span>
+<span class="nc" id="L161">            int[][] ssimDMEPixels = new int[64][64];</span>
+<span class="nc" id="L162">            int[][] sunsetGPPixels = new int[64][64];</span>
+<span class="nc" id="L163">            int[][] sunsetIMPixels = new int[64][64];</span>
+<span class="nc" id="L164">            int[][] sunsetMEPixels = new int[64][64];</span>
+<span class="nc" id="L165">            int[][] sunsetDMEPixels = new int[64][64];</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            for (int x = 0 ; x &lt; 64 ; x ++) {</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">                for (int y = 0 ; y &lt; 64 ; y ++) {</span>
+<span class="nc" id="L168">                    vanPixels[x][y] = vangogh.getRGB(x,y);</span>
+<span class="nc" id="L169">                    vanGPPixels[x][y] = vanGP.getRGB(x,y);</span>
+<span class="nc" id="L170">                    vanIMPixels[x][y] = vanIM.getRGB(x,y);</span>
+<span class="nc" id="L171">                    vanMEPixels[x][y] = vanME.getRGB(x,y);</span>
+<span class="nc" id="L172">                    vanDMEPixels[x][y] = vanDME.getRGB(x,y);</span>
+<span class="nc" id="L173">                    funDME1Pixels[x][y] = funDME1.getRGB(x,y);</span>
+<span class="nc" id="L174">                    funDME2Pixels[x][y] = funDME2.getRGB(x,y);</span>
+<span class="nc" id="L175">                    funDME3Pixels[x][y] = funDME3.getRGB(x,y);</span>
+<span class="nc" id="L176">                    funIM1Pixels[x][y] = funIM1.getRGB(x,y);</span>
+<span class="nc" id="L177">                    funIM2Pixels[x][y] = funIM2.getRGB(x,y);</span>
+<span class="nc" id="L178">                    funIM3Pixels[x][y] = funIM3.getRGB(x,y);</span>
+                    
+<span class="nc" id="L180">                    barcodePixels[x][y] = barcode.getRGB(x, y);</span>
+<span class="nc" id="L181">                    smilePixels[x][y] = smile.getRGB(x, y);</span>
+<span class="nc" id="L182">                    sunsetPixels[x][y] = sunset.getRGB(x, y);</span>
+                    
+<span class="nc" id="L184">                    barcodeGPPixels[x][y] = barcodeGP.getRGB(x, y);</span>
+<span class="nc" id="L185">                    barcodeIMPixels[x][y] = barcodeIM.getRGB(x, y);</span>
+<span class="nc" id="L186">                    barcodeMEPixels[x][y] = barcodeME.getRGB(x, y);</span>
+<span class="nc" id="L187">                    barcodeDMEPixels[x][y] = barcodeDME.getRGB(x, y);</span>
+                    
+<span class="nc" id="L189">                    smileMEPixels[x][y] = smileME.getRGB(x, y);</span>
+<span class="nc" id="L190">                    smileDMEPixels[x][y] = smileDME.getRGB(x, y);</span>
+<span class="nc" id="L191">                    smileGPPixels[x][y] = smileGP.getRGB(x, y);</span>
+<span class="nc" id="L192">                    smileIMPixels[x][y] = smileIM.getRGB(x, y);</span>
+
+<span class="nc" id="L194">                    ssimGPPixels[x][y] = SSIMGP.getRGB(x, y);</span>
+<span class="nc" id="L195">                    ssimIMPixels[x][y] = SSIMIM.getRGB(x, y);</span>
+<span class="nc" id="L196">                    ssimMEPixels[x][y] = SSIMME.getRGB(x, y);</span>
+<span class="nc" id="L197">                    ssimDMEPixels[x][y] = SSIMDME.getRGB(x, y);</span>
+                    
+<span class="nc" id="L199">                    sunsetGPPixels[x][y] = sunsetGP.getRGB(x, y);</span>
+<span class="nc" id="L200">                    sunsetIMPixels[x][y] = sunsetIM.getRGB(x, y);</span>
+<span class="nc" id="L201">                    sunsetMEPixels[x][y] = sunsetME.getRGB(x, y);</span>
+<span class="nc" id="L202">                    sunsetDMEPixels[x][y] = sunsetDME.getRGB(x, y);</span>
+                    // int rgb = image.getRGB(x, y);
+                    // int targetRGB = target.getRGB(x, y);
+                    // int tempred = (rgb &amp; 0xFF0000) &gt;&gt; 16;
+                    // int tempgreen = (rgb &amp; 0x00FF00) &gt;&gt; 8;
+                    // int tempblue = (rgb &amp; 0x0000FF);
+                    // int tempred2 = (targetRGB &amp; 0xFF0000) &gt;&gt; 16;
+                    // int tempgreen2 = (targetRGB &amp; 0x00FF00) &gt;&gt; 8;
+                    // int tempblue2 = (targetRGB &amp; 0x0000FF);
+                    // red += tempred;
+                    // green += tempgreen;
+                    // blue += tempblue;
+                    // lum += (tempred + tempgreen + tempblue)/3;
+                    // targetLum += (tempred2 + tempgreen2 + tempblue2)/3;
+                }
+            }
+            // match = new DirectMatch(state, vanPixels);
+<span class="nc" id="L219">            state.output.message(&quot;vangogh lum: &quot; + function.averageLuminance(state, vanPixels) + &quot;vangogh red: &quot; + function.averageRed(vanPixels) + &quot; vangogh green: &quot; + function.averageGreen(vanPixels) + &quot; vangogh blue: &quot; + function.averageBlue(vanPixels));</span>
+<span class="nc" id="L220">            state.output.message(&quot;vangogh entropy: &quot; + function.entropy(state, vanPixels));</span>
+<span class="nc" id="L221">            state.output.message(&quot;subpop1 entropy: &quot; + function.entropy(state, funIM1Pixels) + &quot; luminosity: &quot; + function.averageLuminance(state, funIM1Pixels));</span>
+<span class="nc" id="L222">            state.output.message(&quot;subpop2 entropy: &quot; + function.entropy(state, funIM2Pixels) + &quot; luminosity: &quot; + function.averageLuminance(state, funIM2Pixels));</span>
+<span class="nc" id="L223">            state.output.message(&quot;subpop3 entropy: &quot; + function.entropy(state, funIM3Pixels) + &quot; luminosity: &quot; + function.averageLuminance(state, funIM3Pixels));</span>
+
+<span class="nc" id="L225">            state.output.message(&quot;submap 1 entropy: &quot; + function.entropy(state, funDME1Pixels) + &quot; luminosity: &quot; + function.averageLuminance(state, funDME1Pixels));</span>
+<span class="nc" id="L226">            state.output.message(&quot;submap 2 entropy: &quot; + function.entropy(state, funDME2Pixels) + &quot; luminosity: &quot; + function.averageLuminance(state, funDME2Pixels));</span>
+<span class="nc" id="L227">            state.output.message(&quot;submap 3 entropy: &quot; + function.entropy(state, funDME3Pixels) + &quot; luminosity: &quot; + function.averageLuminance(state, funDME3Pixels));</span>
+            // match = new DirectMatch(state, vanGPPixels);
+            // state.output.message(&quot;GP vangogh lum: &quot; + function.averageLuminance(state, vanGPPixels) + &quot;vangogh red: &quot; + function.averageRed(vanGPPixels) + &quot; vangogh green: &quot; + function.averageGreen(vanGPPixels) + &quot; vangogh blue: &quot; + function.averageBlue(vanGPPixels));
+
+            // match = new DirectMatch(state, vanIMPixels);
+            // state.output.message(&quot;IM vangogh lum: &quot; + function.averageLuminance(state, vanIMPixels) + &quot; vangogh red: &quot; + function.averageRed(vanIMPixels) + &quot; vangogh green: &quot; + function.averageGreen(vanIMPixels) + &quot; vangogh blue: &quot; + function.averageBlue(vanIMPixels));
+
+            // match = new DirectMatch(state, vanMEPixels);
+            // state.output.message(&quot;ME vangogh lum: &quot; + function.averageLuminance(state, vanMEPixels) + &quot;vangogh red: &quot; + function.averageRed(vanMEPixels) + &quot; vangogh green: &quot; + function.averageGreen(vanMEPixels) + &quot; vangogh blue: &quot; + function.averageBlue(vanGPPixels));
+
+<span class="nc" id="L237">            match = new DirectMatch(state, vanDMEPixels);</span>
+<span class="nc" id="L238">            state.output.message(&quot;DME vangogh lum: &quot; + function.averageLuminance(state, vanDMEPixels) + &quot; vangogh red: &quot; + function.averageRed(vanDMEPixels) + &quot; vangogh green: &quot; + function.averageGreen(vanDMEPixels) + &quot; vangogh blue: &quot; + function.averageBlue(vanDMEPixels));</span>
+
+<span class="nc" id="L240">            Haar haar  = new Haar(state, barcodePixels);</span>
+<span class="nc" id="L241">            ImageQueryData data = haar.getHaarData();</span>
+<span class="nc" id="L242">            BufferedImage coeffImg = new BufferedImage(64, 64, BufferedImage.TYPE_INT_RGB);</span>
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/wavelet/barcodeCoeff.png&quot;));
+            // state.output.message(&quot;barcode entropy: &quot; + function.entropy(state, barcodePixels) + &quot; barcode colour: &quot; + function.averageLuminance(state, barcodePixels));
+
+            // haar = new Haar(state, smilePixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/wavelet/smileCoeff.png&quot;));
+            // state.output.message(&quot;smile entropy: &quot; + function.entropy(state, smilePixels) + &quot; smile colour: &quot; + function.averageLuminance(state, smilePixels));
+
+            // haar = new Haar(state, barcodeGPPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletGP/barcode/coeff.png&quot;));
+            // state.output.message(&quot;barcode gp entropy: &quot; + function.entropy(state, barcodeGPPixels) + &quot; barcode gp colour: &quot; + function.averageLuminance(state, barcodeGPPixels));
+
+            // haar = new Haar(state, barcodeIMPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletIM/barcode/coeff.png&quot;));
+            // state.output.message(&quot;barcode im entropy: &quot; + function.entropy(state, barcodeIMPixels) + &quot; barcode im colour: &quot; + function.averageLuminance(state, barcodeIMPixels));
+
+
+            // haar = new Haar(state, barcodeMEPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletME/barcode/coeff.png&quot;));
+            // state.output.message(&quot;barcode me entropy: &quot; + function.entropy(state, barcodeMEPixels) + &quot; barcode me colour: &quot; + function.averageLuminance(state, barcodeMEPixels));
+
+            // haar = new Haar(state, barcodeDMEPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletDME/barcode/coeff.png&quot;));
+            // state.output.message(&quot;barcode dme entropy: &quot; + function.entropy(state, barcodeDMEPixels) + &quot; barcode dme colour: &quot; + function.averageLuminance(state, barcodeDMEPixels));
+
+            // haar = new Haar(state, smileGPPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletGP/smile/coeff.png&quot;));
+            // state.output.message(&quot;smile gp entropy: &quot; + function.entropy(state, smileGPPixels) + &quot; smile gp colour: &quot; + function.averageLuminance(state, smileGPPixels));
+
+            // haar = new Haar(state, smileIMPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletIM/smile/coeff.png&quot;));
+            // state.output.message(&quot;smile im entropy: &quot; + function.entropy(state, smileIMPixels) + &quot; smile im colour: &quot; + function.averageLuminance(state, smileIMPixels));
+
+            // haar = new Haar(state, smileMEPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletME/smile/coeff.png&quot;));
+            // state.output.message(&quot;smile me entropy: &quot; + function.entropy(state, smileMEPixels) + &quot; smile me colour: &quot; + function.averageLuminance(state, smileMEPixels));
+
+            // haar = new Haar(state, smileDMEPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletDME/smile/coeff.png&quot;));
+            // state.output.message(&quot;smile dme entropy: &quot; + function.entropy(state, smileDMEPixels) + &quot; smile dme colour: &quot; + function.averageLuminance(state, smileDMEPixels));
+
+<span class="nc" id="L302">            haar = new Haar(state, sunsetGPPixels);</span>
+<span class="nc" id="L303">            data = haar.getHaarData();</span>
+<span class="nc" id="L304">            coeffImg = data.coefficientImage(state);</span>
+<span class="nc" id="L305">            ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletGP/sunset/coeff.png&quot;));</span>
+<span class="nc" id="L306">            state.output.message(&quot;sunset gp entropy: &quot; + function.entropy(state, sunsetGPPixels) + &quot;colour: &quot; + function.averageLuminance(state, sunsetGPPixels));</span>
+
+<span class="nc" id="L308">            haar = new Haar(state, sunsetIMPixels);</span>
+<span class="nc" id="L309">            data = haar.getHaarData();</span>
+<span class="nc" id="L310">            coeffImg = data.coefficientImage(state);</span>
+<span class="nc" id="L311">            ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletIM/sunset/coeff.png&quot;));</span>
+<span class="nc" id="L312">            state.output.message(&quot;sunset im entropy: &quot; + function.entropy(state, sunsetIMPixels) + &quot;colour: &quot; + function.averageLuminance(state, sunsetIMPixels));</span>
+
+
+<span class="nc" id="L315">            haar = new Haar(state, sunsetMEPixels);</span>
+<span class="nc" id="L316">            data = haar.getHaarData();</span>
+<span class="nc" id="L317">            coeffImg = data.coefficientImage(state);</span>
+<span class="nc" id="L318">            ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletME/sunset/coeff.png&quot;));</span>
+<span class="nc" id="L319">            state.output.message(&quot;sunset me entropy: &quot; + function.entropy(state, sunsetMEPixels) + &quot;colour: &quot; + function.averageLuminance(state, sunsetMEPixels));</span>
+
+<span class="nc" id="L321">            haar = new Haar(state, sunsetDMEPixels);</span>
+<span class="nc" id="L322">            data = haar.getHaarData();</span>
+<span class="nc" id="L323">            coeffImg = data.coefficientImage(state);</span>
+<span class="nc" id="L324">            ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/waveletDME/sunset/coeff.png&quot;));</span>
+<span class="nc" id="L325">            state.output.message(&quot;sunset dme entropy: &quot; + function.entropy(state, sunsetDMEPixels) + &quot; smile dme colour: &quot; + function.averageLuminance(state, sunsetDMEPixels));</span>
+
+            // haar = new Haar(state, sunsetPixels);
+            // data = haar.getHaarData();
+            // coeffImg = data.coefficientImage(state);
+            // ImageIO.write(coeffImg, &quot;png&quot;, new File(&quot;../../Thesis/wavelet/sunsetCoeff.png&quot;));
+            // state.output.message(&quot;sunset dme entropy: &quot; + function.entropy(state, sunsetPixels) + &quot; smile dme colour: &quot; + function.averageLuminance(state, sunsetPixels));
+
+<span class="nc" id="L333">            state.output.message(&quot;sunset entropy: &quot; + function.entropy(state, sunsetPixels) + &quot; colour: &quot; + function.averageLuminance(state, sunsetPixels));</span>
+<span class="nc" id="L334">            state.output.message(&quot;gp ssim entropy: &quot; + function.entropy(state, ssimGPPixels) + &quot; colour: &quot; + function.averageLuminance(state, ssimGPPixels));</span>
+<span class="nc" id="L335">            state.output.message(&quot;im ssim entropy: &quot; + function.entropy(state, ssimIMPixels) + &quot; colour: &quot; + function.averageLuminance(state, ssimIMPixels));</span>
+<span class="nc" id="L336">            state.output.message(&quot;me ssim entropy: &quot; + function.entropy(state, ssimMEPixels) + &quot; colour: &quot; + function.averageLuminance(state, ssimMEPixels));</span>
+<span class="nc" id="L337">            state.output.message(&quot;dme ssim entropy: &quot; + function.entropy(state, ssimDMEPixels) + &quot; colour: &quot; + function.averageLuminance(state, ssimDMEPixels));</span>
+<span class="nc" id="L338">            state.output.fatal(&quot;end&quot;);</span>
+
+            // state.output.fatal(&quot;targetLum: &quot; + (targetLum/(64 * 64)) + &quot; Lum: &quot; + (lum/(64 * 64)) + &quot;\n&quot; + &quot;Red: &quot; + (red/(64 * 64)) + &quot; Green: &quot; + (green/(64 * 64)) + &quot; Blue: &quot; + (blue/(64 * 64)));
+            
+<span class="nc bnc" id="L342" title="All 2 branches missed.">            for (int i = 0 ; i &lt; 3 ; i ++) {</span>
+<span class="nc" id="L343">                forest[i] = new BufferedImage(128, 128, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L344">                water[i] = new BufferedImage(128, 128, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L345">                System.out.println(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/app/testImages/forest&quot; + (i + 1) + &quot;.png&quot;);</span>
+<span class="nc" id="L346">                forest[i] = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/testImages/forest&quot; + (i + 1) + &quot;.png&quot;));</span>
+<span class="nc" id="L347">                water[i] = ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/src/main/resources/ec/app/testImages/water&quot; + (i + 1) + &quot;.png&quot;));</span>
+<span class="nc" id="L348">                forestHistogram[i] = new ColorHistogram(forest[i]);</span>
+<span class="nc" id="L349">                waterHistogram[i] = new ColorHistogram(water[i]);</span>
+<span class="nc" id="L350">                forestHaar[i] = new Haar(state, forest[i]);</span>
+<span class="nc" id="L351">                waterHaar[i] = new Haar(state, water[i]);</span>
+<span class="nc" id="L352">                forestHaar[i] = new Haar(state, forest[i]);</span>
+<span class="nc" id="L353">                waterHaar[i] = new Haar(state, water[i]);</span>
+<span class="nc" id="L354">                forestSSIM[i] = new SsimCalculator(forest[i]);</span>
+<span class="nc" id="L355">                waterSSIM[i] = new SsimCalculator(water[i]);</span>
+            }    
+            
+<span class="nc" id="L358">            System.out.println(&quot;CHISTQ forest 1 vs 1: &quot; + forestHistogram[0].colorDS(forestHistogram[0]));</span>
+<span class="nc" id="L359">            System.out.println(&quot;CHISTQ forest 1 vs 2: &quot; + forestHistogram[0].colorDS(forestHistogram[1]));</span>
+<span class="nc" id="L360">            System.out.println(&quot;CHISTQ forest 1 vs 3: &quot; + forestHistogram[0].colorDS(forestHistogram[2]));</span>
+<span class="nc" id="L361">            System.out.println(&quot;CHISTQ forest 2 vs 3: &quot; + forestHistogram[1].colorDS(forestHistogram[2]));</span>
+<span class="nc" id="L362">            System.out.println(&quot;=========================================================================&quot;);</span>
+<span class="nc" id="L363">            System.out.println(&quot;CHISTQ water 1 vs 1: &quot; + waterHistogram[0].colorDS(waterHistogram[0]));</span>
+<span class="nc" id="L364">            System.out.println(&quot;CHISTQ water 1 vs 2: &quot; + waterHistogram[0].colorDS(waterHistogram[1]));</span>
+<span class="nc" id="L365">            System.out.println(&quot;CHISTQ water 1 vs 3: &quot; + waterHistogram[0].colorDS(waterHistogram[2]));</span>
+<span class="nc" id="L366">            System.out.println(&quot;CHISTQ water 2 vs 3: &quot; + waterHistogram[1].colorDS(waterHistogram[2]));</span>
+<span class="nc" id="L367">            System.out.println(&quot;=========================================================================&quot;);</span>
+<span class="nc" id="L368">            System.out.println(&quot;SSIM forest 1 vs 1: &quot; + forestSSIM[0].bImageCompareTo(forest[0]));</span>
+<span class="nc" id="L369">            System.out.println(&quot;SSIM forest 1 vs 2: &quot; + forestSSIM[0].bImageCompareTo(forest[1]));</span>
+<span class="nc" id="L370">            System.out.println(&quot;SSIM forest 1 vs 3: &quot; + forestSSIM[0].bImageCompareTo(forest[2]));</span>
+<span class="nc" id="L371">            System.out.println(&quot;SSIM forest 2 vs 3: &quot; + forestSSIM[1].bImageCompareTo(forest[2]));</span>
+<span class="nc" id="L372">            System.out.println(&quot;=========================================================================&quot;);</span>
+<span class="nc" id="L373">            System.out.println(&quot;SSIM water 1 vs 1: &quot; + waterSSIM[0].bImageCompareTo(water[0]));</span>
+<span class="nc" id="L374">            System.out.println(&quot;SSIM water 1 vs 2: &quot; + waterSSIM[0].bImageCompareTo(water[1]));</span>
+<span class="nc" id="L375">            System.out.println(&quot;SSIM water 1 vs 3: &quot; + waterSSIM[0].bImageCompareTo(water[2]));</span>
+<span class="nc" id="L376">            System.out.println(&quot;SSIM water 2 vs 3: &quot; + waterSSIM[1].bImageCompareTo(water[2]));</span>
+<span class="nc" id="L377">            System.out.println(&quot;=========================================================================&quot;);</span>
+<span class="nc" id="L378">            System.out.println(&quot;Haar forest 1 vs 1: &quot; + forestHaar[0].getHaarData().compareTo(forestHaar[0].getHaarData()));</span>
+<span class="nc" id="L379">            System.out.println(&quot;Haar forest 1 vs 2: &quot; + forestHaar[0].getHaarData().compareTo(forestHaar[1].getHaarData()));</span>
+<span class="nc" id="L380">            System.out.println(&quot;Haar forest 1 vs 3: &quot; + forestHaar[0].getHaarData().compareTo(forestHaar[2].getHaarData()));</span>
+<span class="nc" id="L381">            System.out.println(&quot;Haar forest 2 vs 3: &quot; + forestHaar[1].getHaarData().compareTo(forestHaar[2].getHaarData()));</span>
+<span class="nc" id="L382">            System.out.println(&quot;=========================================================================&quot;);</span>
+<span class="nc" id="L383">            System.out.println(&quot;Haar water 1 vs 1: &quot; + waterHaar[0].getHaarData().compareTo(waterHaar[0].getHaarData()));</span>
+<span class="nc" id="L384">            System.out.println(&quot;Haar water 1 vs 2: &quot; + waterHaar[0].getHaarData().compareTo(waterHaar[1].getHaarData()));</span>
+<span class="nc" id="L385">            System.out.println(&quot;Haar water 1 vs 3: &quot; + waterHaar[0].getHaarData().compareTo(waterHaar[2].getHaarData()));</span>
+<span class="nc" id="L386">            System.out.println(&quot;Haar water 2 vs 3: &quot; + waterHaar[1].getHaarData().compareTo(waterHaar[2].getHaarData()));</span>
+<span class="nc" id="L387">            System.out.println(&quot;=========================================================================&quot;);</span>
+<span class="nc" id="L388">        } catch (SsimException | IOException e) {</span>
+<span class="nc" id="L389">            state.output.fatal(&quot;Error: &quot; + e.toString());</span>
+<span class="nc" id="L390">        }</span>
+        
+<span class="nc" id="L392">        state.output.fatal(&quot;finished&quot;);</span>
+<span class="nc" id="L393">    }</span>
+
+    @Override
+    public void evaluate(EvolutionState state, Individual ind, int submap, int threadnum) {
+<span class="nc bnc" id="L397" title="All 2 branches missed.">        if (!ind.evaluated) {</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">            if (!(ind instanceof Individual))</span>
+<span class="nc" id="L399">                state.output.fatal(&quot;&quot; + this.getClass() + &quot; expects individuals of type Elite.&quot;);</span>
+
+            // int[] luminance = new int[width * height];
+<span class="nc" id="L402">            super.evaluate(state, ind, submap, threadnum);</span>
+<span class="nc" id="L403">            double fitness = 0;</span>
+            // Haar SolutionHaar = new Haar(state, img);
+            // fitness = TargetHaar.getHaarData().compareTo(SolutionHaar.getHaarData());
+            // fitness = TargetSSIMCalculator.bImageCompareTo(img);
+            // this.TargetSSIM.calculateSSIM(img)
+            // this.TargetSSIM.calculateWindows(PSDExtensions.ImageToDouble2D(img, null));
+            // fitness = this.TargetSSIM.calculateSSIM(img);
+            try {
+                // fitness = 5;
+<span class="nc" id="L412">                fitness = TargetSSIMCalculator.bImageCompareTo(img);</span>
+<span class="nc" id="L413">            } catch (SsimException | IOException e) {</span>
+<span class="nc" id="L414">                state.output.fatal(e.toString());</span>
+<span class="nc" id="L415">            }</span>
+<span class="nc" id="L416">            KozaFitness f = ((KozaFitness) ind.fitness);</span>
+<span class="nc" id="L417">            f.setStandardizedFitness(state, fitness);</span>
+            
+<span class="nc" id="L419">            ind.evaluated = true;</span>
+        } // if
+<span class="nc" id="L421">    } // evaluate</span>
+
+    @Override
+    public void describe(final EvolutionState state, final Individual ind, final int submap, final int threadnum, final int log) {
+<span class="nc" id="L425">        super.describe(state, ind, submap, threadnum, log);</span>
+<span class="nc" id="L426">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

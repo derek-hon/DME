@@ -1,0 +1,488 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EvolutionState.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">EvolutionState.java</span></div><h1>EvolutionState.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+import ec.util.*;
+import java.util.*;
+import java.io.*;
+
+/* 
+ * EvolutionState.java
+ * 
+ * Created: Tue Aug 10 22:14:46 1999
+ * By: Sean Luke
+ */
+
+/**
+ * An EvolutionState object is a singleton object which holds the entire
+ * state of an evolutionary run.  By serializing EvolutionState, the entire
+ * run can be checkpointed out to a file.
+ *
+ * &lt;p&gt;The EvolutionState instance is passed around in a &lt;i&gt;lot&lt;/i&gt; of methods,
+ * so objects can read from the parameter database, pick random numbers,
+ * and write to the output facility.
+ *
+ * &lt;p&gt;EvolutionState is a unique object in that it calls its own setup(...)
+ * method, from run(...).
+ *
+ * &lt;p&gt;An EvolutionState object contains quite a few objects, including:
+ &lt;ul&gt;
+ &lt;li&gt;&lt;i&gt;Objects you may safely manipulate during the multithreaded sections of a run:&lt;/i&gt;
+ &lt;ul&gt;
+ &lt;li&gt; MersenneTwisterFast random number generators (one for each evaluation or breeding thread -- use the thread number you were provided to determine which random number generator to use)
+ &lt;li&gt; The ParameterDatabase
+ &lt;li&gt; The Output facility for writing messages and logging
+ &lt;/ul&gt;
+
+ &lt;li&gt;&lt;i&gt;Singleton objects:&lt;/i&gt;
+ &lt;ul&gt;
+ &lt;li&gt; The Initializer.
+ &lt;li&gt; The Finisher.
+ &lt;li&gt; The Breeder.
+ &lt;li&gt; The Evaluator.
+ &lt;li&gt; The Statistics facility.
+ &lt;li&gt; The Exchanger.
+ &lt;/ul&gt;
+
+ &lt;li&gt;&lt;i&gt;The current evolution state:&lt;/i&gt;
+ &lt;ul&gt;
+ &lt;li&gt; The generation number.
+ &lt;li&gt; The population.
+ &lt;li&gt; The maximal number of generations.
+ &lt;/ul&gt;
+
+ &lt;li&gt;&lt;i&gt;Auxillary read-only information:&lt;/i&gt;
+ &lt;ul&gt;
+ &lt;li&gt; The prefix to begin checkpoint file names with.
+ &lt;li&gt; Whether to quit upon finding a perfect individual.
+ &lt;li&gt; The number of breeding threads to spawn.
+ &lt;li&gt; The number of evaluation threads to spawn.
+ &lt;/ul&gt;
+ 
+ &lt;li&gt;&lt;i&gt;A place to stash pointers to static variables so they'll get serialized: &lt;/i&gt;
+ &lt;ul&gt;
+ &lt;li&gt; Statics
+ &lt;/ul&gt;
+ &lt;/ul&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;generations&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt; or undefined&lt;/td&gt;
+ &lt;td valign=top&gt;(maximal number of generations to run.  Either this or evaluations must be set, but not both.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;evaluations&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt; or undefined&lt;/td&gt;
+ &lt;td valign=top&gt;(maximal number of evaluations to run (in subpopulation 0).    Either this or generations must be set, but not both.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;checkpoint-modulo&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(how many generations should pass before we do a checkpoint?  
+ The definition of &quot;generations&quot; depends on the particular EvolutionState 
+ implementation you're using)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;checkpoint&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/td&gt;
+ &lt;td valign=top&gt;(should we checkpoint?)&lt;/td&gt;&lt;/tr&gt;
+ 
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;prefix&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the prefix to prepend to checkpoint files -- see ec.util.Checkpoint)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;checkpoint-directory&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;File (default is empty)&lt;/td&gt;
+ &lt;td valign=top&gt;(directory where the checkpoint files should be located)&lt;/td&gt;&lt;/tr&gt;
+ 
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;quit-on-run-complete&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/td&gt;
+ &lt;td valign=top&gt;(do we prematurely quit the run when we find a perfect individual?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;init&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.Initializer&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for initializer)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;finish&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.Finisher&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for finisher)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;breed&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.Breeder&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for breeder)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.Evaluator&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for evaluator)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;stat&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or = ec.Statistics&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for statistics)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;exch&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.Exchanger&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for exchanger)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;init&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;initializer&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;finish&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;finisher&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;breed&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;breeder&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;eval&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;evaluator&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;stat&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;statistics&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;exch&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;exchanger&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+public class EvolutionState implements Singleton
+    {
+    private static final long serialVersionUID = 1;
+
+    /** The parameter database (threadsafe).  Parameter objects are also threadsafe.
+        Nonetheless, you should generally try to treat this database as read-only. */
+    public ParameterDatabase parameters;
+
+    /** An array of random number generators, indexed by the thread number you were given (or, if you're not in a multithreaded area, use 0).  These generators are not threadsafe in and of themselves, but if you only use the random number generator assigned to your thread, as was intended, then you get random numbers in a threadsafe way.  These generators must each have a different seed, of course.*/
+    public MersenneTwisterFast[] random;
+
+    /** An array of HashMaps, indexed by the thread number you were given (or, if you're not in a multithreaded area, use 0).  This allows you to store per-thread specialized information (typically keyed with a string).  */
+    public HashMap[] data;
+
+    /** The output and logging facility (threadsafe).  Keep in mind that output in Java is expensive. */
+    public Output output;
+
+    /** The requested number of threads to be used in breeding, excepting perhaps a &quot;parent&quot; thread which gathers the other threads.  If breedthreads = 1, then the system should not be multithreaded during breeding.  Don't modify this during a run. */
+    public int breedthreads;  // how many threads to use in breeding
+
+    /** The requested number of threads to be used in evaluation, excepting perhaps a &quot;parent&quot; thread which gathers the other threads.  If evalthreads = 1, then the system should not be multithreaded during evaluation. Don't modify this during a run.*/
+    public int evalthreads;  // how many threads to use in evaluation
+
+    /** Should we checkpoint at all? */
+    public boolean checkpoint;
+
+    /** The requested directory where checkpoints should be located.  This must be a directory, not a file.  You probably shouldn't modify this during a run.*/
+<span class="fc" id="L185">    public File checkpointDirectory = null;</span>
+
+    /** The requested prefix to start checkpoint filenames, not including a following period.  You probably shouldn't modify this during a run.*/
+    public String checkpointPrefix;
+
+    /** The requested number of generations that should pass before we write out a checkpoint file. */
+    public int checkpointModulo;
+
+    /** An amount to add to each random number generator seed to &quot;offset&quot; it -- often this is simply the job number.  
+        If you are using more random number generators
+        internally than the ones initially created for you in the EvolutionState, you might want to create them with the seed
+        value of &lt;tt&gt;seedParameter+randomSeedOffset&lt;/tt&gt;.  At present the only such class creating additional generators
+        is ec.eval.MasterProblem. */
+    public int randomSeedOffset;
+
+    /** Whether or not the system should prematurely quit when Evaluator returns true for runComplete(...) (that is, when the system found an ideal individual. */
+    public boolean quitOnRunComplete;
+
+    /** Current job iteration variables, set by Evolve.  The default version simply sets this to a single Object[1] containing
+        the current job iteration number as an Integer (for a single job, it's 0).  You probably should not modify this inside
+        an evolutionary run.  */
+    public Object[] job;
+
+    
+    /** The original runtime arguments passed to the Java process. You probably should not modify this inside an evolutionary run.  */
+    public String[] runtimeArguments;
+            
+    public static final int UNDEFINED = 0;
+
+    /** The current generation of the population in the run.  For non-generational approaches, this probably should represent some kind of incrementing value, perhaps the number of individuals evaluated so far.  You probably shouldn't modify this. */
+    public int generation;
+    
+    /** The current number of evaluations which have transpired so far in the run.  This is only updated on a generational boundary. */
+    public int evaluations;
+    
+    /** The number of generations the evolutionary computation system will run until it ends, or UNDEFINED */
+<span class="fc" id="L221">    public int numGenerations = UNDEFINED;</span>
+
+    /** The number of evaluations the evolutionary computation system will run until it ends (up to the next generation boundary), or UNDEFINED */
+<span class="fc" id="L224">    public long numEvaluations = UNDEFINED;</span>
+
+    /** The current population.  This is &lt;i&gt;not&lt;/i&gt; a singleton object, and may be replaced after every generation in a generational approach. You should only access this in a read-only fashion.  */
+    public Population population;
+
+    /** The population initializer, a singleton object.  You should only access this in a read-only fashion. */
+    public Initializer initializer;
+
+    /** The population finisher, a singleton object.  You should only access this in a read-only fashion. */
+    public Finisher finisher;
+
+    /** The population breeder, a singleton object.  You should only access this in a read-only fashion. */
+    public Breeder breeder;
+
+    /** The population evaluator, a singleton object.  You should only access this in a read-only fashion. */
+    public Evaluator evaluator;
+
+    /** The population statistics, a singleton object.  You should generally only access this in a read-only fashion. */
+    public Statistics statistics;
+
+    /** The population exchanger, a singleton object.  You should only access this in a read-only fashion. */
+    public Exchanger exchanger;
+
+    /** Global birthday tracker number for genes in representations such as NEAT. Accessed and modified during run time */
+
+    public long innovationNumber;
+
+    /** &quot;The population has started fresh (not from a checkpoint).&quot; */ 
+    public final static int C_STARTED_FRESH = 0;
+
+    /** &quot;The population started from a checkpoint.&quot; */
+    public final static int C_STARTED_FROM_CHECKPOINT = 1;
+
+    /** &quot;The evolution run has quit, finding a perfect individual.&quot; */
+    public final static int R_SUCCESS = 0;
+
+    /** &quot;The evolution run has quit, failing to find a perfect individual.&quot; */
+    public final static int R_FAILURE = 1;
+    
+    /** &quot;The evolution run has not quit */
+    public final static int R_NOTDONE = 2;
+
+    public final static String P_INITIALIZER = &quot;init&quot;;
+    public final static String P_FINISHER = &quot;finish&quot;;
+    public final static String P_BREEDER = &quot;breed&quot;;
+    public final static String P_EVALUATOR = &quot;eval&quot;;
+    public final static String P_STATISTICS = &quot;stat&quot;;
+    public final static String P_EXCHANGER = &quot;exch&quot;;
+    public final static String P_GENERATIONS = &quot;generations&quot;;
+    public static final String P_EVALUATIONS = &quot;evaluations&quot;;
+    public final static String P_QUITONRUNCOMPLETE = &quot;quit-on-run-complete&quot;;
+    public final static String P_CHECKPOINTPREFIX = &quot;checkpoint-prefix&quot;;
+    public final static String P_CHECKPOINTMODULO = &quot;checkpoint-modulo&quot;;
+    public final static String P_CHECKPOINTDIRECTORY = &quot;checkpoint-directory&quot;;
+    public final static String P_CHECKPOINT = &quot;checkpoint&quot;;
+    public final static String P_INNOVATIONNUMBER = &quot;innovation-number&quot;;
+    final static String P_CHECKPOINTPREFIX_OLD = &quot;prefix&quot;;
+
+    
+    
+
+    /** This will be called to create your evolution state; immediately
+        after the constructor is called,
+        the parameters, random, and output fields will be set
+        for you.  The constructor probably won't be called ever if
+        restoring (deserializing) from a checkpoint.
+    */
+<span class="fc" id="L291">    public EvolutionState() { }</span>
+    
+    /** Unlike for other setup() methods, ignore the base; it will always be null. 
+        @see Prototype#setup(EvolutionState,Parameter)
+    */
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        Parameter p;
+        
+        // set up the per-thread data
+<span class="fc" id="L301">        data = new HashMap[random.length];</span>
+<span class="fc bfc" id="L302" title="All 2 branches covered.">        for(int i = 0; i &lt; data.length; i++)</span>
+<span class="fc" id="L303">            data[i] = new HashMap();</span>
+
+        // we ignore the base, it's worthless anyway for EvolutionState
+
+<span class="fc" id="L307">        p = new Parameter(P_CHECKPOINT);</span>
+<span class="fc" id="L308">        checkpoint = parameters.getBoolean(p,null,false);</span>
+
+<span class="fc" id="L310">        p = new Parameter(P_CHECKPOINTPREFIX);</span>
+<span class="fc" id="L311">        checkpointPrefix = parameters.getString(p,null);</span>
+<span class="pc bpc" id="L312" title="1 of 2 branches missed.">        if (checkpointPrefix==null)</span>
+            {
+            // check for the old-style checkpoint prefix parameter
+<span class="nc" id="L315">            Parameter p2 = new Parameter(P_CHECKPOINTPREFIX_OLD);</span>
+<span class="nc" id="L316">            checkpointPrefix = parameters.getString(p2,null);</span>
+<span class="nc bnc" id="L317" title="All 2 branches missed.">            if (checkpointPrefix==null)</span>
+                {
+<span class="nc" id="L319">                output.fatal(&quot;No checkpoint prefix specified.&quot;,p);  // indicate the new style, not old parameter</span>
+                }
+            else
+                {
+<span class="nc" id="L323">                output.warning(&quot;The parameter \&quot;prefix\&quot; is deprecated.  Please use \&quot;checkpoint-prefix\&quot;.&quot;, p2);</span>
+                }
+<span class="nc" id="L325">            }</span>
+        else
+            {
+            // check for the old-style checkpoint prefix parameter as an acciental duplicate
+<span class="fc" id="L329">            Parameter p2 = new Parameter(P_CHECKPOINTPREFIX_OLD);</span>
+<span class="pc bpc" id="L330" title="1 of 2 branches missed.">            if (parameters.getString(p2,null) != null)</span>
+                {
+<span class="nc" id="L332">                output.warning(&quot;You have BOTH the deprecated parameter \&quot;prefix\&quot; and its replacement \&quot;checkpoint-prefix\&quot; defined.  The replacement will be used,  Please remove the \&quot;prefix\&quot; parameter.&quot;, p2);</span>
+                }
+            
+            }
+            
+
+<span class="fc" id="L338">        p = new Parameter(P_CHECKPOINTMODULO);</span>
+<span class="fc" id="L339">        checkpointModulo = parameters.getInt(p,null,1);</span>
+<span class="pc bpc" id="L340" title="1 of 2 branches missed.">        if (checkpointModulo==0)</span>
+<span class="nc" id="L341">            output.fatal(&quot;The checkpoint modulo must be an integer &gt;0.&quot;,p);</span>
+        
+<span class="fc" id="L343">        p = new Parameter(P_CHECKPOINTDIRECTORY);</span>
+<span class="pc bpc" id="L344" title="1 of 2 branches missed.">        if (parameters.exists(p, null))</span>
+            {
+<span class="nc" id="L346">            checkpointDirectory = parameters.getFile(p,null);</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">            if (checkpointDirectory==null)</span>
+<span class="nc" id="L348">                output.fatal(&quot;The checkpoint directory name is invalid: &quot; + checkpointDirectory, p);</span>
+<span class="nc bnc" id="L349" title="All 2 branches missed.">            if (!checkpointDirectory.isDirectory())</span>
+<span class="nc" id="L350">                output.fatal(&quot;The checkpoint directory location is not a directory: &quot; + checkpointDirectory, p);</span>
+            }
+<span class="fc" id="L352">        else checkpointDirectory = null;</span>
+            
+<span class="fc" id="L354">        p = new Parameter(P_EVALUATIONS);</span>
+<span class="pc bpc" id="L355" title="1 of 2 branches missed.">        if (parameters.exists(p, null))</span>
+            {
+<span class="nc" id="L357">            numEvaluations = parameters.getInt(p, null, 1);  // 0 would be UNDEFINED</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">            if (numEvaluations &lt;= 0)</span>
+<span class="nc" id="L359">                output.fatal(&quot;If defined, the number of evaluations must be an integer &gt;= 1&quot;, p, null);</span>
+            }
+                
+<span class="fc" id="L362">        p = new Parameter(P_GENERATIONS);</span>
+<span class="pc bpc" id="L363" title="1 of 2 branches missed.">        if (parameters.exists(p, null))</span>
+            {
+<span class="fc" id="L365">            numGenerations = parameters.getInt(p, null, 1);  // 0 would be UDEFINED                 </span>
+                                
+<span class="pc bpc" id="L367" title="1 of 2 branches missed.">            if (numGenerations &lt;= 0)</span>
+<span class="nc" id="L368">                output.fatal(&quot;If defined, the number of generations must be an integer &gt;= 1.&quot;, p, null);</span>
+            }
+                        
+<span class="pc bpc" id="L371" title="3 of 4 branches missed.">        if (numEvaluations != UNDEFINED &amp;&amp; numGenerations != UNDEFINED)</span>
+            {
+<span class="nc" id="L373">            state.output.warning(&quot;Both generations and evaluations defined: whichever happens first is when ECJ will stop.&quot;);</span>
+            }
+<span class="pc bpc" id="L375" title="2 of 4 branches missed.">        else if (numEvaluations == UNDEFINED &amp;&amp; numGenerations == UNDEFINED)  // uh oh, something must be defined</span>
+<span class="nc" id="L376">            output.fatal(&quot;Either evaluations or generations must be defined.&quot;, new Parameter(P_GENERATIONS), new Parameter(P_EVALUATIONS));</span>
+
+<span class="fc" id="L378">        p=new Parameter(P_QUITONRUNCOMPLETE);</span>
+<span class="fc" id="L379">        quitOnRunComplete = parameters.getBoolean(p,null,false);</span>
+
+
+        /* Set up the singletons */
+<span class="fc" id="L383">        p=new Parameter(P_INITIALIZER);</span>
+<span class="fc" id="L384">        initializer = (Initializer)</span>
+<span class="fc" id="L385">            (parameters.getInstanceForParameter(p,null,Initializer.class));</span>
+<span class="fc" id="L386">        initializer.setup(this,p);</span>
+
+<span class="fc" id="L388">        p=new Parameter(P_FINISHER);</span>
+<span class="fc" id="L389">        finisher = (Finisher)</span>
+<span class="fc" id="L390">            (parameters.getInstanceForParameter(p,null,Finisher.class));</span>
+<span class="fc" id="L391">        finisher.setup(this,p);</span>
+
+<span class="fc" id="L393">        p=new Parameter(P_BREEDER);</span>
+<span class="fc" id="L394">        breeder = (Breeder)</span>
+<span class="fc" id="L395">            (parameters.getInstanceForParameter(p,null,Breeder.class));</span>
+<span class="fc" id="L396">        breeder.setup(this,p);</span>
+
+<span class="fc" id="L398">        p=new Parameter(P_EVALUATOR);</span>
+<span class="fc" id="L399">        evaluator = (Evaluator)</span>
+<span class="fc" id="L400">            (parameters.getInstanceForParameter(p,null,Evaluator.class));</span>
+<span class="fc" id="L401">        evaluator.setup(this,p);</span>
+
+<span class="fc" id="L403">        p=new Parameter(P_STATISTICS);</span>
+<span class="fc" id="L404">        statistics = (Statistics)</span>
+<span class="fc" id="L405">            (parameters.getInstanceForParameterEq(p,null,Statistics.class));</span>
+<span class="fc" id="L406">        statistics.setup(this,p);</span>
+        
+<span class="fc" id="L408">        p=new Parameter(P_EXCHANGER);</span>
+<span class="fc" id="L409">        exchanger = (Exchanger)</span>
+<span class="fc" id="L410">            (parameters.getInstanceForParameter(p,null,Exchanger.class));</span>
+<span class="fc" id="L411">        exchanger.setup(this,p);</span>
+
+<span class="fc" id="L413">        p=new Parameter(P_INNOVATIONNUMBER);</span>
+<span class="fc" id="L414">        innovationNumber = parameters.getLong(p, null, Long.MIN_VALUE);</span>
+                
+<span class="fc" id="L416">        generation = 0;</span>
+<span class="fc" id="L417">        }</span>
+
+    /** This method is called after a checkpoint
+        is restored from but before the run starts up again.  You might use this
+        to set up file pointers that were lost, etc. */
+ 
+    public void resetFromCheckpoint() throws IOException
+        {
+<span class="nc" id="L425">        output.restart();   // may throw an exception if there's a bad file</span>
+<span class="nc" id="L426">        exchanger.reinitializeContacts(this);</span>
+<span class="nc" id="L427">        evaluator.reinitializeContacts(this);</span>
+<span class="nc" id="L428">        }</span>
+
+<span class="nc" id="L430">    public void finish(int result) {}</span>
+
+<span class="nc" id="L432">    public void startFromCheckpoint() {}</span>
+
+<span class="nc" id="L434">    public void startFresh() {}</span>
+
+    public int evolve()
+<span class="nc" id="L437">        throws InternalError { return R_NOTDONE; }</span>
+
+
+    // This is broken out like this so that incrementEvaluations can get inlined
+<span class="fc" id="L441">    Object[] lock = new Object[0];</span>
+    void synchronizedIncrementEvaluations(int val)
+        {
+<span class="fc" id="L444">        synchronized(lock)</span>
+            {
+<span class="fc" id="L446">            evaluations += val;</span>
+<span class="fc" id="L447">            }</span>
+<span class="fc" id="L448">        }</span>
+                                
+    public void incrementEvaluations(int val)
+        {
+<span class="fc bfc" id="L452" title="All 2 branches covered.">        if (evalthreads == 1)</span>
+<span class="fc" id="L453">            evaluations += val;</span>
+        else
+            {
+<span class="fc" id="L456">            synchronizedIncrementEvaluations(val);</span>
+            }
+<span class="fc" id="L458">        }</span>
+
+    /** Starts the run. &lt;i&gt;condition&lt;/i&gt; indicates whether or not the
+        run was restarted from a checkpoint (C_STARTED_FRESH vs
+        C_STARTED_FROM_CHECKPOINT).  At the point that run(...) has been
+        called, the parameter database has already been set up, as have
+        the random number generators, the number of threads, and the
+        Output facility.  This method should call this.setup(...) to
+        set up the EvolutionState object if condition equals C_STARTED_FRESH. */
+    public void run(int condition)
+        {
+<span class="nc bnc" id="L469" title="All 2 branches missed.">        if (condition == C_STARTED_FRESH)</span>
+            {
+<span class="nc" id="L471">            startFresh();</span>
+            }
+        else // condition == C_STARTED_FROM_CHECKPOINT
+            {
+<span class="nc" id="L475">            startFromCheckpoint();</span>
+            }
+        
+        /* the big loop */
+<span class="nc" id="L479">        int result = R_NOTDONE;</span>
+<span class="nc bnc" id="L480" title="All 2 branches missed.">        while ( result == R_NOTDONE )</span>
+            {
+<span class="nc" id="L482">            result = evolve();</span>
+            }
+        
+<span class="nc" id="L485">        finish(result);</span>
+<span class="nc" id="L486">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

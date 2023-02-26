@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MultiScaleSSIM.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.Fitness</a> &gt; <span class="el_source">MultiScaleSSIM.java</span></div><h1>MultiScaleSSIM.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.Fitness;
+
+import ij.*;
+import ij.process.FloatProcessor;
+import ij.process.ImageProcessor;
+
+import java.awt.image.BufferedImage;
+import java.util.Arrays;
+
+/**
+ * Multi-Scale SSIM implementation by: Gabriel Prieto Renieblas (gprietor at med.ucm.es)
+ * Department of Radiology, Faculty of Medicine, Complutense University
+ * Madrid, Spain
+ * 
+ * Edited out everything unrelated to the core algorithm
+ * 
+ * https://imagej.nih.gov/ij/plugins/mssim-index.html
+ */
+public class MultiScaleSSIM {
+    protected ImagePlus imagePlusOne, imagePlusTwo;
+	protected ImageProcessor imageProcessorOne, imageProcessorTwo;
+
+    int  pointer, filter_length, image_height, image_width, image_dimension, a, b, c;
+    //Bits per pixel for both images
+    int bppOne, bppTwo;
+	float[] filter_weights;
+<span class="nc" id="L27">	double[] luminanceExponent = { 1, 1, 1, 1, 1, 0.1333};</span>
+<span class="nc" id="L28">	double[] contrastExponent  = { 1, 0.0448, 0.2856, 0.3001, 0.2363, 0.1333};</span>
+<span class="nc" id="L29">	double[] structureExponent = { 1, 0.0448, 0.2856, 0.3001, 0.2363, 0.1333};</span>
+<span class="nc" id="L30">	double luminanceComparison = 1;</span>
+<span class="nc" id="L31">	double contrastComparison = 1;</span>
+<span class="nc" id="L32">	double structureComparison = 1;</span>
+	double multiscaleSSIMIndex;
+	double[] ssim_map;
+	double ssim_index;
+
+<span class="nc" id="L37">    double sigma_gauss = 1.5;</span>
+<span class="nc" id="L38">	int filter_width = 11;</span>
+<span class="nc" id="L39">	double K1 = 0.01; </span>
+<span class="nc" id="L40">	double K2 = 0.03;</span>
+<span class="nc" id="L41">	double[] lod = {0.0378, -0.0238, -0.1106, 0.3774, 0.8527, 0.3774, -0.1106, -0.0238, 0.0378};</span>
+
+    double C1;
+    double C2;
+
+    double[] array_gauss_window;
+    float[] window_weights;
+
+    float[] lpf;
+    int lpfWidth;
+
+    int imageWidth, imageHeight, imageDimension;
+
+<span class="nc" id="L54">    public MultiScaleSSIM(int[][] imageOnePixels, int[][] imageTwoPixels) {</span>
+<span class="nc" id="L55">        imageWidth = imageOnePixels.length;</span>
+<span class="nc" id="L56">        imageHeight = imageOnePixels[0].length;</span>
+<span class="nc" id="L57">        BufferedImage imageOne = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB), </span>
+<span class="nc" id="L58">                      imageTwo = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);</span>
+
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        for (int x = 0 ; x &lt; imageWidth ; x ++) {</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">            for (int y = 0 ; y &lt; imageHeight ; y ++) {</span>
+<span class="nc" id="L62">                imageOne.setRGB(x, y, imageOnePixels[x][y]);</span>
+<span class="nc" id="L63">                imageTwo.setRGB(x, y, imageOnePixels[x][y]);</span>
+            }
+        }
+
+<span class="nc" id="L67">        imagePlusOne = new ImagePlus(&quot;&quot;, imageOne);</span>
+<span class="nc" id="L68">        imagePlusTwo = new ImagePlus(&quot;&quot;, imageTwo);</span>
+<span class="nc" id="L69">        imageProcessorOne = imagePlusOne.getProcessor();</span>
+<span class="nc" id="L70">        imageProcessorTwo = imagePlusTwo.getProcessor();</span>
+
+<span class="nc" id="L72">        bppOne = imageProcessorOne.getBitDepth();</span>
+<span class="nc" id="L73">        bppTwo = imageProcessorTwo.getBitDepth();</span>
+
+<span class="nc" id="L75">        C1 = (Math.pow(2, bppOne) - 1.0) * K1;</span>
+<span class="nc" id="L76">        C1 *= C1;</span>
+<span class="nc" id="L77">        C2 = (Math.pow(2, bppOne) - 1.0) * K2;</span>
+<span class="nc" id="L78">        C2 *= C2;</span>
+
+<span class="nc" id="L80">        GaussianFilter();</span>
+<span class="nc" id="L81">        LowPassFilter();</span>
+<span class="nc" id="L82">        algorithm();</span>
+<span class="nc" id="L83">    }</span>
+
+    public double getMultiScaleSSIMValue() {
+<span class="nc" id="L86">        return multiscaleSSIMIndex;</span>
+    }
+
+    private void GaussianFilter() {
+<span class="nc" id="L90">        double distance = 0;</span>
+<span class="nc" id="L91">        double total = 0;</span>
+<span class="nc" id="L92">        int center = (filter_width / 2);</span>
+<span class="nc" id="L93">        double sigma_sq = sigma_gauss * sigma_gauss;</span>
+
+<span class="nc" id="L95">        filter_length = filter_width * filter_width;</span>
+<span class="nc" id="L96">        window_weights = new float [filter_length];</span>
+<span class="nc" id="L97">        array_gauss_window = new double [filter_length];</span>
+		
+<span class="nc bnc" id="L99" title="All 2 branches missed.">      	for (int y = 0; y &lt; filter_width ; y ++) {</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">			for (int x = 0; x &lt; filter_width ; x ++) {</span>
+<span class="nc" id="L101">         				distance = Math.abs(x - center) * Math.abs(x - center) + Math.abs(y - center) * Math.abs(y - center);</span>
+<span class="nc" id="L102">				pointer = y * filter_width + x;</span>
+<span class="nc" id="L103">                			array_gauss_window[pointer] = Math.exp(-0.5 * distance / sigma_sq);</span>
+<span class="nc" id="L104">				total = total + array_gauss_window[pointer];</span>
+  			}
+    	}
+<span class="nc bnc" id="L107" title="All 2 branches missed.">		for (pointer=0; pointer &lt; filter_length; pointer++) {	</span>
+<span class="nc" id="L108">			array_gauss_window[pointer] = array_gauss_window[pointer] / total;</span>
+<span class="nc" id="L109">			window_weights [pointer] = (float) array_gauss_window[pointer];</span>
+		}
+<span class="nc" id="L111">    }</span>
+
+    private void LowPassFilter() {
+<span class="nc" id="L114">        lpf = new float [81]; </span>
+<span class="nc" id="L115">        int lpfWidth = 9;</span>
+<span class="nc" id="L116">        float suma_lpf = 0;</span>
+<span class="nc" id="L117">        int cont = 0;</span>
+        
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        for (a = 0; a &lt; lpfWidth ; a ++) {</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">            for (b = 0; b &lt; lpfWidth ; b ++) {</span>
+<span class="nc" id="L121">                lpf [a * lpfWidth + b] = (float) (lod[a] * lod[b]);</span>
+            }
+        }
+        
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        for (cont = 0; cont &lt; 81 ; cont ++) {</span>
+<span class="nc" id="L126">            suma_lpf= suma_lpf + lpf[cont];</span>
+        }
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        for (cont = 0 ; cont &lt; 81 ; cont ++) {</span>
+<span class="nc" id="L129">            lpf[cont]= lpf[cont] / suma_lpf;</span>
+        }        
+<span class="nc" id="L131">    }</span>
+
+    private void algorithm() {
+<span class="nc" id="L134">        ImageProcessor image1OriginalProcessor = imagePlusOne.getProcessor();</span>
+<span class="nc" id="L135">        ImageProcessor image2OriginalProcessor = imagePlusTwo.getProcessor();</span>
+
+<span class="nc" id="L137">        image1OriginalProcessor.setInterpolate(false);</span>
+<span class="nc" id="L138">        image2OriginalProcessor.setInterpolate(false);</span>
+
+        // WE ARE GOING TO USE ARRAYS OF 6 LEVELS INSTEAD OF 5.
+        // WE WANT TO FORCE THAT THE INDEX OVER THE LEVEL WERE THE SAME THAN THE INDEX OVER THE ARRAY. 
+        // REMEMBER THAT IN JAVA THE FIRST INDEX OF AN ARRAY IS THE &quot;0&quot; POSITION. WE WILL NEVER USE THIS POSITION IN THE FOLLOWING THREE ARRAYS.
+
+<span class="nc" id="L144">        int level = 1;</span>
+<span class="nc" id="L145">        double[] contrast = new double[6];  </span>
+<span class="nc" id="L146">        double[] structure = new double[6];</span>
+<span class="nc" id="L147">        double[] luminance = new double[6];</span>
+
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        for (level = 1 ; level &lt;= 5 ; level ++) {</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">            if (level != 1) {</span>
+<span class="nc" id="L151">                imageProcessorOne.convolve (lpf, lpfWidth, lpfWidth);</span>
+<span class="nc" id="L152">                imageProcessorTwo.convolve (lpf, lpfWidth, lpfWidth);</span>
+<span class="nc" id="L153">                imageProcessorOne.setInterpolate(false);			// IT'S CRITICAL TO THIS VALUE. DON'T USE TRUE</span>
+<span class="nc" id="L154">                imageProcessorTwo.setInterpolate(false);</span>
+<span class="nc" id="L155">                imageProcessorOne = imageProcessorOne.resize (imageWidth / 2);</span>
+<span class="nc" id="L156">                imageProcessorTwo = imageProcessorTwo.resize (imageWidth/2);</span>
+            }
+
+<span class="nc" id="L159">            imageDimension = imageWidth * imageHeight;</span>
+
+<span class="nc" id="L161">            ImageProcessor mu1ImageProcessor = new FloatProcessor(imageWidth, imageHeight);</span>
+<span class="nc" id="L162">            ImageProcessor mu2ImageProcessor = new FloatProcessor(imageWidth, imageHeight);</span>
+<span class="nc" id="L163">            float[] mu1Values = (float[]) mu1ImageProcessor.getPixels();</span>
+<span class="nc" id="L164">            float[] mu2Values = (float[]) mu2ImageProcessor.getPixels();</span>
+<span class="nc" id="L165">            float[] mu1ValuesCopy = new float[imageDimension];</span>
+<span class="nc" id="L166">            float[] mu2ValuesCopy = new float[imageDimension];</span>
+
+<span class="nc" id="L168">            a = b = 0;</span>
+
+<span class="nc bnc" id="L170" title="All 2 branches missed.">            for (pointer = 0 ; pointer &lt; imageDimension ; pointer ++) {</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                if (bppOne == 8) {</span>
+<span class="nc" id="L172">                    a = (0xff &amp; imageProcessorOne.get(pointer));</span>
+<span class="nc" id="L173">                    b = (0xff &amp; imageProcessorTwo.get(pointer));</span>
+                }
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                if (bppOne == 16) {</span>
+<span class="nc" id="L176">                    a = (0xffff &amp; imageProcessorOne.get(pointer));</span>
+<span class="nc" id="L177">                    b = (0xffff &amp; imageProcessorOne.get(pointer));	</span>
+                }
+<span class="nc bnc" id="L179" title="All 2 branches missed.">                if (bppOne == 32) {</span>
+<span class="nc" id="L180">                    a = (imageProcessorOne.get(pointer));</span>
+<span class="nc" id="L181">                    b = (imageProcessorOne.get(pointer));</span>
+                }
+<span class="nc" id="L183">                mu1Values [pointer] = mu1ValuesCopy [pointer] = a; // Float.intBitsToFloat(a);</span>
+<span class="nc" id="L184">			    mu2Values [pointer] = mu2ValuesCopy [pointer] = b; //Float.intBitsToFloat(b);</span>
+            } // for loop checking bits per pixel and shifting pointer accordingly
+<span class="nc" id="L186">            mu1ImageProcessor.convolve (window_weights, filter_width, filter_width);</span>
+<span class="nc" id="L187">		    mu2ImageProcessor.convolve (window_weights, filter_width, filter_width);</span>
+
+<span class="nc" id="L189">            double[] mu1Square = new double [imageDimension];</span>
+<span class="nc" id="L190">		    double[] mu2Square = new double [imageDimension];</span>
+<span class="nc" id="L191">		    double[] mu1mu2 = new double [imageDimension];</span>
+<span class="nc" id="L192">            double [] sigma1 = new double [imageDimension];</span>
+<span class="nc" id="L193">            double [] sigma2 = new double [imageDimension];</span>
+<span class="nc" id="L194">            double [] sigma1Square = new double [imageDimension];</span>
+<span class="nc" id="L195">            double [] sigma2Square = new double [imageDimension];</span>
+<span class="nc" id="L196">            double [] sigma1sigma2 = new double [imageDimension];</span>
+
+<span class="nc bnc" id="L198" title="All 2 branches missed.">            for (pointer = 0 ; pointer &lt; imageDimension ; pointer ++) {</span>
+<span class="nc" id="L199">                mu1Square[pointer] = (double) (mu1Values[pointer] * mu1Values[pointer]);</span>
+<span class="nc" id="L200">                mu2Square[pointer] = (double) (mu2Values[pointer] * mu2Values[pointer]);</span>
+<span class="nc" id="L201">                mu1mu2[pointer] = (double) (mu1Values[pointer] * mu2Values[pointer]);</span>
+
+<span class="nc" id="L203">                sigma1Square[pointer] = (double) (mu1ValuesCopy[pointer] * mu1ValuesCopy[pointer]);</span>
+<span class="nc" id="L204">                sigma2Square[pointer] = (double) (mu2ValuesCopy[pointer] * mu2ValuesCopy[pointer]);</span>
+<span class="nc" id="L205">                sigma1sigma2[pointer] = (double) (mu1ValuesCopy[pointer] * mu2ValuesCopy[pointer]);</span>
+            }
+
+            //	
+            //THERE IS A METHOD IN IMAGEJ THAT CONVOLVES ANY ARRAY, BUT IT ONLY WORKS WITH IMAGE PROCESSORS. THIS IS THE REASON BECAUSE I CREATE THE FOLLOWING PROCESSORS
+            //
+
+<span class="nc" id="L212">            ImageProcessor imageProcesserSupport1 = new FloatProcessor (image_width, image_height);</span>
+<span class="nc" id="L213">            ImageProcessor imageProcesserSupport2 = new FloatProcessor (image_width, image_height);</span>
+<span class="nc" id="L214">            ImageProcessor imageProcesserSupport3 = new FloatProcessor (image_width, image_height);</span>
+<span class="nc" id="L215">            float [] supportArray1 =  (float []) imageProcesserSupport1.getPixels();</span>
+<span class="nc" id="L216">            float [] supportArray2 =  (float []) imageProcesserSupport2.getPixels();</span>
+<span class="nc" id="L217">            float [] supportArray3 =  (float []) imageProcesserSupport3.getPixels();</span>
+
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            for (pointer = 0; pointer &lt; image_dimension ; pointer ++) {</span>
+<span class="nc" id="L220">                supportArray1[pointer] = (float) sigma1Square[pointer];</span>
+<span class="nc" id="L221">                supportArray2[pointer] = (float) sigma2Square[pointer];</span>
+<span class="nc" id="L222">                supportArray3[pointer] = (float) sigma1sigma2[pointer];</span>
+            }
+<span class="nc" id="L224">            imageProcesserSupport1.convolve (window_weights, filter_width,  filter_width);</span>
+<span class="nc" id="L225">            imageProcesserSupport2.convolve (window_weights, filter_width,  filter_width); </span>
+<span class="nc" id="L226">            imageProcesserSupport3.convolve (window_weights, filter_width,  filter_width);</span>
+
+<span class="nc bnc" id="L228" title="All 2 branches missed.">            for (pointer =0; pointer&lt;image_dimension; pointer++) {</span>
+<span class="nc" id="L229">                sigma1Square[pointer] =  supportArray1[pointer] - mu1Square[pointer];</span>
+<span class="nc" id="L230">                sigma2Square[pointer] =  supportArray2[pointer ]- mu2Square[pointer];</span>
+<span class="nc" id="L231">                sigma1sigma2[pointer] =  supportArray3[pointer] - mu1mu2[pointer];</span>
+
+                // THE FOLLOWING SENTENCES ARE VERY AD-HOC. SOMETIMES, FOR INTERNAL REASONS OF PRECISION OF CALCULATIONS AROUND THE BORDERS, SIGMA_SQ
+                // CAN BE NEGATIVE. THE VALUE CAN BE AROUND 0.001 IN SOME POINTS (A FEW). THE PROBLEM IS THAT, FOR SIMPICITY I CALCULATE SIGMA1 
+                // AS SQUARE ROOT OF sigma1Square OF COURSE, IF THE ALGORITHM FINDS NEGATIVE VALUES,
+                // YOU GET THE MESSAGE  &quot;IS NOT A NUMBER&quot; IN RUN TIME.
+
+<span class="nc bnc" id="L238" title="All 2 branches missed.">                if (sigma1Square[pointer] &lt; 0) {</span>
+<span class="nc" id="L239">                    sigma1Square[pointer] = 0;</span>
+                }
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                if (sigma2Square[pointer] &lt; 0) {</span>
+<span class="nc" id="L242">                    sigma2Square[pointer] = 0;</span>
+                }
+<span class="nc" id="L244">                sigma1 [pointer] = Math.sqrt (sigma1Square[pointer]);</span>
+<span class="nc" id="L245">                sigma2 [pointer] = Math.sqrt (sigma2Square[pointer]);</span>
+            }
+
+            // WE HAVE GOT ALL THE VALUES TO CALCULATE LUMINANCE, CONTRAST AND STRUCTURE
+<span class="nc" id="L249">            double luminancePoint=1;</span>
+<span class="nc" id="L250">            double contrastPoint=0;</span>
+<span class="nc" id="L251">            double structurePoint = 0;</span>
+<span class="nc" id="L252">            luminance [level] = 0;</span>
+<span class="nc" id="L253">            contrast [level] = 0;</span>
+<span class="nc" id="L254">            structure [level] = 0;</span>
+
+            //Rouse/Hemami algorithm
+            //https://www.semanticscholar.org/paper/Analyzing-the-role-of-visual-structure-in-the-of-Rouse-Hemami/d81d1d6be3da4ae539639f24665c3aaff4458cb0
+<span class="nc bnc" id="L258" title="All 2 branches missed.">            for (pointer = 0; pointer &lt; image_dimension ; pointer ++) {</span>
+
+<span class="nc bnc" id="L260" title="All 2 branches missed.">				if ( (mu1Square[pointer] + mu2Square[pointer]) == 0)</span>
+<span class="nc" id="L261">					luminancePoint = 1;</span>
+				else
+<span class="nc" id="L263">					luminancePoint = (double) (( 2 * mu1mu2[pointer]) / (mu1Square[pointer] + mu2Square[pointer]));</span>
+				
+<span class="nc" id="L265">				luminance[level] = luminance [level] + luminancePoint;</span>
+
+<span class="nc bnc" id="L267" title="All 2 branches missed.">				if ( (sigma1Square[pointer] + sigma2Square[pointer]) == 0) </span>
+<span class="nc" id="L268">					contrastPoint = 1;</span>
+				else
+<span class="nc" id="L270">					contrastPoint = (double) ((2 * sigma1[pointer] * sigma2[pointer]) / (sigma1Square[pointer] + sigma2Square[pointer]));</span>
+				
+<span class="nc" id="L272">				contrast [level] = contrast [level] + contrastPoint;</span>
+
+<span class="nc bnc" id="L274" title="All 8 branches missed.">				if (((sigma1[pointer] == 0) | (sigma2[pointer] == 0)) &amp; (sigma1[pointer] != sigma2[pointer]))</span>
+<span class="nc" id="L275">					structurePoint = 0;</span>
+				else
+<span class="nc bnc" id="L277" title="All 6 branches missed.">					if ((sigma1[pointer] == 0) &amp; (sigma2[pointer] == 0))</span>
+<span class="nc" id="L278">						structurePoint = 1;</span>
+					else
+<span class="nc" id="L280">						structurePoint = (double) ((sigma1sigma2[pointer]) / (sigma1[pointer] * sigma2[pointer]));</span>
+
+<span class="nc" id="L282">				structure[level] = structure[level] + structurePoint;</span>
+			}
+<span class="nc" id="L284">            contrast[level] = (double) (contrast[level] / image_dimension);</span>
+<span class="nc" id="L285">		    structure[level] = (double) (structure[level] / image_dimension);</span>
+
+<span class="nc bnc" id="L287" title="All 2 branches missed.">            if (level == 5)</span>
+<span class="nc" id="L288">                luminance[level] = (double) (luminance[level] / imageDimension);</span>
+            else
+<span class="nc" id="L290">                luminance[level] = 1;</span>
+        } // end for loop for difference viewing levels
+
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        for (level = 1 ; level &lt;= 5 ; level ++) {</span>
+<span class="nc bnc" id="L294" title="All 2 branches missed.">            if (structure[level] &lt; 0)</span>
+<span class="nc" id="L295">                structure[level] *= -1.0;</span>
+<span class="nc" id="L296">            luminanceComparison = Math.pow ( luminance[level], luminanceExponent[level]) * luminanceComparison;</span>
+<span class="nc" id="L297">            contrastComparison = Math.pow (contrast[level], contrastExponent[level]) * contrastComparison;</span>
+<span class="nc" id="L298">            structureComparison = Math.pow (structure[level], structureExponent[level]) * structureComparison;</span>
+        }
+
+<span class="nc" id="L301">        multiscaleSSIMIndex = luminanceComparison * contrastComparison * structureComparison;</span>
+<span class="nc" id="L302">        System.out.println(luminanceComparison + &quot; &quot; + contrastComparison + &quot; &quot; + structureComparison);</span>
+
+<span class="nc" id="L304">    } // end algorithm</span>
+
+    public double getMultiScaleSSIM() {
+<span class="nc" id="L307">        return multiscaleSSIMIndex;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

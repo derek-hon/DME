@@ -1,0 +1,224 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HyperboxSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.dovs</a> &gt; <span class="el_source">HyperboxSpecies.java</span></div><h1>HyperboxSpecies.java</h1><pre class="source lang-java linenums">package ec.eda.dovs;
+
+import java.util.*;
+import ec.*;
+import ec.util.*;
+import ec.vector.*;
+
+/**
+ * HyperboxSpecies is a DOVSSpecies which contains method for updating promising
+ * sample area and also sample from that area.
+ *
+ * @author Ermo Wei and David Freelan
+ */
+<span class="nc" id="L14">public class HyperboxSpecies extends DOVSSpecies</span>
+    {
+    /** boxA and boxB contain the current constraint hyperbox. */
+    public ArrayList&lt;double[]&gt; boxA;
+
+    /** boxA and boxB contain the current constraint hyperbox. */
+    public ArrayList&lt;Double&gt; boxB;
+
+<span class="nc" id="L22">    public static double UPPER_BOUND = 1e31;</span>
+<span class="nc" id="L23">    public static double EPSILON_STABILITY = 1e-20;</span>
+<span class="nc" id="L24">    public static double LARGE_NUMBER = 1e32;</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L28">        super.setup(state, base);</span>
+<span class="nc" id="L29">        boxA = new ArrayList&lt;double[]&gt;();</span>
+<span class="nc" id="L30">        boxB = new ArrayList&lt;Double&gt;();</span>
+<span class="nc" id="L31">        }</span>
+
+    /** Constructing a hyperbox, which defines the next search area. */
+    public void updateMostPromisingArea(EvolutionState state)
+        {
+<span class="nc" id="L36">        int dimension = this.genomeSize;</span>
+        // Each time we construct a hyperbox, the previous one,
+        // defined by boxA, boxB are no longer useful.
+<span class="nc" id="L39">        boxA = new ArrayList&lt;double[]&gt;();</span>
+<span class="nc" id="L40">        boxB = new ArrayList&lt;Double&gt;();</span>
+
+<span class="nc" id="L42">        activeSolutions.clear();</span>
+        // First the original problem formulation constraints
+        // copy the contents of A into boxA and b to boxB
+<span class="nc" id="L45">        boxA.addAll(A);</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        for (int i = 0; i &lt; b.length; ++i)</span>
+            {
+<span class="nc" id="L48">            boxB.add(b[i]);</span>
+            }
+
+        // for each coordinate d, find xup_d and xlow_d that are closest to
+        // xstar_d.
+        // If one or both of xup_d and xlow_d do not exist. It is still ok
+        // because
+        // we have original problem constraints to bound the search region.
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        for (int i = 0; i &lt; dimension; ++i)</span>
+            {
+<span class="nc" id="L58">            int key = ((IntegerVectorIndividual) visited.get(optimalIndex)).genome[i];</span>
+
+            // lowerBound() returns the iterator to the smallest element whose
+            // key is
+            // equal to or BIGGER than the argument &quot;key&quot;. Decreasing it will
+            // give the largest element
+            // with a key smaller than the argument &quot;key&quot;, if such an element
+            // exists.
+<span class="nc" id="L66">            CornerMap.Pair pair = corners.get(i).lowerBound(key);</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">            if (pair == null)</span>
+<span class="nc" id="L68">                state.output.fatal(&quot;Error. Cannot find coordnation in coordinate position map.&quot;);</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            if (pair.key == key)</span>
+                {
+<span class="nc bnc" id="L71" title="All 2 branches missed.">                if (corners.get(i).hasSmaller(pair))</span>
+                    {
+                    // So we fetch the previous item and use its key to do a
+                    // search for all
+                    // solutions with this key, if there is such a key smaller
+                    // than
+                    // the key of xstar
+<span class="nc" id="L78">                    pair = corners.get(i).smaller(pair);</span>
+<span class="nc" id="L79">                    activeSolutions.add(pair.value);</span>
+<span class="nc" id="L80">                    double[] Atemp = new double[dimension];</span>
+<span class="nc" id="L81">                    Arrays.fill(Atemp, 0);</span>
+<span class="nc" id="L82">                    Atemp[i] = 1;</span>
+                    // The key is the coordinate position.
+                    // So it is the rhs of the constraint
+<span class="nc" id="L85">                    double btemp = pair.getKey();</span>
+<span class="nc" id="L86">                    boxA.add(Atemp);</span>
+<span class="nc" id="L87">                    boxB.add(btemp);</span>
+<span class="nc" id="L88">                    }</span>
+                }
+            else
+                {
+                // This should never happen.
+<span class="nc" id="L93">                state.output.fatal(&quot;Problem in constructing hyperbox&quot;);</span>
+                }
+
+            // upper_bound returns the smallest element whose key is bigger than
+            // (excluding equal to) &quot;key&quot;,
+            // if such an element exists
+<span class="nc" id="L99">            pair = corners.get(i).upperBound(key);</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            if (pair != null)</span>
+                {
+<span class="nc" id="L102">                activeSolutions.add(pair.value);</span>
+
+<span class="nc" id="L104">                double[] Atemp = new double[dimension];</span>
+<span class="nc" id="L105">                Arrays.fill(Atemp, 0);</span>
+<span class="nc" id="L106">                Atemp[i] = -1;</span>
+
+                // The key is the coordinate position.
+                // So it is the rhs of the constraint
+<span class="nc" id="L110">                double btemp = pair.getKey();</span>
+<span class="nc" id="L111">                boxA.add(Atemp);</span>
+<span class="nc" id="L112">                boxB.add(btemp);</span>
+                }
+            }
+<span class="nc" id="L115">        }</span>
+
+    /** Sample from the hyperbox to get new samples for evaluation. */
+    public ArrayList&lt;Individual&gt; mostPromisingAreaSamples(EvolutionState state, int popSize)
+        {
+<span class="nc" id="L120">        IntegerVectorIndividual bestIndividual = (IntegerVectorIndividual) visited.get(optimalIndex);</span>
+<span class="nc" id="L121">        int dimension = bestIndividual.genomeLength();</span>
+<span class="nc" id="L122">        int numOfConstraints = boxA.size();</span>
+
+<span class="nc" id="L124">        ArrayList&lt;Individual&gt; newSolutions = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L125">        ArrayList&lt;Individual&gt; candidates = new ArrayList&lt;Individual&gt;();</span>
+        // TODO : do we need implement clone function here?
+<span class="nc" id="L127">        IntegerVectorIndividual newInd = (IntegerVectorIndividual) bestIndividual.clone();</span>
+<span class="nc" id="L128">        ((DOVSFitness) newInd.fitness).reset();</span>
+<span class="nc" id="L129">        newSolutions.add(newInd);</span>
+
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        for (int i = 0; i &lt; popSize; ++i)</span>
+            {
+            // Whenever a new solution is pushed into the vector candidate, a
+            // new solution is created and
+            // initially it has the same content as the solution just pushed
+            // into the vector.
+<span class="nc bnc" id="L137" title="All 2 branches missed.">            if (i &gt; 0)</span>
+                {
+<span class="nc" id="L139">                newInd = (IntegerVectorIndividual) ((IntegerVectorIndividual) newSolutions.get(i - 1)).clone();</span>
+<span class="nc" id="L140">                ((DOVSFitness) newInd.fitness).reset();</span>
+<span class="nc" id="L141">                newSolutions.add(newInd);</span>
+                }
+<span class="nc bnc" id="L143" title="All 2 branches missed.">            for (int j = 0; j &lt; warmUp; ++j)</span>
+                {
+<span class="nc" id="L145">                newInd = (IntegerVectorIndividual) newSolutions.get(i);</span>
+                // To warm up: Randomly pick up a dimension to move along
+<span class="nc" id="L147">                int directionToMove = state.random[0].nextInt(dimension);</span>
+<span class="nc" id="L148">                double[] b1 = new double[numOfConstraints];</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">                for (int k = 0; k &lt; numOfConstraints; k++)</span>
+                    {
+                    // For each constraint
+<span class="nc" id="L152">                    double sum = 0;</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">                    for (int l = 0; l &lt; dimension; l++)</span>
+                        {
+                        // Do a matrix multiplication
+<span class="nc bnc" id="L156" title="All 2 branches missed.">                        if (l != directionToMove)</span>
+                            {
+<span class="nc" id="L158">                            sum += boxA.get(k)[l] * newInd.genome[l];</span>
+                            }
+                        }
+<span class="nc" id="L161">                    b1[k] = boxB.get(k) - sum;</span>
+                    }
+                // Now check which constraint is tight
+<span class="nc" id="L164">                double upper = UPPER_BOUND, lower = UPPER_BOUND;</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">                for (int k = 0; k &lt; numOfConstraints; ++k)</span>
+                    {
+<span class="nc" id="L167">                    double temp = 0;</span>
+                    // temp is the temporary value of x_i to make the jth
+                    // constraint tight
+<span class="nc bnc" id="L170" title="All 2 branches missed.">                    if (Math.abs(boxA.get(k)[directionToMove]) &gt; EPSILON_STABILITY)</span>
+<span class="nc" id="L171">                        temp = b1[k] / boxA.get(k)[directionToMove];</span>
+                    else
+<span class="nc" id="L173">                        temp = LARGE_NUMBER;</span>
+
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                    if (temp &gt; newInd.genome[directionToMove] + EPSILON_STABILITY)</span>
+                        {
+                        // If the value to make the constraint tight is greater
+                        // than the value of the current point,
+                        // it means that there is space &quot;above&quot; the current
+                        // point, and the upper bound could be shrinked, until
+                        // the upper bound becomes the current point itself or
+                        // cannot be smaller than 1.
+<span class="nc bnc" id="L183" title="All 2 branches missed.">                        if (temp - newInd.genome[directionToMove] &lt; upper)</span>
+<span class="nc" id="L184">                            upper = temp - newInd.genome[directionToMove];</span>
+                        }
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                    else if (temp &lt; newInd.genome[directionToMove] - EPSILON_STABILITY)</span>
+                        {
+<span class="nc bnc" id="L188" title="All 2 branches missed.">                        if (newInd.genome[directionToMove] - temp &lt; lower)</span>
+<span class="nc" id="L189">                            lower = newInd.genome[directionToMove] - temp;</span>
+                        }
+                    else
+                        {
+                        // The constraint is already tight at current value,
+                        // i.e., the point is now on the boundary. !!!!!!!!!!!
+                        // If the coefficient is positive, then increasing,
+                        // i.e., moving &quot;up&quot; will reenter feasible region
+                        // because the
+                        // inequalitys are Ax&gt;=b
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                        if (boxA.get(k)[directionToMove] &gt; 0)</span>
+                            {
+<span class="nc" id="L201">                            lower = 0;</span>
+                            }
+                        else
+                            {
+                            // Don't need to worry about
+                            // boxA[k][directionToMove] = 0, because in that
+                            // case temp will be a large number
+<span class="nc" id="L208">                            upper = 0;</span>
+                            }
+                        }
+                    }
+<span class="nc" id="L212">                int maxXDirectionToMove = (int) Math.floor(upper) + newInd.genome[directionToMove];</span>
+<span class="nc" id="L213">                int minXDirectionToMove = newInd.genome[directionToMove] - (int) Math.floor(lower);</span>
+<span class="nc" id="L214">                int length = maxXDirectionToMove - minXDirectionToMove;</span>
+<span class="nc" id="L215">                int step = state.random[0].nextInt(length + 1);</span>
+<span class="nc" id="L216">                newInd.genome[directionToMove] = minXDirectionToMove + step;</span>
+                }
+<span class="nc" id="L218">            candidates.add(newSolutions.get(i));</span>
+            }
+
+<span class="nc" id="L221">        return candidates;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

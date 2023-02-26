@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MapElitesEvaluator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">MapElitesEvaluator.java</span></div><h1>MapElitesEvaluator.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+
+package ec.distributedME;
+
+import ec.EvolutionState;
+import ec.Evaluator;
+
+import ec.util.Parameter;
+
+import ec.eval.MasterProblem;
+
+import java.util.LinkedList;
+
+/**
+ * MapElitesEvaluator.java
+ * @see ec.steadystate.SteadyStateEvaluator
+ * Uses the steady state evaluator as the basis for modification
+ * 
+ * 
+ * Modified: 25 January, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+
+<span class="nc" id="L31">public class MapElitesEvaluator extends Evaluator</span>
+{
+<span class="nc" id="L33">    LinkedList&lt;QueueIndividual&gt; queue = new LinkedList&lt;QueueIndividual&gt;();</span>
+
+    /** Sub-map currently being evaluated */
+<span class="nc" id="L36">    int submapEvaluated = -1;</span>
+
+    /** Problem */
+    MapElitesProblemForm problem;
+
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L42">        super.setup(state, base);</span>
+        
+
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (!(p_problem instanceof MapElitesProblemForm))</span>
+<span class="nc" id="L46">            state.output.fatal(&quot;&quot; + this.getClass() + &quot; used, but the Problem is not of MapElitesProblemForm&quot;,</span>
+<span class="nc" id="L47">                    base.push(P_PROBLEM));</span>
+<span class="nc" id="L48">    }</span>
+
+    public void prepareToEvaluate(EvolutionState state, int thread) {
+<span class="nc" id="L51">        problem = (MapElitesProblemForm) p_problem.clone();</span>
+
+        /*
+           We only call prepareToEvaluate during Asynchronous Evolution.
+        */
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (problem instanceof MasterProblem)</span>
+<span class="nc" id="L57">            ((MasterProblem)problem).prepareToEvaluate(state, thread);</span>
+<span class="nc" id="L58">    }</span>
+
+    /** Submits an individual to be evaluated by the Problem, and adds it is added to the queue. */
+    public void evaluateIndividual(final EvolutionState state, Elite ind, int submap) {
+<span class="nc" id="L62">        prepareToEvaluate(state, submap);</span>
+<span class="nc" id="L63">        problem.evaluate(state, ind, submap, submap);</span>
+<span class="nc" id="L64">        queue.addLast(new QueueIndividual(ind, submap));</span>
+<span class="nc" id="L65">    }</span>
+
+    /** Returns true if we're ready to evaluate an individual.  Ordinarily this is ALWAYS true,
+     except in the asynchronous evolution situation, where we may not have a processor ready yet. */
+    public boolean canEvaluate() {
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        if (problem instanceof MasterProblem)</span>
+<span class="nc" id="L71">            return ((MasterProblem)problem).canEvaluate();</span>
+<span class="nc" id="L72">        else return true;</span>
+    }
+
+    /** Returns an evaluated individual is in the queue and ready to come back to us.
+     Ordinarily this is ALWAYS true at the point that we call it, except in the asynchronous
+     evolution situation, where we may not have a job completed yet, in which case NULL is
+     returned. Once an individual is returned by this function, no other individual will
+     be returned until the system is ready to provide us with another one.  NULL will
+     be returned otherwise.  */
+    public Elite getNextEvaluatedIndividual(EvolutionState state) {
+<span class="nc" id="L82">        QueueIndividual qInd = null;</span>
+
+<span class="nc" id="L84">        qInd = (QueueIndividual)(queue.removeFirst());            </span>
+        
+<span class="nc" id="L86">        submapEvaluated = qInd.submap;</span>
+<span class="nc" id="L87">        state.incrementEvaluations(1);</span>
+<span class="nc" id="L88">        return qInd.ind;</span>
+    }
+
+    /** Returns the subpopulation of the last evaluated individual returned by getNextEvaluatedIndividual, or potentially -1 if
+        getNextEvaluatedIndividual was never called or hasn't returned an individual yet. */
+    public int getSubmapBeingEvaluated()
+    {
+<span class="nc" id="L95">        return submapEvaluated;</span>
+    }
+
+    public int getQueueSize() {
+<span class="nc" id="L99">        return this.queue.size();</span>
+    }
+
+    /** Function here to satisfy abstract class */
+<span class="nc" id="L103">    public void evaluatePopulation(final EvolutionState state) {}</span>
+
+    /** Run will only be complete after evaluation limit has been reached. */
+<span class="nc" id="L106">    public String runComplete(final EvolutionState state) { return runComplete; } //runComplete</span>
+} //MapElitesEvaluator
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

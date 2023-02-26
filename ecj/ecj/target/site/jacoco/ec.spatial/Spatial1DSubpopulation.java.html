@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Spatial1DSubpopulation.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.spatial</a> &gt; <span class="el_source">Spatial1DSubpopulation.java</span></div><h1>Spatial1DSubpopulation.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.spatial;
+
+import ec.*;
+import ec.util.*;
+
+/* 
+ * Spatial1DSubpopulation.java
+ * 
+ * By: Liviu Panait
+ */
+
+/**
+ *      A Spatial1DSubpopulation is an EC subpopulation that is additionally embedded into
+ *      a one-dimmensional space.
+ *      In a spatially-embedded EA, the subpopulations of individuals are assumed to be
+ *      spatially distributed in some sort of space, be it one-dimmensional, two-
+ *      dimmensional, or whatever else.  The space may or may not be toroidal (although
+ *      it usually is).  Each location in the space has a set of neighboring locations.
+ *      Thus, each individual has an index in the subpopulation, and also a location in
+ *      the space.
+ *
+ *      &lt;p&gt;This public interface provides a method to obtain the indexes of the neighbors
+ *      of a location.
+ *
+ *      &lt;P&gt;This Subpopulation does not include toroidalness in writing out to streams.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;toroidal&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;true (default) or false&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(Is this space toroidal?)&lt;/td&gt;&lt;/tr&gt;
+
+ *
+ *
+ * @author Liviu Panait
+ * @version 1.0 
+ */
+<span class="nc" id="L44">public class Spatial1DSubpopulation extends Subpopulation implements Space</span>
+    {
+    /**
+       This parameter stipulates whether the world is toroidal or not.
+       If missing, its default value is true.
+    */
+    public static final String P_TOROIDAL = &quot;toroidal&quot;;
+    public boolean toroidal;
+
+    /**
+       Read additional parameters for the spatially-embedded subpopulation.
+    */
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L58">        super.setup(state,base);</span>
+
+        // by default, the space is toroidal
+<span class="nc" id="L61">        toroidal = state.parameters.getBoolean(base.push(P_TOROIDAL),null,true);</span>
+
+<span class="nc" id="L63">        }</span>
+
+    /*
+      1D mapping is identity
+    */
+    /*
+      public int locationToIndex( final Object location )
+      {
+      if( location instanceof Integer )
+      return ((Integer)location).intValue();
+      return -1;
+      }
+    */
+
+    /*
+      1D mapping is identity
+    */
+    /*
+      public Object indexToLocation( final int index)
+      {
+      return new Integer(index);
+      }
+    */
+
+    public void setIndex( int threadnum, int index )
+        {
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if( indexes == null )</span>
+<span class="nc" id="L90">            indexes = new int[threadnum+1];</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if( threadnum &gt;= indexes.length )</span>
+            {
+<span class="nc" id="L93">            int currentSize = indexes.length;</span>
+<span class="nc" id="L94">            int[] temp = new int[threadnum*2+1];</span>
+<span class="nc" id="L95">            System.arraycopy(indexes,0,temp,0,currentSize);</span>
+<span class="nc" id="L96">            indexes = temp;</span>
+            }
+<span class="nc" id="L98">        indexes[threadnum] = index;</span>
+<span class="nc" id="L99">        }</span>
+
+    public int getIndex( int threadnum )
+        {
+<span class="nc bnc" id="L103" title="All 4 branches missed.">        if( indexes == null || threadnum &gt; indexes.length )</span>
+<span class="nc" id="L104">            return -1;</span>
+        else
+<span class="nc" id="L106">            return indexes[threadnum];</span>
+        }
+
+    // indexed by threadnum
+    int[] indexes;
+
+    /**
+       Returns a the index of a random neighbor.
+    */
+    public int getIndexRandomNeighbor( final EvolutionState state, int threadnum, int distance )
+        {
+<span class="nc" id="L117">        int index = indexes[threadnum];</span>
+
+<span class="nc" id="L119">        int size = individuals.size();</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if( size == 0 )</span>
+<span class="nc" id="L121">            return index;</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if( toroidal )</span>
+            {
+<span class="nc bnc" id="L124" title="All 2 branches missed.">            int max = (2*distance+1&gt;size) ? size : (2*distance+1);</span>
+<span class="nc" id="L125">            int rand = state.random[threadnum].nextInt(max);</span>
+<span class="nc" id="L126">            int val= (index+rand-distance);</span>
+<span class="nc bnc" id="L127" title="All 4 branches missed.">            if (val &gt;= 0 &amp;&amp; val &lt; size) return val;</span>
+<span class="nc" id="L128">            val = val % size;</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">            if (val &gt;= 0) return val;</span>
+<span class="nc" id="L130">            else return val + size;</span>
+            }
+        else
+            {
+<span class="nc bnc" id="L134" title="All 2 branches missed.">            int min = (index-distance&lt;0) ? 0 : (index-distance);</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">            int max = (index+distance&gt;=size) ? size : (index+distance);</span>
+<span class="nc" id="L136">            int val = min + state.random[threadnum].nextInt(max-min+1);</span>
+<span class="nc" id="L137">            return val;</span>
+            }
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

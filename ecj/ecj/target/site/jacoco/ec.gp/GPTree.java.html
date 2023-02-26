@@ -1,0 +1,438 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPTree.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPTree.java</span></div><h1>GPTree.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+/* 
+ * GPTree.java
+ * 
+ * Created: Fri Aug 27 17:14:02 1999
+ * By: Sean Luke
+ */
+
+/**
+ * GPTree is a GPNodeParent which holds the root GPNode of a tree
+ * of GPNodes.  GPTrees typically fill out an array held in a GPIndividual
+ * (their &quot;owner&quot;) and their roots are evaluated to evaluate a Genetic
+ * programming tree.
+ *
+ * GPTrees also have &lt;i&gt;constraints&lt;/i&gt;, which are shared, and define items
+ * shared among several GPTrees.
+
+ * &lt;p&gt;In addition to serialization for checkpointing, GPTrees may read and write themselves to streams in three ways.
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;writeTree(...,DataOutput)/readTree(...,DataInput)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This method
+ * transmits or receives a GPTree in binary.  It is the most efficient approach to sending
+ * GPTrees over networks, etc.  The default versions of writeTree/readTree call writeRootedTree/readRootedTree
+ * on their respective GPNode roots.
+ *
+ * &lt;li&gt;&lt;b&gt;printTree(...,PrintWriter)/readTree(...,LineNumberReader)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach transmits or receives a GPTree in text encoded such that the GPTree is largely readable
+ * by humans but can be read back in 100% by ECJ as well.  To do this, these methods will typically encode numbers
+ * using the &lt;tt&gt;ec.util.Code&lt;/tt&gt; class.  These methods are mostly used to write out populations to
+ * files for inspection, slight modification, then reading back in later on.  &lt;b&gt;readTree&lt;/b&gt;
+ * largely calls readRootedTree on the GPNode root.  Likewise, &lt;b&gt;printTree&lt;/b&gt; calls printRootedTree
+ *
+ * &lt;li&gt;&lt;b&gt;printTreeForHumans(...,PrintWriter)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach prints a GPTree in a fashion intended for human consumption only.
+ * &lt;b&gt;printTreeForHumans&lt;/b&gt; calls either &lt;b&gt;makeCTree&lt;/b&gt; and prints the result,
+ * calls &lt;b&gt;makeLatexTree&lt;/b&gt; and prints the result, or calls &lt;b&gt;printRootedTreeForHumans&lt;/b&gt; on the root.
+ * Which one is called depends on the kind of tree you have chosen to print for humans, as is discussed next.
+ * &lt;/ul&gt;
+
+
+
+ * &lt;p&gt;GPTrees can print themselves for humans in one of &lt;b&gt;four&lt;/b&gt; styles:
+ * &lt;ol&gt;&lt;li&gt;A GPTree can print the tree as a Koza-style Lisp s-expression, which is the default.  
+ * &lt;li&gt; A GPTree can print itself in pseudo-C format:
+ *     &lt;ol&gt;&lt;li&gt;Terminals can be printed either as variables &quot;a&quot; or as zero-argument functions &quot;a()&quot;
+ *     &lt;li&gt;One-argument nonterminals are printed as functions &quot;a(b)&quot;
+ *     &lt;li&gt;Two-argument nonterminals can be printed either as operators &quot;b a c&quot; or as functions &quot;a(b, c)&quot;
+ *     &lt;li&gt;Nonterminals with more arguments are printed as functions &quot;a(b, c, d, ...)&quot;
+ * &lt;/ol&gt;
+ * &lt;li&gt;A GPTree can print the tree AT&amp;amp;T's Graphviz format.  You can snip the code out and save 
+ * it as a &quot;.dot&quot; file to render in any Graphviz renderer (for example, use &lt;a href=&quot;http://www.pixelglow.com/graphviz/&quot;&gt;
+ * this MacOS X front end to the renderer&lt;/a&gt;).
+ * &lt;li&gt;A GPTree can print the tree as a LaTeX2e code snippet, which can be inserted
+ * into a LaTeX2e file and will result in a picture of the tree!  Cool, no?
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;You turn the C-printing feature on with the &lt;b&gt;c&lt;/b&gt; parameter, plus certain
+ * optional parameters (&lt;b&gt;c-operators&lt;/b&gt;, &lt;b&gt;c-variables&lt;/b&gt;) as described below.
+ * You turn the latex-printing &lt;b&gt;latex&lt;/b&gt; parameter below.  The C-printing parameter
+ * takes precedence.
+ * &lt;p&gt;
+ * Here's how the latex system works.  To insert the code, you'll need to include the
+ * &lt;tt&gt;epic&lt;/tt&gt;,&lt;tt&gt;ecltree&lt;/tt&gt;, and probably the &lt;tt&gt;fancybox&lt;/tt&gt; packages,
+ * in that order.  You'll also need to define the command &lt;tt&gt;\gpbox&lt;/tt&gt;, which
+ * takes one argument (the string name for the GPNode) and draws a box with that
+ * node.  Lastly, you might want to set a few parameters dealing with the 
+ * &lt;tt&gt;ecltree&lt;/tt&gt; package.
+ *
+ * &lt;p&gt;Here's an example which looks quite good (pardon the double-backslashes
+ * in front of the usepackage statements -- javadoc is freaking out if I put
+ * a single backslash.  So you'll need to remove the extra backslash in order
+ * to try out this example):
+ 
+ &lt;p&gt;&lt;table width=100% border=0 cellpadding=0 cellspacing=0&gt;
+ &lt;tr&gt;&lt;td bgcolor=&quot;#DDDDDD&quot;&gt;&lt;font size=-1&gt;&lt;tt&gt;
+ &lt;pre&gt;
+
+ \documentclass[]{article}
+ \\usepackage{epic}     &lt;b&gt;% required by ecltree and fancybox packages&lt;/b&gt;
+ \\usepackage{ecltree}  &lt;b&gt;% to draw the GP trees&lt;/b&gt;
+ \\usepackage{fancybox} &lt;b&gt;% required by \Ovalbox&lt;/b&gt;
+
+ \begin{document}
+
+ &lt;b&gt;% minimum distance between nodes on the same line&lt;/b&gt;
+ \setlength{\GapWidth}{1em}    
+
+ &lt;b&gt;% draw with a thick dashed line, very nice looking&lt;/b&gt;
+ \thicklines \drawwith{\dottedline{2}}   
+
+ &lt;b&gt;% draw an oval and center it with the rule.  You may want to fool with the
+ % rule values, though these seem to work quite well for me.  If you make the
+ % rule smaller than the text height, then the GP nodes may not line up with
+ % each other horizontally quite right, so watch out.&lt;/b&gt;
+ \newcommand{\gpbox}[1]{\Ovalbox{#1\rule[-.7ex]{0ex}{2.7ex}}}
+                
+ &lt;b&gt;% Here's the tree which the GP system spat out&lt;/b&gt;
+ \begin{bundle}{\gpbox{progn3}}\chunk{\begin{bundle}{\gpbox{if-food-ahead}}
+ \chunk{\begin{bundle}{\gpbox{progn3}}\chunk{\gpbox{right}}
+ \chunk{\gpbox{left}}\chunk{\gpbox{move}}\end{bundle}}
+ \chunk{\begin{bundle}{\gpbox{if-food-ahead}}\chunk{\gpbox{move}}
+ \chunk{\gpbox{left}}\end{bundle}}\end{bundle}}\chunk{\begin{bundle}{\gpbox{progn2}}
+ \chunk{\begin{bundle}{\gpbox{progn2}}\chunk{\gpbox{move}}
+ \chunk{\gpbox{move}}\end{bundle}}\chunk{\begin{bundle}{\gpbox{progn2}}
+ \chunk{\gpbox{right}}\chunk{\gpbox{left}}\end{bundle}}\end{bundle}}
+ \chunk{\begin{bundle}{\gpbox{if-food-ahead}}\chunk{\begin{bundle}{\gpbox{if-food-ahead}}
+ \chunk{\gpbox{move}}\chunk{\gpbox{left}}\end{bundle}}
+ \chunk{\begin{bundle}{\gpbox{if-food-ahead}}\chunk{\gpbox{left}}\chunk{\gpbox{right}}
+ \end{bundle}}\end{bundle}}\end{bundle}
+
+ \end{document}
+ &lt;/pre&gt;&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tc&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The tree's constraints)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;print-style&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String, one of: c, dot, latex, lisp&lt;/td&gt;
+ &lt;td valign=top&gt;(specifies the print style of the tree)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;c-operators&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; (default) or &lt;tt&gt;false&lt;/tt&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(when printing using c, print two-argument functions operators &quot;b a c&quot;?  The alternative is functions &quot;a(b, c).&quot;&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;c-variables&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; (default) or &lt;tt&gt;false&lt;/tt&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(when printing using c, print zero-argument functions as variables &quot;a&quot;?  The alternative is functions &quot;a()&quot;.)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.tree
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L149">public class GPTree implements GPNodeParent, Prototype</span>
+    {
+    public static final String P_TREE = &quot;tree&quot;;
+    public static final String P_TREECONSTRAINTS = &quot;tc&quot;;
+    public static final String P_USEGRAPHVIZ = &quot;graphviz&quot;;
+    public static final String P_USELATEX = &quot;latex&quot;;
+    public static final String P_USEC = &quot;c&quot;;
+    public static final String P_USEOPS = &quot;c-operators&quot;;
+    public static final String P_USEVARS = &quot;c-variables&quot;;
+    public static final int NO_TREENUM = -1;
+
+    public static final String P_PRINT_STYLE = &quot;print-style&quot;;
+    public static final String V_LISP = &quot;lisp&quot;;
+    public static final String V_DOT = &quot;dot&quot;;
+    public static final String V_LATEX = &quot;latex&quot;;
+    public static final String V_C = &quot;c&quot;;
+    public static final int PRINT_STYLE_LISP = 0;
+    public static final int PRINT_STYLE_DOT = 1;
+    public static final int PRINT_STYLE_LATEX = 2;
+    public static final int PRINT_STYLE_C = 3;
+
+
+    /** the root GPNode in the GPTree */
+    public GPNode child;
+
+    /** the owner of the GPTree */
+    public GPIndividual owner;
+
+    /** constraints on the GPTree  -- don't access the constraints through
+        this variable -- use the constraints() method instead, which will give
+        the actual constraints object. */
+    public byte constraints;
+
+    /** The print style of the GPTree. */
+    public int printStyle;
+
+    /** When using c to print for humans, do we print terminals as variables? 
+        (as opposed to zero-argument functions)? */
+    public boolean printTerminalsAsVariablesInC;
+
+    /** When using c to print for humans, do we print two-argument nonterminals in operator form &quot;a op b&quot;? 
+        (as opposed to functions &quot;op(a, b)&quot;)? */
+    public boolean printTwoArgumentNonterminalsAsOperatorsInC;
+
+    public final GPTreeConstraints constraints( final GPInitializer initializer ) 
+<span class="nc" id="L194">        { return initializer.treeConstraints[constraints]; }</span>
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L198">        return GPDefaults.base().push(P_TREE);</span>
+        }
+
+    /** Returns true if I am &quot;genetically&quot; the same as tree,
+        though we may have different owners. */
+    public boolean treeEquals(GPTree tree)
+        {
+<span class="nc" id="L205">        return child.rootedTreeEquals(tree.child);</span>
+        }
+
+    /** Returns a hash code for comparing different GPTrees.  In
+        general, two trees which are treeEquals(...) should have the
+        same hash code. */
+    public int treeHashCode()
+        {
+<span class="nc" id="L213">        return child.rootedTreeHashCode();</span>
+        }
+
+    /** Like clone() but doesn't copy the tree. */
+    public GPTree lightClone()
+        {
+        try 
+            { 
+<span class="nc" id="L221">            return (GPTree)(super.clone());  // note that the root child reference is copied, not cloned</span>
+            }
+<span class="nc" id="L223">        catch (CloneNotSupportedException e) { throw new InternalError(); } // never happens</span>
+        }
+
+    /** Deep-clones the tree.  Note that you should not deep-clone trees attached to the
+        prototypical GPIndividual: they are blank trees with no root, and this method
+        will generate a NullPointerException as a result. */
+    public Object clone()
+        {
+<span class="nc" id="L231">        GPTree newtree = lightClone();</span>
+<span class="nc" id="L232">        newtree.child = (GPNode)(child.clone());  // force a deep copy</span>
+<span class="nc" id="L233">        newtree.child.parent = newtree;</span>
+<span class="nc" id="L234">        newtree.child.argposition = 0;</span>
+<span class="nc" id="L235">        return newtree;</span>
+        }
+    
+    /** An expensive function which determines my tree number -- only
+        use for errors, etc. Returns ec.gp.GPTree.NO_TREENUM if the 
+        tree number could not be
+        determined (might happen if it's not been assigned yet). */
+    public int treeNumber()
+        {
+<span class="nc bnc" id="L244" title="All 2 branches missed.">        if (owner==null) return NO_TREENUM;</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">        if (owner.trees==null) return NO_TREENUM;</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        for(int x=0;x&lt;owner.trees.length;x++)</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">            if (owner.trees[x]==this) return x;</span>
+<span class="nc" id="L248">        return NO_TREENUM;</span>
+        }
+
+    /** Sets up a prototypical GPTree with those features it shares with
+        other GPTrees in its position in its GPIndividual, and nothhing more.
+
+        This must be called &lt;i&gt;after&lt;/i&gt; the GPTypes and GPNodeConstraints 
+        have been set up.  Presently they're set up in GPInitializer,
+        which gets called before this does, so we're safe. */
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L259">        Parameter def = defaultBase();</span>
+
+        // get rid of deprecated values
+<span class="nc bnc" id="L262" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_USEGRAPHVIZ), def.push(P_USEGRAPHVIZ)))</span>
+<span class="nc" id="L263">            state.output.error(&quot;Parameter no longer used.  See GPTree.java for details.&quot;, base.push(P_USEGRAPHVIZ), def.push(P_USEGRAPHVIZ));</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_USELATEX), def.push(P_USELATEX)))</span>
+<span class="nc" id="L265">            state.output.error(&quot;Parameter no longer used.  See GPTree.java for details.&quot;, base.push(P_USELATEX), def.push(P_USELATEX));</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_USEC), def.push(P_USEC)))</span>
+<span class="nc" id="L267">            state.output.error(&quot;Parameter no longer used.  See GPTree.java for details.&quot;, base.push(P_USEC), def.push(P_USEC));</span>
+<span class="nc" id="L268">        state.output.exitIfErrors();</span>
+
+<span class="nc" id="L270">        String style = state.parameters.getString(base.push(P_PRINT_STYLE), def.push(P_PRINT_STYLE));</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">        if (style == null)  // assume Lisp</span>
+<span class="nc" id="L272">            printStyle = PRINT_STYLE_LISP;</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        else if (style.equals(V_C))</span>
+<span class="nc" id="L274">            printStyle = PRINT_STYLE_C;</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">        else if (style.equals(V_DOT))</span>
+<span class="nc" id="L276">            printStyle = PRINT_STYLE_DOT;</span>
+<span class="nc bnc" id="L277" title="All 2 branches missed.">        else if (style.equals(V_LATEX))</span>
+<span class="nc" id="L278">            printStyle = PRINT_STYLE_LATEX;</span>
+
+        // in C, treat terminals as variables?  By default, yes.
+<span class="nc" id="L281">        printTerminalsAsVariablesInC = state.parameters.getBoolean(base.push(P_USEVARS),def.push(P_USEVARS),true);</span>
+
+        // in C, treat two-child functions as operators?  By default, yes.
+<span class="nc" id="L284">        printTwoArgumentNonterminalsAsOperatorsInC = state.parameters.getBoolean(base.push(P_USEOPS),def.push(P_USEOPS),true);</span>
+
+        // determine my constraints -- at this point, the constraints should have been loaded.
+<span class="nc" id="L287">        String s = state.parameters.getString(base.push(P_TREECONSTRAINTS),</span>
+<span class="nc" id="L288">            def.push(P_TREECONSTRAINTS));</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">        if (s==null)</span>
+<span class="nc" id="L290">            state.output.fatal(&quot;No tree constraints are defined for the GPTree &quot; + base + &quot;.&quot;);</span>
+        else 
+<span class="nc" id="L292">            constraints = GPTreeConstraints.constraintsFor(s,state).constraintNumber;</span>
+        
+<span class="nc" id="L294">        state.output.exitIfErrors();  // because I promised</span>
+        // we're not loading the nodes at this point
+<span class="nc" id="L296">        }</span>
+
+
+    /** Verification of validity of the tree -- strictly for debugging purposes only */
+    public final void verify(EvolutionState state)
+        {
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        if (!(state.initializer instanceof GPInitializer))</span>
+<span class="nc" id="L303">            { state.output.error(&quot;Initializer is not a GPInitializer&quot;); return; }</span>
+            
+<span class="nc" id="L305">        GPInitializer initializer = (GPInitializer)(state.initializer);</span>
+
+<span class="nc bnc" id="L307" title="All 2 branches missed.">        if (child == null)</span>
+<span class="nc" id="L308">            { state.output.error(&quot;Null root child of GPTree.&quot;); return; }</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">        if (owner == null)</span>
+<span class="nc" id="L310">            { state.output.error(&quot;Null owner of GPTree.&quot;); return; }</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">        if (owner.trees == null)</span>
+<span class="nc" id="L312">            { state.output.error(&quot;Owner has null trees.&quot;); return; }</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">        if (treeNumber() == NO_TREENUM) </span>
+<span class="nc" id="L314">            { state.output.error(&quot;No Tree Number! I appear to be an orphan GPTree.&quot;); return; }</span>
+<span class="nc bnc" id="L315" title="All 4 branches missed.">        if (constraints &lt; 0 || constraints &gt;= initializer.numTreeConstraints)</span>
+<span class="nc" id="L316">            { state.output.error(&quot;Preposterous tree constraints (&quot; + constraints + &quot;)&quot;); return; }</span>
+
+<span class="nc" id="L318">        child.verify(state, constraints(initializer).functionset, 0);</span>
+<span class="nc" id="L319">        state.output.exitIfErrors();</span>
+<span class="nc" id="L320">        }</span>
+
+    /** Prints out the tree in single-line fashion suitable for reading
+        in later by computer. O(n). 
+        The default version of this method simply calls child's 
+        printRootedTree(...) method. 
+    */
+
+    public void printTree(final EvolutionState state, final int log)
+        {
+<span class="nc" id="L330">        printTree(state, log, Output.V_VERBOSE);</span>
+<span class="nc" id="L331">        }</span>
+
+    /** Prints out the tree in single-line fashion suitable for reading
+        in later by computer. O(n). 
+        The default version of this method simply calls child's 
+        printRootedTree(...) method. 
+        @deprecated Verbosity no longer has an effect
+    */
+
+    public void printTree(final EvolutionState state, final int log,
+        final int verbosity)
+        {
+<span class="nc" id="L343">        child.printRootedTree(state,log,0);</span>
+        // printRootedTree doesn't print a '\n', so I need to do so here
+<span class="nc" id="L345">        state.output.println(&quot;&quot;,log);</span>
+<span class="nc" id="L346">        }</span>
+
+    /** Prints out the tree in single-line fashion suitable for reading
+        in later by computer. O(n). 
+        The default version of this method simply calls child's 
+        printRootedTree(...) method. */
+
+    public void printTree(final EvolutionState state,
+        final PrintWriter writer)
+        {
+<span class="nc" id="L356">        child.printRootedTree(state,writer,0);</span>
+        // printRootedTree doesn't print a '\n', so I need to do so here
+<span class="nc" id="L358">        writer.println();</span>
+<span class="nc" id="L359">        }</span>
+
+    /** Reads in the tree from a form printed by printTree. */
+    public void readTree(final EvolutionState state,
+        final LineNumberReader reader) throws IOException
+        {
+<span class="nc" id="L365">        int linenumber = reader.getLineNumber();</span>
+
+        // the next line will be the child
+<span class="nc" id="L368">        String s = reader.readLine();</span>
+<span class="nc bnc" id="L369" title="All 2 branches missed.">        if (s==null)  // uh oh</span>
+<span class="nc" id="L370">            state.output.fatal(&quot;Reading Line &quot; + linenumber + &quot;: &quot; +</span>
+                &quot;No Tree found.&quot;);
+        else
+            {
+<span class="nc" id="L374">            GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc" id="L375">            child = GPNode.readRootedTree(linenumber,new DecodeReturn(s),</span>
+<span class="nc" id="L376">                constraints(initializer).treetype,</span>
+<span class="nc" id="L377">                constraints(initializer).functionset,this,0,state);</span>
+            }
+<span class="nc" id="L379">        }</span>
+
+    public void writeTree(final EvolutionState state,
+        final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L384">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc" id="L385">        child.writeRootedTree(state,constraints(initializer).treetype, constraints(initializer).functionset, dataOutput);</span>
+<span class="nc" id="L386">        }</span>
+
+    public void readTree(final EvolutionState state,
+        final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L391">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc" id="L392">        child = GPNode.readRootedTree(state,dataInput,constraints(initializer).treetype, constraints(initializer).functionset, this,0);</span>
+<span class="nc" id="L393">        }</span>
+
+
+    /** Prints out the tree in a readable Lisp-like fashion. O(n). 
+        The default version of this method simply calls child's 
+        printRootedTreeForHumans(...) method. */
+    
+    public void printTreeForHumans(final EvolutionState state, final int log)
+        {               
+<span class="nc" id="L402">        printTreeForHumans(state, log, Output.V_VERBOSE);</span>
+<span class="nc" id="L403">        }</span>
+
+
+    /** Prints out the tree in a readable Lisp-like fashion. O(n). 
+        The default version of this method simply calls child's 
+        printRootedTreeForHumans(...) method. 
+        @deprecated Verbosity no longer has an effect.
+    */
+    
+    public void printTreeForHumans(final EvolutionState state, final int log,
+        final int verbosity)
+        {               
+<span class="nc bnc" id="L415" title="All 2 branches missed.">        if (printStyle==PRINT_STYLE_C) state.output.print(child.makeCTree(true, </span>
+                printTerminalsAsVariablesInC, printTwoArgumentNonterminalsAsOperatorsInC),log);
+<span class="nc bnc" id="L417" title="All 2 branches missed.">        else if (printStyle==PRINT_STYLE_LATEX) state.output.print(child.makeLatexTree(),log);</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">        else if (printStyle==PRINT_STYLE_DOT) state.output.print(child.makeGraphvizTree(), log);</span>
+<span class="nc" id="L419">        else child.printRootedTreeForHumans(state,log,0,0);</span>
+        // printRootedTreeForHumans doesn't print a '\n', so I need to do so here
+<span class="nc" id="L421">        state.output.println(&quot;&quot;,log);</span>
+<span class="nc" id="L422">        }</span>
+
+    /** Builds a new randomly-generated rooted tree and attaches it to the GPTree. */
+
+    public void buildTree(final EvolutionState state, final int thread) 
+        {
+<span class="nc" id="L428">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc" id="L429">        child = constraints(initializer).init.newRootedTree(state,</span>
+<span class="nc" id="L430">            constraints(initializer).treetype,</span>
+            thread,
+            this,
+<span class="nc" id="L433">            constraints(initializer).functionset,</span>
+            0,
+            GPNodeBuilder.NOSIZEGIVEN);
+<span class="nc" id="L436">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

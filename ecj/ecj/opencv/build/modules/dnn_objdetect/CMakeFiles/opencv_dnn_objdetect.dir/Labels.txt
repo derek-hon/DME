@@ -1,0 +1,19 @@
+# Target labels
+ Extra
+ opencv_dnn_objdetect
+ Module
+# Source files and their labels
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/dnn_objdetect/include/opencv2/core_detect.hpp
+ Extra
+ opencv_dnn_objdetect
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/dnn_objdetect/src/core_detect.cpp
+ Extra
+ opencv_dnn_objdetect
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/dnn_objdetect/src/precomp.hpp
+ Extra
+ opencv_dnn_objdetect
+ Module
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/cvconfig.h
+/home/derek/Documents/thesis-ecj/ecj/opencv/build/opencv2/opencv_modules.hpp

@@ -1,0 +1,1172 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ControlPanel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.display</a> &gt; <span class="el_source">ControlPanel.java</span></div><h1>ControlPanel.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Paus
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+/*
+ * Created on Mar 6, 2005 12:48:58 PM
+ * 
+ * By: spaus
+ */
+package ec.display;
+
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FileDialog;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.event.ItemEvent;
+import java.awt.event.KeyEvent;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.ButtonGroup;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JRadioButton;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.border.TitledBorder;
+import javax.swing.table.DefaultTableColumnModel;
+import javax.swing.table.DefaultTableModel;
+
+import ec.EvolutionState;
+import ec.Evolve;
+import ec.util.Parameter;
+import java.awt.event.FocusEvent;
+import java.awt.event.FocusListener;
+
+/**
+ * @author spaus
+ */
+<span class="nc bnc" id="L52" title="All 2 branches missed.">public class ControlPanel extends JPanel </span>
+    {
+
+    final Console console;
+
+    final static String P_JOBFILEPREFIX = &quot;job-file-prefix&quot;;
+    
+<span class="nc" id="L59">    JLabel jLabel = null;</span>
+<span class="nc" id="L60">    JTextField numGensField = null;</span>
+<span class="nc" id="L61">    JCheckBox quitOnRunCompleteCheckbox = null;  //  @jve:decl-index=0:</span>
+<span class="nc" id="L62">    JLabel jLabel1 = null;</span>
+<span class="nc" id="L63">    JTextField numJobsField = null;  //  @jve:decl-index=0:</span>
+<span class="nc" id="L64">    JLabel jLabel2 = null;</span>
+<span class="nc" id="L65">    JLabel jLabel3 = null;</span>
+<span class="nc" id="L66">    JTextField evalThreadsField = null;</span>
+<span class="nc" id="L67">    JTextField breedThreadsField = null;</span>
+<span class="nc" id="L68">    JPanel jPanel = null;</span>
+<span class="nc" id="L69">    JRadioButton seedFileRadioButton = null;</span>
+<span class="nc" id="L70">    JTextField seedFileField = null;</span>
+<span class="nc" id="L71">    JButton seedFileButton = null;  //  @jve:decl-index=0:</span>
+<span class="nc" id="L72">    JRadioButton randomSeedsRadioButton = null;</span>
+<span class="nc" id="L73">    JTable seedsTable = null;</span>
+<span class="nc" id="L74">    JScrollPane jScrollPane = null;</span>
+<span class="nc" id="L75">    JLabel jLabel6 = null;</span>
+<span class="nc" id="L76">    JCheckBox checkpointCheckBox = null;</span>
+<span class="nc" id="L77">    JPanel checkpointPanel = null;</span>
+<span class="nc" id="L78">    JLabel jLabel7 = null;</span>
+<span class="nc" id="L79">    JTextField checkpointModuloField = null;</span>
+<span class="nc" id="L80">    JLabel jLabel8 = null;</span>
+<span class="nc" id="L81">    JTextField prefixField = null;</span>
+<span class="nc" id="L82">    JLabel jLabel10 = null;</span>
+
+    ButtonGroup seedButtonGroup;
+<span class="nc" id="L85">    JButton generateSeedsButton = null;</span>
+<span class="nc" id="L86">    JRadioButton sequentialSeedsRadioButton = null;</span>
+<span class="nc" id="L87">    JLabel jLabel5 = null;</span>
+<span class="nc" id="L88">    JTextField jobFilePrefixField = null;</span>
+    /**
+     * This is the default constructor
+     */
+    public ControlPanel(Console console) 
+        {
+<span class="nc" id="L94">        super();</span>
+<span class="nc" id="L95">        this.console = console;</span>
+<span class="nc" id="L96">        initialize();</span>
+<span class="nc" id="L97">        }</span>
+    
+    public void disableControls() 
+        {
+<span class="nc" id="L101">        breedThreadsField.setEnabled(false);</span>
+<span class="nc" id="L102">        checkpointCheckBox.setEnabled(false);</span>
+<span class="nc" id="L103">        checkpointModuloField.setEnabled(false);</span>
+<span class="nc" id="L104">        evalThreadsField.setEnabled(false);</span>
+<span class="nc" id="L105">        generateSeedsButton.setEnabled(false);</span>
+<span class="nc" id="L106">        jobFilePrefixField.setEnabled(false);</span>
+<span class="nc" id="L107">        numGensField.setEnabled(false);</span>
+<span class="nc" id="L108">        numJobsField.setEnabled(false);</span>
+<span class="nc" id="L109">        prefixField.setEnabled(false);</span>
+<span class="nc" id="L110">        quitOnRunCompleteCheckbox.setEnabled(false);</span>
+<span class="nc" id="L111">        sequentialSeedsRadioButton.setEnabled(false);</span>
+<span class="nc" id="L112">        randomSeedsRadioButton.setEnabled(false);</span>
+<span class="nc" id="L113">        seedFileRadioButton.setEnabled(false);</span>
+<span class="nc" id="L114">        seedFileButton.setEnabled(false);</span>
+<span class="nc" id="L115">        seedsTable.setEnabled(false);</span>
+<span class="nc" id="L116">        }</span>
+    
+    public void enableControls() 
+        {
+<span class="nc" id="L120">        breedThreadsField.setEnabled(true);</span>
+<span class="nc" id="L121">        checkpointCheckBox.setEnabled(true);</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (checkpointCheckBox.isSelected()) </span>
+            {
+<span class="nc" id="L124">            checkpointModuloField.setEnabled(true);</span>
+<span class="nc" id="L125">            prefixField.setEnabled(true);</span>
+            }
+<span class="nc" id="L127">        evalThreadsField.setEnabled(true);</span>
+<span class="nc" id="L128">        jobFilePrefixField.setEnabled(true);</span>
+<span class="nc" id="L129">        numGensField.setEnabled(true);</span>
+<span class="nc" id="L130">        numJobsField.setEnabled(true);</span>
+<span class="nc" id="L131">        quitOnRunCompleteCheckbox.setEnabled(true);</span>
+<span class="nc" id="L132">        sequentialSeedsRadioButton.setEnabled(true);</span>
+<span class="nc" id="L133">        randomSeedsRadioButton.setEnabled(true);</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (randomSeedsRadioButton.isSelected()) </span>
+            {
+<span class="nc" id="L136">            generateSeedsButton.setEnabled(true);</span>
+            }
+<span class="nc" id="L138">        seedFileRadioButton.setEnabled(true);</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">        if (seedFileRadioButton.isSelected()) </span>
+            {
+<span class="nc" id="L141">            seedFileButton.setEnabled(true);</span>
+            }
+<span class="nc" id="L143">        seedsTable.setEnabled(true);</span>
+<span class="nc" id="L144">        }</span>
+
+    /**
+     * This method initializes this
+     * 
+     * @return void
+     */
+    void initialize() 
+        {
+<span class="nc" id="L153">        jLabel5 = new JLabel();</span>
+<span class="nc" id="L154">        GridBagConstraints gridBagConstraints28 = new GridBagConstraints();</span>
+<span class="nc" id="L155">        GridBagConstraints gridBagConstraints37 = new GridBagConstraints();</span>
+<span class="nc" id="L156">        jLabel10 = new JLabel();</span>
+<span class="nc" id="L157">        GridBagConstraints gridBagConstraints45 = new GridBagConstraints();</span>
+<span class="nc" id="L158">        jLabel6 = new JLabel();</span>
+<span class="nc" id="L159">        jLabel3 = new JLabel();</span>
+<span class="nc" id="L160">        jLabel2 = new JLabel();</span>
+<span class="nc" id="L161">        jLabel1 = new JLabel();</span>
+<span class="nc" id="L162">        jLabel = new JLabel();</span>
+<span class="nc" id="L163">        GridBagConstraints gridBagConstraints1 = new GridBagConstraints();</span>
+<span class="nc" id="L164">        GridBagConstraints gridBagConstraints2 = new GridBagConstraints();</span>
+<span class="nc" id="L165">        GridBagConstraints gridBagConstraints4 = new GridBagConstraints();</span>
+<span class="nc" id="L166">        GridBagConstraints gridBagConstraints5 = new GridBagConstraints();</span>
+<span class="nc" id="L167">        GridBagConstraints gridBagConstraints6 = new GridBagConstraints();</span>
+<span class="nc" id="L168">        GridBagConstraints gridBagConstraints7 = new GridBagConstraints();</span>
+<span class="nc" id="L169">        GridBagConstraints gridBagConstraints8 = new GridBagConstraints();</span>
+<span class="nc" id="L170">        GridBagConstraints gridBagConstraints9 = new GridBagConstraints();</span>
+<span class="nc" id="L171">        GridBagConstraints gridBagConstraints10 = new GridBagConstraints();</span>
+<span class="nc" id="L172">        GridBagConstraints gridBagConstraints11 = new GridBagConstraints();</span>
+<span class="nc" id="L173">        GridBagConstraints gridBagConstraints25 = new GridBagConstraints();</span>
+<span class="nc" id="L174">        GridBagConstraints gridBagConstraints26 = new GridBagConstraints();</span>
+<span class="nc" id="L175">        GridBagConstraints gridBagConstraints35 = new GridBagConstraints();</span>
+<span class="nc" id="L176">        GridBagConstraints gridBagConstraints36 = new GridBagConstraints();</span>
+<span class="nc" id="L177">        this.setLayout(new GridBagLayout());</span>
+<span class="nc" id="L178">        this.setSize(975, 300);</span>
+<span class="nc" id="L179">        this.setBorder(BorderFactory.createEmptyBorder(5,5,5,5));</span>
+<span class="nc" id="L180">        gridBagConstraints1.gridx = 1;</span>
+<span class="nc" id="L181">        gridBagConstraints1.gridy = 2;</span>
+<span class="nc" id="L182">        gridBagConstraints1.gridheight = 1;</span>
+<span class="nc" id="L183">        gridBagConstraints1.gridwidth = 1;</span>
+<span class="nc" id="L184">        gridBagConstraints1.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L185">        jLabel.setText(&quot;# Generations:&quot;);</span>
+<span class="nc" id="L186">        gridBagConstraints2.gridx = 2;</span>
+<span class="nc" id="L187">        gridBagConstraints2.gridy = 2;</span>
+<span class="nc" id="L188">        gridBagConstraints2.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L189">        gridBagConstraints2.weightx = 0.0D;</span>
+<span class="nc" id="L190">        gridBagConstraints2.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L191">        gridBagConstraints2.ipadx = 30;</span>
+<span class="nc" id="L192">        gridBagConstraints4.gridx = 1;</span>
+<span class="nc" id="L193">        gridBagConstraints4.gridy = 6;</span>
+<span class="nc" id="L194">        gridBagConstraints4.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L195">        gridBagConstraints4.gridwidth = 2;</span>
+<span class="nc" id="L196">        gridBagConstraints5.gridx = 1;</span>
+<span class="nc" id="L197">        gridBagConstraints5.gridy = 0;</span>
+<span class="nc" id="L198">        gridBagConstraints5.anchor = java.awt.GridBagConstraints.NORTHWEST;</span>
+<span class="nc" id="L199">        jLabel1.setText(&quot;# Jobs:&quot;);</span>
+<span class="nc" id="L200">        gridBagConstraints6.gridx = 2;</span>
+<span class="nc" id="L201">        gridBagConstraints6.gridy = 0;</span>
+<span class="nc" id="L202">        gridBagConstraints6.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L203">        gridBagConstraints6.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L204">        gridBagConstraints6.anchor = java.awt.GridBagConstraints.NORTHWEST;</span>
+<span class="nc" id="L205">        gridBagConstraints6.gridwidth = 1;</span>
+<span class="nc" id="L206">        gridBagConstraints7.gridx = 1;</span>
+<span class="nc" id="L207">        gridBagConstraints7.gridy = 3;</span>
+<span class="nc" id="L208">        gridBagConstraints7.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L209">        jLabel2.setText(&quot;# Evaluation Threads:&quot;);</span>
+<span class="nc" id="L210">        gridBagConstraints8.gridx = 1;</span>
+<span class="nc" id="L211">        gridBagConstraints8.gridy = 4;</span>
+<span class="nc" id="L212">        gridBagConstraints8.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L213">        gridBagConstraints8.gridwidth = 1;</span>
+<span class="nc" id="L214">        jLabel3.setText(&quot;# Breeder Threads:&quot;);</span>
+<span class="nc" id="L215">        gridBagConstraints9.gridx = 2;</span>
+<span class="nc" id="L216">        gridBagConstraints9.gridy = 3;</span>
+<span class="nc" id="L217">        gridBagConstraints9.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L218">        gridBagConstraints9.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L219">        gridBagConstraints10.gridx = 2;</span>
+<span class="nc" id="L220">        gridBagConstraints10.gridy = 4;</span>
+<span class="nc" id="L221">        gridBagConstraints10.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L222">        gridBagConstraints10.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L223">        gridBagConstraints11.gridx = 11;</span>
+<span class="nc" id="L224">        gridBagConstraints11.gridy = 0;</span>
+<span class="nc" id="L225">        gridBagConstraints11.gridwidth = 6;</span>
+<span class="nc" id="L226">        gridBagConstraints11.fill = java.awt.GridBagConstraints.BOTH;</span>
+<span class="nc" id="L227">        gridBagConstraints11.gridheight = 13;</span>
+<span class="nc" id="L228">        gridBagConstraints11.weightx = 1.0D;</span>
+<span class="nc" id="L229">        gridBagConstraints25.gridx = 1;</span>
+<span class="nc" id="L230">        gridBagConstraints25.gridy = 5;</span>
+<span class="nc" id="L231">        gridBagConstraints25.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L232">        gridBagConstraints25.insets = new java.awt.Insets(0,0,0,0);</span>
+<span class="nc" id="L233">        jLabel6.setText(&quot;Verbosity:&quot;);</span>
+<span class="nc" id="L234">        gridBagConstraints26.gridx = 2;</span>
+<span class="nc" id="L235">        gridBagConstraints26.gridy = 5;</span>
+<span class="nc" id="L236">        gridBagConstraints26.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L237">        gridBagConstraints26.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L238">        gridBagConstraints26.weightx = 0.0D;</span>
+<span class="nc" id="L239">        gridBagConstraints26.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L240">        gridBagConstraints26.ipadx = 30;</span>
+<span class="nc" id="L241">        gridBagConstraints35.gridx = 1;</span>
+<span class="nc" id="L242">        gridBagConstraints35.gridy = 7;</span>
+<span class="nc" id="L243">        gridBagConstraints35.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L244">        gridBagConstraints35.gridwidth = 2;</span>
+<span class="nc" id="L245">        gridBagConstraints35.gridheight = 1;</span>
+<span class="nc" id="L246">        gridBagConstraints36.gridx = 1;</span>
+<span class="nc" id="L247">        gridBagConstraints36.gridy = 8;</span>
+<span class="nc" id="L248">        gridBagConstraints36.gridheight = 1;</span>
+<span class="nc" id="L249">        gridBagConstraints36.gridwidth = 3;</span>
+<span class="nc" id="L250">        gridBagConstraints36.anchor = java.awt.GridBagConstraints.NORTH;</span>
+<span class="nc" id="L251">        gridBagConstraints36.ipadx = 107;</span>
+<span class="nc" id="L252">        gridBagConstraints45.gridx = 5;</span>
+<span class="nc" id="L253">        gridBagConstraints45.gridy = 8;</span>
+<span class="nc" id="L254">        gridBagConstraints45.weighty = 1.0D;</span>
+<span class="nc" id="L255">        jLabel10.setText(&quot;&quot;);</span>
+<span class="nc" id="L256">        gridBagConstraints28.gridx = 1;</span>
+<span class="nc" id="L257">        gridBagConstraints28.gridy = 1;</span>
+<span class="nc" id="L258">        gridBagConstraints28.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L259">        jLabel5.setText(&quot;Job file prefix:&quot;);</span>
+<span class="nc" id="L260">        gridBagConstraints37.gridx = 2;</span>
+<span class="nc" id="L261">        gridBagConstraints37.gridy = 1;</span>
+<span class="nc" id="L262">        gridBagConstraints37.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L263">        gridBagConstraints37.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L264">        gridBagConstraints37.gridwidth = 3;</span>
+<span class="nc" id="L265">        this.add(jLabel, gridBagConstraints1);</span>
+<span class="nc" id="L266">        this.add(getNumGensField(), gridBagConstraints2);</span>
+<span class="nc" id="L267">        this.add(getQuitOnRunCompleteCheckbox(), gridBagConstraints4);</span>
+<span class="nc" id="L268">        this.add(jLabel1, gridBagConstraints5);</span>
+<span class="nc" id="L269">        this.add(getNumJobsField(), gridBagConstraints6);</span>
+<span class="nc" id="L270">        this.add(jLabel2, gridBagConstraints7);</span>
+<span class="nc" id="L271">        this.add(jLabel3, gridBagConstraints8);</span>
+<span class="nc" id="L272">        this.add(getEvalThreadsField(), gridBagConstraints9);</span>
+<span class="nc" id="L273">        this.add(getBreedThreadsField(), gridBagConstraints10);</span>
+<span class="nc" id="L274">        this.add(getJPanel(), gridBagConstraints11);</span>
+<span class="nc" id="L275">        this.add(jLabel6, gridBagConstraints25);</span>
+        //this.add(getVerbosityField(), gridBagConstraints26);
+<span class="nc" id="L277">        this.add(getCheckpointCheckBox(), gridBagConstraints35);</span>
+<span class="nc" id="L278">        this.add(getCheckpointPanel(), gridBagConstraints36);</span>
+<span class="nc" id="L279">        this.add(jLabel10, gridBagConstraints45);</span>
+<span class="nc" id="L280">        this.add(jLabel5, gridBagConstraints28);</span>
+<span class="nc" id="L281">        this.add(getJobFilePrefixField(), gridBagConstraints37);</span>
+<span class="nc" id="L282">        this.add(Box.createRigidArea(new Dimension(5,0)));</span>
+<span class="nc" id="L283">        }</span>
+    /**
+     * This method initializes jTextField   
+     *      
+     * @return javax.swing.JTextField       
+     */    
+    JTextField getNumGensField() 
+        {
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        if (numGensField == null) </span>
+            {
+<span class="nc" id="L293">            numGensField = new JTextField();</span>
+<span class="nc" id="L294">            numGensField.addKeyListener(new java.awt.event.KeyAdapter() </span>
+<span class="nc" id="L295">                { </span>
+                public void keyPressed(KeyEvent e) 
+                    {
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                    if (e.getKeyCode() == KeyEvent.VK_ENTER) </span>
+                        {
+<span class="nc" id="L300">                        console.parameters.set(new Parameter(EvolutionState.P_GENERATIONS), ((JTextField)e.getSource()).getText());</span>
+                        } 
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                    else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) </span>
+                        {
+<span class="nc" id="L304">                        ((JTextField)e.getSource()).setText(console.parameters.getString(new Parameter(EvolutionState.P_GENERATIONS),null));</span>
+                        }
+<span class="nc" id="L306">                    }</span>
+                });
+<span class="nc" id="L308">            numGensField.addFocusListener(new FocusListener()</span>
+<span class="nc" id="L309">                {</span>
+                public void focusGained(final FocusEvent e)
+                    {
+<span class="nc" id="L312">                    }</span>
+
+                public void focusLost(final FocusEvent e)
+                    {
+<span class="nc" id="L316">                    console.parameters.set(new Parameter(EvolutionState.P_GENERATIONS), ((JTextField)e.getSource()).getText());</span>
+<span class="nc" id="L317">                    resizeSeedTable();</span>
+<span class="nc" id="L318">                    }</span>
+                });
+            }
+<span class="nc" id="L321">        return numGensField;</span>
+        }
+    /**
+     * This method initializes jCheckBox    
+     *      
+     * @return javax.swing.JCheckBox        
+     */    
+    JCheckBox getQuitOnRunCompleteCheckbox() 
+        {
+<span class="nc bnc" id="L330" title="All 2 branches missed.">        if (quitOnRunCompleteCheckbox == null) </span>
+            {
+<span class="nc" id="L332">            quitOnRunCompleteCheckbox = new JCheckBox();</span>
+<span class="nc" id="L333">            quitOnRunCompleteCheckbox.setText(&quot;Quit on Run Complete&quot;);</span>
+<span class="nc" id="L334">            quitOnRunCompleteCheckbox.addItemListener(new java.awt.event.ItemListener() </span>
+<span class="nc" id="L335">                { </span>
+                public void itemStateChanged(java.awt.event.ItemEvent e) 
+                    {    
+<span class="nc" id="L338">                    console.parameters.set(new Parameter(EvolutionState.P_QUITONRUNCOMPLETE),</span>
+<span class="nc" id="L339">                        &quot;&quot; + ((JCheckBox)e.getSource()).isSelected());</span>
+<span class="nc" id="L340">                    }</span>
+                });
+            }
+<span class="nc" id="L343">        return quitOnRunCompleteCheckbox;</span>
+        }
+    /**
+     * This method initializes jTextField1  
+     *      
+     * @return javax.swing.JTextField       
+     */    
+    JTextField getNumJobsField() 
+        {
+<span class="nc bnc" id="L352" title="All 2 branches missed.">        if (numJobsField == null) </span>
+            {
+<span class="nc" id="L354">            numJobsField = new JTextField();</span>
+<span class="nc" id="L355">            numJobsField.addKeyListener(new java.awt.event.KeyAdapter() </span>
+<span class="nc" id="L356">                { </span>
+                public void keyPressed(java.awt.event.KeyEvent e) 
+                    {
+<span class="nc bnc" id="L359" title="All 2 branches missed.">                    if (e.getKeyCode() == KeyEvent.VK_ENTER) </span>
+                        {
+<span class="nc" id="L361">                        resizeSeedTable();</span>
+                        }
+<span class="nc" id="L363">                    }</span>
+                });
+            
+<span class="nc" id="L366">            numJobsField.addFocusListener(new FocusListener()</span>
+<span class="nc" id="L367">                {</span>
+                public void focusGained(final FocusEvent e)
+                    {
+<span class="nc" id="L370">                    }</span>
+
+                public void focusLost(final FocusEvent e)
+                    {
+<span class="nc" id="L374">                    resizeSeedTable();</span>
+<span class="nc" id="L375">                    }</span>
+                });
+            }
+<span class="nc" id="L378">        return numJobsField;</span>
+        }
+    
+    public int getNumJobs() 
+        {
+<span class="nc" id="L383">        try { return Integer.parseInt(getNumJobsField().getText()); } </span>
+<span class="nc" id="L384">        catch (NumberFormatException e) { return 0; }</span>
+        }
+
+    public int getThreadCount(String text)
+        {
+        try
+            {
+<span class="nc bnc" id="L391" title="All 2 branches missed.">            if (text.toLowerCase().trim().equals(&quot;auto&quot;))</span>
+<span class="nc" id="L392">                return Runtime.getRuntime().availableProcessors();</span>
+<span class="nc" id="L393">            else return Integer.parseInt(text);</span>
+            }
+<span class="nc" id="L395">        catch (NumberFormatException e) { return 0; }</span>
+        }
+
+
+    /**
+     * @throws NumberFormatException
+     */
+    void resizeSeedTable()
+        throws NumberFormatException 
+        {
+<span class="nc" id="L405">        int numJobs = Integer.parseInt(numJobsField.getText());</span>
+<span class="nc" id="L406">        int breedThreads = getThreadCount(breedThreadsField.getText());</span>
+<span class="nc" id="L407">        int evalThreads = getThreadCount(evalThreadsField.getText());</span>
+        
+<span class="nc" id="L409">        int numThreads = Math.max(breedThreads, evalThreads);</span>
+        
+<span class="nc" id="L411">        DefaultTableModel model =(DefaultTableModel)seedsTable.getModel(); </span>
+<span class="nc" id="L412">        model.setColumnCount(numThreads);</span>
+<span class="nc" id="L413">        String[] columnHeaders = new String[numThreads];</span>
+<span class="nc bnc" id="L414" title="All 2 branches missed.">        for (int i = 0; i &lt; numThreads; ++i) </span>
+            {
+<span class="nc" id="L416">            columnHeaders[i] = &quot;Thread &quot;+i;</span>
+            }
+
+<span class="nc" id="L419">        model.setColumnIdentifiers(columnHeaders);</span>
+<span class="nc" id="L420">        model.setRowCount(numJobs);</span>
+
+<span class="nc bnc" id="L422" title="All 2 branches missed.">        if (seedFileRadioButton.isSelected()) </span>
+            {
+<span class="nc" id="L424">            File f = new File(seedFileField.getText());</span>
+            try 
+                {
+<span class="nc" id="L427">                loadSeeds(f);</span>
+                } 
+<span class="nc" id="L429">            catch (IOException ex) </span>
+                {
+<span class="nc" id="L431">                System.err.println(ex.getMessage());</span>
+<span class="nc" id="L432">                }</span>
+<span class="nc" id="L433">            } </span>
+<span class="nc bnc" id="L434" title="All 2 branches missed.">        else if (randomSeedsRadioButton.isSelected()) </span>
+            {
+<span class="nc" id="L436">            generateRandomSeeds();</span>
+            } 
+<span class="nc bnc" id="L438" title="All 2 branches missed.">        else if (sequentialSeedsRadioButton.isSelected()) </span>
+            {
+            int seed;
+<span class="nc" id="L441">            int i = 0;</span>
+            try 
+                {
+<span class="nc bnc" id="L444" title="All 2 branches missed.">                for (int thread = 0; thread &lt; numThreads; ++thread) </span>
+                    {
+<span class="nc" id="L446">                    seed = console.parameters.getInt(new Parameter(&quot;seed.&quot;+thread),null);</span>
+<span class="nc bnc" id="L447" title="All 2 branches missed.">                    for (int job = 0; job &lt; numJobs; ++job)</span>
+<span class="nc" id="L448">                        setSeed(&quot;&quot;+(seed+(i++)),job,thread);</span>
+                    }
+                }
+<span class="nc" id="L451">            catch (NumberFormatException ex) </span>
+                {
+<span class="nc" id="L453">                javax.swing.JOptionPane.showMessageDialog(null, &quot;The seed parameter for at least one thread not a fixed number (perhaps it's set to 'time'?), so sequential seeds cannot be used.\n&quot;</span>
+                    + &quot;Reverting to random number seeds for all threads.&quot;, &quot;Adjusting Seeds&quot;, 
+                    javax.swing.JOptionPane.INFORMATION_MESSAGE);
+<span class="nc" id="L456">                randomSeedsRadioButton.setSelected(true);</span>
+<span class="nc" id="L457">                generateRandomSeeds();</span>
+<span class="nc" id="L458">                }</span>
+<span class="nc" id="L459">            }</span>
+        else
+            {
+<span class="nc bnc" id="L462" title="All 2 branches missed.">            for (int job = 0; job &lt; numJobs; ++job) </span>
+                {
+<span class="nc bnc" id="L464" title="All 2 branches missed.">                for (int thread = 0; thread &lt; numThreads; ++thread) </span>
+                    {
+<span class="nc" id="L466">                    setSeed(console.parameters.getString(new Parameter(&quot;seed.&quot;+thread),null),job,thread);</span>
+                    }
+                }
+            }
+<span class="nc" id="L470">        }</span>
+
+    /**
+     * @throws NumberFormatException
+     */
+    void generateRandomSeeds()
+        throws NumberFormatException 
+        {
+<span class="nc" id="L478">        int numJobs = Integer.parseInt(numJobsField.getText());</span>
+<span class="nc" id="L479">        int evalThreads = console.parameters.getInt(new Parameter(Evolve.P_EVALTHREADS),null);</span>
+<span class="nc" id="L480">        int breedThreads = console.parameters.getInt(new Parameter(Evolve.P_BREEDTHREADS),null);</span>
+<span class="nc bnc" id="L481" title="All 4 branches missed.">        assert(evalThreads == getThreadCount(evalThreadsField.getText()));</span>
+<span class="nc bnc" id="L482" title="All 4 branches missed.">        assert(breedThreads == getThreadCount(breedThreadsField.getText()));</span>
+<span class="nc" id="L483">        int numThreads = Math.max(breedThreads, evalThreads);</span>
+        
+<span class="nc" id="L485">        int seed = (int)(System.currentTimeMillis());</span>
+<span class="nc bnc" id="L486" title="All 2 branches missed.">        for (int job = 0; job &lt; numJobs; ++job) </span>
+            {
+<span class="nc bnc" id="L488" title="All 2 branches missed.">            for (int thread = 0; thread &lt; numThreads; ++thread) </span>
+                {
+<span class="nc" id="L490">                seed = seed+(job*Math.min(breedThreads, evalThreads))+(thread*Math.max(breedThreads, evalThreads));</span>
+<span class="nc" id="L491">                setSeed(&quot;&quot;+seed,job,thread);</span>
+                }
+            }
+<span class="nc" id="L494">        }</span>
+                
+    public int getSeed(int experimentNum, int threadNum) 
+        {
+<span class="nc" id="L498">        try { return Integer.parseInt((String)seedsTable.getValueAt(experimentNum, threadNum)); }</span>
+<span class="nc" id="L499">        catch (RuntimeException e)</span>
+            {
+<span class="nc" id="L501">            javax.swing.JOptionPane.showMessageDialog(null, &quot;Error reading from seed table. Rebuilding random number seeds.&quot;, &quot;Adjusting Seeds&quot;, </span>
+                javax.swing.JOptionPane.INFORMATION_MESSAGE);
+<span class="nc" id="L503">            generateRandomSeeds();</span>
+<span class="nc" id="L504">            return Integer.valueOf((String)seedsTable.getValueAt(experimentNum, threadNum)).intValue();</span>
+            }
+        }
+    
+    public void setSeed(String seed, int experimentNum, int threadNum) 
+        {
+<span class="nc" id="L510">        seedsTable.setValueAt(seed, experimentNum, threadNum);</span>
+<span class="nc" id="L511">        }</span>
+    /**
+     * This method initializes jTextField2  
+     *      
+     * @return javax.swing.JTextField       
+     */    
+    JTextField getEvalThreadsField() 
+        {
+<span class="nc bnc" id="L519" title="All 2 branches missed.">        if (evalThreadsField == null) </span>
+            {
+<span class="nc" id="L521">            evalThreadsField = new JTextField();</span>
+<span class="nc" id="L522">            evalThreadsField.addKeyListener(new java.awt.event.KeyAdapter() </span>
+<span class="nc" id="L523">                { </span>
+                public void keyPressed(java.awt.event.KeyEvent e) 
+                    {
+<span class="nc bnc" id="L526" title="All 2 branches missed.">                    if (e.getKeyCode() == KeyEvent.VK_ENTER) </span>
+                        {
+<span class="nc" id="L528">                        console.parameters.set(new Parameter(Evolve.P_EVALTHREADS), ((JTextField)e.getSource()).getText());</span>
+<span class="nc" id="L529">                        resizeSeedTable();</span>
+                        } 
+<span class="nc bnc" id="L531" title="All 2 branches missed.">                    else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) </span>
+                        {
+<span class="nc" id="L533">                        ((JTextField)e.getSource()).setText(console.parameters.getString(new Parameter(Evolve.P_EVALTHREADS),null));</span>
+                        }
+<span class="nc" id="L535">                    }</span>
+                });
+<span class="nc" id="L537">            evalThreadsField.addFocusListener(new FocusListener()</span>
+<span class="nc" id="L538">                {</span>
+                public void focusGained(final FocusEvent e)
+                    {
+<span class="nc" id="L541">                    }</span>
+
+                public void focusLost(final FocusEvent e)
+                    {
+<span class="nc" id="L545">                    console.parameters.set(new Parameter(Evolve.P_EVALTHREADS), ((JTextField)e.getSource()).getText());</span>
+<span class="nc" id="L546">                    resizeSeedTable();</span>
+<span class="nc" id="L547">                    }</span>
+                });
+            }
+<span class="nc" id="L550">        return evalThreadsField;</span>
+        }
+    /**
+     * This method initializes jTextField3  
+     *      
+     * @return javax.swing.JTextField       
+     */    
+    JTextField getBreedThreadsField() 
+        {
+<span class="nc bnc" id="L559" title="All 2 branches missed.">        if (breedThreadsField == null) </span>
+            {
+<span class="nc" id="L561">            breedThreadsField = new JTextField();</span>
+<span class="nc" id="L562">            breedThreadsField.addKeyListener(new java.awt.event.KeyAdapter() </span>
+<span class="nc" id="L563">                { </span>
+                public void keyPressed(java.awt.event.KeyEvent e) 
+                    {    
+<span class="nc bnc" id="L566" title="All 2 branches missed.">                    if (e.getKeyCode() == KeyEvent.VK_ENTER) </span>
+                        {
+<span class="nc" id="L568">                        console.parameters.set(new Parameter(Evolve.P_BREEDTHREADS), ((JTextField)e.getSource()).getText());</span>
+<span class="nc" id="L569">                        resizeSeedTable();</span>
+                        } 
+<span class="nc bnc" id="L571" title="All 2 branches missed.">                    else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) </span>
+                        {
+<span class="nc" id="L573">                        ((JTextField)e.getSource()).setText(console.parameters.getString(new Parameter(Evolve.P_BREEDTHREADS),null));</span>
+                        }
+<span class="nc" id="L575">                    }</span>
+                });
+            
+<span class="nc" id="L578">            breedThreadsField.addFocusListener(new FocusListener()</span>
+<span class="nc" id="L579">                {</span>
+                public void focusGained(final FocusEvent e)
+                    {
+<span class="nc" id="L582">                    }</span>
+
+                public void focusLost(final FocusEvent e)
+                    {
+<span class="nc" id="L586">                    console.parameters.set(new Parameter(Evolve.P_BREEDTHREADS), ((JTextField)e.getSource()).getText());</span>
+<span class="nc" id="L587">                    resizeSeedTable();</span>
+<span class="nc" id="L588">                    }</span>
+                });
+            }
+<span class="nc" id="L591">        return breedThreadsField;</span>
+        }
+    /**
+     * This method initializes jPanel       
+     *      
+     * @return javax.swing.JPanel   
+     */    
+    JPanel getJPanel() 
+        {
+<span class="nc bnc" id="L600" title="All 2 branches missed.">        if (jPanel == null) </span>
+            {
+<span class="nc" id="L602">            GridBagConstraints gridBagConstraints15 = new GridBagConstraints();</span>
+<span class="nc" id="L603">            GridBagConstraints gridBagConstraints81 = new GridBagConstraints();</span>
+<span class="nc" id="L604">            GridBagConstraints gridBagConstraints14 = new GridBagConstraints();</span>
+<span class="nc" id="L605">            GridBagConstraints gridBagConstraints13 = new GridBagConstraints();</span>
+<span class="nc" id="L606">            GridBagConstraints gridBagConstraints12 = new GridBagConstraints();</span>
+<span class="nc" id="L607">            GridBagConstraints gridBagConstraints19 = new GridBagConstraints();</span>
+<span class="nc" id="L608">            GridBagConstraints gridBagConstraints21 = new GridBagConstraints();</span>
+<span class="nc" id="L609">            TitledBorder titledBorder28 = javax.swing.BorderFactory.createTitledBorder(null, &quot;Random Seed(s)&quot;, javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, null, null);</span>
+<span class="nc" id="L610">            jPanel = new JPanel();</span>
+<span class="nc" id="L611">            jPanel.setLayout(new GridBagLayout());</span>
+<span class="nc" id="L612">            gridBagConstraints12.gridx = 0;</span>
+<span class="nc" id="L613">            gridBagConstraints12.gridy = 1;</span>
+<span class="nc" id="L614">            gridBagConstraints12.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L615">            gridBagConstraints12.anchor = java.awt.GridBagConstraints.EAST;</span>
+<span class="nc" id="L616">            gridBagConstraints12.gridwidth = 5;</span>
+<span class="nc" id="L617">            gridBagConstraints12.insets = new java.awt.Insets(0,20,0,0);</span>
+<span class="nc" id="L618">            gridBagConstraints12.weightx = 1.0D;</span>
+<span class="nc" id="L619">            gridBagConstraints13.gridx = 5;</span>
+<span class="nc" id="L620">            gridBagConstraints13.gridy = 1;</span>
+<span class="nc" id="L621">            gridBagConstraints13.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L622">            gridBagConstraints13.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L623">            gridBagConstraints14.gridx = 0;</span>
+<span class="nc" id="L624">            gridBagConstraints14.gridy = 3;</span>
+<span class="nc" id="L625">            gridBagConstraints14.gridwidth = 1;</span>
+<span class="nc" id="L626">            gridBagConstraints14.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L627">            gridBagConstraints19.gridwidth = 6;</span>
+<span class="nc" id="L628">            gridBagConstraints19.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L629">            gridBagConstraints21.gridx = 0;</span>
+<span class="nc" id="L630">            gridBagConstraints21.gridy = 7;</span>
+<span class="nc" id="L631">            gridBagConstraints21.fill = java.awt.GridBagConstraints.BOTH;</span>
+<span class="nc" id="L632">            gridBagConstraints21.gridwidth = 6;</span>
+<span class="nc" id="L633">            gridBagConstraints21.gridheight = 1;</span>
+<span class="nc" id="L634">            gridBagConstraints21.weighty = 1.0D;</span>
+<span class="nc" id="L635">            gridBagConstraints21.weightx = 1.0D;</span>
+<span class="nc" id="L636">            jPanel.setBorder(titledBorder28);</span>
+<span class="nc" id="L637">            titledBorder28.setBorder(javax.swing.BorderFactory.createEtchedBorder(javax.swing.border.EtchedBorder.LOWERED));</span>
+<span class="nc" id="L638">            gridBagConstraints81.gridx = 1;</span>
+<span class="nc" id="L639">            gridBagConstraints81.gridy = 3;</span>
+<span class="nc" id="L640">            gridBagConstraints15.gridx = 0;</span>
+<span class="nc" id="L641">            gridBagConstraints15.gridy = 2;</span>
+<span class="nc" id="L642">            gridBagConstraints15.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L643">            jPanel.add(getSeedFileRadioButton(), gridBagConstraints19);</span>
+<span class="nc" id="L644">            jPanel.add(getSeedFileField(), gridBagConstraints12);</span>
+<span class="nc" id="L645">            jPanel.add(getSeedFileButton(), gridBagConstraints13);</span>
+<span class="nc" id="L646">            jPanel.add(getRandomSeedsRadioButton(), gridBagConstraints14);</span>
+<span class="nc" id="L647">            jPanel.add(getJScrollPane(), gridBagConstraints21);</span>
+<span class="nc" id="L648">            seedButtonGroup = new ButtonGroup();</span>
+<span class="nc" id="L649">            seedButtonGroup.add(getRandomSeedsRadioButton());</span>
+<span class="nc" id="L650">            seedButtonGroup.add(getSeedFileRadioButton());</span>
+<span class="nc" id="L651">            seedButtonGroup.add(getSequentialSeedsRadioButton());</span>
+<span class="nc" id="L652">            jPanel.add(getGenerateSeedsButton(), gridBagConstraints81);</span>
+<span class="nc" id="L653">            jPanel.add(getSequentialSeedsRadioButton(), gridBagConstraints15);</span>
+            }
+<span class="nc" id="L655">        return jPanel;</span>
+        }
+    /**
+     * This method initializes jRadioButton 
+     *      
+     * @return javax.swing.JRadioButton     
+     */    
+    JRadioButton getSeedFileRadioButton() 
+        {
+<span class="nc bnc" id="L664" title="All 2 branches missed.">        if (seedFileRadioButton == null) </span>
+            {
+<span class="nc" id="L666">            seedFileRadioButton = new JRadioButton();</span>
+<span class="nc" id="L667">            seedFileRadioButton.setText(&quot;Seeds from file:&quot;);</span>
+<span class="nc" id="L668">            final ControlPanel cp = this;</span>
+<span class="nc" id="L669">            seedFileRadioButton.addItemListener(new java.awt.event.ItemListener() </span>
+<span class="nc" id="L670">                { </span>
+                public void itemStateChanged(java.awt.event.ItemEvent e) 
+                    {
+<span class="nc bnc" id="L673" title="All 2 branches missed.">                    if (e.getStateChange() == ItemEvent.SELECTED) </span>
+                        {
+<span class="nc" id="L675">                        seedFileField.setEnabled(true);</span>
+<span class="nc" id="L676">                        seedFileButton.setEnabled(true);</span>
+
+<span class="nc" id="L678">                        String seedFileName = seedFileField.getText();</span>
+<span class="nc" id="L679">                        File seedFile = null;</span>
+<span class="nc bnc" id="L680" title="All 2 branches missed.">                        if ( seedFileName == null ||</span>
+<span class="nc bnc" id="L681" title="All 2 branches missed.">                            seedFileName.length() == 0) </span>
+                            {
+<span class="nc" id="L683">                            FileDialog fileDialog = new FileDialog(ControlPanel.this.console,&quot;Load...&quot;,FileDialog.LOAD);</span>
+<span class="nc" id="L684">                            fileDialog.setDirectory(System.getProperty(&quot;user.dir&quot;));</span>
+<span class="nc" id="L685">                            fileDialog.setFile(&quot;*.seed&quot;);</span>
+<span class="nc" id="L686">                            fileDialog.setVisible(true);</span>
+<span class="nc" id="L687">                            String fileName = fileDialog.getFile();</span>
+<span class="nc bnc" id="L688" title="All 2 branches missed.">                            if ( fileName != null )</span>
+                                
+                                {
+<span class="nc" id="L691">                                seedFile = new File(fileDialog.getDirectory(),fileName);</span>
+                                }
+<span class="nc" id="L693">                            }</span>
+                        else
+                            {
+<span class="nc" id="L696">                            seedFile = new File(seedFileName);</span>
+                            }
+
+<span class="nc bnc" id="L699" title="All 2 branches missed.">                        if (seedFile != null) </span>
+                            {
+                            try 
+                                {
+<span class="nc" id="L703">                                cp.loadSeeds(seedFile);</span>
+                                } 
+<span class="nc" id="L705">                            catch (IOException ex) </span>
+                                {
+<span class="nc" id="L707">                                System.err.println(ex.getMessage());</span>
+<span class="nc" id="L708">                                }</span>
+                            }
+<span class="nc" id="L710">                        }</span>
+                    else
+                        {
+<span class="nc" id="L713">                        seedFileField.setEnabled(false);</span>
+<span class="nc" id="L714">                        seedFileButton.setEnabled(false);</span>
+                        }
+<span class="nc" id="L716">                    }</span>
+                });
+            }
+<span class="nc" id="L719">        return seedFileRadioButton;</span>
+        }
+    /**
+     * This method initializes jTextField4  
+     *      
+     * @return javax.swing.JTextField       
+     */    
+    JTextField getSeedFileField() 
+        {
+<span class="nc bnc" id="L728" title="All 2 branches missed.">        if (seedFileField == null) </span>
+            {
+<span class="nc" id="L730">            seedFileField = new JTextField();</span>
+<span class="nc" id="L731">            seedFileField.setEnabled(false);</span>
+<span class="nc" id="L732">            seedFileField.setEditable(false);</span>
+            }
+<span class="nc" id="L734">        return seedFileField;</span>
+        }
+    /**
+     * This method initializes jButton      
+     *      
+     * @return javax.swing.JButton  
+     */    
+    JButton getSeedFileButton() 
+        {
+<span class="nc bnc" id="L743" title="All 2 branches missed.">        if (seedFileButton == null) </span>
+            {
+<span class="nc" id="L745">            seedFileButton = new JButton();</span>
+<span class="nc" id="L746">            seedFileButton.setText(&quot;...&quot;);</span>
+<span class="nc" id="L747">            seedFileButton.setEnabled(false);</span>
+<span class="nc" id="L748">            final ControlPanel cp = this;</span>
+<span class="nc" id="L749">            seedFileButton.addActionListener(new java.awt.event.ActionListener() </span>
+<span class="nc" id="L750">                { </span>
+                public void actionPerformed(java.awt.event.ActionEvent e) 
+                    {
+<span class="nc" id="L753">                    File seedFile = null;</span>
+<span class="nc" id="L754">                    FileDialog fileDialog = new FileDialog(ControlPanel.this.console,&quot;Load...&quot;,FileDialog.LOAD);</span>
+<span class="nc" id="L755">                    fileDialog.setDirectory(System.getProperty(&quot;user.dir&quot;));</span>
+<span class="nc" id="L756">                    fileDialog.setFile(&quot;*.seed&quot;);</span>
+<span class="nc" id="L757">                    fileDialog.setVisible(true);</span>
+<span class="nc" id="L758">                    String fileName = fileDialog.getFile();</span>
+<span class="nc bnc" id="L759" title="All 2 branches missed.">                    if ( fileName != null )</span>
+                        
+                        {
+<span class="nc" id="L762">                        seedFile = new File(fileDialog.getDirectory(),fileName);</span>
+                        }
+
+<span class="nc bnc" id="L765" title="All 2 branches missed.">                    if (seedFile != null) </span>
+                        {
+                        try 
+                            {
+<span class="nc" id="L769">                            cp.loadSeeds(seedFile);</span>
+                            } 
+<span class="nc" id="L771">                        catch (IOException ex) </span>
+                            {
+<span class="nc" id="L773">                            System.err.println(ex.getMessage());</span>
+<span class="nc" id="L774">                            }</span>
+                        }
+<span class="nc" id="L776">                    }</span>
+                });
+            }
+<span class="nc" id="L779">        return seedFileButton;</span>
+        }
+    /**
+     * This method initializes jRadioButton1        
+     *      
+     * @return javax.swing.JRadioButton     
+     */    
+    JRadioButton getRandomSeedsRadioButton() 
+        {
+<span class="nc bnc" id="L788" title="All 2 branches missed.">        if (randomSeedsRadioButton == null) </span>
+            {
+<span class="nc" id="L790">            randomSeedsRadioButton = new JRadioButton();</span>
+<span class="nc" id="L791">            randomSeedsRadioButton.setText(&quot;Random Seeds&quot;);</span>
+<span class="nc" id="L792">            randomSeedsRadioButton.setSelected(true);</span>
+<span class="nc" id="L793">            randomSeedsRadioButton.addItemListener(new java.awt.event.ItemListener() </span>
+<span class="nc" id="L794">                { </span>
+                public void itemStateChanged(java.awt.event.ItemEvent e) 
+                    {    
+<span class="nc bnc" id="L797" title="All 2 branches missed.">                    if (e.getStateChange() == ItemEvent.SELECTED) </span>
+                        {
+<span class="nc" id="L799">                        generateSeedsButton.setEnabled(true);</span>
+                        }
+                    else
+                        {
+<span class="nc" id="L803">                        generateSeedsButton.setEnabled(false);</span>
+                        }
+<span class="nc" id="L805">                    }</span>
+                });
+            }
+<span class="nc" id="L808">        return randomSeedsRadioButton;</span>
+        }
+    /**
+     * This method initializes jTable       
+     *      
+     * @return javax.swing.JTable   
+     */    
+    JTable getSeedsTable() 
+        {
+<span class="nc bnc" id="L817" title="All 2 branches missed.">        if (seedsTable == null) </span>
+            {
+<span class="nc" id="L819">            seedsTable = new JTable();</span>
+<span class="nc" id="L820">            seedsTable.setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_OFF);</span>
+            }
+<span class="nc" id="L822">        return seedsTable;</span>
+        }
+    /**
+     * This method initializes jScrollPane  
+     *      
+     * @return javax.swing.JScrollPane      
+     */    
+    JScrollPane getJScrollPane() 
+        {
+<span class="nc bnc" id="L831" title="All 2 branches missed.">        if (jScrollPane == null) </span>
+            {
+<span class="nc" id="L833">            jScrollPane = new JScrollPane();</span>
+<span class="nc" id="L834">            jScrollPane.setViewportView(getSeedsTable());</span>
+<span class="nc" id="L835">            jScrollPane.setHorizontalScrollBarPolicy(javax.swing.JScrollPane.HORIZONTAL_SCROLLBAR_ALWAYS);</span>
+            }
+<span class="nc" id="L837">        return jScrollPane;</span>
+        }
+        
+    /**
+     * @param panel TODO
+     * @param enabled TODO
+     * 
+     */
+    void setEnabled(JPanel panel, boolean enabled) 
+        {
+<span class="nc" id="L847">        Component[] components = panel.getComponents();</span>
+<span class="nc bnc" id="L848" title="All 2 branches missed.">        for (int i = 0; i &lt; components.length; ++i) </span>
+            {
+<span class="nc" id="L850">            components[i].setEnabled(enabled);</span>
+            }
+<span class="nc" id="L852">        }</span>
+    /**
+     * This method initializes jCheckBox10  
+     *      
+     * @return javax.swing.JCheckBox        
+     */    
+    JCheckBox getCheckpointCheckBox() 
+        {
+<span class="nc bnc" id="L860" title="All 2 branches missed.">        if (checkpointCheckBox == null) </span>
+            {
+<span class="nc" id="L862">            checkpointCheckBox = new JCheckBox();</span>
+<span class="nc" id="L863">            checkpointCheckBox.setText(&quot;Checkpoint&quot;);</span>
+<span class="nc" id="L864">            checkpointCheckBox.addItemListener(new java.awt.event.ItemListener() </span>
+<span class="nc" id="L865">                { </span>
+                public void itemStateChanged(java.awt.event.ItemEvent e) 
+                    {    
+<span class="nc bnc" id="L868" title="All 2 branches missed.">                    if (e.getStateChange() == ItemEvent.SELECTED) </span>
+                        {
+<span class="nc" id="L870">                        setEnabled(checkpointPanel, true);</span>
+                        }
+                    else
+                        {
+<span class="nc" id="L874">                        setEnabled(checkpointPanel, false);</span>
+                        }
+                    
+<span class="nc" id="L877">                    console.parameters.set(new Parameter(EvolutionState.P_CHECKPOINT),&quot;&quot; + ((JCheckBox)e.getSource()).isSelected());</span>
+<span class="nc" id="L878">                    }</span>
+                });
+            }
+<span class="nc" id="L881">        return checkpointCheckBox;</span>
+        }
+    /**
+     * This method initializes jPanel2      
+     *      
+     * @return javax.swing.JPanel   
+     */    
+    JPanel getCheckpointPanel() 
+        {
+<span class="nc bnc" id="L890" title="All 2 branches missed.">        if (checkpointPanel == null) </span>
+            {
+<span class="nc" id="L892">            GridBagConstraints gridBagConstraints3 = new GridBagConstraints();</span>
+<span class="nc" id="L893">            jLabel8 = new JLabel();</span>
+<span class="nc" id="L894">            jLabel7 = new JLabel();</span>
+<span class="nc" id="L895">            GridBagConstraints gridBagConstraints39 = new GridBagConstraints();</span>
+<span class="nc" id="L896">            GridBagConstraints gridBagConstraints40 = new GridBagConstraints();</span>
+<span class="nc" id="L897">            GridBagConstraints gridBagConstraints41 = new GridBagConstraints();</span>
+<span class="nc" id="L898">            checkpointPanel = new JPanel();</span>
+<span class="nc" id="L899">            checkpointPanel.setLayout(new GridBagLayout());</span>
+<span class="nc" id="L900">            jLabel7.setText(&quot;Frequency:&quot;);</span>
+<span class="nc" id="L901">            jLabel7.setEnabled(false);</span>
+<span class="nc" id="L902">            gridBagConstraints39.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L903">            gridBagConstraints39.gridx = 1;</span>
+<span class="nc" id="L904">            gridBagConstraints39.gridy = 0;</span>
+<span class="nc" id="L905">            gridBagConstraints39.ipady = 0;</span>
+<span class="nc" id="L906">            gridBagConstraints39.ipadx = 0;</span>
+<span class="nc" id="L907">            gridBagConstraints39.weightx = 0.0D;</span>
+<span class="nc" id="L908">            gridBagConstraints39.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L909">            checkpointPanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createEtchedBorder(javax.swing.border.EtchedBorder.LOWERED), &quot;Checkpointing&quot;, javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, null, null));</span>
+<span class="nc" id="L910">            jLabel8.setText(&quot;File Prefix:&quot;);</span>
+<span class="nc" id="L911">            jLabel8.setEnabled(false);</span>
+<span class="nc" id="L912">            gridBagConstraints40.gridx = 0;</span>
+<span class="nc" id="L913">            gridBagConstraints40.gridy = 1;</span>
+<span class="nc" id="L914">            gridBagConstraints40.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L915">            gridBagConstraints41.gridx = 1;</span>
+<span class="nc" id="L916">            gridBagConstraints41.gridy = 1;</span>
+<span class="nc" id="L917">            gridBagConstraints41.fill = java.awt.GridBagConstraints.HORIZONTAL;</span>
+<span class="nc" id="L918">            gridBagConstraints41.insets = new java.awt.Insets(0,5,0,0);</span>
+<span class="nc" id="L919">            gridBagConstraints41.gridwidth = 2;</span>
+<span class="nc" id="L920">            gridBagConstraints41.weightx = 0.5D;</span>
+<span class="nc" id="L921">            gridBagConstraints3.anchor = java.awt.GridBagConstraints.WEST;</span>
+<span class="nc" id="L922">            checkpointPanel.add(jLabel7, gridBagConstraints3);</span>
+<span class="nc" id="L923">            checkpointPanel.add(getCheckpointModuloField(), gridBagConstraints39);</span>
+<span class="nc" id="L924">            checkpointPanel.add(jLabel8, gridBagConstraints40);</span>
+<span class="nc" id="L925">            checkpointPanel.add(getPrefixField(), gridBagConstraints41);</span>
+            }
+<span class="nc" id="L927">        return checkpointPanel;</span>
+        }
+    /**
+     * This method initializes jTextField8  
+     *      
+     * @return javax.swing.JTextField       
+     */    
+    JTextField getCheckpointModuloField() 
+        {
+<span class="nc bnc" id="L936" title="All 2 branches missed.">        if (checkpointModuloField == null) </span>
+            {
+<span class="nc" id="L938">            checkpointModuloField = new JTextField();</span>
+<span class="nc" id="L939">            checkpointModuloField.setPreferredSize(new java.awt.Dimension(35,20));</span>
+<span class="nc" id="L940">            checkpointModuloField.setEnabled(false);</span>
+<span class="nc" id="L941">            checkpointModuloField.addKeyListener(new java.awt.event.KeyAdapter() </span>
+<span class="nc" id="L942">                { </span>
+                public void keyPressed(java.awt.event.KeyEvent e) 
+                    {    
+<span class="nc bnc" id="L945" title="All 2 branches missed.">                    if (e.getKeyCode() == KeyEvent.VK_ENTER) </span>
+                        {
+<span class="nc" id="L947">                        console.parameters.set(new Parameter(EvolutionState.P_CHECKPOINTMODULO), ((JTextField)e.getSource()).getText());</span>
+                        } 
+<span class="nc bnc" id="L949" title="All 2 branches missed.">                    else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) </span>
+                        {
+<span class="nc" id="L951">                        ((JTextField)e.getSource()).setText(console.parameters.getString(new Parameter(EvolutionState.P_CHECKPOINTMODULO),null));</span>
+                        }
+<span class="nc" id="L953">                    }</span>
+                });
+            
+<span class="nc" id="L956">            checkpointModuloField.addFocusListener(new FocusListener()</span>
+<span class="nc" id="L957">                {</span>
+                public void focusGained(final FocusEvent e)
+                    {
+<span class="nc" id="L960">                    }</span>
+
+                public void focusLost(final FocusEvent e)
+                    {
+<span class="nc" id="L964">                    console.parameters.set(new Parameter(EvolutionState.P_CHECKPOINTMODULO), ((JTextField)e.getSource()).getText());</span>
+<span class="nc" id="L965">                    }</span>
+                });
+            }
+<span class="nc" id="L968">        return checkpointModuloField;</span>
+        }
+    /**
+     * This method initializes jTextField9  
+     *      
+     * @return javax.swing.JTextField       
+     */    
+    JTextField getPrefixField() 
+        {
+<span class="nc bnc" id="L977" title="All 2 branches missed.">        if (prefixField == null) </span>
+            {
+<span class="nc" id="L979">            prefixField = new JTextField();</span>
+<span class="nc" id="L980">            prefixField.setEnabled(false);</span>
+<span class="nc" id="L981">            prefixField.addKeyListener(new java.awt.event.KeyAdapter() </span>
+<span class="nc" id="L982">                { </span>
+                public void keyPressed(java.awt.event.KeyEvent e) 
+                    {    
+<span class="nc bnc" id="L985" title="All 2 branches missed.">                    if (e.getKeyCode() == KeyEvent.VK_ENTER) </span>
+                        {
+<span class="nc" id="L987">                        console.parameters.set(new Parameter(EvolutionState.P_CHECKPOINTPREFIX), ((JTextField)e.getSource()).getText());</span>
+                        } 
+<span class="nc bnc" id="L989" title="All 2 branches missed.">                    else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) </span>
+                        {
+<span class="nc" id="L991">                        ((JTextField)e.getSource()).setText(console.parameters.getString(new Parameter(EvolutionState.P_CHECKPOINTPREFIX),null));</span>
+                        }
+<span class="nc" id="L993">                    }</span>
+                });
+            
+<span class="nc" id="L996">            prefixField.addFocusListener(new FocusListener()</span>
+<span class="nc" id="L997">                {</span>
+                public void focusGained(final FocusEvent e)
+                    {
+<span class="nc" id="L1000">                    }</span>
+
+                public void focusLost(final FocusEvent e)
+                    {
+<span class="nc" id="L1004">                    console.parameters.set(new Parameter(EvolutionState.P_CHECKPOINTPREFIX), ((JTextField)e.getSource()).getText());</span>
+<span class="nc" id="L1005">                    }</span>
+                });
+            }
+<span class="nc" id="L1008">        return prefixField;</span>
+        }
+    public void loadParameters() 
+        {
+<span class="nc" id="L1012">        numGensField.setText(console.parameters.getStringWithDefault(</span>
+                new Parameter(EvolutionState.P_GENERATIONS),null,&quot;1&quot;));
+<span class="nc" id="L1014">        quitOnRunCompleteCheckbox.setSelected(console.parameters.getBoolean(new Parameter(EvolutionState.P_QUITONRUNCOMPLETE),null,true));</span>
+<span class="nc" id="L1015">        evalThreadsField.setText(console.parameters.getStringWithDefault(new Parameter(Evolve.P_EVALTHREADS),null,&quot;1&quot;));</span>
+<span class="nc" id="L1016">        breedThreadsField.setText(console.parameters.getStringWithDefault(new Parameter(Evolve.P_BREEDTHREADS),null,&quot;1&quot;));</span>
+<span class="nc" id="L1017">        checkpointCheckBox.setSelected(console.parameters.getBoolean(new Parameter(EvolutionState.P_CHECKPOINT),null,false));</span>
+<span class="nc" id="L1018">        checkpointModuloField.setText(console.parameters.getStringWithDefault(new Parameter(EvolutionState.P_CHECKPOINTMODULO),null,&quot;10&quot;));</span>
+<span class="nc" id="L1019">        prefixField.setText(console.parameters.getStringWithDefault(new Parameter(EvolutionState.P_CHECKPOINTPREFIX),null,&quot;gc&quot;));</span>
+<span class="nc" id="L1020">        numJobsField.setText(&quot;1&quot;);</span>
+<span class="nc" id="L1021">        jobFilePrefixField.setText(console.parameters.getStringWithDefault(new Parameter(P_JOBFILEPREFIX),null,&quot;&quot;));</span>
+        
+<span class="nc" id="L1023">        resizeSeedTable();</span>
+<span class="nc" id="L1024">        }</span>
+    
+    void loadSeeds(File f)
+        throws IOException 
+        {
+<span class="nc" id="L1029">        LineNumberReader in = null;</span>
+        try
+            {
+<span class="nc" id="L1032">            in = new LineNumberReader(new InputStreamReader(new FileInputStream(f)));</span>
+        
+<span class="nc" id="L1034">            seedFileField.setText(f.getAbsolutePath());</span>
+            // whether a seed is used for a particular thread or job depends
+            // upon how many of each there are.  Just read seeds, one per line, until
+            // numJobs * numThreads seeds are read.  If there are not enough seeds,
+            // print a warning and generate the remaining necessary.
+<span class="nc" id="L1039">            int numJobs = 0;</span>
+<span class="nc" id="L1040">            try { numJobs = Integer.parseInt(numJobsField.getText()); }</span>
+<span class="nc" id="L1041">            catch(NumberFormatException e) { }</span>
+<span class="nc" id="L1042">            int evalThreads = getThreadCount(console.parameters.getString(new Parameter(Evolve.P_EVALTHREADS),null));</span>
+<span class="nc" id="L1043">            int breedThreads = getThreadCount(console.parameters.getString(new Parameter(Evolve.P_BREEDTHREADS),null));</span>
+<span class="nc" id="L1044">            int numThreads = Math.max(evalThreads, breedThreads);</span>
+        
+            // Read seeds for threads first
+            // TODO Make this more robust (i.e. ensure we're reading integers).
+<span class="nc" id="L1048">            int job = 0;</span>
+<span class="nc" id="L1049">            int thread = 0;</span>
+<span class="nc" id="L1050">            String lastSeed = null;</span>
+<span class="nc bnc" id="L1051" title="All 2 branches missed.">            for (; job &lt; numJobs; ++job) </span>
+                {
+<span class="nc" id="L1053">                String seed = null;</span>
+<span class="nc bnc" id="L1054" title="All 2 branches missed.">                for (; thread &lt; numThreads; ++thread) </span>
+                    {
+<span class="nc" id="L1056">                    seed = in.readLine();</span>
+<span class="nc bnc" id="L1057" title="All 2 branches missed.">                    if (seed != null) </span>
+                        {
+<span class="nc" id="L1059">                        setSeed(seed, job, thread);</span>
+<span class="nc" id="L1060">                        lastSeed = seed;</span>
+                        }
+                    else                   break;
+                    }
+<span class="nc bnc" id="L1064" title="All 2 branches missed.">                if (seed == null)</span>
+<span class="nc" id="L1065">                    break;</span>
+<span class="nc" id="L1066">                thread = 0;</span>
+                }
+
+            // Finish filling out the table with sequential numbers starting from
+            // the last good seed.
+            // TODO Determine if this is reasonable.  Should we instead generate
+            // random seeds?  Alternatively, should we indicate this as an error
+            // to the user and abort?
+<span class="nc bnc" id="L1074" title="All 2 branches missed.">            if ((job)*(thread) != (numJobs)*(numThreads)) </span>
+                {
+<span class="nc" id="L1076">                int seedNum = Integer.valueOf(lastSeed).intValue();</span>
+<span class="nc bnc" id="L1077" title="All 2 branches missed.">                for (;job &lt; numJobs; ++job) </span>
+                    {
+<span class="nc bnc" id="L1079" title="All 2 branches missed.">                    for (;thread &lt; numThreads; ++thread) </span>
+                        {
+<span class="nc" id="L1081">                        String seed = &quot;&quot;+(++seedNum);</span>
+<span class="nc" id="L1082">                        setSeed(seed,job,thread);</span>
+                        }
+<span class="nc" id="L1084">                    thread = 0;</span>
+                    }
+                }
+            }
+        finally 
+            {
+<span class="nc bnc" id="L1090" title="All 2 branches missed.">            if (in != null) try { in.close(); } catch (IOException e) { }</span>
+            }
+<span class="nc" id="L1092">        }</span>
+    /**
+     * This method initializes jButton      
+     *      
+     * @return javax.swing.JButton  
+     */    
+    JButton getGenerateSeedsButton() 
+        {
+<span class="nc bnc" id="L1100" title="All 2 branches missed.">        if (generateSeedsButton == null) </span>
+            {
+<span class="nc" id="L1102">            generateSeedsButton = new JButton();</span>
+<span class="nc" id="L1103">            generateSeedsButton.setText(&quot;Generate&quot;);</span>
+<span class="nc" id="L1104">            generateSeedsButton.setEnabled(false);</span>
+<span class="nc" id="L1105">            generateSeedsButton.addActionListener(new java.awt.event.ActionListener() </span>
+<span class="nc" id="L1106">                { </span>
+                public void actionPerformed(java.awt.event.ActionEvent e) 
+                    {    
+<span class="nc" id="L1109">                    generateRandomSeeds();</span>
+<span class="nc" id="L1110">                    }</span>
+                });
+            }
+<span class="nc" id="L1113">        return generateSeedsButton;</span>
+        }
+    /**
+     * This method initializes jRadioButton 
+     *      
+     * @return javax.swing.JRadioButton     
+     */    
+    JRadioButton getSequentialSeedsRadioButton() 
+        {
+<span class="nc bnc" id="L1122" title="All 2 branches missed.">        if (sequentialSeedsRadioButton == null) </span>
+            {
+<span class="nc" id="L1124">            sequentialSeedsRadioButton = new JRadioButton();</span>
+<span class="nc" id="L1125">            sequentialSeedsRadioButton.setText(&quot;Sequential&quot;);</span>
+<span class="nc" id="L1126">            sequentialSeedsRadioButton.addItemListener(new java.awt.event.ItemListener() </span>
+<span class="nc" id="L1127">                { </span>
+                public void itemStateChanged(java.awt.event.ItemEvent e) 
+                    {    
+<span class="nc bnc" id="L1130" title="All 2 branches missed.">                    if (e.getStateChange() == ItemEvent.SELECTED) </span>
+                        {
+<span class="nc" id="L1132">                        resizeSeedTable();</span>
+                        }
+<span class="nc" id="L1134">                    }</span>
+                });
+            }
+<span class="nc" id="L1137">        return sequentialSeedsRadioButton;</span>
+        }
+    /**
+     * This method initializes jTextField   
+     *      
+     * @return javax.swing.JTextField       
+     */    
+    JTextField getJobFilePrefixField() 
+        {
+<span class="nc bnc" id="L1146" title="All 2 branches missed.">        if (jobFilePrefixField == null) </span>
+            {
+<span class="nc" id="L1148">            jobFilePrefixField = new JTextField();</span>
+<span class="nc" id="L1149">            jobFilePrefixField.addKeyListener(new java.awt.event.KeyAdapter() </span>
+<span class="nc" id="L1150">                { </span>
+                public void keyPressed(java.awt.event.KeyEvent e) 
+                    {    
+<span class="nc bnc" id="L1153" title="All 2 branches missed.">                    if (e.getKeyCode() == KeyEvent.VK_ENTER) </span>
+                        {
+<span class="nc" id="L1155">                        console.parameters.set(new Parameter(P_JOBFILEPREFIX), ((JTextField)e.getSource()).getText());</span>
+                        } 
+<span class="nc bnc" id="L1157" title="All 2 branches missed.">                    else if (e.getKeyCode() == KeyEvent.VK_ESCAPE) </span>
+                        {
+<span class="nc" id="L1159">                        ((JTextField)e.getSource()).setText(console.parameters.getStringWithDefault(new Parameter(P_JOBFILEPREFIX),null,&quot;&quot;));</span>
+                        }
+<span class="nc" id="L1161">                    }</span>
+                });
+            }
+<span class="nc" id="L1164">        return jobFilePrefixField;</span>
+        }
+    
+    public String getJobFilePrefix() 
+        {
+<span class="nc" id="L1169">        return jobFilePrefixField.getText();</span>
+        }
+    }  //  @jve:decl-index=0:visual-constraint=&quot;66,13&quot;
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

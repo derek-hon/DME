@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IntegerVectorSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector</a> &gt; <span class="el_source">IntegerVectorSpecies.java</span></div><h1>IntegerVectorSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.vector;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * IntegerVectorSpecies.java
+ * 
+ * Created: Tue Feb 20 13:26:00 2001
+ * By: Sean Luke
+ */
+
+/**
+ * IntegerVectorSpecies is a subclass of VectorSpecies with special constraints
+ * for integral vectors, namely ByteVectorIndividual, ShortVectorIndividual,
+ * IntegerVectorIndividual, and LongVectorIndividual.
+ *
+ * &lt;p&gt;IntegerVectorSpecies can specify a number of parameters globally, per-segment, and per-gene.
+ * See &lt;a href=&quot;VectorSpecies.html&quot;&gt;VectorSpecies&lt;/a&gt; for information on how to this works.
+ *
+ * &lt;p&gt;IntegerVectorSpecies defines a minimum and maximum gene value.  These values
+ * are used during initialization and, depending on whether &lt;tt&gt;mutation-bounded&lt;/tt&gt;
+ * is true, also during various mutation algorithms to guarantee that the gene value
+ * will not exceed these minimum and maximum bounds.
+ *
+ * &lt;p&gt;
+ * IntegerVectorSpecies provides support for two ways of mutating a gene.
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;reset&lt;/b&gt; Replacing the gene's value with a value uniformly drawn from the gene's
+ * range (the default behavior).&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;random-walk&lt;/b&gt;Replacing the gene's value by performing a random walk starting at the gene
+ * value.  The random walk either adds 1 or subtracts 1 (chosen at random), then does a coin-flip
+ * to see whether to continue the random walk.  When the coin-flip finally comes up false, the gene value
+ * is set to the current random walk position.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;IntegerVectorSpecies performs gene initialization by resetting the gene.
+ *
+ *
+ * &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-gene&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;min-gene&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-gene&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;long (default=0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the minimum gene value)&lt;/td&gt;&lt;/tr&gt;
+ *
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-gene&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;max-gene&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-gene&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;long &amp;gt;= &lt;i&gt;base&lt;/i&gt;.min-gene&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the maximum gene value)&lt;/td&gt;&lt;/tr&gt;
+ *
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-type&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;mutation-type&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-prob&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;&lt;tt&gt;reset&lt;/tt&gt; or &lt;tt&gt;random-walk&lt;/tt&gt; (default=&lt;tt&gt;reset&lt;/tt&gt;)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the mutation type)&lt;/td&gt;
+ * &lt;/tr&gt;
+ *
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;random-walk-probability&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;random-walk-probability&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;random-walk-probability&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0 &lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(the probability that a random walk will continue.  Random walks go up or down by 1.0 until the coin flip comes up false.)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * 
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-bounded&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;mutation-bounded&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-bounded&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ *  &lt;font size=-1&gt;boolean (default=true)&lt;/font&gt;&lt;/td&gt;
+ *  &lt;td valign=top&gt;(whether mutation is restricted to only being within the min/max gene values.  Does not apply to SimulatedBinaryCrossover (which is always bounded))&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * @author Sean Luke, Rafal Kicinger
+ * @version 1.0 
+ */
+ 
+<span class="fc" id="L89">public class IntegerVectorSpecies extends VectorSpecies</span>
+    {
+    public final static String P_MINGENE = &quot;min-gene&quot;;
+    public final static String P_MAXGENE = &quot;max-gene&quot;;
+    
+    public final static String P_NUM_SEGMENTS = &quot;num-segments&quot;;
+        
+    public final static String P_SEGMENT_TYPE = &quot;segment-type&quot;;
+
+    public final static String P_SEGMENT_START = &quot;start&quot;;
+        
+    public final static String P_SEGMENT_END = &quot;end&quot;;
+
+    public final static String P_SEGMENT = &quot;segment&quot;;
+        
+    public final static String P_MUTATIONTYPE = &quot;mutation-type&quot;;
+
+    public final static String P_RANDOM_WALK_PROBABILITY = &quot;random-walk-probability&quot;;
+
+    public final static String P_MUTATION_BOUNDED = &quot;mutation-bounded&quot;;
+
+    public final static String V_RESET_MUTATION = &quot;reset&quot;;
+
+    public final static String V_RANDOM_WALK_MUTATION = &quot;random-walk&quot;;
+
+    public final static int C_RESET_MUTATION = 0;
+
+    public final static int C_RANDOM_WALK_MUTATION = 1;
+
+    /** Min-gene value, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected long[] minGene;
+
+    /** Max-gene value, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected long[] maxGene;
+
+
+    /** Mutation type, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected int[] mutationType;
+
+    /** The continuation probability for Integer Random Walk Mutation, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected double[] randomWalkProbability;
+
+    /** Whether mutation is bounded to the min- and max-gene values, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected boolean[] mutationIsBounded;
+
+    /** Whether the mutationIsBounded value was defined, per gene.
+        Used internally only.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    boolean mutationIsBoundedDefined;
+
+    
+    public long maxGene(int gene)
+        {
+<span class="fc" id="L159">        long[] m = maxGene;</span>
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L161">            gene = m.length - 1;</span>
+<span class="fc" id="L162">        return m[gene];</span>
+        }
+    
+    public long minGene(int gene)
+        {
+<span class="fc" id="L167">        long[] m = minGene;</span>
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L169">            gene = m.length - 1;</span>
+<span class="fc" id="L170">        return m[gene];</span>
+        }
+    
+    public int mutationType(int gene)
+        {
+<span class="nc" id="L175">        int[] m = mutationType;</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L177">            gene = m.length - 1;</span>
+<span class="nc" id="L178">        return m[gene];</span>
+        }
+
+    public double randomWalkProbability(int gene)
+        {
+<span class="nc" id="L183">        double[] m = randomWalkProbability;</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L185">            gene = m.length - 1;</span>
+<span class="nc" id="L186">        return m[gene];</span>
+        }
+
+    public boolean mutationIsBounded(int gene)
+        {
+<span class="nc" id="L191">        boolean[] m = mutationIsBounded;</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L193">            gene = m.length - 1;</span>
+<span class="nc" id="L194">        return m[gene];</span>
+        }
+
+    public boolean inNumericalTypeRange(double geneVal)
+        {
+<span class="nc bnc" id="L199" title="All 2 branches missed.">        if (i_prototype instanceof ByteVectorIndividual)</span>
+<span class="nc bnc" id="L200" title="All 4 branches missed.">            return (geneVal &lt;= Byte.MAX_VALUE &amp;&amp; geneVal &gt;= Byte.MIN_VALUE);</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">        else if (i_prototype instanceof ShortVectorIndividual)</span>
+<span class="nc bnc" id="L202" title="All 4 branches missed.">            return (geneVal &lt;= Short.MAX_VALUE &amp;&amp; geneVal &gt;= Short.MIN_VALUE);</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        else if (i_prototype instanceof IntegerVectorIndividual)</span>
+<span class="nc bnc" id="L204" title="All 4 branches missed.">            return (geneVal &lt;= Integer.MAX_VALUE &amp;&amp; geneVal &gt;= Integer.MIN_VALUE);</span>
+<span class="nc bnc" id="L205" title="All 2 branches missed.">        else if (i_prototype instanceof LongVectorIndividual)</span>
+<span class="nc" id="L206">            return true;  // geneVal is valid for all longs</span>
+<span class="nc" id="L207">        else return false;  // dunno what the individual is...</span>
+        }
+
+    public boolean inNumericalTypeRange(long geneVal)
+        {
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">        if (i_prototype instanceof ByteVectorIndividual)</span>
+<span class="nc bnc" id="L213" title="All 4 branches missed.">            return (geneVal &lt;= Byte.MAX_VALUE &amp;&amp; geneVal &gt;= Byte.MIN_VALUE);</span>
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">        else if (i_prototype instanceof ShortVectorIndividual)</span>
+<span class="nc bnc" id="L215" title="All 4 branches missed.">            return (geneVal &lt;= Short.MAX_VALUE &amp;&amp; geneVal &gt;= Short.MIN_VALUE);</span>
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">        else if (i_prototype instanceof IntegerVectorIndividual)</span>
+<span class="pc bpc" id="L217" title="2 of 4 branches missed.">            return (geneVal &lt;= Integer.MAX_VALUE &amp;&amp; geneVal &gt;= Integer.MIN_VALUE);</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        else if (i_prototype instanceof LongVectorIndividual)</span>
+<span class="nc" id="L219">            return true;  // geneVal is valid for all longs</span>
+<span class="nc" id="L220">        else return false;  // dunno what the individual is...</span>
+        }
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L225">        Parameter def = defaultBase();</span>
+
+<span class="fc" id="L227">        setupGenome(state, base);</span>
+
+        // create the arrays
+<span class="fc" id="L230">        minGene = new long[genomeSize + 1];</span>
+<span class="fc" id="L231">        maxGene = new long[genomeSize + 1];</span>
+<span class="fc" id="L232">        mutationType = fill(new int[genomeSize + 1], -1);</span>
+<span class="fc" id="L233">        mutationIsBounded = new boolean[genomeSize + 1];</span>
+<span class="fc" id="L234">        randomWalkProbability = new double[genomeSize + 1];</span>
+        
+
+        // LOADING GLOBAL MIN/MAX GENES
+<span class="fc" id="L238">        long _minGene = state.parameters.getLongWithDefault(base.push(P_MINGENE),def.push(P_MINGENE),0);</span>
+<span class="fc" id="L239">        long _maxGene = state.parameters.getLong(base.push(P_MAXGENE),def.push(P_MAXGENE), _minGene);</span>
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">        if (_maxGene &lt; _minGene)</span>
+<span class="nc" id="L241">            state.output.fatal(&quot;IntegerVectorSpecies must have a default min-gene which is &lt;= the default max-gene&quot;,</span>
+<span class="nc" id="L242">                base.push(P_MAXGENE),def.push(P_MAXGENE));</span>
+<span class="fc" id="L243">        fill(minGene, _minGene);</span>
+<span class="fc" id="L244">        fill(maxGene, _maxGene);</span>
+
+
+        /// MUTATION
+        
+        
+<span class="fc" id="L250">        String mtype = state.parameters.getStringWithDefault(base.push(P_MUTATIONTYPE), def.push(P_MUTATIONTYPE), null);</span>
+<span class="fc" id="L251">        int _mutationType = C_RESET_MUTATION;</span>
+<span class="pc bpc" id="L252" title="1 of 2 branches missed.">        if (mtype == null)</span>
+<span class="fc" id="L253">            state.output.warning(&quot;No global mutation type given for IntegerVectorSpecies, assuming 'reset' mutation&quot;,</span>
+<span class="fc" id="L254">                base.push(P_MUTATIONTYPE), def.push(P_MUTATIONTYPE));</span>
+<span class="nc bnc" id="L255" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_RESET_MUTATION))</span>
+<span class="nc" id="L256">            _mutationType = C_RESET_MUTATION; // redundant</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_RANDOM_WALK_MUTATION))</span>
+<span class="nc" id="L258">            _mutationType = C_RANDOM_WALK_MUTATION;</span>
+        else
+<span class="nc" id="L260">            state.output.fatal(&quot;IntegerVectorSpecies given a bad mutation type: &quot;</span>
+<span class="nc" id="L261">                + mtype, base.push(P_MUTATIONTYPE), def.push(P_MUTATIONTYPE));</span>
+<span class="fc" id="L262">        fill(mutationType, _mutationType);</span>
+
+<span class="pc bpc" id="L264" title="1 of 2 branches missed.">        if (_mutationType == C_RANDOM_WALK_MUTATION)</span>
+            {
+<span class="nc" id="L266">            double _randomWalkProbability = state.parameters.getDoubleWithMax(base.push(P_RANDOM_WALK_PROBABILITY),def.push(P_RANDOM_WALK_PROBABILITY), 0.0, 1.0);</span>
+<span class="nc bnc" id="L267" title="All 2 branches missed.">            if (_randomWalkProbability &lt;= 0)</span>
+<span class="nc" id="L268">                state.output.fatal(&quot;If it's going to use random walk mutation as its global mutation type, IntegerVectorSpecies must a random walk mutation probability between 0.0 and 1.0.&quot;,</span>
+<span class="nc" id="L269">                    base.push(P_RANDOM_WALK_PROBABILITY), def.push(P_RANDOM_WALK_PROBABILITY));</span>
+<span class="nc" id="L270">            fill(randomWalkProbability, _randomWalkProbability);</span>
+
+<span class="nc bnc" id="L272" title="All 2 branches missed.">            if (!state.parameters.exists(base.push(P_MUTATION_BOUNDED), def.push(P_MUTATION_BOUNDED)))</span>
+<span class="nc" id="L273">                state.output.warning(&quot;IntegerVectorSpecies is using gaussian, polynomial, or integer randomwalk mutation as its global mutation type, but &quot; + P_MUTATION_BOUNDED + &quot; is not defined.  Assuming 'true'&quot;);</span>
+<span class="nc" id="L274">            boolean _mutationIsBounded = state.parameters.getBoolean(base.push(P_MUTATION_BOUNDED), def.push(P_MUTATION_BOUNDED), true);</span>
+<span class="nc" id="L275">            fill(mutationIsBounded, _mutationIsBounded);</span>
+<span class="nc" id="L276">            mutationIsBoundedDefined = true;</span>
+            }
+
+
+<span class="fc" id="L280">        super.setup(state, base);</span>
+
+
+        // VERIFY
+<span class="fc bfc" id="L284" title="All 2 branches covered.">        for(int x=0; x&lt; genomeSize + 1; x++)</span>
+            {
+<span class="pc bpc" id="L286" title="1 of 2 branches missed.">            if (maxGene[x] &lt; minGene[x])</span>
+<span class="nc" id="L287">                state.output.fatal(&quot;IntegerVectorSpecies must have a min-gene[&quot;+x+&quot;] which is &lt;= the max-gene[&quot;+x+&quot;]&quot;);</span>
+            
+            // check to see if these longs are within the data type of the particular individual
+<span class="pc bpc" id="L290" title="1 of 2 branches missed.">            if (!inNumericalTypeRange(minGene[x]))</span>
+<span class="nc" id="L291">                state.output.fatal(&quot;This IntegerVectorSpecies has a prototype of the kind: &quot; </span>
+<span class="nc" id="L292">                    + i_prototype.getClass().getName() +</span>
+                    &quot;, but doesn't have a min-gene[&quot;+x+&quot;] value within the range of this prototype's genome's data types&quot;);
+<span class="pc bpc" id="L294" title="1 of 2 branches missed.">            if (!inNumericalTypeRange(maxGene[x]))</span>
+<span class="nc" id="L295">                state.output.fatal(&quot;This IntegerVectorSpecies has a prototype of the kind: &quot; </span>
+<span class="nc" id="L296">                    + i_prototype.getClass().getName() +</span>
+                    &quot;, but doesn't have a max-gene[&quot;+x+&quot;] value within the range of this prototype's genome's data types&quot;);
+            }
+
+                
+ 
+            
+        /*
+        //Debugging
+        for(int i = 0; i &lt; minGene.length; i++)
+        System.out.println(&quot;Min: &quot; + minGene[i] + &quot;, Max: &quot; + maxGene[i]);
+        */
+<span class="fc" id="L308">        }</span>
+
+
+    protected void loadParametersForGene(EvolutionState state, int index, Parameter base, Parameter def, String postfix)
+        {       
+<span class="fc" id="L313">        super.loadParametersForGene(state, index, base, def, postfix);</span>
+        
+<span class="fc" id="L315">        boolean minValExists = state.parameters.exists(base.push(P_MINGENE).push(postfix), def.push(P_MINGENE).push(postfix));</span>
+<span class="fc" id="L316">        boolean maxValExists = state.parameters.exists(base.push(P_MAXGENE).push(postfix), def.push(P_MAXGENE).push(postfix));</span>
+        
+<span class="pc bpc" id="L318" title="1 of 4 branches missed.">        if ((maxValExists &amp;&amp; !(minValExists)))</span>
+<span class="fc" id="L319">            state.output.warning(&quot;Max Gene specified but not Min Gene&quot;, base.push(P_MINGENE).push(postfix), def.push(P_MINGENE).push(postfix));</span>
+                
+<span class="pc bpc" id="L321" title="3 of 4 branches missed.">        if ((minValExists &amp;&amp; !(maxValExists)))</span>
+<span class="nc" id="L322">            state.output.warning(&quot;Min Gene specified but not Max Gene&quot;, base.push(P_MAXGENE).push(postfix), def.push(P_MINGENE).push(postfix));</span>
+
+<span class="pc bpc" id="L324" title="1 of 2 branches missed.">        if (minValExists)</span>
+            {        
+<span class="nc" id="L326">            long minVal = state.parameters.getLongWithDefault(base.push(P_MINGENE).push(postfix), def.push(P_MINGENE).push(postfix), 0);</span>
+
+            //check if the value is in range
+<span class="nc bnc" id="L329" title="All 2 branches missed.">            if (!inNumericalTypeRange(minVal))</span>
+<span class="nc" id="L330">                state.output.error(&quot;Min Gene Value out of range for data type &quot; + i_prototype.getClass().getName(),</span>
+<span class="nc" id="L331">                    base.push(P_MINGENE).push(postfix), </span>
+<span class="nc" id="L332">                    base.push(P_MINGENE).push(postfix));</span>
+<span class="nc" id="L333">            else minGene[index] = minVal;</span>
+
+<span class="nc bnc" id="L335" title="All 2 branches missed.">            if (dynamicInitialSize)</span>
+<span class="nc" id="L336">                state.output.warnOnce(&quot;Using dynamic initial sizing, but per-gene or per-segment min-gene declarations.  This is probably wrong.  You probably want to use global min/max declarations.&quot;,</span>
+<span class="nc" id="L337">                    base.push(P_MINGENE).push(postfix), </span>
+<span class="nc" id="L338">                    base.push(P_MINGENE).push(postfix));</span>
+            }
+            
+<span class="fc bfc" id="L341" title="All 2 branches covered.">        if (maxValExists)</span>
+            {
+<span class="fc" id="L343">            long maxVal = state.parameters.getLongWithDefault(base.push(P_MAXGENE).push(postfix), def.push(P_MAXGENE).push(postfix), 0);</span>
+                
+            //check if the value is in range
+<span class="pc bpc" id="L346" title="1 of 2 branches missed.">            if (!inNumericalTypeRange(maxVal))</span>
+<span class="nc" id="L347">                state.output.error(&quot;Max Gene Value out of range for data type &quot; + i_prototype.getClass().getName(),</span>
+<span class="nc" id="L348">                    base.push(P_MAXGENE).push(postfix), </span>
+<span class="nc" id="L349">                    base.push(P_MAXGENE).push(postfix));</span>
+<span class="fc" id="L350">            else maxGene[index] = maxVal;</span>
+
+<span class="pc bpc" id="L352" title="1 of 2 branches missed.">            if (dynamicInitialSize)</span>
+<span class="nc" id="L353">                state.output.warnOnce(&quot;Using dynamic initial sizing, but per-gene or per-segment max-gene declarations.  This is probably wrong.  You probably want to use global min/max declarations.&quot;,</span>
+<span class="nc" id="L354">                    base.push(P_MAXGENE).push(postfix), </span>
+<span class="nc" id="L355">                    base.push(P_MAXGENE).push(postfix));</span>
+            }
+
+
+        /// MUTATION
+
+<span class="fc" id="L361">        String mtype = state.parameters.getStringWithDefault(base.push(P_MUTATIONTYPE).push(postfix), def.push(P_MUTATIONTYPE).push(postfix), null);</span>
+<span class="fc" id="L362">        int mutType = -1;</span>
+<span class="pc bpc" id="L363" title="1 of 2 branches missed.">        if (mtype == null) { }  // we're cool</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_RESET_MUTATION))</span>
+<span class="nc" id="L365">            mutType = mutationType[index] = C_RESET_MUTATION; </span>
+<span class="nc bnc" id="L366" title="All 2 branches missed.">        else if (mtype.equalsIgnoreCase(V_RANDOM_WALK_MUTATION))</span>
+            {
+<span class="nc" id="L368">            mutType = mutationType[index] = C_RANDOM_WALK_MUTATION;</span>
+<span class="nc" id="L369">            state.output.warnOnce(&quot;Integer Random Walk Mutation used in IntegerVectorSpecies.  Be advised that during initialization these genes will only be set to integer values.&quot;);</span>
+            }
+        else
+<span class="nc" id="L372">            state.output.error(&quot;IntegerVectorSpecies given a bad mutation type: &quot; + mtype, </span>
+<span class="nc" id="L373">                base.push(P_MUTATIONTYPE).push(postfix), def.push(P_MUTATIONTYPE).push(postfix));</span>
+
+
+<span class="pc bpc" id="L376" title="1 of 2 branches missed.">        if (mutType == C_RANDOM_WALK_MUTATION)</span>
+            {
+<span class="nc bnc" id="L378" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_RANDOM_WALK_PROBABILITY).push(postfix),def.push(P_RANDOM_WALK_PROBABILITY).push(postfix)))</span>
+                {
+<span class="nc" id="L380">                randomWalkProbability[index] = state.parameters.getDoubleWithMax(base.push(P_RANDOM_WALK_PROBABILITY).push(postfix),def.push(P_RANDOM_WALK_PROBABILITY).push(postfix), 0.0, 1.0);</span>
+<span class="nc bnc" id="L381" title="All 2 branches missed.">                if (randomWalkProbability[index] &lt;= 0)</span>
+<span class="nc" id="L382">                    state.output.error(&quot;If it's going to use random walk mutation as a per-gene or per-segment type, IntegerVectorSpecies must a random walk mutation probability between 0.0 and 1.0.&quot;,</span>
+<span class="nc" id="L383">                        base.push(P_RANDOM_WALK_PROBABILITY).push(postfix), def.push(P_RANDOM_WALK_PROBABILITY).push(postfix));</span>
+                }
+            else
+<span class="nc" id="L386">                state.output.error(&quot;If IntegerVectorSpecies is going to use polynomial mutation as a per-gene or per-segment type, either the global or per-gene/per-segment random walk mutation probability must be defined.&quot;,</span>
+<span class="nc" id="L387">                    base.push(P_RANDOM_WALK_PROBABILITY).push(postfix), def.push(P_RANDOM_WALK_PROBABILITY).push(postfix));</span>
+
+<span class="nc bnc" id="L389" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_MUTATION_BOUNDED).push(postfix), def.push(P_MUTATION_BOUNDED).push(postfix)))</span>
+                {
+<span class="nc" id="L391">                mutationIsBounded[index] = state.parameters.getBoolean(base.push(P_MUTATION_BOUNDED).push(postfix), def.push(P_MUTATION_BOUNDED).push(postfix), true);</span>
+                }
+<span class="nc bnc" id="L393" title="All 2 branches missed.">            else if (!mutationIsBoundedDefined)</span>
+<span class="nc" id="L394">                state.output.fatal(&quot;If IntegerVectorSpecies is going to use gaussian, polynomial, or integer random walk mutation as a per-gene or per-segment type, the mutation bounding must be defined.&quot;,</span>
+<span class="nc" id="L395">                    base.push(P_MUTATION_BOUNDED).push(postfix), def.push(P_MUTATION_BOUNDED).push(postfix));</span>
+
+            }           
+<span class="fc" id="L398">        }</span>
+
+
+
+    
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MaxOnes.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.tutorial1</a> &gt; <span class="el_source">MaxOnes.java</span></div><h1>MaxOnes.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.tutorial1;
+import ec.*;
+import ec.simple.*;
+import ec.vector.*;
+
+<span class="nc" id="L13">public class MaxOnes extends Problem implements SimpleProblemForm</span>
+    {
+    public void evaluate(final EvolutionState state,
+        final Individual ind,
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L20" title="All 2 branches missed.">        if (ind.evaluated) return;</span>
+
+<span class="nc bnc" id="L22" title="All 2 branches missed.">        if (!(ind instanceof BitVectorIndividual))</span>
+<span class="nc" id="L23">            state.output.fatal(&quot;Whoa!  It's not a BitVectorIndividual!!!&quot;,null);</span>
+        
+<span class="nc" id="L25">        int sum=0;</span>
+<span class="nc" id="L26">        BitVectorIndividual ind2 = (BitVectorIndividual)ind;</span>
+        
+<span class="nc bnc" id="L28" title="All 2 branches missed.">        for(int x=0; x&lt;ind2.genome.length; x++)</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">            sum += (ind2.genome[x] ? 1 : 0);</span>
+        
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        if (!(ind2.fitness instanceof SimpleFitness))</span>
+<span class="nc" id="L32">            state.output.fatal(&quot;Whoa!  It's not a SimpleFitness!!!&quot;,null);</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        ((SimpleFitness)ind2.fitness).setFitness(state,</span>
+            /// ...the fitness...
+            sum/(double)ind2.genome.length,
+            ///... is the individual ideal?  Indicate here...
+            sum == ind2.genome.length);
+<span class="nc" id="L38">        ind2.evaluated = true;</span>
+<span class="nc" id="L39">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

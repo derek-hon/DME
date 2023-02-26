@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Terminal.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.push</a> &gt; <span class="el_source">Terminal.java</span></div><h1>Terminal.java</h1><pre class="source lang-java linenums">package ec.gp.push;
+import ec.gp.*;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * Terminal.java
+ * 
+ * Created: Fri Feb 15 23:00:04 EST 2013
+ * By: Sean Luke
+ */
+
+
+/** 
+    Terminal is the leaf node in Push trees and is used to represent Push
+    instructions of all types.
+
+    &lt;p&gt;ECJ implements Push's s-expressions as trees of nonterminals
+    and terminals.  The nonterminals are all dummy instances of the Nonterminal class.
+    Terminals are all instances of the Terminal class.
+    
+    &lt;p&gt;The nonterminals and terminals aren't actually evaluated.  Instead, the
+    tree is printed out as a lisp s-expression and sent to the Push interpreter.
+    
+    &lt;p&gt;Terminals are implemented as ERCs which hold the actual Push instruction
+    or atom as a string ('value').  There are four kinds of instructions at present:
+    
+    &lt;ol&gt;
+    &lt;li&gt; Built-in Push instructions like float.* or integer.swap
+    &lt;li&gt; Floating-point ERCs (defined by &quot;float.erc&quot;)
+    &lt;li&gt; Integer ERCs (defined by &quot;integer.erc&quot;)
+    &lt;li&gt; Custom Push instructions
+    &lt;/ol&gt;
+    
+    &lt;p&gt;You specify your instructions like this:
+    
+    &lt;tt&gt;&lt;pre&gt;
+    push.op.size = 7
+    push.op.0 = float.erc
+    push.op.1 = float.+
+    
+    # This is a custom instruction
+    push.op.2 = float.print
+    push.op.2.func = ec.gp.push.example.MyPushInstruction
+    
+    push.op.3 = float.%
+    push.op.4 = float.-
+    push.op.5 = float.dup
+    push.op.6 = float.swap
+    &lt;/pre&gt;&lt;/tt&gt;
+    
+    &lt;p&gt;For the (at present) two kinds of ERCs, you can specify a minimum
+    and a maximum value.  Here are the defaults:
+    
+    &lt;tt&gt;&lt;pre&gt;
+    push.op.float.min = -10
+    push.op.float.max = 10
+    push.op.int.min = -10
+    push.op.int.max = 10
+    &lt;/tt&gt;&lt;/pre&gt;
+    
+    The full list of Psh instructions is:
+    
+    &lt;p&gt;&lt;tt&gt;
+    integer.+&lt;br&gt;
+    integer.-&lt;br&gt;
+    integer./&lt;br&gt;
+    integer.\%&lt;br&gt;
+    integer.*&lt;br&gt;
+    integer.pow&lt;br&gt;
+    integer.log&lt;br&gt;
+    integer.=&lt;br&gt;
+    integer.&gt;&lt;br&gt;
+    integer.*lt;&lt;br&gt;
+    integer.min&lt;br&gt;
+    integer.max&lt;br&gt;
+    integer.abs&lt;br&gt;
+    integer.neg&lt;br&gt;
+    integer.ln&lt;br&gt;
+    integer.fromfloat&lt;br&gt;
+    integer.fromboolean&lt;br&gt;
+    integer.rand&lt;br&gt;
+    float.+&lt;br&gt;
+    float.-&lt;br&gt;
+    float./&lt;br&gt;
+    float.\%&lt;br&gt;
+    float.*&lt;br&gt;
+    float.pow&lt;br&gt;
+    float.log&lt;br&gt;
+    float.=&lt;br&gt;
+    float.&gt;&lt;br&gt;
+    float.&amp;lt;&lt;br&gt;
+    float.min&lt;br&gt;
+    float.max&lt;br&gt;
+    float.sin&lt;br&gt;
+    float.cos&lt;br&gt;
+    float.tan&lt;br&gt;
+    float.exp&lt;br&gt;
+    float.abs&lt;br&gt;
+    float.neg&lt;br&gt;
+    float.ln&lt;br&gt;
+    float.frominteger&lt;br&gt;
+    float.fromboolean&lt;br&gt;
+    float.rand&lt;br&gt;
+    boolean.=&lt;br&gt;
+    boolean.not&lt;br&gt;
+    boolean.and&lt;br&gt;
+    boolean.or&lt;br&gt;
+    boolean.xor&lt;br&gt;
+    boolean.frominteger&lt;br&gt;
+    boolean.fromfloat&lt;br&gt;
+    boolean.rand&lt;br&gt;
+    true&lt;br&gt;
+    false&lt;br&gt;
+    code.quote&lt;br&gt;
+    code.fromboolean&lt;br&gt;
+    code.frominteger&lt;br&gt;
+    code.fromfloat&lt;br&gt;
+    code.noop&lt;br&gt;
+    code.do*times&lt;br&gt;
+    code.do*count&lt;br&gt;
+    code.do*range&lt;br&gt;
+    code.=&lt;br&gt;
+    code.if&lt;br&gt;
+    code.rand&lt;br&gt;
+    exec.k&lt;br&gt;
+    exec.s&lt;br&gt;
+    exec.y&lt;br&gt;
+    exec.noop&lt;br&gt;
+    exec.do*times&lt;br&gt;
+    exec.do*count&lt;br&gt;
+    exec.do*range&lt;br&gt;
+    exec.=&lt;br&gt;
+    exec.if&lt;br&gt;
+    exec.rand&lt;br&gt;
+    input.index&lt;br&gt;
+    input.inall&lt;br&gt;
+    input.inallrev&lt;br&gt;
+    input.stackdepth&lt;br&gt;
+    frame.push&lt;br&gt;
+    frame.pop&lt;br&gt;
+    &lt;/tt&gt;
+    
+    
+    &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+    &lt;table&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;op.size&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;int &gt;= 1&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(Number of instructions in Push's internal &quot;instruction set&quot;)&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;op&lt;/tt&gt;.&lt;i&gt;i&lt;/i&gt;&lt;br&gt;
+    &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(Name of instruction &lt;i&gt;i&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;op&lt;/tt&gt;.&lt;i&gt;i&lt;/i&gt;.&lt;tt&gt;func&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;classname, inherits and != ec.gp.push.PushInstruction&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(PushInstruction corresponding to instruction &lt;i&gt;i&lt;/i&gt;, if it is a custom instruction)&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;op.float.min&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;float&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(Minimum value for a Push floating-point ERC)&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;op.float.max&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;float&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(Maximum value for a Push floating-point ERC)&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;op.int.min&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;int&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(Minimum value for a Push integer ERC)&lt;/td&gt;&lt;/tr&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;op.int.max&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;int&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(Maximum value for a Push integer ERC)&lt;/td&gt;&lt;/tr&gt;
+    &lt;/table&gt;
+
+    &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+    gp.push
+*/
+
+
+
+
+<span class="nc" id="L177">public class Terminal extends ERC</span>
+    {
+    public static final String P_INSTRUCTION = &quot;in&quot;;
+    public static final String P_NUM_INSTRUCTIONS = &quot;size&quot;;
+    public static final String P_FUNC = &quot;func&quot;;
+    public static final String P_FLOAT = &quot;erc.float&quot;;
+    public static final String P_INTEGER = &quot;erc.int&quot;;
+    public static final String P_MIN = &quot;min&quot;;
+    public static final String P_MAX = &quot;max&quot;;
+    
+    public static final int FLOAT_ERC = 0;  // ultimately this needs to be a special kind of class
+    public static final int INTEGER_ERC = 1;  // ultimately this needs to be a special kind of class
+<span class="nc" id="L189">    public static final String[] ERC_NAMES = { &quot;float.erc&quot;, &quot;integer.erc&quot; };</span>
+     
+<span class="nc" id="L191">    public static double minFloatERC = -10.0;  // inclusive</span>
+<span class="nc" id="L192">    public static double maxFloatERC = 10.0;   // inclusive</span>
+<span class="nc" id="L193">    public static int minIntegerERC = -10;</span>
+<span class="nc" id="L194">    public static int maxIntegerERC = 10;</span>
+    
+    /** Names of all the Push instructions I can be set to.  This includes names for custom PushInstructions. */
+    public String[] instructions;
+
+    /** A list of custom PushInstructions I can be set to. */
+    public PushInstruction[] customInstructions;
+    /** For each PushInstruction, a pointer into instructions which gives the name of that instruction. 
+        Note that some instructions in instructions are built-in Push instructions and will have nothing
+        pointing to them. */
+    public int[] indices;  // point to locations in instructions
+    
+    /** The current name of the Push Terminal I am set to. */
+    String value;
+    
+<span class="nc" id="L209">    public String name() { return &quot;IN&quot;; }</span>
+    
+<span class="nc" id="L211">    public int expectedChildren() { return 0; }</span>
+    
+<span class="nc" id="L213">    public String toStringForHumans() { return value; }</span>
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L217">        return PushDefaults.base().push(P_INSTRUCTION);</span>
+        }
+        
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L222">        super.setup(state, base);</span>
+        
+<span class="nc" id="L224">        Parameter def = defaultBase();</span>
+                
+        // Load my standard instructions
+<span class="nc" id="L227">        int len = state.parameters.getInt(base.push(P_INSTRUCTION).push(P_NUM_INSTRUCTIONS), def.push(P_NUM_INSTRUCTIONS), 1);</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        if (len &lt; 1)</span>
+<span class="nc" id="L229">            state.output.fatal(&quot;Number of instructions must be &gt;= 1&quot;, base.push(P_INSTRUCTION).push(P_NUM_INSTRUCTIONS), def.push(P_NUM_INSTRUCTIONS));</span>
+        
+<span class="nc" id="L231">        instructions = new String[len];</span>
+<span class="nc" id="L232">        PushInstruction[] insts = new PushInstruction[len];</span>
+        
+<span class="nc bnc" id="L234" title="All 2 branches missed.">        for(int i =0; i &lt; len; i++)</span>
+            {
+<span class="nc" id="L236">            instructions[i] = state.parameters.getString(base.push(P_INSTRUCTION).push(&quot;&quot; + i), def.push(&quot;&quot; + i));</span>
+<span class="nc bnc" id="L237" title="All 2 branches missed.">            if (instructions[i] == null)</span>
+<span class="nc" id="L238">                state.output.fatal(&quot;Terminal number &quot; + i + &quot; is missing.&quot;, base.push(P_INSTRUCTION).push(&quot;&quot; + i), def.push(&quot;&quot; + i));</span>
+
+            // load Instruction if there is one
+<span class="nc" id="L241">            Parameter bb = base.push(P_INSTRUCTION).push(&quot;&quot; + i).push(P_FUNC);</span>
+<span class="nc" id="L242">            Parameter dd = def.push(&quot;&quot; + i).push(P_FUNC);</span>
+<span class="nc bnc" id="L243" title="All 2 branches missed.">            if (state.parameters.exists(bb, dd))  // got one</span>
+                {
+<span class="nc" id="L245">                String s = state.parameters.getString(bb, dd);</span>
+<span class="nc" id="L246">                state.output.message(&quot;Adding Instruction &quot; + instructions[i] + &quot; --&gt; &quot; + s);</span>
+<span class="nc" id="L247">                PushInstruction inst = (PushInstruction)(state.parameters.getInstanceForParameter(bb, dd, PushInstruction.class));</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">                if (inst == null)  // uh oh</span>
+<span class="nc" id="L249">                    state.output.fatal(&quot;Terminal number &quot; + i + &quot;, named &quot; + instructions[i] + &quot;, has an invalid function class: &quot; + s);</span>
+                // load that sucker
+<span class="nc" id="L251">                insts[i] = inst;</span>
+                }
+            }
+            
+        // compress instruction list
+<span class="nc" id="L256">        int count = 0;</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">        for(int i =0 ;i &lt; len; i++)</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">            if (insts[i] != null)</span>
+<span class="nc" id="L259">                count++;</span>
+<span class="nc" id="L260">        customInstructions = new PushInstruction[count];</span>
+<span class="nc" id="L261">        indices = new int[count];</span>
+        
+<span class="nc" id="L263">        count = 0;</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        for(int i=0; i&lt;len;i++)</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">            if (insts[i] != null)</span>
+                {
+<span class="nc" id="L267">                customInstructions[count] = insts[i];</span>
+<span class="nc" id="L268">                indices[count] = i;</span>
+<span class="nc" id="L269">                count++;</span>
+                }
+                
+<span class="nc" id="L272">        final double NaN = 0.0 / 0.0;</span>
+                
+        // load float ERC bounds
+<span class="nc" id="L275">        Parameter b = base.push(P_FLOAT).push(P_MIN);</span>
+<span class="nc" id="L276">        Parameter d = PushDefaults.base().push(P_FLOAT).push(P_MIN);</span>
+        
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        if (!state.parameters.exists(b, d))</span>
+<span class="nc" id="L279">            state.output.warning(&quot;No &quot; + ERC_NAMES[FLOAT_ERC] + &quot; min value provided, using &quot; + minFloatERC, b, d);</span>
+        else
+            {
+<span class="nc" id="L282">            double min = state.parameters.getDoubleWithDefault(b,d, NaN);</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">            if (min != min)  // it's NaN</span>
+<span class="nc" id="L284">                state.output.fatal(&quot;Malformed &quot; + ERC_NAMES[FLOAT_ERC] + &quot; min value&quot;, b, d);</span>
+<span class="nc" id="L285">            else minFloatERC = min;</span>
+            }
+
+<span class="nc" id="L288">        b = base.push(P_FLOAT).push(P_MAX);</span>
+<span class="nc" id="L289">        d = PushDefaults.base().push(P_FLOAT).push(P_MAX);</span>
+
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        if (!state.parameters.exists(b, d))</span>
+<span class="nc" id="L292">            state.output.warning(&quot;No &quot; + ERC_NAMES[FLOAT_ERC] + &quot; max value provided, using &quot; + maxFloatERC, b, d);</span>
+        else
+            {
+<span class="nc" id="L295">            double max = state.parameters.getDoubleWithDefault(b, d, NaN);</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">            if (max != max)  // it's NaN</span>
+<span class="nc" id="L297">                state.output.fatal(&quot;Malformed &quot; + ERC_NAMES[FLOAT_ERC] + &quot; max value&quot;, b, d);</span>
+<span class="nc" id="L298">            else maxFloatERC = max;</span>
+            }
+<span class="nc bnc" id="L300" title="All 2 branches missed.">        if (minFloatERC &gt; maxFloatERC)  // uh oh</span>
+<span class="nc" id="L301">            state.output.fatal(&quot;&quot; + ERC_NAMES[FLOAT_ERC] + &quot; min value is greater than max value.\nMin: &quot; + minFloatERC +&quot;\nMax: &quot; + maxFloatERC);</span>
+
+<span class="nc" id="L303">        b = base.push(P_INTEGER).push(P_MIN);</span>
+<span class="nc" id="L304">        d = PushDefaults.base().push(P_INTEGER).push(P_MIN);</span>
+
+        // load integer ERC bounds
+<span class="nc bnc" id="L307" title="All 2 branches missed.">        if (!state.parameters.exists(b, d))</span>
+<span class="nc" id="L308">            state.output.warning(&quot;No &quot; + ERC_NAMES[INTEGER_ERC] + &quot; min value provided, using &quot; + minIntegerERC, b, d);</span>
+        else
+            {
+<span class="nc" id="L311">            double min = state.parameters.getDoubleWithDefault(b, d, NaN);</span>
+<span class="nc bnc" id="L312" title="All 4 branches missed.">            if ((min != min) || (min != (int)min))  // it's NaN or invalid</span>
+<span class="nc" id="L313">                state.output.fatal(&quot;Malformed &quot; + ERC_NAMES[INTEGER_ERC] + &quot; min value&quot;, b, d);</span>
+<span class="nc" id="L314">            minIntegerERC = (int)min;</span>
+            }
+
+<span class="nc" id="L317">        b = base.push(P_INTEGER).push(P_MAX);</span>
+<span class="nc" id="L318">        d = PushDefaults.base().push(P_INTEGER).push(P_MAX);</span>
+
+<span class="nc bnc" id="L320" title="All 2 branches missed.">        if (!state.parameters.exists(b, d))</span>
+<span class="nc" id="L321">            state.output.warning(&quot;No &quot; + ERC_NAMES[INTEGER_ERC] + &quot; max value provided, using &quot; + maxIntegerERC, b, d);</span>
+        else
+            {
+<span class="nc" id="L324">            double max = state.parameters.getDoubleWithDefault(b, d, NaN);</span>
+<span class="nc bnc" id="L325" title="All 4 branches missed.">            if ((max != max) || (max != (int)max))  // it's NaN or invalid</span>
+<span class="nc" id="L326">                state.output.fatal(&quot;Malformed &quot; + ERC_NAMES[INTEGER_ERC] + &quot; max value&quot;, b, d);</span>
+<span class="nc" id="L327">            else maxIntegerERC = (int)max;</span>
+            }
+<span class="nc bnc" id="L329" title="All 2 branches missed.">        if (minIntegerERC &gt; maxIntegerERC)  // uh oh</span>
+<span class="nc" id="L330">            state.output.fatal(&quot;&quot; + ERC_NAMES[INTEGER_ERC] + &quot; min value is greater than max value.\nMin: &quot; + minIntegerERC +&quot;\nMax: &quot; + maxIntegerERC);</span>
+
+<span class="nc" id="L332">        }</span>
+
+    public boolean nodeEquals(GPNode other)
+        {
+<span class="nc bnc" id="L336" title="All 2 branches missed.">        if (other == null) return false;</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">        if (!(other instanceof Terminal)) return false;</span>
+<span class="nc" id="L338">        Terminal o = (Terminal) other;</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">        return (o.value == value); </span>
+        }
+        
+    public String encode()
+        {
+<span class="nc" id="L344">        return Code.encode(value);</span>
+        }
+    
+    public boolean decode(final DecodeReturn dret)
+        {
+<span class="nc" id="L349">        Code.decode(dret);</span>
+<span class="nc bnc" id="L350" title="All 2 branches missed.">        if (dret.type == DecodeReturn.T_STRING)</span>
+            {
+<span class="nc" id="L352">            value = dret.s;</span>
+            // verify
+<span class="nc bnc" id="L354" title="All 2 branches missed.">            for(int i = 0; i &lt; instructions.length; i++)</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">                if (instructions[i].equals(value))</span>
+<span class="nc" id="L356">                    return true;</span>
+            }
+        // otherwise, uh oh
+<span class="nc" id="L359">        return false;</span>
+        }
+    
+    public void resetNode(EvolutionState state, int thread)
+        {
+<span class="nc" id="L364">        int i = state.random[thread].nextInt(instructions.length);</span>
+<span class="nc bnc" id="L365" title="All 2 branches missed.">        if (instructions[i].endsWith(&quot;erc&quot;)) // it's an erc</span>
+            {
+            // we'll assume we don't have a lot of ercs
+<span class="nc bnc" id="L368" title="All 2 branches missed.">            for(int j = 0 ; j &lt; ERC_NAMES.length; j++)</span>
+                {
+<span class="nc bnc" id="L370" title="All 2 branches missed.">                if (instructions[i].equals(ERC_NAMES[j]))</span>
+                    {
+<span class="nc bnc" id="L372" title="All 3 branches missed.">                    switch(j)</span>
+                        {
+                        case FLOAT_ERC:
+<span class="nc" id="L375">                            value = &quot;&quot; + (state.random[thread].nextDouble(true, true) * (maxFloatERC - minFloatERC) + minFloatERC);</span>
+<span class="nc" id="L376">                            break;</span>
+                        case INTEGER_ERC:
+<span class="nc" id="L378">                            value = &quot;&quot; + (state.random[thread].nextInt(maxIntegerERC - minIntegerERC + 1) + minIntegerERC);</span>
+<span class="nc" id="L379">                            break;</span>
+                        default:
+<span class="nc" id="L381">                            state.output.fatal(&quot;The following PUSH ERC is unknown: &quot; + instructions[i]);</span>
+<span class="nc" id="L382">                            break;</span>
+                        }
+                    break;  // break from for-loop
+                    }
+                }
+            }
+        else // it's an instruction
+            {
+<span class="nc" id="L390">            value = instructions[i];</span>
+            }
+<span class="nc" id="L392">        }</span>
+
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+        // do nothing
+<span class="nc" id="L402">        }</span>
+    }
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DEEvaluator.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.de</a> &gt; <span class="el_source">DEEvaluator.java</span></div><h1>DEEvaluator.java</h1><pre class="source lang-java linenums">package ec.de;
+
+import ec.*;
+import ec.simple.*;
+
+/* 
+ * DEEvaluator.java
+ * 
+ * Created: Fri Aug 13 11:20:54 EDT 2010
+ * By: Sean Luke
+ */
+
+/**
+ * DEEvaluator is a simple subclass of SimpleEvaluator which first evaluates the population, then
+ * compares each population member against the parent which had created it in Differential Evolution.
+ * The parents are stored in DEBreeder.previousPopulation.  If the parent is superior to the child,
+ * then the parent replaces the child in the population and the child is discarded.  This does not
+ * happen in the first generation, as there are of course no parents yet.
+ *
+ * &lt;p&gt;This code could have been moved into the Breeder of course.  But then the better of the parents
+ * and children would not appear in standard Statistics objects.  So we've broken it out here.
+ *
+ * &lt;p&gt;The full description of Differential Evolution may be found in the book
+ * &quot;Differential Evolution: A Practical Approach to Global Optimization&quot;
+ * by Kenneth Price, Rainer Storn, and Jouni Lampinen.
+ * 
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+<span class="nc" id="L31">public class DEEvaluator extends SimpleEvaluator</span>
+    {
+    public void evaluatePopulation(EvolutionState state)
+        {
+<span class="nc" id="L35">        super.evaluatePopulation(state);</span>
+
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        if( state.breeder instanceof DEBreeder )</span>
+            {
+<span class="nc" id="L39">            Population previousPopulation = ((DEBreeder)(state.breeder)).previousPopulation; // for faster access</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">            if( previousPopulation != null )</span>
+                {
+<span class="nc bnc" id="L42" title="All 2 branches missed.">                if( previousPopulation.subpops.size() != state.population.subpops.size())</span>
+<span class="nc" id="L43">                    state.output.fatal( &quot;DEEvaluator requires that the population have the same number of subpopulations every generation.&quot;);</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">                for(int i = 0; i &lt; previousPopulation.subpops.size(); i++ )</span>
+                    {
+<span class="nc bnc" id="L46" title="All 2 branches missed.">                    if( state.population.subpops.get(i).individuals.size() != previousPopulation.subpops.get(i).individuals.size() )</span>
+<span class="nc" id="L47">                        state.output.fatal( &quot;DEEvaluator requires that subpopulation &quot; + i + &quot; should have the same number of individuals in all generations.&quot; );</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">                    for(int j = 0; j &lt; state.population.subpops.get(i).individuals.size() ; j++ )</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">                        if( previousPopulation.subpops.get(i).individuals.get(j).fitness.betterThan( state.population.subpops.get(i).individuals.get(j).fitness ) )</span>
+<span class="nc" id="L50">                            state.population.subpops.get(i).individuals.set(j, previousPopulation.subpops.get(i).individuals.get(j));</span>
+                    }
+                }
+<span class="nc" id="L53">            }</span>
+<span class="nc" id="L54">        else state.output.fatal(&quot;DEEvaluator requires DEBreeder to be the breeder.&quot;);</span>
+<span class="nc" id="L55">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

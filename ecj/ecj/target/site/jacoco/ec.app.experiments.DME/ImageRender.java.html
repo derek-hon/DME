@@ -1,0 +1,633 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ImageRender.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.DME</a> &gt; <span class="el_source">ImageRender.java</span></div><h1>ImageRender.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.app.experiments.DME;
+
+import java.awt.image.BufferedImage;
+import java.awt.RenderingHints;
+import java.awt.Graphics2D;
+
+import static ec.app.experiments.GeneralandFitness.CoordinateVariables.*;
+
+import java.awt.Color;
+
+import ec.EvolutionState;
+import ec.app.experiments.Evaluations.EvaluationFunctions;
+import ec.app.experiments.GeneralandFitness.*;
+import ec.util.Parameter;
+import ec.util.ThreadPool;
+import ec.gp.koza.KozaFitness;
+import ec.util.ThreadPool;
+import ec.app.experiments.WaveletExperiment.wavelets.*;
+import ec.app.experiments.WaveletExperiment.wavelets.Haar.ImageQueryData;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import javax.imageio.ImageIO;
+
+import ec.distributedME.*;
+
+/**
+ * ImageRender.java
+ * 
+ * Repurposed and modified for use within MAP-Elites by Derek Hon.
+ * 
+ * @author Michael Gircys
+ */
+
+<span class="nc" id="L46">public class ImageRender extends MapElitesProblem implements TextureProblemForm {</span>
+<span class="nc" id="L47">    protected static int Default_Image_Size = 256;</span>
+<span class="nc" id="L48">    private double[] Current_Pos = new double[CoordinateVariables.values().length];</span>
+
+    private static final String P_MIN_X = &quot;min_x&quot;;
+    private static final String P_MAX_X = &quot;max_x&quot;;
+    private static final String P_MIN_Y = &quot;min_y&quot;;
+    private static final String P_MAX_Y = &quot;max_y&quot;;
+    private static final String P_RENDER = &quot;render&quot;;
+    private static final String P_RENDER_SUB = &quot;render-sub&quot;;
+    private static final String P_RENDER_THREAD = &quot;render-threads&quot;;
+    public static final String P_SAVE_PATH = &quot;save-path&quot;;
+    public static final String P_GRADIENT_DEBUG = &quot;gradient-debug&quot;;
+
+    public String savePath;
+
+    public static final String P_BEHAVIOUR_SOURCE = &quot;behaviour-source&quot;;
+    BehaviourEvaluation bEvaluation;
+
+<span class="nc" id="L65">    private double yMin = 0, yMax = 0, xMin = 0, xMax = 0;</span>
+<span class="nc" id="L66">    public int[] colours = null;</span>
+    int size;
+<span class="nc" id="L68">    int renderThreads = 1;</span>
+<span class="nc" id="L69">    int renderSub = 0;</span>
+    public BufferedImage img;
+<span class="nc" id="L71">    boolean describeGraph = false;</span>
+    boolean gradientDebug;
+    boolean distributed;
+<span class="nc" id="L74">    boolean renderImage = false;</span>
+
+<span class="nc" id="L76">    int blueMask = 0xFF0000, greenMask = 0xFF00, redMask = 0xFF;</span>
+
+    // ThreadPool pool = new ThreadPool();
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L82">        super.setup(state, base);</span>
+<span class="nc" id="L83">        Parameter def = base;</span>
+<span class="nc" id="L84">        Parameter p = new Parameter(&quot;map&quot;);</span>
+
+<span class="nc" id="L86">        xMin = state.parameters.getDouble(base.push(P_MIN_X), def.push(P_MIN_X));</span>
+<span class="nc" id="L87">        xMax = state.parameters.getDouble(base.push(P_MAX_X), def.push(P_MAX_X));</span>
+<span class="nc" id="L88">        yMin = state.parameters.getDouble(base.push(P_MIN_Y), def.push(P_MIN_Y));</span>
+<span class="nc" id="L89">        yMax = state.parameters.getDouble(base.push(P_MAX_Y), def.push(P_MAX_Y));</span>
+
+<span class="nc" id="L91">        Parameter d = new Parameter(&quot;distributed&quot;);</span>
+<span class="nc" id="L92">        distributed = state.parameters.getBoolean(d, null, false);</span>
+
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_RENDER_THREAD), null)) {</span>
+<span class="nc" id="L95">            renderThreads = state.parameters.getInt(base.push(P_RENDER_THREAD), null, 1);</span>
+        }
+
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_RENDER), null)) {</span>
+<span class="nc" id="L99">            renderImage = state.parameters.getBoolean(base.push(P_RENDER), null, false);</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_RENDER).push(P_RENDER_SUB), null)) {</span>
+<span class="nc" id="L101">                renderSub = state.parameters.getInt(base.push(P_RENDER).push(P_RENDER_SUB), null, 0);</span>
+            }
+        }
+
+<span class="nc" id="L105">        size = state.parameters.getInt(base.push(&quot;imagesize&quot;), base.push(&quot;imagesize&quot;), 0);</span>
+        // if (state.parameters.exists(MapElitesDefaults.base().push(P_BEHAVIOUR_SOURCE), null)) {
+        //     bEvaluation = (BehaviourEvaluation) (state.parameters.getInstanceForParameter(
+        //             MapElitesDefaults.base().push(P_BEHAVIOUR_SOURCE), null, BehaviourEvaluation.class));
+        //     state.output.message(bEvaluation.getClass().getSimpleName());
+        // } else {
+        //     state.output.error(&quot;Behaviour evaluation not detected&quot;, MapElitesDefaults.base().push(P_BEHAVIOUR_SOURCE),
+        //             null);
+        // }
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (state.parameters.exists(MapElitesDefaults.base().push(P_GRADIENT_DEBUG), null)) {</span>
+<span class="nc" id="L116">            gradientDebug = state.parameters.getBoolean(MapElitesDefaults.base().push(P_GRADIENT_DEBUG), null, false);</span>
+        } else {
+<span class="nc" id="L118">            gradientDebug = false;</span>
+        }
+
+        // verify our input is the right class (or subclasses from it)
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (!(input instanceof MultiData))</span>
+<span class="nc" id="L123">            state.output.fatal(&quot;GPData class must subclass from &quot; + MultiData.class, base.push(P_DATA), null);</span>
+
+<span class="nc" id="L125">        savePath = state.parameters.getString(base.push(P_SAVE_PATH), null);</span>
+<span class="nc" id="L126">    }</span>
+
+    @Override
+    public void evaluate(final EvolutionState state, final Elite ind, final int threadnum, int submap) {
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        if (ind.evaluated)</span>
+<span class="nc" id="L131">            return;</span>
+        
+<span class="nc" id="L133">        BehaviourEvaluation bEval = ((DistributedMEEvolutionState) state).behaviourEvaluations[submap];</span>
+<span class="nc" id="L134">        RenderIndividual(state, ind, threadnum, size);</span>
+<span class="nc" id="L135">        bEval.setup(ind.getPixels());</span>
+<span class="nc" id="L136">        double[] indBehaviours = bEval.individualBehaviourCalculation(state, ind);</span>
+        // state.output.message(Arrays.toString(indBehaviours));
+<span class="nc" id="L138">        ind.setBehaviours(indBehaviours);</span>
+        
+
+        // if ((((DistributedMEEvolutionState) state).distributedMap.subMAPs[submap]) != null) {
+        //     EliteMap eliteMap = ((DistributedMEEvolutionState) state).distributedMap.subMAPs[submap];
+        //     String key = eliteMap.generateKey(indBehaviours);
+        //     
+        //     ind.setKey(key);
+        //     ind.setLimits(eliteMap.getTempLimits());
+        // }
+
+            // TextureElite textElite = (TextureElite) ind;
+            // textElite.Rendering = RenderImage(state, textElite, threadnum, size);
+            // ((DistributedMEEvolutionState) state).behaviourEvaluations[submap].setup(PSDExtensions.ImageToInt(textElite.Rendering, null));
+            // state.output.message(Arrays.deepToString(PSDExtensions.ImageToDouble2D(textElite.Rendering, null)));
+<span class="nc" id="L153">    } // evaluate</span>
+
+    // We expect a [0.0,1.0] range. Make it [0,255] (fairly).
+    private int FitToChannelRange(double v) {
+<span class="nc" id="L157">        v = Math.min(Math.max(0.0, v), 1.0);</span>
+<span class="nc" id="L158">        return (int) Math.ceil(v * 255.0);</span>
+    }
+
+    public void RenderIndividual(EvolutionState state, Elite ind, int threadnum, int size) {
+<span class="nc" id="L162">        final int Image_Size_X = size;</span>
+<span class="nc" id="L163">        final int Image_Size_Y = size;</span>
+
+<span class="nc" id="L165">        MultiData input = (MultiData) this.input;</span>
+
+<span class="nc" id="L167">        double xIncrement = (xMax - xMin) / Image_Size_X;</span>
+<span class="nc" id="L168">        double yIncrement = (yMax - yMin) / Image_Size_Y;</span>
+
+<span class="nc" id="L170">        double textureY = yMin;</span>
+<span class="nc" id="L171">        double textureX = 0;</span>
+
+        // BufferedImage outImage = new BufferedImage(Image_Size_X, Image_Size_Y,
+        //         BufferedImage.TYPE_INT_RGB);
+        // this.colours = new int[Image_Size_X * Image_Size_Y];
+<span class="nc" id="L176">        int[][] test = new int[Image_Size_X][Image_Size_Y];</span>
+        // BufferedImage outImage = new BufferedImage(50, 50,
+        // BufferedImage.TYPE_INT_RGB);
+
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        for (int y = 0; y &lt; Image_Size_Y; y++) {</span>
+<span class="nc" id="L181">            textureX = xMin;</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">            for (int x = 0; x &lt; Image_Size_X; x++) {</span>
+<span class="nc" id="L183">                int r, g, b, rgb = 0, gray=0;</span>
+
+<span class="nc" id="L185">                Current_Pos[X.ordinal()] = textureX;</span>
+<span class="nc" id="L186">                Current_Pos[Y.ordinal()] = textureY;</span>
+
+<span class="nc bnc" id="L188" title="All 2 branches missed.">                if (ind.trees.length &lt; 3) {</span>
+<span class="nc" id="L189">                    ind.trees[0].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L190">                    gray = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L191">                    rgb = (gray&lt;&lt;16) + (gray&lt;&lt;8) + (gray);</span>
+                }
+                else {
+                    // Multiple colour channels.
+<span class="nc" id="L195">                    ind.trees[0].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L196">                    r = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L197">                    ind.trees[1].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L198">                    g = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L199">                    ind.trees[2].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L200">                    b = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L201">                    rgb = (r&lt;&lt;16) + (g&lt;&lt;8) + (b);</span>
+                }
+                // this.colours[y * Image_Size_X + x] = rgb;
+<span class="nc" id="L204">                test[x][y] = rgb;</span>
+                // outImage.setRGB(x, y, rgb);
+<span class="nc" id="L206">                textureX += xIncrement;</span>
+            } // end for
+<span class="nc" id="L208">            textureY += yIncrement;</span>
+        } // end for
+<span class="nc" id="L210">        ind.setPixels(test);</span>
+        // return outImage;
+<span class="nc" id="L212">    }</span>
+
+    public BufferedImage RenderImage(EvolutionState state, Elite ind, int threadnum, int size) {
+<span class="nc" id="L215">        final int Image_Size_X = size;</span>
+<span class="nc" id="L216">        final int Image_Size_Y = size;</span>
+
+<span class="nc" id="L218">        MultiData input = (MultiData) this.input;</span>
+
+<span class="nc" id="L220">        double xIncrement = (xMax - xMin) / Image_Size_X;</span>
+<span class="nc" id="L221">        double yIncrement = (yMax - yMin) / Image_Size_Y;</span>
+
+<span class="nc" id="L223">        double textureY = yMin;</span>
+<span class="nc" id="L224">        double textureX = 0;</span>
+
+<span class="nc" id="L226">        BufferedImage outImage = new BufferedImage(Image_Size_X, Image_Size_Y,</span>
+                BufferedImage.TYPE_INT_RGB);
+        // this.colours = new int[Image_Size_X * Image_Size_Y];
+<span class="nc" id="L229">        int[][] test = new int[Image_Size_X][Image_Size_Y];</span>
+        // BufferedImage outImage = new BufferedImage(50, 50,
+        // BufferedImage.TYPE_INT_RGB);
+
+<span class="nc bnc" id="L233" title="All 2 branches missed.">        for (int y = 0; y &lt; Image_Size_Y; y++) {</span>
+<span class="nc" id="L234">            textureX = xMin;</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">            for (int x = 0; x &lt; Image_Size_X; x++) {</span>
+<span class="nc" id="L236">                int r, g, b, rgb = 0, gray=0;</span>
+
+<span class="nc" id="L238">                Current_Pos[X.ordinal()] = textureX;</span>
+<span class="nc" id="L239">                Current_Pos[Y.ordinal()] = textureY;</span>
+
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                if (ind.trees.length &lt; 3) {</span>
+<span class="nc" id="L242">                    ind.trees[0].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L243">                    gray = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L244">                    rgb = (gray&lt;&lt;16) + (gray&lt;&lt;8) + (gray);</span>
+                }
+                else {
+                    // Multiple colour channels.
+<span class="nc" id="L248">                    ind.trees[0].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L249">                    r = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L250">                    ind.trees[1].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L251">                    g = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L252">                    ind.trees[2].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L253">                    b = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L254">                    rgb = (r&lt;&lt;16) + (g&lt;&lt;8) + (b);</span>
+                }
+                // this.colours[y * Image_Size_X + x] = rgb;
+<span class="nc" id="L257">                test[x][y] = rgb;</span>
+<span class="nc" id="L258">                outImage.setRGB(x, y, rgb);</span>
+<span class="nc" id="L259">                textureX += xIncrement;</span>
+            } // end for
+<span class="nc" id="L261">            textureY += yIncrement;</span>
+        } // end for
+<span class="nc" id="L263">        ind.setPixels(test);</span>
+<span class="nc" id="L264">        return outImage;</span>
+    }
+
+    public int[] RenderColour(EvolutionState state, Elite ind, int threadnum, int size) {
+<span class="nc" id="L268">        final int Image_Size_X = size;</span>
+<span class="nc" id="L269">        final int Image_Size_Y = size;</span>
+<span class="nc" id="L270">        this.colours = new int[Image_Size_X * Image_Size_Y];</span>
+
+<span class="nc" id="L272">        MultiData input = (MultiData) (this.input);</span>
+
+        
+        
+<span class="nc" id="L276">        final double xInc = 2.0 / ((double) Image_Size_X);</span>
+<span class="nc" id="L277">		final double yInc = 2.0 / ((double) Image_Size_Y);</span>
+
+        // double textureY = yMin;
+        // double textureX = 0;
+
+<span class="nc" id="L282">        int[] data = new int[Image_Size_X * Image_Size_Y];</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">        for (int y = 0; y &lt; Image_Size_Y; y++) {</span>
+            // textureX = xMin;
+<span class="nc bnc" id="L285" title="All 2 branches missed.">            for (int x = 0; x &lt; Image_Size_X; x++) {</span>
+<span class="nc" id="L286">                int r, g, b, rgb = 0, gray = 0;</span>
+
+<span class="nc" id="L288">                Current_Pos[X.ordinal()] = -1.0 + xInc * x;</span>
+<span class="nc" id="L289">                Current_Pos[Y.ordinal()] = -1.0 + yInc * y;</span>
+
+<span class="nc bnc" id="L291" title="All 2 branches missed.">                if (ind.trees.length &lt; 3) {</span>
+                    // 1 colour channel
+<span class="nc" id="L293">                    ind.trees[0].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L294">                    gray = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L295">                    rgb = (gray&lt;&lt;16) + (gray&lt;&lt;8) + (gray);</span>
+                }
+                else {
+                    // Multiple colour channels.
+<span class="nc" id="L299">                    ind.trees[0].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L300">                    r = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L301">                    ind.trees[1].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L302">                    g = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L303">                    ind.trees[2].child.eval(state, threadnum, input, stack, ind, this);</span>
+<span class="nc" id="L304">                    b = FitToChannelRange(input.GetD());</span>
+<span class="nc" id="L305">                    rgb = (r&lt;&lt;16) + (g&lt;&lt;8) + (b);</span>
+                }
+<span class="nc" id="L307">                data[y * Image_Size_X + x] = rgb;</span>
+                // textureX += xIncrement;
+            } // end for
+            // textureY += yIncrement;
+        } // end for
+<span class="nc" id="L312">        return data.clone();</span>
+    }
+
+    public double[] Get_Current_Pos() {
+<span class="nc" id="L316">        return Current_Pos;</span>
+    }
+
+    public void Set_Current_Pos(double[] p) {
+<span class="nc" id="L320">        Current_Pos = p;</span>
+<span class="nc" id="L321">    }</span>
+
+    @Override
+    public Object clone() {
+<span class="nc" id="L325">        ImageRender o = (ImageRender) super.clone();</span>
+<span class="nc" id="L326">        return o;</span>
+    }
+
+    @Override
+    public void describe(final EvolutionState state, final Elite best, final int submap, final int threadnum,
+            final int log) {
+        // ArrayList map = state.getStateMap().getMap();
+        // int[] pixels;
+<span class="nc" id="L334">        best.evaluated = false;</span>
+<span class="nc" id="L335">        File dir = new File(System.getProperty(&quot;user.dir&quot;) + savePath);</span>
+        // state.output.message(dir.toString());
+<span class="nc" id="L337">        BufferedImage coeffMap = null;</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        if (!dir.exists())</span>
+<span class="nc" id="L339">            dir.mkdir();</span>
+        // For matplotlib grouped boxplots
+<span class="nc" id="L341">        String[] behaviourOutput = new String[3];</span>
+<span class="nc bnc" id="L342" title="All 2 branches missed.">        for (int i = 0; i &lt; behaviourOutput.length; i++)</span>
+<span class="nc" id="L343">            behaviourOutput[i] = &quot;&quot;;</span>
+
+        
+<span class="nc" id="L346">        generateMAP(state, submap, threadnum);</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">        if (state.parameters.getBoolean(new Parameter(&quot;colours&quot;), new Parameter(&quot;colours&quot;), false)) {</span>
+<span class="nc bnc" id="L348" title="All 2 branches missed.">            if (((DistributedMEEvolutionState) state).distributedMap.submaps.size() == 1) {</span>
+<span class="nc bnc" id="L349" title="All 2 branches missed.">                for (Elite e : ((DistributedMEEvolutionState) state).distributedMap.subMAPs[0].asArray()) {</span>
+<span class="nc" id="L350">                    behaviourOutput[0] += e.getBehaviours()[0] + &quot; &quot;;</span>
+<span class="nc" id="L351">                    behaviourOutput[1] += e.getBehaviours()[1] + &quot; &quot;;</span>
+<span class="nc" id="L352">                    behaviourOutput[2] += e.getBehaviours()[2] + &quot; &quot;;</span>
+                } // loop through every elite in map
+            }
+            // island 1- RB
+            // island 2- RG
+            // island 3- GB
+            else {
+<span class="nc" id="L359">                int[][] behaviours = new int[3][2];</span>
+<span class="nc" id="L360">                for (int island = 0; island &lt; ((DistributedMEEvolutionState) state).distributedMap.submaps</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">                        .size(); island++) {</span>
+<span class="nc bnc" id="L362" title="All 4 branches missed.">                    switch (island) {</span>
+                        case 0:
+<span class="nc" id="L364">                            behaviours[island][0] = 0;</span>
+<span class="nc" id="L365">                            behaviours[island][1] = 2;</span>
+<span class="nc" id="L366">                            break;</span>
+                        case 1:
+<span class="nc" id="L368">                            behaviours[island][0] = 0;</span>
+<span class="nc" id="L369">                            behaviours[island][1] = 1;</span>
+<span class="nc" id="L370">                            break;</span>
+                        case 2:
+<span class="nc" id="L372">                            behaviours[island][0] = 1;</span>
+<span class="nc" id="L373">                            behaviours[island][1] = 2;</span>
+<span class="nc" id="L374">                            break;</span>
+                        default:
+<span class="nc" id="L376">                            state.output.fatal(&quot;Unexpected island value. &quot;);</span>
+                            break;
+                    }
+
+<span class="nc bnc" id="L380" title="All 2 branches missed.">                    for (Elite e : ((DistributedMEEvolutionState) state).distributedMap.submaps.get(island).asArray()) {</span>
+<span class="nc" id="L381">                        behaviourOutput[behaviours[island][0]] += e.getBehaviours()[0] + &quot; &quot;;</span>
+<span class="nc" id="L382">                        behaviourOutput[behaviours[island][1]] += e.getBehaviours()[1] + &quot; &quot;;</span>
+                    } // loop through every individual in that island
+                } // loop through every island
+            }
+        }
+        try {
+            // renderImage = true;
+            // best.evaluated = false;
+            // this.evaluate(state, best, threadnum, submap);
+<span class="nc bnc" id="L391" title="All 2 branches missed.">            if (!renderImage)</span>
+<span class="nc" id="L392">                img = PSDExtensions.IntToImage(this.colours);</span>
+            // renderImage = false;
+            // String transactionOutput = &quot;&quot;;
+            // for (String key : ((DistributedMEEvolutionState) state).transactions)
+            // if (state.parameters.getBoolean(new Parameter(&quot;colours&quot;), new Parameter(&quot;colours&quot;), false)) {
+            //     int[] avgChannels = getColourAvg();
+            //     state.output.println(&quot;Red: &quot; + avgChannels[0], log);
+            //     state.output.println(&quot;Green: &quot; + avgChannels[1], log);
+            //     state.output.println(&quot;Blue: &quot; + avgChannels[2], log);
+            // }
+<span class="nc" id="L402">            int[][] pixels = null;</span>
+<span class="nc" id="L403">            double tempFitness = Double.MAX_VALUE;</span>
+<span class="nc bnc" id="L404" title="All 2 branches missed.">            for (Elite e : ((DistributedMEEvolutionState) state).distributedMap.subMAPs[submap].asArray()) {</span>
+<span class="nc bnc" id="L405" title="All 2 branches missed.">                if (pixels == null) {</span>
+<span class="nc" id="L406">                    pixels = e.getPixels();</span>
+<span class="nc" id="L407">                    tempFitness = ((KozaFitness)e.fitness).standardizedFitness();</span>
+                }
+                else {
+<span class="nc bnc" id="L410" title="All 2 branches missed.">                    if (((KozaFitness)e.fitness).standardizedFitness() &lt; tempFitness) {</span>
+<span class="nc" id="L411">                        pixels = e.getPixels();</span>
+<span class="nc" id="L412">                        tempFitness = ((KozaFitness)e.fitness).standardizedFitness();</span>
+                    }
+                }
+            }
+<span class="nc" id="L416">            printAllBehaviours(state, log, best.getPixels());</span>
+            
+            // if (state.parameters.getBoolean(new Parameter(&quot;wavelet&quot;), new Parameter(&quot;wavelet&quot;), false)) {
+            //     coeffMap = coefficientMap(state);                
+            //     File output = new File(dir, &quot;run&quot; + state.parameters.getInt(new Parameter(&quot;run&quot;), null) + &quot;_coefficientmap.png&quot;);
+            //     ImageIO.write(coeffMap, &quot;png&quot;, output);
+            // }
+            // int[][] values = best.getPixels();
+<span class="nc" id="L424">            String bestFitnessString = tempFitness + &quot;&quot;;</span>
+<span class="nc" id="L425">            bestFitnessString.replace(&quot;.&quot;, &quot;-&quot;);</span>
+<span class="nc" id="L426">            BufferedImage bestImage = imageFromPixels(state, pixels);</span>
+<span class="nc" id="L427">            File output = new File(dir,</span>
+<span class="nc" id="L428">                    &quot;best_&quot; + state.parameters.getInt(new Parameter(&quot;run&quot;), null) + &quot;_submap_&quot; + submap + &quot;_&quot; + best.getKey() + &quot;_&quot; +</span>
+                            bestFitnessString + &quot;.png&quot;);
+<span class="nc" id="L430">            ImageIO.write(bestImage, &quot;png&quot;, output);</span>
+<span class="nc" id="L431">        } catch (IOException e) {</span>
+<span class="nc" id="L432">            state.output.fatal(</span>
+                    &quot;Error while saving best individual as image: &quot; + e);
+<span class="nc" id="L434">        }</span>
+<span class="nc" id="L435">    }</span>
+
+    private void printAllBehaviours(EvolutionState state, final int log, final int[][] pixels) {
+<span class="nc" id="L438">        EvaluationFunctions functions = new EvaluationFunctions();</span>
+<span class="nc" id="L439">        state.output.println(&quot;Red: &quot; + functions.averageRed(pixels), log);</span>
+<span class="nc" id="L440">        state.output.println(&quot;Green: &quot; + functions.averageGreen(pixels), log);</span>
+<span class="nc" id="L441">        state.output.println(&quot;Blue: &quot; + functions.averageBlue(pixels), log);</span>
+<span class="nc" id="L442">        state.output.println(&quot;Entropy: &quot; + functions.entropy(state, pixels), log);</span>
+<span class="nc" id="L443">        state.output.println(&quot;Luminosity: &quot; + functions.averageLuminance(state, pixels), log);</span>
+<span class="nc" id="L444">        state.output.println(&quot;Skewness: &quot; + functions.skewness(state, pixels), log);</span>
+<span class="nc" id="L445">        state.output.println(&quot;Kurtosis: &quot; + functions.kurtosis(state, pixels), log);</span>
+<span class="nc" id="L446">    }</span>
+
+    private BufferedImage debugColour(BufferedImage image, String name) {
+<span class="nc" id="L449">        BufferedImage output = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc bnc" id="L450" title="All 2 branches missed.">        for (int x = 0 ; x &lt; image.getWidth() ; x ++) {</span>
+<span class="nc bnc" id="L451" title="All 2 branches missed.">            for (int y = 0 ; y &lt; image.getHeight() ; y ++) {</span>
+<span class="nc" id="L452">                Color color = new Color(image.getRGB(x, y));</span>
+<span class="nc" id="L453">                output.setRGB(x, y, setColour(name, color));</span>
+            }
+        }
+<span class="nc" id="L456">        return output;</span>
+    }
+
+    private int setColour(String name, Color colour) {
+<span class="nc bnc" id="L460" title="All 2 branches missed.">        if (name.equalsIgnoreCase(&quot;Mean_Red_Mean_Blue&quot;)) {</span>
+<span class="nc" id="L461">            return new Color(colour.getRed(), 0, colour.getBlue()).getRGB();</span>
+        }
+<span class="nc bnc" id="L463" title="All 2 branches missed.">        else if (name.equalsIgnoreCase(&quot;Mean_Red_Mean_Green&quot;)) {</span>
+<span class="nc" id="L464">            return new Color(colour.getRed(), colour.getGreen(), 0).getRGB();</span>
+        }
+<span class="nc bnc" id="L466" title="All 2 branches missed.">        else if (name.equalsIgnoreCase(&quot;Mean_Green_Mean_Blue&quot;)) {</span>
+<span class="nc" id="L467">            return new Color(0 , colour.getGreen(), colour.getBlue()).getRGB();</span>
+        }
+<span class="nc" id="L469">        return 0;</span>
+    }
+
+    private BufferedImage imageFromPixels(EvolutionState state, int[][] pixels) {
+<span class="nc" id="L473">        BufferedImage outputImg = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc bnc" id="L474" title="All 2 branches missed.">        for (int imageX = 0 ; imageX &lt; size ; imageX ++) {</span>
+<span class="nc bnc" id="L475" title="All 2 branches missed.">            for (int imageY = 0 ; imageY &lt; size ; imageY ++) {</span>
+<span class="nc" id="L476">                outputImg.setRGB(imageX, imageY, pixels[imageX][imageY]);</span>
+                // if (e.getPixels()[x][y] !=  result.getRGB(x, y))
+                //     state.output.fatal(&quot;different rgb&quot;);
+            }
+        }
+<span class="nc" id="L481">        return outputImg;</span>
+    }
+
+    private void generateMAP(EvolutionState state, int submap, int threadnum) {
+<span class="nc" id="L485">        BufferedImage emptyImage = null;</span>
+<span class="nc" id="L486">        EliteMap eliteMap = ((DistributedMEEvolutionState) state).distributedMap.submaps.get(submap);</span>
+<span class="nc" id="L487">        String name = eliteMap.getName();</span>
+
+<span class="nc" id="L489">        File dir = new File(System.getProperty(&quot;user.dir&quot;) + savePath + &quot;test/&quot;);</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">        if (!dir.exists())</span>
+<span class="nc" id="L491">            dir.mkdir();</span>
+        try {
+<span class="nc" id="L493">            emptyImage = scaleImage(ImageIO.read(new File(System.getProperty(&quot;user.dir&quot;) + &quot;/empty.png&quot;)));</span>
+<span class="nc" id="L494">        } catch (IOException e) {</span>
+<span class="nc" id="L495">            state.output.fatal(</span>
+<span class="nc" id="L496">                    &quot;Error while saving image: &quot; + System.getProperty(&quot;user.dir&quot;) + &quot;/empty.png&quot; + &quot;\n&quot;</span>
+                            + e);
+<span class="nc" id="L498">        }</span>
+<span class="nc" id="L499">        int counter = 0;</span>
+<span class="nc" id="L500">        Behaviours[] behaviours = eliteMap.getBehaviours();</span>
+        try {
+<span class="nc" id="L502">            int behaviourOneLimit = behaviours[0].totalLimits(), behaviourTwoLimit = behaviours[1].totalLimits();</span>
+<span class="nc" id="L503">            BufferedImage mapImage = new BufferedImage(size * behaviourTwoLimit, size * behaviourOneLimit, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L504">            BufferedImage[] chunks = new BufferedImage[behaviourOneLimit * behaviourTwoLimit];</span>
+                
+<span class="nc" id="L506">            int yLimit = behaviours[0].totalLimits();</span>
+<span class="nc" id="L507">            int xLimit = behaviours[1].totalLimits();</span>
+            
+<span class="nc bnc" id="L509" title="All 2 branches missed.">            for (int y = (yLimit - 1) ; y &gt;= 0 ; y --) {</span>
+<span class="nc bnc" id="L510" title="All 2 branches missed.">                for (int x = 0 ; x &lt; xLimit ; x ++) {</span>
+<span class="nc" id="L511">                    String key = behaviours[0].getName() + behaviours[0].getLimit(y) + behaviours[1].getName()</span>
+<span class="nc" id="L512">                            + behaviours[1].getLimit(x);</span>
+<span class="nc" id="L513">                    double[] limits = new double[]{behaviours[0].getLimit(y), behaviours[1].getLimit(x)};</span>
+<span class="nc" id="L514">                    Elite temp = null;</span>
+
+<span class="nc bnc" id="L516" title="All 2 branches missed.">                    BufferedImage cellImage = ((temp = eliteMap.getEliteByKey(key)) == null) ? emptyImage : imageFromPixels(state, temp.getPixels());</span>
+<span class="nc" id="L517">                    chunks[counter] = cellImage;</span>
+                        
+<span class="nc" id="L519">                    counter ++;</span>
+                }
+            }
+<span class="nc" id="L522">            counter = 0;</span>
+<span class="nc bnc" id="L523" title="All 2 branches missed.">            for (int y = 0; y &lt; behaviourOneLimit; y++) {</span>
+<span class="nc bnc" id="L524" title="All 2 branches missed.">                for (int x = 0; x &lt; behaviourTwoLimit; x++) {</span>
+<span class="nc" id="L525">                    mapImage.createGraphics().drawImage(chunks[counter], null, size * x, size * y);</span>
+                    // debugMap.createGraphics().drawImage(chunksMap[counter], 50 * j, 50 * k, null);
+<span class="nc" id="L527">                    counter++;</span>
+                }
+            }
+<span class="nc" id="L530">            ImageIO.write(mapImage, &quot;png&quot;, new File(dir + &quot;/map_&quot; + submap + &quot;_run&quot; + state.parameters.getInt(new Parameter(&quot;run&quot;), null) + &quot;.png&quot;));          </span>
+<span class="nc" id="L531">        } catch (IOException e) {</span>
+<span class="nc" id="L532">            state.output.fatal(&quot;Error while saving map as image:\n&quot; + e);</span>
+<span class="nc" id="L533">        }</span>
+<span class="nc" id="L534">    }</span>
+
+    private BufferedImage coefficientMap(EvolutionState state) {
+        // state.output.message(&quot;Starting luminance process...&quot;);
+
+<span class="nc" id="L539">        Haar solution = new Haar(state, colours.clone(), size, size);</span>
+<span class="nc" id="L540">        ImageQueryData wavelet = solution.getHaarData();</span>
+        // state.output.fatal(wavelet.printData());
+
+<span class="nc" id="L543">        BufferedImage img = wavelet.coefficientImage(state);</span>
+<span class="nc" id="L544">        return img;</span>
+    }
+
+    private int[] getColourAvg() {
+<span class="nc" id="L548">        int red = 0, green = 0, blue = 0;</span>
+<span class="nc bnc" id="L549" title="All 2 branches missed.">        for (int val : colours) {</span>
+<span class="nc" id="L550">            red += (val &amp; 0xFF0000) &gt;&gt; 16;</span>
+<span class="nc" id="L551">            green += (val &amp; 0x00FF00) &gt;&gt; 8;</span>
+<span class="nc" id="L552">            blue += (val &amp; 0x0000FF);</span>
+        }
+<span class="nc" id="L554">        red /= colours.length;</span>
+<span class="nc" id="L555">        green /= colours.length;</span>
+<span class="nc" id="L556">        blue /= colours.length;</span>
+<span class="nc" id="L557">        return new int[]{red, green, blue};</span>
+    }
+
+    // Source: https://stackoverflow.com/a/11367424
+    private BufferedImage scaleImage(BufferedImage input) {
+<span class="nc" id="L562">        BufferedImage output = new BufferedImage(size, size, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L563">        Graphics2D graphics2d = output.createGraphics();</span>
+<span class="nc" id="L564">        graphics2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);</span>
+<span class="nc" id="L565">        graphics2d.drawImage(input, 0, 0, size, size, null);</span>
+<span class="nc" id="L566">        graphics2d.dispose();</span>
+
+<span class="nc" id="L568">        return output;</span>
+    }
+
+    /**
+     * https://stackoverflow.com/a/18037185
+     * @param Red
+     * @param Green
+     * @param Blue
+     * @return
+     */
+    public int getIntFromColor(int Red, int Green, int Blue){
+<span class="nc" id="L579">        Red = (Red &lt;&lt; 16) &amp; 0x00FF0000; //Shift red 16-bits and mask out other stuff</span>
+<span class="nc" id="L580">        Green = (Green &lt;&lt; 8) &amp; 0x0000FF00; //Shift Green 8-bits and mask out other stuff</span>
+<span class="nc" id="L581">        Blue = Blue &amp; 0x000000FF; //Mask out anything not blue.</span>
+    
+<span class="nc" id="L583">        return 0xFF000000 | Red | Green | Blue; //0xFF000000 for 100% Alpha. Bitwise OR everything together.</span>
+    }
+
+    // private class RenderThread extends Thread {
+    //     public int            yStart, yEnd, width, height;
+    //     public double         yInc, xInc;
+    //     public MultiData      input;
+    //     public EvolutionState state;
+    //     public Elite          e;
+
+    //     public RenderThread() {
+    //     }
+
+    //     @Override
+    //     public void run() {
+    //         eval(e, yStart, yEnd, yInc, xInc, width, height, state, input);
+    //     }
+    // }
+
+    // public void eval(Elite e, int yStart, int yEnd, double yInc, double xInc, int width, int height, 
+    //                 EvolutionState state, MultiData input) {
+    //     for (int x = 0 ; x &lt; width ; x ++) {
+    //         for (int y = yStart ; y &lt; yEnd ; y ++) {
+    //             int r = 0, g = 0, b = 0, rgb = 0;
+
+    //             Current_Pos[X.ordinal()] = -1.0 + xInc * x;
+    //             Current_Pos[Y.ordinal()] = -1.0 + yInc * y;
+
+    //             if (e.trees.length &lt; 3) {
+    //                 // 1 colour channel
+    //                 e.trees[0].child.eval(state, 1, input, stack, e, this);
+    //                 r = g = b = FitToChannelRange(input.GetD());
+    //                 rgb = (r&lt;&lt;16) + (g&lt;&lt;8) + (b);
+    //             }
+    //             else {
+    //                 // Multiple colour channels.
+    //                 e.trees[0].child.eval(state, 1, input, stack, e, this);
+    //                 r = FitToChannelRange(input.GetD());
+    //                 e.trees[1].child.eval(state, 1, input, stack, e, this);
+    //                 g = FitToChannelRange(input.GetD());
+    //                 e.trees[2].child.eval(state, 1, input, stack, e, this);
+    //                 b = FitToChannelRange(input.GetD());
+    //                 rgb = (r&lt;&lt;16) + (g&lt;&lt;8) + (b);
+    //             }
+
+    //             this.colours[x * height + y] = rgb;
+    //         }
+    //     }
+    // }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

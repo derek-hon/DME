@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VectorCrossoverPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector.breed</a> &gt; <span class="el_source">VectorCrossoverPipeline.java</span></div><h1>VectorCrossoverPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.vector.breed;
+
+import ec.vector.*;
+import ec.*;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+
+/* 
+ * VectorCrossoverPipeline.java
+ * 
+ * Created: Tue Mar 13 15:03:12 EST 2001
+ * By: Sean Luke
+ */
+
+
+/**
+ *
+ VectorCrossoverPipeline is a BreedingPipeline which implements a simple default crossover
+ for VectorIndividuals.  Normally it takes two individuals and returns two crossed-over 
+ child individuals.  Optionally, it can take two individuals, cross them over, but throw
+ away the second child (a one-child crossover).  VectorCrossoverPipeline works by calling
+ defaultCrossover(...) on the first parent individual.
+ 
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ 2 * minimum typical number of individuals produced by each source, unless tossSecondParent
+ is set, in which case it's simply the minimum typical number.
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 2
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;toss&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;/td&gt;
+ &lt;td valign=top&gt;(after crossing over with the first new individual, should its second sibling individual be thrown away instead of adding it to the population?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ vector.xover
+
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+public class VectorCrossoverPipeline extends BreedingPipeline
+    {
+    public static final String P_TOSS = &quot;toss&quot;;
+    public static final String P_CROSSOVER = &quot;xover&quot;;
+    public static final int NUM_SOURCES = 2;
+    public static final String KEY_PARENTS = &quot;parents&quot;;
+
+    /** Should the pipeline discard the second parent after crossing over? */
+    public boolean tossSecondParent;
+
+    /** Temporary holding place for parents */
+    ArrayList&lt;Individual&gt; parents;
+
+    public VectorCrossoverPipeline() 
+<span class="fc" id="L69">        {</span>
+        // by Ermo. get rid of asList
+        //parents = new ArrayList&lt;Individual&gt;(Arrays.asList(new VectorIndividual[2]));;
+<span class="fc" id="L72">        parents = new ArrayList&lt;Individual&gt;();</span>
+<span class="fc" id="L73">        }</span>
+<span class="fc" id="L74">    public Parameter defaultBase() { return VectorDefaults.base().push(P_CROSSOVER); }</span>
+
+    /** Returns 2 */
+<span class="fc" id="L77">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public Object clone()
+        {
+<span class="fc" id="L81">        VectorCrossoverPipeline c = (VectorCrossoverPipeline)(super.clone());</span>
+
+        // deep-cloned stuff
+<span class="fc" id="L84">        c.parents = new ArrayList&lt;Individual&gt;(parents);</span>
+
+<span class="fc" id="L86">        return c;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L91">        super.setup(state,base);</span>
+<span class="fc" id="L92">        Parameter def = defaultBase();</span>
+<span class="fc" id="L93">        tossSecondParent = state.parameters.getBoolean(base.push(P_TOSS),</span>
+<span class="fc" id="L94">            def.push(P_TOSS),false);</span>
+<span class="fc" id="L95">        }</span>
+        
+    /** Returns 2 * minimum number of typical individuals produced by any sources, else
+        1* minimum number if tossSecondParent is true. */
+    public int typicalIndsProduced()
+        {
+<span class="pc bpc" id="L101" title="1 of 2 branches missed.">        return (tossSecondParent? minChildProduction(): minChildProduction()*2);</span>
+        }
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+
+        {
+<span class="fc" id="L112">        int start = inds.size();</span>
+        
+        // how many individuals should we make?
+<span class="fc" id="L115">        int n = typicalIndsProduced();</span>
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">        if (n &lt; min) n = min;</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        if (n &gt; max) n = max;</span>
+        
+<span class="fc" id="L119">        IntBag[] parentparents = null;</span>
+<span class="fc" id="L120">        IntBag[] preserveParents = null;</span>
+
+<span class="pc bpc" id="L122" title="2 of 4 branches missed.">        if (misc!=null &amp;&amp; misc.containsKey(KEY_PARENTS))</span>
+            {
+<span class="nc" id="L124">            preserveParents = (IntBag[])misc.get(KEY_PARENTS);</span>
+<span class="nc" id="L125">            parentparents = new IntBag[2];</span>
+<span class="nc" id="L126">            misc.put(KEY_PARENTS, parentparents);</span>
+            }
+        
+        // should we use them straight?
+<span class="fc bfc" id="L130" title="All 2 branches covered.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+            // just load from source 0 and clone 'em
+<span class="fc" id="L133">            sources[0].produce(n,n,subpopulation,inds, state,thread,misc);</span>
+<span class="fc" id="L134">            return n;</span>
+            }
+
+
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        for(int q=start;q&lt;n+start; /* no increment */)  // keep on going until we're filled up</span>
+            {
+<span class="fc" id="L140">            parents.clear();</span>
+            
+            // grab two individuals from our sources
+<span class="pc bpc" id="L143" title="1 of 2 branches missed.">            if (sources[0]==sources[1])  // grab from the same source</span>
+                {
+<span class="fc" id="L145">                sources[0].produce(2,2,subpopulation, parents, state,thread, misc);</span>
+                }
+            else // grab from different sources
+                {
+<span class="nc" id="L149">                sources[0].produce(1,1,subpopulation, parents, state,thread, misc);</span>
+<span class="nc" id="L150">                sources[1].produce(1,1,subpopulation, parents, state,thread, misc);</span>
+                }
+            
+            
+                
+            // at this point, parents[] contains our two selected individuals,
+            // AND they're copied so we own them and can make whatever modifications
+            // we like on them.
+    
+            // so we'll cross them over now.  Since this is the default pipeline,
+            // we'll just do it by calling defaultCrossover on the first child
+            
+<span class="fc" id="L162">            ((VectorIndividual)(parents.get(0))).defaultCrossover(state,thread,((VectorIndividual)(parents.get(1))));</span>
+<span class="fc" id="L163">            parents.get(0).evaluated=false;</span>
+<span class="fc" id="L164">            parents.get(1).evaluated=false;</span>
+            
+            // add 'em to the population
+            // by Ermo. this should use add instead of set, because the inds is empty, so will throw index out of bounds
+            // okay -- Sean
+<span class="fc" id="L169">            inds.add(parents.get(0));</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">            if (preserveParents != null)</span>
+                {
+<span class="nc" id="L172">                parentparents[0].addAll(parentparents[1]);</span>
+<span class="nc" id="L173">                preserveParents[q] = parentparents[0];</span>
+                }
+<span class="fc" id="L175">            q++;</span>
+<span class="pc bpc" id="L176" title="1 of 4 branches missed.">            if (q&lt;n+start &amp;&amp; !tossSecondParent)</span>
+                {
+                // by Ermo. as as here, see the comments above
+<span class="fc" id="L179">                inds.add(parents.get(1));</span>
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">                if (preserveParents != null)</span>
+                    {
+<span class="nc" id="L182">                    preserveParents[q] = new IntBag(parentparents[0]);</span>
+                    }
+<span class="fc" id="L184">                q++;</span>
+                }
+            }
+        
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">        if (preserveParents != null)</span>
+            {
+<span class="nc" id="L190">            misc.put(KEY_PARENTS, preserveParents);</span>
+            }
+<span class="fc" id="L192">        return n;</span>
+        }
+    }
+    
+    
+    
+    
+    
+    
+    
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

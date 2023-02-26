@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SubpopulationPanel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.display</a> &gt; <span class="el_source">SubpopulationPanel.java</span></div><h1>SubpopulationPanel.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Paus
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+/*
+ * Created on Apr 14, 2005 7:39:29 PM
+ * 
+ * By: spaus
+ */
+package ec.display;
+
+import javax.swing.DefaultListModel;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
+
+import java.awt.BorderLayout;
+
+import javax.swing.JList;
+
+import ec.EvolutionState;
+import ec.Setup;
+import ec.display.portrayal.IndividualPortrayal;
+import ec.display.portrayal.SimpleIndividualPortrayal;
+import ec.util.ParamClassLoadException;
+import ec.util.Parameter;
+import ec.util.ReflectedObject;
+
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+
+import javax.swing.JTree;
+/**
+ * @author spaus
+ */
+public class SubpopulationPanel
+    extends JPanel
+    implements EvolutionStateListener, Setup
+    {
+    
+    private final Console console;
+    private final int subPopNum;
+<span class="nc" id="L47">    private JList individualsList = null;</span>
+<span class="nc" id="L48">    private JScrollPane individualListPane = null;</span>
+<span class="nc" id="L49">    private JSplitPane subpopPane = null;</span>
+<span class="nc" id="L50">    private JSplitPane individualDisplayPane = null;</span>
+<span class="nc" id="L51">    private IndividualPortrayal portrayal = null;</span>
+<span class="nc" id="L52">    private JScrollPane inspectionPane = null;</span>
+<span class="nc" id="L53">    private JTree inspectionTree = null;</span>
+    /**
+     * 
+     */
+    public SubpopulationPanel(Console console, int subPopNum)
+        {
+<span class="nc" id="L59">        super();</span>
+<span class="nc" id="L60">        this.console = console;</span>
+<span class="nc" id="L61">        this.subPopNum = subPopNum;</span>
+        
+<span class="nc" id="L63">        initialize();</span>
+<span class="nc" id="L64">        }</span>
+    
+    /**
+     * @param isDoubleBuffered
+     */
+    public SubpopulationPanel(Console console, int subPopNum, boolean isDoubleBuffered)
+        {
+<span class="nc" id="L71">        super(isDoubleBuffered);</span>
+<span class="nc" id="L72">        this.console = console;</span>
+<span class="nc" id="L73">        this.subPopNum = subPopNum;</span>
+        
+<span class="nc" id="L75">        initialize();</span>
+<span class="nc" id="L76">        }</span>
+    
+    /**
+     * This method initializes this
+     * 
+     * @return void
+     */
+    private  void initialize()
+        {
+<span class="nc" id="L85">        this.setLayout(new BorderLayout());</span>
+<span class="nc" id="L86">        this.setSize(300,200);</span>
+<span class="nc" id="L87">        this.add(getSubpopPane(), java.awt.BorderLayout.CENTER);</span>
+<span class="nc" id="L88">        }</span>
+    
+    /**
+     * This method initializes jList    
+     *  
+     * @return javax.swing.JList        
+     */    
+    private JList getIndividualsList()
+        {
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (individualsList == null)</span>
+            {
+<span class="nc" id="L99">            individualsList = new JList();</span>
+<span class="nc" id="L100">            individualsList.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);</span>
+<span class="nc" id="L101">            int size = -1;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            if (console.parameters.exists(new Parameter(&quot;pop.subpop.&quot;+subPopNum+&quot;.size&quot;),null))</span>
+                {
+<span class="nc" id="L104">                size = console.parameters.getInt(new Parameter(&quot;pop.subpop.&quot;+subPopNum+&quot;.size&quot;),null);</span>
+                }
+<span class="nc bnc" id="L106" title="All 2 branches missed.">            else if (console.parameters.exists(new Parameter(&quot;pop.default-subpop&quot;), null))</span>
+                {
+<span class="nc" id="L108">                int defaultsub = console.parameters.getInt(new Parameter(&quot;pop.default-subpop&quot;), null);</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">                if (defaultsub &gt;= 0)</span>
+                    {
+<span class="nc" id="L111">                    size = console.parameters.getInt(new Parameter(&quot;pop.subpop.&quot; + defaultsub + &quot;.size&quot;), null);</span>
+                    }
+                }
+<span class="nc" id="L114">            DefaultListModel model = new DefaultListModel();</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">            for (int i = 0; i &lt; size; ++i)</span>
+                {
+<span class="nc" id="L117">                model.add(i,Integer.valueOf(i));</span>
+                }
+<span class="nc" id="L119">            individualsList.setModel(model);</span>
+<span class="nc" id="L120">            individualsList.addListSelectionListener(new ListSelectionListener()</span>
+<span class="nc" id="L121">                {</span>
+                public void valueChanged(ListSelectionEvent evt)
+                    {
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                    if (evt.getValueIsAdjusting() == false)</span>
+                        {
+<span class="nc" id="L126">                        JList source = (JList)evt.getSource();</span>
+<span class="nc" id="L127">                        int idx = source.getSelectedIndex();</span>
+<span class="nc" id="L128">                        inspectionTree.setModel(new ReflectedObject(console.state.population.subpops.get(subPopNum).individuals.get(idx)));</span>
+<span class="nc" id="L129">                        portrayal.portrayIndividual(console.state,console.state.population.subpops.get(subPopNum).individuals.get(idx));</span>
+                        }
+<span class="nc" id="L131">                    }</span>
+                });
+            }
+<span class="nc" id="L134">        return individualsList;</span>
+        }
+    
+    public void postEvolution(EvolutionStateEvent evt)
+        {
+<span class="nc" id="L139">        int idx = individualsList.getSelectedIndex();</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        if (idx &gt;= 0)</span>
+            {
+<span class="nc" id="L142">            inspectionTree.setModel(new ReflectedObject(console.state.population.subpops.get(subPopNum).individuals.get(idx)));</span>
+<span class="nc" id="L143">            portrayal.portrayIndividual(console.state,console.state.population.subpops.get(subPopNum).individuals.get(idx));</span>
+            }
+<span class="nc" id="L145">        }</span>
+    /**
+     * This method initializes jScrollPane      
+     *  
+     * @return javax.swing.JScrollPane  
+     */    
+    private JScrollPane getIndividualListPane()
+        {
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        if (individualListPane == null)</span>
+            {
+<span class="nc" id="L155">            individualListPane = new JScrollPane();</span>
+<span class="nc" id="L156">            individualListPane.setViewportView(getIndividualsList());</span>
+<span class="nc" id="L157">            individualListPane.setPreferredSize(new java.awt.Dimension(75,131));</span>
+            }
+<span class="nc" id="L159">        return individualListPane;</span>
+        }
+    /**
+     * This method initializes jSplitPane       
+     *  
+     * @return javax.swing.JSplitPane   
+     */    
+    private JSplitPane getSubpopPane()
+        {
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (subpopPane == null)</span>
+            {
+<span class="nc" id="L170">            subpopPane = new JSplitPane();</span>
+<span class="nc" id="L171">            subpopPane.setLeftComponent(getIndividualListPane());</span>
+<span class="nc" id="L172">            subpopPane.setRightComponent(getIndividualDisplayPane());</span>
+<span class="nc" id="L173">            subpopPane.setResizeWeight(0.0D);</span>
+<span class="nc" id="L174">            subpopPane.setDividerLocation(100);</span>
+            }
+<span class="nc" id="L176">        return subpopPane;</span>
+        }
+    
+    /**
+     * This method initializes jSplitPane1  
+     *      
+     * @return javax.swing.JSplitPane       
+     */    
+    private JSplitPane getIndividualDisplayPane()
+        {
+<span class="nc bnc" id="L186" title="All 2 branches missed.">        if (individualDisplayPane == null)</span>
+            {
+<span class="nc" id="L188">            individualDisplayPane = new JSplitPane();</span>
+<span class="nc" id="L189">            individualDisplayPane.setOrientation(javax.swing.JSplitPane.VERTICAL_SPLIT);</span>
+<span class="nc" id="L190">            individualDisplayPane.setTopComponent(getInspectionPane());</span>
+<span class="nc" id="L191">            individualDisplayPane.setResizeWeight(0.5D);</span>
+            }
+<span class="nc" id="L193">        return individualDisplayPane;</span>
+        }
+
+    public void setup(EvolutionState state, Parameter base)
+        {
+        try
+            {
+<span class="nc" id="L200">            portrayal = (IndividualPortrayal)state.parameters.getInstanceForParameter(base.push(&quot;portrayal&quot;),null,IndividualPortrayal.class);</span>
+            }
+<span class="nc" id="L202">        catch (ParamClassLoadException ex)</span>
+            {
+            // default to SimpleIndividualPortrayal
+<span class="nc" id="L205">            portrayal = new SimpleIndividualPortrayal();</span>
+<span class="nc" id="L206">            }</span>
+<span class="nc" id="L207">        portrayal.setup(state, base);</span>
+<span class="nc" id="L208">        individualDisplayPane.setBottomComponent(new JScrollPane((JComponent)portrayal));</span>
+<span class="nc" id="L209">        }</span>
+    /**
+     * This method initializes jScrollPane  
+     *      
+     * @return javax.swing.JScrollPane      
+     */    
+    private JScrollPane getInspectionPane()
+        {
+<span class="nc bnc" id="L217" title="All 2 branches missed.">        if (inspectionPane == null)</span>
+            {
+<span class="nc" id="L219">            inspectionPane = new JScrollPane();</span>
+<span class="nc" id="L220">            inspectionPane.setViewportView(getInspectionTree());</span>
+            }
+<span class="nc" id="L222">        return inspectionPane;</span>
+        }
+    /**
+     * This method initializes jTree        
+     *      
+     * @return javax.swing.JTree    
+     */    
+    private JTree getInspectionTree()
+        {
+<span class="nc bnc" id="L231" title="All 2 branches missed.">        if (inspectionTree == null)</span>
+            {
+<span class="nc" id="L233">            Object[] emptyTreeModel = new Object[0];</span>
+<span class="nc" id="L234">            inspectionTree = new JTree(emptyTreeModel);</span>
+            }
+<span class="nc" id="L236">        return inspectionTree;</span>
+        }
+    }  //  @jve:decl-index=0:visual-constraint=&quot;423,73&quot;
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

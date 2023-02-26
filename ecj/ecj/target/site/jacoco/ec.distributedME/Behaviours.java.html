@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Behaviours.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">Behaviours.java</span></div><h1>Behaviours.java</h1><pre class="source lang-java linenums">package ec.distributedME;
+
+import ec.Setup;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+
+import ec.EvolutionState;
+import ec.util.Parameter;
+import ec.util.ParameterDatabase;
+
+/**
+ * Behaviours.java
+ * 
+ * Instance of a single behaviour of the solution
+ * Holds the intervals and name for the behaviour
+ * 
+ * Created: 25 January, 2022
+ * @author Derek Hon
+ * @version 1.0
+ * 
+ * Parameter example:
+ * map.behaviour.0.name = &quot;behaviour1&quot;
+ * map.behaviour.0.interval.0.ubound = 5
+ * map.behaviour.0.interval.1.ubound = 10
+ *
+ * map behaviour.1.name = &quot;behaviour2&quot;
+ * map.behaviour.1.interval.0.ubound = 12.5
+ * map.behaviour.1.interval.1.ubound = 15.75
+ * map.behaviour.1.interval.2.ubound = 25
+ * map.behaviour.1.interval.3.ubound = 27.1
+ * map.behaviour.1.interval.4.ubound = max
+ *
+ * max signifies max value for doubles
+ */
+<span class="nc" id="L36">public class Behaviours implements Setup, Cloneable {</span>
+    private static final long serialVersionUID = 1;
+
+    /** The species for individuals in the behaviours. */
+    public String name;
+
+    /** Stores all the limit values of a behaviour */
+    public double[] limits;
+
+    /** Minimum behaviour value */
+    public double min;
+
+    /** String version of each  */
+    public ArrayList&lt;String&gt; limitNames;
+
+    //Parameter names for ECJ
+    public static final String P_BSIZE     = &quot;intervals&quot;;
+    public static final String P_INT       = &quot;interval&quot;;
+    public static final String P_UBOUND    = &quot;ubound&quot;;
+    public static final String P_NAME      = &quot;name&quot;;
+    public static final String P_MIN       = &quot;min&quot;;
+
+    public Behaviours emptyClone() {
+        try {
+<span class="nc" id="L60">            Behaviours m = (Behaviours)clone();</span>
+<span class="nc" id="L61">            return m;</span>
+        } //try
+<span class="nc" id="L63">        catch(CloneNotSupportedException e) {</span>
+<span class="nc" id="L64">            throw new InternalError();</span>
+        } //catch
+    } //emptyClone
+
+    public void clear() {
+<span class="nc" id="L69">        name = &quot;&quot;;</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        for (int i = 0 ; i &lt; limits.length ; i ++)</span>
+<span class="nc" id="L71">            limits[i] = 0;</span>
+<span class="nc" id="L72">    } //clear</span>
+
+    public void setup(final EvolutionState state, final Parameter base) {
+        //Name of the behaviour
+<span class="nc" id="L76">        name = state.parameters.getString(base.push(P_NAME), null);</span>
+        //Total intervals
+<span class="nc" id="L78">        int intervals = state.parameters.getInt(base.push(P_BSIZE), null);</span>
+        //Upper limits of behaviour intervals
+<span class="nc" id="L80">        limits = new double[intervals];</span>
+<span class="nc" id="L81">        limitNames = new ArrayList&lt;String&gt;();</span>
+
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_MIN), null)) {</span>
+<span class="nc" id="L84">            min = state.parameters.getDouble(base.push(P_MIN), null);</span>
+        }
+        else {
+<span class="nc" id="L87">            min = 0;</span>
+        }
+
+        //Parsing parameter string into intervals just in case max is used
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        for (int i = 0 ; i &lt; intervals ; i ++) {</span>
+<span class="nc" id="L92">            String interval = state.parameters.getString(</span>
+<span class="nc" id="L93">                    base.push(P_INT).push(&quot;&quot; + i).push(P_UBOUND), null</span>
+            );
+            
+<span class="nc bnc" id="L96" title="All 2 branches missed.">            if (interval.equals(&quot;max&quot;))</span>
+<span class="nc" id="L97">                limits[i] = Double.MAX_VALUE;</span>
+            else
+<span class="nc" id="L99">                limits[i] = Double.parseDouble(interval);</span>
+        } //for
+<span class="nc" id="L101">    } //setup</span>
+
+    /** Gets the limit value at a certain index */
+<span class="nc" id="L104">    public double getLimit(int index) { return limits[index]; }</span>
+
+    /** Returns the total number of limits */
+<span class="nc" id="L107">    public int totalLimits() { return limits.length; }</span>
+
+    /** Gets the name of the behaviour */
+<span class="nc" id="L110">    public String getName() { return name; };</span>
+
+    /** Returns all the limits in string form as an array */
+<span class="nc" id="L113">    public String[] getAllNames() { return Arrays.copyOf(limitNames.toArray(), limitNames.toArray().length, String[].class); }</span>
+    
+    @Override
+    public String toString() {
+<span class="nc" id="L117">        String output = &quot;Behaviour &quot; + name + &quot;\n&quot;;</span>
+
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        for (int i = 0 ; i &lt; limits.length ; i ++) {</span>
+<span class="nc" id="L120">            output += limitNames.get(i) + &quot;: &quot; + limits[i] + &quot;\n&quot;;</span>
+        }
+<span class="nc" id="L122">        return output;</span>
+    }
+} //Behaviours
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

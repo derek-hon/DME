@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProportionalTournamentSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.parsimony</a> &gt; <span class="el_source">ProportionalTournamentSelection.java</span></div><h1>ProportionalTournamentSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.parsimony;
+
+import ec.select.*;
+import ec.*;
+import ec.util.*;
+import ec.steadystate.*;
+
+/* 
+ * ProportionalTournamentSelection.java
+ * 
+ * Created: Fri Feb 01 2002
+ * By: Liviu Panait
+ */
+
+/**
+ * This selection method adds parsimony pressure to the regular tournament selection.  The comparison of
+ * individuals is based on fitness with probability &lt;i&gt;prob&lt;/i&gt;, and it is based on size with probability
+ * &lt;i&gt;1-prob&lt;/i&gt;.  For each pairwise comparsion of individuals, the ProportionalTournamentSelection randomly decides
+ * whether to compare based on fitness or size. 
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the tournament size)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;pick-worst&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we pick the &lt;i&gt;worst&lt;/i&gt; individual in the tournament instead of the &lt;i&gt;best&lt;/i&gt;?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;fitness-prob&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; double &amp;gt;= 0 and &amp;lt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the probability of comparing individuals based on fitness, rather than size)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.proportional-tournament
+
+ *
+ * @author Liviu Panait
+ * @version 1.0 
+ */
+
+<span class="nc" id="L55">public class ProportionalTournamentSelection extends TournamentSelection</span>
+    {
+    /** default base */
+    public static final String P_PROPORTIONAL_TOURNAMENT = &quot;proportional-tournament&quot;;
+
+    /** The parameter for the probability of having the tournament based on fitness */
+    public static final String P_PROBABILITY = &quot;fitness-prob&quot;;
+
+    /** The probability of having the tournament based on fitness */
+    public double fitnessPressureProb;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L68">        return SelectDefaults.base().push(P_PROPORTIONAL_TOURNAMENT);</span>
+        }
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L73">        super.setup(state,base);</span>
+        
+<span class="nc" id="L75">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L77">        fitnessPressureProb = state.parameters.getDouble(base.push(P_PROBABILITY),def.push(P_PROBABILITY),0.0);</span>
+<span class="nc bnc" id="L78" title="All 4 branches missed.">        if( fitnessPressureProb&lt;0.0 || fitnessPressureProb&gt;1.0 )</span>
+<span class="nc" id="L79">            state.output.fatal( &quot;Probability must be between 0.0 and 1.0&quot;,</span>
+<span class="nc" id="L80">                base.push(P_PROBABILITY),def.push(P_PROBABILITY));</span>
+<span class="nc" id="L81">        }</span>
+
+    public boolean betterThan(Individual first, Individual second, int subpopulation, EvolutionState state, int thread)
+        {
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (state.random[thread].nextBoolean(fitnessPressureProb))</span>
+<span class="nc" id="L86">            return first.fitness.betterThan(second.fitness);</span>
+        else
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            return first.size() &lt; second.size();</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

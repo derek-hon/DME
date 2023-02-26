@@ -1,0 +1,489 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GrammarParser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.ge</a> &gt; <span class="el_source">GrammarParser.java</span></div><h1>GrammarParser.java</h1><pre class="source lang-java linenums">package ec.gp.ge;
+import java.io.*;
+import java.util.*;
+import ec.*;
+import ec.gp.GPFunctionSet;
+import ec.gp.GPNode;
+import ec.util.*;
+
+/*
+ * GrammarParser.java
+ *
+ * Created: Sun Dec  5 11:33:43 EST 2010
+ * By: Houston Mooers, with modifications by Sean Luke
+ *
+ */
+
+/**
+ * A GrammarParser is the basic class for parsing a GE ruleset into a parse graph of GrammarNodes.
+ * This parse graph is then later used to produce a GPIndividual from a GEIndividual in GESpecies.
+ * It is assumed that the root will represent the first rule given in the grammar.
+ *
+ */
+
+
+
+<span class="nc" id="L26">public class GrammarParser implements Prototype</span>
+    {
+    public static final String P_PARSER = &quot;parser&quot;;
+
+    // The parsed rules, hashed by name
+<span class="nc" id="L31">    HashMap rules = new HashMap();</span>
+
+    // The resulting parse graph
+<span class="nc" id="L34">    GrammarRuleNode root = null;</span>
+
+    /** 
+     * Lots of stuffs to enumerate/analyze the grammar tree, 
+     * these are needed to generate the predictive parse table.
+     */
+    // The list of production rules after flattenning the grammar tree
+<span class="nc" id="L41">    ArrayList productionRuleList = new ArrayList();</span>
+    // Assign integer index to each of the rules, starting from 0
+<span class="nc" id="L43">    HashMap indexToRule = new HashMap();</span>
+    // Reverse map of the above HashMap indexToRule
+<span class="nc" id="L45">    HashMap ruleToIndex = new HashMap();</span>
+    // Function heads' (i.e. terminals') indices
+<span class="nc" id="L47">    HashMap functionHeadToIndex = new HashMap();</span>
+    // Rule heads' (i.e. non-terminals') indices
+<span class="nc" id="L49">    HashMap ruleHeadToIndex = new HashMap();</span>
+    // Absolute production rule indices to relative indices (w.r.t. sub-rules)
+<span class="nc" id="L51">    HashMap absIndexToRelIndex = new HashMap();</span>
+
+    /** 
+     * The hash-map for the so called FIRST-SET, FOLLOW-SET and PREDICT-SET 
+     * for each of the production rules. 
+     */
+<span class="nc" id="L57">    HashMap ruleToFirstSet = new HashMap();</span>
+<span class="nc" id="L58">    HashMap ruleToFollowSet = new HashMap();</span>
+<span class="nc" id="L59">    HashMap ruleToPredictSet = new HashMap();</span>
+
+    /** 
+     * The predictive parse table to parse the lisp tree, 
+     * this is what we are looking for.
+     */
+<span class="nc" id="L65">    int[][] predictiveParseTable = null ;</span>
+
+    /** The default regular expressions for tokens in the parser.  If you'd
+        like to change minor features of the regular expressions, override the
+        getRegexes() method in a subclass to return a different array.  Note that
+        if you INSERT a new regular expression into the middle of these, the values
+        of the various token constants (&quot;LPAREN&quot;, &quot;RULE&quot;, etc.) will be wrong, so you
+        will need to override or modify the methods which use them.*/
+<span class="nc" id="L73">    public static final String[] DEFAULT_REGEXES = new String[]</span>
+    {
+    &quot;\\p{Blank}*#[^\\n\\r]*&quot;,               // COMMENT: matches a #foo up to but not including the newline.  Should appear first.
+    &quot;\\p{Blank}*\\(&quot;,                       // LPAREN: matches a (
+    &quot;\\p{Blank}*\\)&quot;,                       // RPAREN: matches a )
+    &quot;\\p{Blank}*&lt;[^&lt;&gt;()\\p{Space}]*&gt;&quot;,      // RULE: matches a rule of the form &lt;foo&gt;.  No &lt;, &gt;, (, ), |, or spaces may appear in foo
+    &quot;\\p{Blank}*[|]&quot;,                       // PIPE: matches a |
+    &quot;\\p{Blank}*::=&quot;,                       // EQUALS: matches a :==
+    &quot;\\p{Blank}*::=&quot;,                       // NUMERIC_CONSTANT: does nothing right now, so set to be identical to EQUALS.  Reserved for future use.
+    &quot;\\p{Blank}*::=&quot;,                       // BOOLEAN_CONSTANT: does nothing right now, so set to be identical to EQUALS.  Reserved for future use.
+    &quot;\\p{Blank}*::=&quot;,                       // STRING_CONSTANT: does nothing right now, so set to be identical to EQUALS.  Reserved for future use.
+    &quot;\\p{Blank}*[^&lt;&gt;()|\\p{Space}]+&quot;,       // FUNCTION (must appear after RULE and PIPE): matches a rule of the form foo.  No &lt;, &gt;, (, ), |, or spaces may appear in foo, and foo must have at least one character.
+    };
+
+    protected static final int COMMENT = 0;
+    protected static final int LPAREN = 1;
+    protected static final int RPAREN = 2;
+    protected static final int RULE = 3;
+    protected static final int PIPE = 4;
+    protected static final int EQUALS = 5;
+    // the following three are reserved for future use
+    protected static final int NUMERIC_CONSTANT = 6;
+    protected static final int BOOLEAN_CONSTANT = 7;
+    protected static final int STRING_CONSTANT = 8;
+    // and now we continue with our regularly scheduled program
+    protected static final int FUNCTION = 9;
+
+    /** Returns the regular expressions to use for tokenizing these rules. 
+     * By default DEFAULT_REGEXES are returned. */
+    public String[] getRegexes()
+        {
+<span class="nc" id="L104">        return DEFAULT_REGEXES;</span>
+        }
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L109">        return GEDefaults.base().push(P_PARSER);</span>
+        }
+
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L114">        }</span>
+
+    public Object clone()
+        {
+        try
+            {
+<span class="nc" id="L120">            GrammarParser other = (GrammarParser) (super.clone());</span>
+<span class="nc" id="L121">            other.rules = (HashMap)(rules.clone());</span>
+            // we'll pointer-copy the root
+<span class="nc" id="L123">            return other;</span>
+            }
+<span class="nc" id="L125">        catch (CloneNotSupportedException e)</span>
+            {
+<span class="nc" id="L127">            return null;    // never happens</span>
+            }
+        }
+
+    // Returns a rule from the hashmap.  If one does not exist, creates a rule with the
+    // given head and stores, then returns that.
+    GrammarRuleNode getRule(HashMap rules, String head)
+        {
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        if (rules.containsKey(head))</span>
+<span class="nc" id="L136">            return (GrammarRuleNode)(rules.get(head));</span>
+        else
+            {
+<span class="nc" id="L139">            GrammarRuleNode node = new GrammarRuleNode(head);</span>
+<span class="nc" id="L140">            rules.put(head, node);</span>
+<span class="nc" id="L141">            return node;</span>
+            }
+        }
+
+    // Parses a rule, one rule per line, from the lexer.
+    // Adds to the existing hashmap if there's already a rule there.
+    GrammarRuleNode parseRule(EvolutionState state, Lexer lexer, GPFunctionSet gpfs)
+        {
+<span class="nc" id="L149">        GrammarRuleNode retResult = null;</span>
+
+<span class="nc" id="L151">        String token = lexer.nextToken().trim();</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (token.length() ==  0) return null;  // empty line</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">        if(lexer.getMatchingIndex() == COMMENT) return null; // ignore the comment</span>
+<span class="nc" id="L154">        state.output.message(&quot;Parsing Rule: &quot; + token);</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        if(lexer.getMatchingIndex() == RULE) // rule head, good, as expected...</span>
+            {
+<span class="nc" id="L157">            lexer.nextToken();</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">            if(lexer.getMatchingIndex() != EQUALS)</span>
+<span class="nc" id="L159">                state.output.fatal(&quot;GE Grammar Error.  Expecting equal sign after rule head: &quot; + token);</span>
+<span class="nc" id="L160">            retResult = getRule(rules, token);</span>
+<span class="nc" id="L161">            parseProductions(state, retResult, lexer, gpfs);</span>
+            }
+        else
+            {
+<span class="nc" id="L165">            state.output.fatal(&quot;GE Grammar Error.  Unexpected token:&quot; </span>
+                + &quot; Expecting rule head.: &quot; + token);
+            }
+<span class="nc" id="L168">        return retResult;</span>
+        // IMPLEMENTED
+        // Need to parse the rule using a recursive descent parser
+        // If there was an error, then try to call state.output.error(...).
+        //
+        // Don't merge into any existing rule -- I do that in parseRules below.  Instead, just pull out
+        // rules and hang them into your &quot;new rule&quot; as necessary.
+        // Use getRule(rules, &quot;&lt;rulename&gt;&quot;) to extract the rule representing the current rule name which you
+        // can hang inside there as necessary.
+        //
+        // If you have to you can call state.output.fatal(...) which will terminate the program,
+        // but piling up some errors might be useful.  I'll handle the exitIfErors() in parseRules below
+        //
+        // Return null if there was no rule to parse (blank line or all comments) but no errors.
+        // Also return null if you called state.output.error(...).
+        }
+
+    // Parses each of a rule's production choices.
+    void parseProductions(EvolutionState state, GrammarRuleNode retResult, 
+        Lexer lexer, GPFunctionSet gpfs)
+        {
+        GrammarFunctionNode grammarfuncnode;
+        do
+            {
+<span class="nc" id="L192">            String token = lexer.nextToken();</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">            if(lexer.getMatchingIndex() == RULE)</span>
+                {
+<span class="nc" id="L195">                retResult.addChoice(getRule(rules, token));</span>
+<span class="nc" id="L196">                token = lexer.nextToken();</span>
+                }
+            else
+                {
+<span class="nc bnc" id="L200" title="All 2 branches missed.">                if(lexer.getMatchingIndex() != LPAREN) //first expect '('</span>
+<span class="nc" id="L201">                    state.output.fatal(&quot;GE Grammar Error - Unexpected token for rule: &quot; </span>
+<span class="nc" id="L202">                        + retResult.getHead() + &quot;Expecting '('.&quot;);</span>
+<span class="nc" id="L203">                token = lexer.nextToken();</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                if(lexer.getMatchingIndex() != FUNCTION) //now expecting function</span>
+<span class="nc" id="L205">                    state.output.fatal(&quot;GE Grammar Error - Expecting a function name&quot; </span>
+                        + &quot; after first '(' for rule: &quot; 
+<span class="nc" id="L207">                        + retResult.getHead() + &quot; Error: &quot; + token);</span>
+                else
+                    {
+<span class="nc bnc" id="L210" title="All 2 branches missed.">                    if (!(gpfs.nodesByName.containsKey(token)))</span>
+<span class="nc" id="L211">                        state.output.fatal(&quot;GPNode &quot; + token </span>
+                            + &quot; is not defined in the function set.&quot;);
+<span class="nc" id="L213">                    grammarfuncnode = new GrammarFunctionNode(gpfs, token);</span>
+<span class="nc" id="L214">                    token = lexer.nextToken();</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                    while(lexer.getMatchingIndex() != RPAREN)</span>
+                        {
+<span class="nc bnc" id="L217" title="All 2 branches missed.">                        if(lexer.getMatchingIndex() != RULE) //this better be the name of a rule node</span>
+                            {
+<span class="nc" id="L219">                            state.output.fatal(&quot;GE Grammar Error - Expecting a rule name&quot; </span>
+                                + &quot; as argument for function definition: &quot; 
+<span class="nc" id="L221">                                + grammarfuncnode.getHead() + &quot; Error on : &quot; + token);</span>
+                            }
+<span class="nc" id="L223">                        grammarfuncnode.addArgument(getRule(rules, token));</span>
+<span class="nc" id="L224">                        token = lexer.nextToken();</span>
+                        }
+<span class="nc" id="L226">                    retResult.addChoice(grammarfuncnode);</span>
+                    }
+                //after right paren, should see either '|' or newline
+<span class="nc" id="L229">                token = lexer.nextToken();</span>
+<span class="nc bnc" id="L230" title="All 4 branches missed.">                if(lexer.getMatchingIndex() != PIPE &amp;&amp; lexer.getMatchingIndex() != Lexer.FAILURE)</span>
+<span class="nc" id="L231">                    state.output.fatal(&quot;GE Grammar Error - Expecting either &quot; </span>
+                        + &quot;'|' delimiter or newline. Error on : &quot; + token);
+                }
+            }
+<span class="nc bnc" id="L235" title="All 2 branches missed.">        while(lexer.getMatchingIndex() == PIPE);</span>
+<span class="nc" id="L236">        }</span>
+
+    /** Parses the rules from a grammar and returns the resulting GrammarRuleNode root. */
+    public GrammarRuleNode parseRules(EvolutionState state, BufferedReader reader, GPFunctionSet gpfs)
+        {
+<span class="nc" id="L241">        rules = new HashMap();</span>
+        try
+            {
+            String line;
+<span class="nc bnc" id="L245" title="All 2 branches missed.">            while ((line = reader.readLine()) != null)</span>
+                {
+<span class="nc" id="L247">                GrammarRuleNode rule = parseRule(state, new Lexer(line.trim(), DEFAULT_REGEXES), gpfs);</span>
+<span class="nc bnc" id="L248" title="All 4 branches missed.">                if (rule != null &amp;&amp; root == null) root = rule;</span>
+<span class="nc" id="L249">                }</span>
+            }
+<span class="nc" id="L251">        catch (IOException e) { } // do nothing</span>
+<span class="nc" id="L252">        state.output.exitIfErrors();</span>
+<span class="nc" id="L253">        return root;</span>
+        }
+
+    public String toString()
+        {
+<span class="nc" id="L258">        String ret = &quot;Grammar[&quot;;</span>
+<span class="nc" id="L259">        Iterator i = rules.values().iterator();</span>
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        while(i.hasNext())</span>
+<span class="nc" id="L261">            ret = ret +&quot;\n&quot; + i.next();</span>
+<span class="nc" id="L262">        return ret + &quot;\n\t]&quot;;</span>
+        }
+
+    /**
+     * Checks that all grammar rules in ruleshashmap have at least one possible production
+     * @return true if grammar rules are properly defined, false otherwise
+     */
+    public boolean validateRules()
+        {
+<span class="nc" id="L271">        boolean isok = true;</span>
+<span class="nc" id="L272">        Iterator i = rules.values().iterator();</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        while(i.hasNext())</span>
+            {
+<span class="nc" id="L275">            GrammarRuleNode rule = (GrammarRuleNode)(i.next());</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">            if(rule.getNumChoices() &lt; 1)</span>
+                {
+<span class="nc" id="L278">                System.out.println(&quot;Grammar is bad! - Rule not defined: &quot; + rule);</span>
+<span class="nc" id="L279">                isok = false;</span>
+                }
+<span class="nc" id="L281">            }</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">        if (isok)</span>
+            {
+<span class="nc" id="L284">            System.out.println(&quot;All rules appear properly defined!&quot;);</span>
+<span class="nc" id="L285">            return true;</span>
+            }
+<span class="nc" id="L287">        return false;</span>
+        }
+
+    /**
+     * Run BFS to enumerate the whole grammar tree into all necessary
+     * indices lists/hash-maps, we *need* to run BFS because the decoding of 
+     * the &quot;GE array to tree&quot; works in a BFS fashion, so we need to stick with that;
+     * After enumeration, we will have four data-structures like these --
+     *
+     * (1) productionRuleList (a flattened grammar tree):
+     *      grammar-tree ==&gt; {rule-0, rule-1, ,,, rule-(n-1)}
+     *
+     * (2) ruleToIndex:
+     *      rule-0 --&gt; 0
+     *      rule-1 --&gt; 1
+     *      ,
+     *      ,
+     *      rule-(n-1) --&gt; (n-1)
+     *
+     * (3) indexToRule (reverse of ruleToIndex):
+     *      0 --&gt; rule-0
+     *      1 --&gt; rule-1
+     *      ,
+     *      ,
+     *      n-1 --&gt; rule-(n-1)
+     *
+     * and then, last but not the least, the relative rule index --
+     * (4) absIndexToRelIndex: 
+     *      if we have two rules like &quot;&lt;A&gt; -&gt; &lt;B&gt; | &lt;C&gt;&quot; and &quot;&lt;C&gt; -&gt; &lt;D&gt; | &lt;E&gt;&quot; then,
+     *              [rule]          [absIndex]      [relIndex] 
+     *              &lt;A&gt; -&gt; &lt;B&gt; --&gt;  [0]     --&gt;     [0]
+     *              &lt;A&gt; -&gt; &lt;C&gt; --&gt;  [1]     --&gt;     [1] 
+     *              &lt;C&gt; -&gt; &lt;D&gt; --&gt;  [2]     --&gt;     [0]
+     *              &lt;C&gt; -&gt; &lt;E&gt; --&gt;  [3]     --&gt;     [1] etc,
+     */
+    public void enumerateGrammarTree(GrammarNode gn)
+        {
+        // The BFS queue
+<span class="nc" id="L325">        Queue q = new LinkedList();</span>
+<span class="nc" id="L326">        int gnIndex = 0 ;</span>
+<span class="nc" id="L327">        int fIndex = 0 ; </span>
+<span class="nc" id="L328">        int rIndex = 0 ;</span>
+<span class="nc" id="L329">        ruleHeadToIndex.put(gn.getHead(), rIndex++);</span>
+<span class="nc" id="L330">        q.add(gn);</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        while(!q.isEmpty())</span>
+            {
+<span class="nc" id="L333">            GrammarNode temp = (GrammarNode)q.remove();</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">            for(int i = 0 ; i &lt; temp.children.size() ; i++)</span>
+                {
+<span class="nc" id="L336">                GrammarRuleNode grn = new GrammarRuleNode(temp.head);</span>
+<span class="nc" id="L337">                GrammarNode child = ((GrammarRuleNode)temp).getChoice(i);</span>
+<span class="nc" id="L338">                grn.children.add(child);</span>
+<span class="nc" id="L339">                productionRuleList.add(grn);</span>
+<span class="nc" id="L340">                indexToRule.put(gnIndex, grn);</span>
+<span class="nc" id="L341">                ruleToIndex.put(grn, gnIndex);</span>
+<span class="nc" id="L342">                gnIndex++;</span>
+<span class="nc bnc" id="L343" title="All 2 branches missed.">                if(child instanceof GrammarRuleNode)</span>
+                    {
+<span class="nc" id="L345">                    ruleHeadToIndex.put(child.getHead(), rIndex++);</span>
+<span class="nc" id="L346">                    q.add(child);</span>
+                    }
+<span class="nc bnc" id="L348" title="All 2 branches missed.">                else if(child instanceof GrammarFunctionNode)</span>
+<span class="nc" id="L349">                    functionHeadToIndex.put(child.getHead(), fIndex++);</span>
+                }
+<span class="nc" id="L351">            }</span>
+        // Now to the absolute index to relative index mapping
+<span class="nc" id="L353">        String oldHead = ((GrammarNode)indexToRule.get(Integer.valueOf(0))).getHead();</span>
+<span class="nc" id="L354">        absIndexToRelIndex.put(new Integer(0), new Integer(0));</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">        for(int absIndex = 1, relIndex = 1 ; absIndex &lt; indexToRule.size() ; absIndex++)</span>
+            {
+<span class="nc" id="L357">            String currentHead = ((GrammarNode)indexToRule.get(new Integer(absIndex))).getHead();</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">            if(!currentHead.equals(oldHead))</span>
+<span class="nc" id="L359">                relIndex = 0 ;</span>
+<span class="nc" id="L360">            absIndexToRelIndex.put(new Integer(absIndex), new Integer(relIndex++));</span>
+<span class="nc" id="L361">            oldHead = currentHead ;</span>
+            }
+<span class="nc" id="L363">        }</span>
+
+    /**
+     * Generate the FIRST-SET for each production rule and store them in the
+     * global hash-table, this runs a DFS on the grammar tree, the returned ArrayList
+     * is discarded and the FIRST-SETs are organized in a hash-map called 
+     * &quot;ruleToFirstSet&quot; as follows -- 
+     *
+     *      rule-0 --&gt; {FIRST-SET-0}
+     *      rule-1 --&gt; {FIRST-SET-1}
+     *      ,
+     *      ,
+     *      rule-(n-1) --&gt; {FIRST-SET-(n-1)}
+     */
+    public ArrayList gatherFirstSets(GrammarNode gn, GrammarNode parent)
+        {
+<span class="nc" id="L379">        ArrayList firstSet = new ArrayList();</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">        if(gn instanceof GrammarRuleNode)</span>
+            {
+<span class="nc bnc" id="L382" title="All 2 branches missed.">            for(int i = 0 ; i &lt; ((GrammarRuleNode)gn).getNumChoices() ; i++)</span>
+                {
+<span class="nc" id="L384">                ArrayList set = </span>
+<span class="nc" id="L385">                    gatherFirstSets(((GrammarRuleNode)gn).getChoice(i), gn);</span>
+<span class="nc" id="L386">                firstSet.addAll(set);</span>
+                }
+<span class="nc bnc" id="L388" title="All 2 branches missed.">            if(parent != null)</span>
+                {
+<span class="nc" id="L390">                GrammarNode treeEdge = new GrammarRuleNode(parent.getHead());</span>
+<span class="nc" id="L391">                treeEdge.children.add(gn);</span>
+<span class="nc" id="L392">                ruleToFirstSet.put(treeEdge, firstSet);</span>
+<span class="nc" id="L393">                }</span>
+            }
+<span class="nc bnc" id="L395" title="All 2 branches missed.">        else if(gn instanceof GrammarFunctionNode)</span>
+            {
+<span class="nc" id="L397">            firstSet.add(gn.getHead());</span>
+<span class="nc" id="L398">            GrammarNode treeEdge = new GrammarRuleNode(parent.getHead());</span>
+<span class="nc" id="L399">            treeEdge.children.add(gn);</span>
+<span class="nc" id="L400">            ruleToFirstSet.put(treeEdge, firstSet);</span>
+            }
+<span class="nc" id="L402">        return firstSet ;</span>
+        }
+
+    /**
+     * We do not have any example grammar to test with FOLLOW-SETs,
+     * so the FOLLOW-SET is empty, we need to test with a grammar 
+     * that contains post-fix notations;
+     *
+     * this needs to be implemented properly with a new grammar.
+     */
+    public ArrayList gatherFollowSets(GrammarNode gn, GrammarNode parent)
+        {
+<span class="nc" id="L414">        ArrayList followSet = new ArrayList();</span>
+<span class="nc" id="L415">        return followSet ;</span>
+        }
+
+    /** 
+     * Populate the PREDICT-SET from the FIRST-SETs and the FOLLOW-SETs, 
+     * as we do not have FOLLOW-SET, so FIRST-SET == PREDICT-SET;
+     * 
+     * this needs to be implemented, when the FOLLOW-SETs are done properly.
+     */
+    public void gatherPredictSets(GrammarNode gn, GrammarNode parent)
+        {
+        // gather FIRST-SET
+<span class="nc" id="L427">        gatherFirstSets(gn, null);</span>
+        // gather FOLLOW-SET
+<span class="nc" id="L429">        gatherFollowSets(gn, null);</span>
+        // then, gather PREDICT-SET
+<span class="nc bnc" id="L431" title="All 2 branches missed.">        if(ruleToFollowSet.isEmpty())</span>
+            {
+<span class="nc" id="L433">            ruleToPredictSet = (HashMap)ruleToFirstSet.clone();</span>
+            }
+        else
+            {
+            ; // not implemented yet
+            }
+<span class="nc" id="L439">        }</span>
+
+    /**
+     * Now populate the predictive-parse table, this procedure reads
+     * hash-maps/tables for the grammar-rule indices, PREDICT-SETs etc, 
+     * and assigns the corresponding values in the predictive-parse table. 
+     */
+    public void populatePredictiveParseTable(GrammarNode gn)
+        {
+<span class="nc" id="L448">        return;</span>
+        }
+    /*
+    // calculate the predict sets
+    gatherPredictSets(gn, null);
+    // now make the predictive parse table
+    predictiveParseTable = new int[ruleHeadToIndex.size()][functionHeadToIndex.size()] ;
+    Iterator it = ruleToPredictSet.entrySet().iterator();
+    while(it.hasNext())
+    {
+    Map.Entry pairs = (Map.Entry)it.next();
+    GrammarNode action = (GrammarNode)pairs.getKey();
+    String ruleHead = action.getHead();
+    int ruleIndex = ((Integer)ruleHeadToIndex.get(ruleHead)).intValue();
+    ArrayList functionHeads = (ArrayList)pairs.getValue();
+    for(int i = 0 ; i &lt; functionHeads.size(); i++)
+    {
+    String functionHead = (String)functionHeads.get(i);
+    int functionHeadIndex = ((Integer)functionHeadToIndex.get(functionHead)).intValue();
+    predictiveParseTable[ruleIndex][functionHeadIndex] 
+    = ((Integer)ruleToIndex.get(action)).intValue() ;
+    }
+    }
+    }
+    */
+
+    /** A simple testing facility. */
+    public static void main(String args[]) throws  FileNotFoundException
+        {
+        // make a dummy EvolutionState that just has an output for testing
+<span class="nc" id="L478">        EvolutionState state = new EvolutionState();</span>
+<span class="nc" id="L479">        state.output = new Output(true);</span>
+<span class="nc" id="L480">        state.output.addLog(ec.util.Log.D_STDOUT,false);</span>
+<span class="nc" id="L481">        state.output.addLog(ec.util.Log.D_STDERR,true);</span>
+
+<span class="nc" id="L483">        GrammarParser gp = new GrammarParser();</span>
+<span class="nc" id="L484">        gp.parseRules(state, new BufferedReader(new FileReader(new File(args[0]))), null);</span>
+<span class="nc" id="L485">        gp.validateRules();</span>
+<span class="nc" id="L486">        System.err.println(gp);</span>
+<span class="nc" id="L487">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

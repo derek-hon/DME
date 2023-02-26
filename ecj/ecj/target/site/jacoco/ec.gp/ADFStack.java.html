@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ADFStack.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">ADFStack.java</span></div><h1>ADFStack.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * ADFStack.java
+ * 
+ * Created: Mon Oct 25 19:48:12 1999
+ * By: Sean Luke
+ */
+
+/**
+ * ADFStack is a special data object used to hold ADF data.
+ * This object is a weird beast and takes some explaining.
+ * It consists of a main stack, a secondary &quot;substack&quot;, and a &quot;reserve&quot; area 
+ * (also implemented as a stack,
+ * but it doesn't have to be).  The reserve is used to &quot;recycle&quot; objects
+ * rather than having to create then new every time.
+ *
+ * &lt;P&gt;When an ADF is evaluated, it first
+ * evaluates its children, then it calls push() on the ADFstack.
+ * push() either creates a new ADFContext, or it fetches one from the
+ * reserve if possible.  It then pushes the context on the main stack,
+ * and also returns the context.  The ADF fills the context's arguments
+ * with the results of its childrens' evaluation, and sets numargs to 
+ * the number of
+ * arguments, then evaluates the
+ * ADF's associated function tree, 
+ *
+ * &lt;p&gt;When an ADM is evaluated, it calls push() on the ADFstack.
+ * The ADM then fills the context's adm node with itself, and sets numargs
+ * to the number of children it has.  Then it calls the ADM's associated
+ * function tree.
+ *
+ * &lt;p&gt;In that tree, if an argument terminal of value &lt;i&gt;n&lt;/i&gt; is evaluated,
+ * the argument terminal calls evaluate(...) on the top context 
+ * on the ADF stack and returns the result.
+ * This method does different things depending on whether the top context
+ * represented an ADF or an ADM.  If it was an ADF, the context simply sets
+ * input to the value of argument &lt;i&gt;n&lt;/i&gt; in the context's argument list,
+ * and returns input.  If it was an ADM, the context pops itself off the
+ * stack and pushes itself on the substack (to set up the right context
+ * for evaluating an original child of the ADM), then evaluates child &lt;i&gt;n&lt;/i&gt;
+ * of the ADM, then pops itself off the substack and pushes itself back
+ * on the stack to restore the context.  Input is set to the evaluated
+ * results, and input is returned.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;context&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.gp.GPContext&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the stack's GPContext class)&lt;/td&gt;&lt;/tr&gt; 
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ gp.adf-stack
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;context&lt;/tt&gt;&lt;br&gt;
+ &lt;td valign=top&gt;(context_proto)&lt;/td&gt;&lt;/tr&gt; 
+ &lt;/table&gt;
+ 
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+public class ADFStack implements Prototype 
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_ADFSTACK = &quot;adf-stack&quot;;
+    public static final String P_ADF = &quot;adf&quot;;
+    public static final String P_CONTEXT = &quot;context&quot;;
+    public ADFContext context_proto;
+    public static final int INITIAL_STACK_SIZE = 2;  // seems like a good size
+    protected int onStack;
+    protected int onSubstack;
+    protected int inReserve;
+    protected ADFContext[] stack;
+    protected ADFContext[] substack;
+    protected ADFContext[] reserve;
+
+    public ADFStack() 
+<span class="nc" id="L92">        { </span>
+<span class="nc" id="L93">        stack = new ADFContext[INITIAL_STACK_SIZE];</span>
+<span class="nc" id="L94">        substack = new ADFContext[INITIAL_STACK_SIZE];</span>
+<span class="nc" id="L95">        reserve = new ADFContext[INITIAL_STACK_SIZE];</span>
+<span class="nc" id="L96">        onStack=0;</span>
+<span class="nc" id="L97">        onSubstack = 0;</span>
+<span class="nc" id="L98">        inReserve = 0;</span>
+<span class="nc" id="L99">        }</span>
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L103">        return GPDefaults.base().push(P_ADFSTACK);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // load our prototype
+
+<span class="nc" id="L110">        Parameter p = base.push(P_CONTEXT);</span>
+<span class="nc" id="L111">        Parameter d = defaultBase().push(P_CONTEXT);</span>
+
+<span class="nc" id="L113">        context_proto = (ADFContext)</span>
+<span class="nc" id="L114">            (state.parameters.getInstanceForParameterEq(p,d,ADFContext.class));</span>
+<span class="nc" id="L115">        context_proto.setup(state,p);</span>
+<span class="nc" id="L116">        }</span>
+
+    public Object clone()
+        {
+        try
+            {
+<span class="nc" id="L122">            ADFStack myobj = (ADFStack) (super.clone());</span>
+
+            // deep-cloned stuff
+<span class="nc" id="L125">            myobj.context_proto = (ADFContext)(context_proto.clone());</span>
+
+            // clone the stack arrays -- dunno if this is faster than new ADFContext[...]
+<span class="nc" id="L128">            myobj.stack = (ADFContext[])(stack.clone());</span>
+<span class="nc" id="L129">            myobj.substack = (ADFContext[])(substack.clone());</span>
+<span class="nc" id="L130">            myobj.reserve = (ADFContext[])(reserve.clone());</span>
+
+            // fill 'em up
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            for(int x=0;x&lt;onStack;x++)</span>
+<span class="nc" id="L134">                myobj.stack[x] = (ADFContext)(stack[x].clone());</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">            for(int x=0;x&lt;onSubstack;x++)</span>
+<span class="nc" id="L136">                myobj.substack[x] = (ADFContext)(substack[x].clone());</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">            for(int x=0;x&lt;inReserve;x++)</span>
+<span class="nc" id="L138">                myobj.reserve[x] = (ADFContext)(reserve[x].clone());</span>
+<span class="nc" id="L139">            return myobj;</span>
+            }
+<span class="nc" id="L141">        catch (CloneNotSupportedException e) </span>
+<span class="nc" id="L142">            { throw new InternalError(); } // never happens</span>
+        }
+    
+    /** Returns an ADFContext from the stack's reserve, or creates one
+        fresh if there are none in reserve.  While you can throw this
+        ADFContext away if you like, it'd be good if you actually didn't
+        call this function unless you expected to push the 
+        context onto the stack with push(ADFContext obj) -- karma!
+    */
+    public final ADFContext get()
+        {
+        // Remove one from reserve
+
+        ADFContext obj;
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (inReserve&gt;0) obj = reserve[--inReserve];</span>
+<span class="nc" id="L157">        else obj = (ADFContext)(context_proto.clone());  // hopefully that doesn't have to happen too many times</span>
+<span class="nc" id="L158">        return obj;</span>
+        }
+
+
+    /** Pushes an ADFContext onto the main stack.  The best way to get an
+        ADFContext to push onto the stack is with get(). Returns obj. */
+
+    public final ADFContext push(ADFContext obj)
+        {
+        // Double stack if necessary
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (onStack==stack.length)</span>
+            {
+<span class="nc" id="L170">            ADFContext[] newstack = new ADFContext[stack.length * 2];</span>
+<span class="nc" id="L171">            System.arraycopy(stack,0,newstack,0,stack.length);</span>
+<span class="nc" id="L172">            stack = newstack;</span>
+            }
+
+        // Add to stack
+<span class="nc" id="L176">        stack[onStack++] = obj;</span>
+        
+        // return it
+<span class="nc" id="L179">        return obj;</span>
+        }
+
+
+    /** Pops off &lt;i&gt;n&lt;/i&gt; items from the stack, if possible. Returns
+        the number of items actually popped off. */ 
+    public final int pop(int n)
+        {
+        int x;
+<span class="nc bnc" id="L188" title="All 2 branches missed.">        for(x = 0 ; x &lt; n; x++)</span>
+            {
+            // Anything left on the stack?
+<span class="nc bnc" id="L191" title="All 2 branches missed.">            if (onStack==0) break;</span>
+
+            // Remove one from stack
+<span class="nc" id="L194">            ADFContext obj = stack[--onStack];</span>
+            
+            // Double reserve if necessary
+<span class="nc bnc" id="L197" title="All 2 branches missed.">            if (inReserve==reserve.length)</span>
+                {
+<span class="nc" id="L199">                ADFContext[] newreserve = new ADFContext[reserve.length * 2];</span>
+<span class="nc" id="L200">                System.arraycopy(reserve,0,newreserve,0,reserve.length);</span>
+<span class="nc" id="L201">                reserve = newreserve;</span>
+                }
+            
+            // Add to reserve
+<span class="nc" id="L205">            reserve[inReserve++] = obj;         </span>
+            }
+<span class="nc" id="L207">        return x;</span>
+        }
+    
+
+
+
+    /** Returns the &lt;i&gt;n&lt;/i&gt;th item in the stack (0-indexed), or null if
+        this goes to the bottom of the stack. */
+    public final ADFContext top(int n)
+        {
+        // is this beyond the stack?
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        if (onStack-n &lt;= 0) return null;</span>
+<span class="nc" id="L219">        else return stack[onStack-n-1];</span>
+        }
+
+
+    /** Moves &lt;i&gt;n&lt;/i&gt; items onto the substack (pops them off the stack and pushes them onto the substack).  Returns the actual number of items for which this was done. */
+    public final int moveOntoSubstack(int n)
+        {
+        int x;
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        for(x=0;x&lt;n;x++)</span>
+            {
+            // is the stack empty?
+<span class="nc bnc" id="L230" title="All 2 branches missed.">            if (onStack==0) break;  // uh oh</span>
+            
+            // Remove one from stack
+<span class="nc" id="L233">            ADFContext obj = stack[--onStack];</span>
+            
+            // Double substack if necessary
+<span class="nc bnc" id="L236" title="All 2 branches missed.">            if (onSubstack == substack.length)</span>
+                {
+<span class="nc" id="L238">                ADFContext[] newsubstack = new ADFContext[substack.length * 2];</span>
+<span class="nc" id="L239">                System.arraycopy(substack,0,newsubstack,0,substack.length);</span>
+<span class="nc" id="L240">                substack = newsubstack;</span>
+                }
+            
+            // Add to substack
+<span class="nc" id="L244">            substack[onSubstack++] = obj;</span>
+            }
+<span class="nc" id="L246">        return x;</span>
+        }
+
+    /** Moves &lt;i&gt;n&lt;/i&gt; items onto the stack (popss them off the substack and pushes them onto the stack). Returns the actual number of items moved from the Substack onto the main stack */
+    public final int moveFromSubstack(int n)
+        {
+        int x;
+<span class="nc bnc" id="L253" title="All 2 branches missed.">        for(x=0;x&lt;n;x++)</span>
+            {
+            // is the substack empty?
+<span class="nc bnc" id="L256" title="All 2 branches missed.">            if (onSubstack==0) break; // uh oh</span>
+            
+            // Remove one from stack
+<span class="nc" id="L259">            ADFContext obj = substack[--onSubstack];</span>
+
+            // Double stack if necessary
+<span class="nc bnc" id="L262" title="All 2 branches missed.">            if (onStack==stack.length)</span>
+                {
+<span class="nc" id="L264">                ADFContext[] newstack = new ADFContext[stack.length * 2];</span>
+<span class="nc" id="L265">                System.arraycopy(stack,0,newstack,0,stack.length);</span>
+<span class="nc" id="L266">                stack = newstack;</span>
+                }
+            
+            // Add to stack
+<span class="nc" id="L270">            stack[onStack++] = obj;</span>
+            }
+<span class="nc" id="L272">        return x;</span>
+        }
+
+    /** Pops off all items on the stack and the substack. */
+    public final void reset()
+        {
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        if (onSubstack&gt;0) moveFromSubstack(onSubstack);</span>
+<span class="nc bnc" id="L279" title="All 2 branches missed.">        if (onStack&gt;0) pop(onStack);</span>
+<span class="nc" id="L280">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

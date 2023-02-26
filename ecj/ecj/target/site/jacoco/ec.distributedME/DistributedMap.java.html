@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DistributedMap.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">DistributedMap.java</span></div><h1>DistributedMap.java</h1><pre class="source lang-java linenums">package ec.distributedME;
+
+import java.util.ArrayList;
+
+import ec.EvolutionState;
+import ec.Setup;
+import ec.util.Parameter;
+
+<span class="nc" id="L9">public class DistributedMap implements Cloneable, Setup{</span>
+    private static final long serialVersionUID = 1;
+
+    /** Equivalent to subpopulations */
+<span class="nc" id="L13">    public ArrayList&lt;EliteMap&gt; submaps               = new ArrayList&lt;&gt;();</span>
+
+    /** Collection of islands */
+    public EliteMap[] subMAPs;
+
+    //Parameters for ECJ
+    public static final String P_SUBMAP_SIZE         = &quot;submaps&quot;;
+    public static final String P_SUBMAP              = &quot;submap&quot;;
+    public static final String P_BEHAVIOUR_SOURCE    = &quot;behaviour-source&quot;;
+    public static final String P_DEFAULT_SUBMAP      = &quot;default-submap&quot;;
+    public static final String NUM_SUBMAPS_PREAMBLE  = &quot;Number of Submaps: &quot;;
+    public static final String SUBMAP_INDEX_PREAMBLE = &quot;Submap Number: &quot;;
+
+    public DistributedMap emptyClone() {
+        try {
+<span class="nc" id="L28">            DistributedMap m = (DistributedMap) clone();</span>
+<span class="nc" id="L29">            m.subMAPs = new EliteMap[subMAPs.length];</span>
+<span class="nc bnc" id="L30" title="All 2 branches missed.">            for (int i = 0 ; i &lt; subMAPs.length ; i ++)</span>
+<span class="nc" id="L31">                m.subMAPs[i] = (EliteMap) subMAPs[i].emptyClone();</span>
+<span class="nc" id="L32">            return m;</span>
+<span class="nc" id="L33">        } catch (CloneNotSupportedException e) {</span>
+<span class="nc" id="L34">            throw new InternalError();// never happens</span>
+        }
+    }
+
+    // public DistributedMap emptyClone() {
+    //     try {
+    //         DistributedMap m = (DistributedMap) clone();
+    //         m.submaps = new ArrayList&lt;EliteMap&gt;(submaps);
+    //         for (int i = 0 ; i &lt; submaps.size() ; i ++)
+    //             m.submaps.add((EliteMap) submaps.get(i).emptyClone());
+    //         return m;
+    //     } catch (CloneNotSupportedException e) {
+    //         throw new InternalError();// never happens
+    //     }
+    // }
+
+    public void clear() {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        for (int i = 0 ; i &lt; submaps.size() ; i ++)</span>
+<span class="nc" id="L52">            ((EliteMap) submaps.get(i)).clearMap();</span>
+<span class="nc" id="L53">    }</span>
+
+    public void setup(final EvolutionState state, final Parameter base) {
+        Parameter p;
+
+<span class="nc" id="L58">        p = base.push(P_SUBMAP_SIZE);</span>
+<span class="nc" id="L59">        int size = state.parameters.getInt(p, null, 1);</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (size &lt;= 0)</span>
+<span class="nc" id="L61">            state.output.fatal(&quot;Submap count must be greater than 0.\n&quot;, base.push(P_SUBMAP_SIZE));</span>
+        // submaps = new ArrayList&lt;EliteMap&gt;(submaps.size());
+<span class="nc" id="L63">        subMAPs = new EliteMap[size];</span>
+        
+        //Set up submaps
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        for (int i = 0 ; i &lt; size ; i ++) {</span>
+<span class="nc" id="L67">            p = base.push(P_SUBMAP).push(&quot;&quot; + i);</span>
+
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            if (!state.parameters.exists(p, null)) {</span>
+<span class="nc" id="L70">                p = base.push(P_DEFAULT_SUBMAP);</span>
+<span class="nc" id="L71">                int defaultSubmap = state.parameters.getInt(p, null, 0);</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                if (defaultSubmap &gt;= 0) {</span>
+<span class="nc" id="L73">                    state.output.warning(&quot;Using submap &quot; + defaultSubmap + &quot; as the default for submap &quot; + i);</span>
+<span class="nc" id="L74">                    p = base.push(P_SUBMAP).push(&quot;&quot; + defaultSubmap);</span>
+                }
+            }
+<span class="nc" id="L77">            subMAPs[i] = (EliteMap) (state.parameters.getInstanceForParameterEq(p, null, EliteMap.class));</span>
+<span class="nc" id="L78">            subMAPs[i].setup(state, p);</span>
+
+            // submaps.add((EliteMap) (state.parameters.getInstanceForParameterEq(p, null, EliteMap.class)));
+            // submaps.get(i).setup(state, p);
+        }
+<span class="nc" id="L83">    }</span>
+
+    /** Populates the population with new individuals */
+    public void populate(EvolutionState state, int thread) {
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        for (int i = 0 ; i &lt; subMAPs.length ; i ++) {</span>
+<span class="nc" id="L88">            subMAPs[i].populate(state, thread, i);</span>
+
+            // submaps.get(i).populate(state, thread, i);
+<span class="nc" id="L91">            state.output.message(</span>
+<span class="nc" id="L92">                &quot;Submap &quot; + i + &quot; successfully populated with: &quot; + subMAPs[i].getOccupants() + &quot; individuals.&quot;);</span>
+        }
+<span class="nc" id="L94">    }</span>
+
+    public int getTotalSubMAPs() {
+<span class="nc" id="L97">        return this.subMAPs.length;</span>
+    }
+
+    public EliteMap getEliteMAP(int index) {
+<span class="nc" id="L101">        return this.subMAPs[index];</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

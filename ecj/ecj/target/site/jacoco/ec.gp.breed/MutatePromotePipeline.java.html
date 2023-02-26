@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MutatePromotePipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.breed</a> &gt; <span class="el_source">MutatePromotePipeline.java</span></div><h1>MutatePromotePipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.breed;
+import ec.*;
+import ec.util.*;
+import ec.gp.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * MutatePromotePipeline.java
+ * 
+ * Created: Wed Dec 15 21:41:30 1999
+ * By: Sean Luke
+ */
+
+/**
+ * MutatePromotePipeline works very similarly to the PromoteNode algorithm
+ * described in  Kumar Chellapilla,
+ * &quot;A Preliminary Investigation into Evolving Modular Programs without Subtree
+ * Crossover&quot;, GP98, and is also similar to the &quot;deletion&quot; operator found in
+ * Una-May O'Reilly's thesis,
+ * &lt;a href=&quot;http://www.ai.mit.edu/people/unamay/thesis.html&quot;&gt;
+ * &quot;An Analysis of Genetic Programming&quot;&lt;/a&gt;.
+ *
+ * &lt;p&gt;MutatePromotePipeline tries &lt;i&gt;tries&lt;/i&gt; times to find a tree
+ * that has at least one promotable node.  It then picks randomly from
+ * all the promotable nodes in the tree, and promotes one.  If it cannot
+ * find a valid tree in &lt;i&gt;tries&lt;/i&gt; times, it gives up and simply
+ * copies the individual.
+ *
+ * &lt;p&gt;&quot;Promotion&quot; means to take a node &lt;i&gt;n&lt;/i&gt; whose parent is &lt;i&gt;m&lt;/i&gt;,
+ * and replacing the subtree rooted at &lt;i&gt;m&lt;/i&gt; with the subtree rooted at &lt;i&gt;n&lt;/i&gt;.
+ *
+ * &lt;p&gt;A &quot;Promotable&quot; node means a node which is capable of promotion
+ * given the existing type constraints.  In general to promote a node &lt;i&gt;foo&lt;/i&gt;,
+ * &lt;i&gt;foo&lt;/i&gt; must have a parent node, and must be type-compatible with the
+ * child slot that its parent fills.
+ *
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ ...as many as the source produces
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tries&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of times to try finding valid pairs of nodes)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.0&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; int &amp;lt; (num trees in individuals), if exists&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(tree chosen for mutation; if parameter doesn't exist, tree is picked at random)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.breed.mutate-promote
+
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L73">public class MutatePromotePipeline extends GPBreedingPipeline</span>
+    {
+    public static final String P_MUTATEPROMOTE = &quot;mutate-promote&quot;;
+    public static final String P_NUM_TRIES = &quot;tries&quot;;
+    public static final int NUM_SOURCES = 1;
+    
+    /** Is our tree fixed?  If not, this is -1 */
+    int tree;
+
+    /** The number of times the pipeline tries to build a valid mutated
+        tree before it gives up and just passes on the original */
+    int numTries;
+
+
+<span class="nc" id="L87">    public Parameter defaultBase() { return GPBreedDefaults.base().push(P_MUTATEPROMOTE); }</span>
+
+<span class="nc" id="L89">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L93">        super.setup(state,base);</span>
+        
+<span class="nc" id="L95">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L97">        numTries = state.parameters.getInt(base.push(P_NUM_TRIES),</span>
+<span class="nc" id="L98">            def.push(P_NUM_TRIES),1);</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (numTries == 0)</span>
+<span class="nc" id="L100">            state.output.fatal(&quot;MutatePromotePipeline has an invalid number of tries (it must be &gt;= 1).&quot;,base.push(P_NUM_TRIES),def.push(P_NUM_TRIES));</span>
+
+<span class="nc" id="L102">        tree = TREE_UNFIXED;</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L104">                def.push(P_TREE).push(&quot;&quot;+0)))</span>
+            {
+<span class="nc" id="L106">            tree = state.parameters.getInt(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L107">                def.push(P_TREE).push(&quot;&quot;+0),0);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            if (tree==-1)</span>
+<span class="nc" id="L109">                state.output.fatal(&quot;Tree fixed value, if defined, must be &gt;= 0&quot;);</span>
+            }
+<span class="nc" id="L111">        }</span>
+
+    private boolean promotable(final GPInitializer initializer,
+        final GPNode node)
+        {
+        // A node is promotable if:
+        // 1: its parent is a GPNode
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        if (!(node.parent instanceof GPNode))</span>
+<span class="nc" id="L119">            return false;</span>
+<span class="nc" id="L120">        GPNode parent = (GPNode)(node.parent);</span>
+
+        GPType t;
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (parent.parent instanceof GPNode)  // ugh, expensive</span>
+<span class="nc" id="L124">            t = ((GPNode)(parent.parent)).constraints(initializer).childtypes[parent.argposition];</span>
+        else 
+<span class="nc" id="L126">            t = ((GPTree)(parent.parent)).constraints(initializer).treetype;</span>
+
+        // 2: the node's returntype is type-compatible with its GRANDparent's return slot
+<span class="nc" id="L129">        return (node.constraints(initializer).returntype.compatibleWith(initializer,t));</span>
+        }
+    
+    
+    private void promoteSomething(final GPNode node)
+        {
+        // the node's parent MUST be a GPNode -- we've checked that already
+<span class="nc" id="L136">        GPNode parent = (GPNode)(node.parent);</span>
+
+<span class="nc" id="L138">        node.parent = parent.parent;</span>
+<span class="nc" id="L139">        node.argposition = parent.argposition;</span>
+        
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if (parent.parent instanceof GPNode)</span>
+<span class="nc" id="L142">            ((GPNode)(parent.parent)).children[parent.argposition] = node;</span>
+<span class="nc" id="L143">        else ((GPTree)(parent.parent)).child = node;</span>
+<span class="nc" id="L144">        return;</span>
+        }
+
+    private int numPromotableNodes(final GPInitializer initializer,
+        final GPNode root, int soFar)
+        {
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (promotable(initializer,root)) soFar++;</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">        for(int x=0;x&lt;root.children.length;x++) </span>
+<span class="nc" id="L152">            soFar = numPromotableNodes(initializer,root.children[x],soFar);</span>
+<span class="nc" id="L153">        return soFar;</span>
+        }
+
+
+    private GPNode promotableNode;
+
+    // sticks the node in 
+    private int pickPromotableNode(final GPInitializer initializer,
+        final GPNode root, int num)
+        {
+<span class="nc bnc" id="L163" title="All 2 branches missed.">        if (promotable(initializer,root))</span>
+            {
+<span class="nc" id="L165">            num--;</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            if (num==-1)  // found it</span>
+                {
+<span class="nc" id="L168">                promotableNode = root;</span>
+<span class="nc" id="L169">                return num;</span>
+                }
+            }
+<span class="nc bnc" id="L172" title="All 2 branches missed.">        for(int x=0;x&lt;root.children.length;x++)</span>
+            {
+<span class="nc" id="L174">            num = pickPromotableNode(initializer,root.children[x],num);</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            if (num==-1) break;  // someone found it</span>
+            }
+<span class="nc" id="L177">        return num;     </span>
+        }
+    
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+        {
+<span class="nc" id="L188">        int start = inds.size();</span>
+                
+        // grab n individuals from our source and stick 'em right into inds.
+        // we'll modify them from there
+<span class="nc" id="L192">        int n = sources[0].produce(min,max,subpopulation,inds, state,thread, misc);</span>
+
+
+        // should we bother?
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+<span class="nc" id="L198">            return n;</span>
+            }
+
+
+
+<span class="nc" id="L203">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+
+        // now let's mutate 'em
+<span class="nc bnc" id="L206" title="All 2 branches missed.">        for(int q=start; q &lt; n+start; q++)</span>
+            {
+<span class="nc" id="L208">            GPIndividual i = (GPIndividual)inds.get(q);</span>
+                    
+<span class="nc bnc" id="L210" title="All 6 branches missed.">            if (tree!=TREE_UNFIXED &amp;&amp; (tree&lt;0 || tree &gt;= i.trees.length))</span>
+                // uh oh
+<span class="nc" id="L212">                state.output.fatal(&quot;MutatePromotePipeline attempted to fix tree.0 to a value which was out of bounds of the array of the individual's trees.  Check the pipeline's fixed tree values -- they may be negative or greater than the number of trees in an individual&quot;); </span>
+
+<span class="nc bnc" id="L214" title="All 2 branches missed.">            for (int x=0;x&lt;numTries;x++)</span>
+                {
+                int t;
+                // pick random tree
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                if (tree==TREE_UNFIXED)</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">                    if (i.trees.length&gt;1) t = state.random[thread].nextInt(i.trees.length);</span>
+<span class="nc" id="L220">                    else t = 0;</span>
+<span class="nc" id="L221">                else t = tree;</span>
+                
+                // is the tree promotable?
+<span class="nc" id="L224">                int numpromote = numPromotableNodes(initializer, i.trees[t].child,0);</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">                if (numpromote==0) continue; // uh oh, try again</span>
+                
+                // promote the node, or if we're unsuccessful, just leave it alone
+<span class="nc" id="L228">                pickPromotableNode(initializer, i.trees[t].child,state.random[thread].</span>
+<span class="nc" id="L229">                    nextInt(numpromote));</span>
+                
+                // promote it
+<span class="nc" id="L232">                promoteSomething(promotableNode );</span>
+<span class="nc" id="L233">                i.evaluated = false;</span>
+<span class="nc" id="L234">                break;</span>
+                }
+
+            
+            // add the new individual, replacing its previous source
+<span class="nc" id="L239">            inds.set(q,i);</span>
+           
+            }
+<span class="nc" id="L242">        return n;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

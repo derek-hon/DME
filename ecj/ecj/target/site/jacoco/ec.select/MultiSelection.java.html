@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MultiSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">MultiSelection.java</span></div><h1>MultiSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.select;
+import ec.*;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * MultiSelection.java
+ * 
+ * Created: Wed Dec 29 21:44:50 1999
+ * By: Sean Luke
+ */
+
+/**
+ * MultiSelection is a SelectionMethod which stores some &lt;i&gt;n&lt;/i&gt; subordinate
+ * SelectionMethods.  Each time it must produce an individual, 
+ * it picks one of these SelectionMethods at random and has it do the production
+ * instead.
+ 
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-selects&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The number of subordinate SelectionMethods)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;select.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != SelectionMethod&lt;/tt&gt;&lt;br&gt;
+ &lt;td valign=top&gt;(Subordinate SelectionMethod &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.multiselect
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;select.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;td&gt;Subordinate SelectionMethod &lt;i&gt;n&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L56">public class MultiSelection extends SelectionMethod</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_NUMSELECTS = &quot;num-selects&quot;;
+    public static final String P_SELECT = &quot;select&quot;;
+    public static final String P_MULTISELECT = &quot;multiselect&quot;;
+
+    /** The MultiSelection's individuals */
+    public SelectionMethod selects[];
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L69">        return SelectDefaults.base().push(P_MULTISELECT);</span>
+        }
+
+    public Object clone()
+        {
+<span class="nc" id="L74">        MultiSelection c = (MultiSelection)(super.clone());</span>
+        
+        // make a new array
+<span class="nc" id="L77">        c.selects = new SelectionMethod[selects.length];</span>
+
+        // clone the selects -- we won't go through the hassle of
+        // determining if we have a DAG or not -- we'll just clone
+        // it out to a tree.  I doubt it's worth it.
+
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        for(int x=0;x&lt;selects.length;x++)</span>
+<span class="nc" id="L84">            c.selects[x] = (SelectionMethod)(selects[x].clone());</span>
+
+<span class="nc" id="L86">        return c;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L91">        super.setup(state,base);</span>
+
+<span class="nc" id="L93">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L95">        int numSelects = state.parameters.getInt(</span>
+<span class="nc" id="L96">            base.push(P_NUMSELECTS),def.push(P_NUMSELECTS),1);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (numSelects==0)</span>
+<span class="nc" id="L98">            state.output.fatal(&quot;The number of MultiSelection sub-selection methods must be &gt;= 1).&quot;,</span>
+<span class="nc" id="L99">                base.push(P_NUMSELECTS),def.push(P_NUMSELECTS));</span>
+
+        // make our arrays
+<span class="nc" id="L102">        selects = new SelectionMethod[numSelects];</span>
+
+<span class="nc" id="L104">        double total = 0.0;</span>
+
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        for(int x=0;x&lt;numSelects;x++)</span>
+            {
+<span class="nc" id="L108">            Parameter p = base.push(P_SELECT).push(&quot;&quot;+x);</span>
+<span class="nc" id="L109">            Parameter d = def.push(P_SELECT).push(&quot;&quot;+x);</span>
+
+<span class="nc" id="L111">            selects[x] = (SelectionMethod)</span>
+<span class="nc" id="L112">                (state.parameters.getInstanceForParameter(</span>
+                    p,d, SelectionMethod.class));       
+<span class="nc" id="L114">            selects[x].setup(state,p);</span>
+            
+            // now check probability
+<span class="nc bnc" id="L117" title="All 2 branches missed.">            if (selects[x].probability&lt;0.0)</span>
+<span class="nc" id="L118">                state.output.error(</span>
+                    &quot;MultiSelection select #&quot; + x + 
+                    &quot; must have a probability &gt;= 0.0&quot;,
+<span class="nc" id="L121">                    p.push(P_PROB),d.push(P_PROB));</span>
+<span class="nc" id="L122">            else total += selects[x].probability;</span>
+            }
+
+<span class="nc" id="L125">        state.output.exitIfErrors();</span>
+
+        // Now check for valid probability
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (total &lt;= 0.0)</span>
+<span class="nc" id="L129">            state.output.fatal(&quot;MultiSelection selects do not sum to a positive probability&quot;,base);</span>
+
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        if (total != 1.0)</span>
+            {
+<span class="nc" id="L133">            state.output.message(&quot;Must normalize probabilities for &quot; + base);</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">            for(int x=0;x&lt;numSelects;x++) selects[x].probability /= total;</span>
+            }
+
+        // totalize
+<span class="nc" id="L138">        double tmp = 0.0;</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">        for(int x=0;x&lt;numSelects-1;x++) // yes, it's off by one</span>
+            { 
+<span class="nc" id="L141">            tmp += selects[x].probability; </span>
+<span class="nc" id="L142">            selects[x].probability = tmp;</span>
+            }
+<span class="nc" id="L144">        selects[numSelects-1].probability = 1.0;</span>
+<span class="nc" id="L145">        }</span>
+
+    public boolean produces(final EvolutionState state,
+        final Population newpop,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (!super.produces(state,newpop,subpopulation,thread))</span>
+<span class="nc" id="L153">            return false;</span>
+
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        for(int x=0;x&lt;selects.length;x++)</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            if (!selects[x].produces(state,newpop,subpopulation,thread))</span>
+<span class="nc" id="L157">                return false;</span>
+<span class="nc" id="L158">        return true;</span>
+        }
+
+
+    public void prepareToProduce(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L166">        super.prepareToProduce(s, subpopulation, thread);</span>
+
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        for(int x=0;x&lt;selects.length;x++)</span>
+<span class="nc" id="L169">            selects[x].prepareToProduce(s,subpopulation,thread);</span>
+<span class="nc" id="L170">        }</span>
+
+
+    public int produce(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+<span class="nc" id="L177">        return selects[BreedingSource.pickRandom(</span>
+<span class="nc" id="L178">                selects,state.random[thread].nextDouble())].produce(</span>
+                    subpopulation,state,thread); 
+        }
+     
+    // Proposed change in semantics: MultiSelection now picks randomly EVERY time it select an
+    // individual, not just a group of individuals
+    /*
+      public int produce(final int min,
+      final int max,
+      final int start,
+      final int subpopulation,
+      final ArrayList&lt;Individual&gt; inds,
+      final EvolutionState state,
+      final int thread, HashMap&lt;String, Object&gt; misc)
+
+      {
+      return selects[BreedingSource.pickRandom(
+      selects,state.random[thread].nextDouble())].produce(
+      min,max,start,subpopulation,inds, state,thread, misc);
+      }
+    */
+    public void preparePipeline(Object hook)
+        {
+        // the default form calls this on all the selects.
+        // note that it follows all the source paths even if they're
+        // duplicates
+<span class="nc bnc" id="L204" title="All 2 branches missed.">        for(int x=0; x&lt;selects.length;x++) </span>
+<span class="nc" id="L205">            selects[x].preparePipeline(hook);</span>
+<span class="nc" id="L206">        }</span>
+        
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

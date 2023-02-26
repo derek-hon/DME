@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AntSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co.ant</a> &gt; <span class="el_source">AntSpecies.java</span></div><h1>AntSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co.ant;
+
+import ec.EvolutionState;
+import ec.Fitness;
+import ec.Individual;
+import ec.Species;
+import ec.Subpopulation;
+import ec.co.ConstructiveIndividual;
+import ec.util.Parameter;
+import java.util.ArrayList;
+
+/**
+ * Coordinates the core behavior of Ant Colony Optimization algorithms.
+ *
+ * There are many kinds of ACO algorithms, but many of them can be defined in terms of a &lt;code&gt;PheromoneTable&lt;/code&gt;,
+ * a &lt;code&gt;ConstructionRule&lt;/code&gt; (which reads pheromones to execute &quot;ants&quot;), and a local and/or global
+ * &lt;code&gt;UpdateRule&lt;/code&gt; (which alter pheromone values in the environment).
+ *
+ * &lt;br/&gt;&lt;br/&gt;
+ *
+ * &lt;code&gt;AntSpecies&lt;/code&gt; species these components for an algorithm and coordinates their execution.  ECJ's ACO
+ * algorithms are controlled by the usual &lt;code&gt;EvolutionState&lt;/code&gt; characters, which hand off control to
+ * &lt;code&gt;Species&lt;/code&gt; at appropriate points to generate solutions or perform pheromone updates.
+ *
+ * @author Eric O. Scott
+ * @see ec.app.tsp
+ * @see ec.app.knapsack
+ */
+<span class="nc bnc" id="L34" title="All 2 branches missed.">public class AntSpecies extends Species</span>
+{
+<span class="nc" id="L36">    public final static Parameter DEFAULT_BASE = new Parameter(&quot;constructive&quot;);</span>
+    public final static String SPECIES_NAME = &quot;constructive-species&quot;;
+
+    public final static String P_CONSTRUCTION_RULE = &quot;construction-rule&quot;;
+    public final static String P_PHEROMONE_TABLE = &quot;pheromone-table&quot;;
+    public final static String P_UPDATE_RULE = &quot;update-rule&quot;;
+    public final static String P_LOCAL_UPDATE_RULE = &quot;local-update-rule&quot;;
+
+    private ConstructionRule constructionRule;
+    private PheromoneTable pheromones;
+    private UpdateRule updateRule;
+    private UpdateRule localUpdateRule;
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+<span class="nc" id="L52">        setupSuper(state, base); // Calling a custom replacement for super.setup(), because Species.setup() looks for parameters that we don't need for ACO.</span>
+<span class="nc bnc" id="L53" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L54" title="All 4 branches missed.">        assert(base != null);</span>
+<span class="nc" id="L55">        constructionRule = (ConstructionRule) state.parameters.getInstanceForParameter(base.push(P_CONSTRUCTION_RULE), null, ConstructionRule.class);</span>
+<span class="nc" id="L56">        constructionRule.setup(state, base.push(P_CONSTRUCTION_RULE));</span>
+
+<span class="nc" id="L58">        pheromones = (PheromoneTable) state.parameters.getInstanceForParameter(base.push(P_PHEROMONE_TABLE), null, PheromoneTable.class);</span>
+<span class="nc" id="L59">        pheromones.setup(state, base.push(P_PHEROMONE_TABLE));</span>
+
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_UPDATE_RULE), null))</span>
+            {
+<span class="nc" id="L63">            updateRule = (UpdateRule) state.parameters.getInstanceForParameter(base.push(P_UPDATE_RULE), null, UpdateRule.class);</span>
+<span class="nc" id="L64">            updateRule.setup(state, base.push(P_UPDATE_RULE));</span>
+            }
+
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_LOCAL_UPDATE_RULE), null))</span>
+            {
+<span class="nc" id="L69">            localUpdateRule = (UpdateRule) state.parameters.getInstanceForParameter(base.push(P_LOCAL_UPDATE_RULE), null, UpdateRule.class);</span>
+<span class="nc" id="L70">            localUpdateRule.setup(state, base.push(P_LOCAL_UPDATE_RULE));</span>
+            }
+<span class="nc bnc" id="L72" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L73">    }</span>
+
+    /** A custom setup method for Species that skips the initialization of the
+     * breeding pipeline.  We call this in place of super.setup(), since this
+     * Species doesn't use a pipeline.
+     */
+    private void setupSuper(final EvolutionState state, final Parameter base)
+    {
+<span class="nc bnc" id="L81" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L82" title="All 4 branches missed.">        assert(base != null);</span>
+<span class="nc" id="L83">        Parameter def = defaultBase();</span>
+        // load our individual prototype
+<span class="nc" id="L85">        i_prototype = (Individual)(state.parameters.getInstanceForParameter(</span>
+<span class="nc" id="L86">                base.push(P_INDIVIDUAL),def.push(P_INDIVIDUAL),</span>
+                Individual. class));
+        // set the species to me before setting up the individual, so they know who I am
+<span class="nc" id="L89">        i_prototype.species = this;</span>
+<span class="nc" id="L90">        i_prototype.setup(state,base.push(P_INDIVIDUAL));</span>
+
+        // load our fitness
+<span class="nc" id="L93">        f_prototype = (Fitness) state.parameters.getInstanceForParameter(</span>
+<span class="nc" id="L94">                base.push(P_FITNESS),def.push(P_FITNESS),</span>
+                Fitness.class);
+<span class="nc" id="L96">        f_prototype.setup(state,base.push(P_FITNESS));</span>
+<span class="nc" id="L97">    }</span>
+
+    /** Apply a global update rule to the pheromone table.
+     *
+     *  @param subpop The Subpopulation to use as the input of the global update. */
+    @Override
+    public void updateSubpopulation(final EvolutionState state, final Subpopulation subpop)
+    {
+<span class="nc" id="L105">        updateRule.updatePheromones(state, pheromones, subpop.individuals);</span>
+<span class="nc bnc" id="L106" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L107">    }</span>
+
+    /** Apply a local update rule to the pheromone table.
+     *
+     * @param ind The Individual to use as the input of the local update. */
+    @Override
+    public void updateIndividual(final EvolutionState state, final Individual ind)
+    {
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (localUpdateRule != null)</span>
+<span class="nc" id="L116">            localUpdateRule.updatePheromones(state, pheromones, new ArrayList() {{ add(ind); }});</span>
+<span class="nc" id="L117">    }</span>
+
+    @Override
+    public ConstructiveIndividual newIndividual(final EvolutionState state, final int thread)
+    {
+<span class="nc bnc" id="L122" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L123" title="All 4 branches missed.">        assert(thread &gt;= 0);</span>
+
+<span class="nc" id="L125">        final ConstructiveIndividual ind = (ConstructiveIndividual)(super.newIndividual(state, thread));</span>
+<span class="nc bnc" id="L126" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L127">        return constructionRule.constructSolution(state, ind, pheromones, thread);</span>
+    }
+
+    @Override
+    public Parameter defaultBase()
+    {
+<span class="nc" id="L133">        return DEFAULT_BASE.push(SPECIES_NAME);</span>
+    }
+
+    /** Representation invariant, used for verification.
+     *
+     * @return true if the class is found to be in an erroneous state.
+     */
+    public final boolean repOK()
+    {
+<span class="nc bnc" id="L142" title="All 4 branches missed.">        return DEFAULT_BASE != null</span>
+                &amp;&amp; SPECIES_NAME != null
+<span class="nc bnc" id="L144" title="All 4 branches missed.">                &amp;&amp; !SPECIES_NAME.isEmpty()</span>
+                &amp;&amp; P_UPDATE_RULE != null
+<span class="nc bnc" id="L146" title="All 4 branches missed.">                &amp;&amp; !P_UPDATE_RULE.isEmpty()</span>
+                &amp;&amp; P_CONSTRUCTION_RULE != null
+<span class="nc bnc" id="L148" title="All 8 branches missed.">                &amp;&amp; !P_CONSTRUCTION_RULE.isEmpty()</span>
+                &amp;&amp; constructionRule != null
+                &amp;&amp; updateRule != null
+                &amp;&amp; pheromones != null;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

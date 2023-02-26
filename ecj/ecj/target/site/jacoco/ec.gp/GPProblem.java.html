@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPProblem.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPProblem.java</span></div><h1>GPProblem.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.util.*;
+import ec.*;
+import ec.simple.*;
+
+/* 
+ * GPProblem.java
+ * 
+ * Created: Wed Oct 27 18:07:06 1999
+ * By: Sean Luke
+ */
+
+/**
+ * A GPProblem is a Problem which is meant to efficiently handle GP
+ * evaluation.  GPProblems hold one ADFStack, which is used to 
+ * evaluate a large number of trees without having to be garbage-collected
+ * and reallocated.  Be sure to call stack.reset() after each
+ * tree evaluation.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;&lt;tt&gt;.stack&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or = ec.ADFStack&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the GPProblem's ADF Stack)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;&lt;tt&gt;.data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.GPData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the GPProblem's basic GPData type)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.problem
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;&lt;tt&gt;.stack&lt;/tt&gt;&lt;br&gt;
+ &lt;td valign=top&gt;(stack)&lt;/td&gt;&lt;/tr&gt; 
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;&lt;tt&gt;.data&lt;/tt&gt;&lt;br&gt;
+ &lt;td valign=top&gt;(data)&lt;/td&gt;&lt;/tr&gt; 
+ &lt;/table&gt;
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L52">public abstract class GPProblem extends Problem implements SimpleProblemForm</span>
+    {
+    public final static String P_GPPROBLEM = &quot;problem&quot;;
+    public final static String P_STACK = &quot;stack&quot;;
+    public final static String P_DATA = &quot;data&quot;;
+
+    /** The GPProblem's stack */
+    public ADFStack stack;
+
+    /** The GPProblem's GPData */
+    public GPData input;
+
+    /** GPProblem defines a default base so your subclass doesn't
+        absolutely have to. */
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L68">        return GPDefaults.base().push(P_GPPROBLEM);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L73">        Parameter p = base.push(P_STACK);</span>
+<span class="nc" id="L74">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L76">        stack = (ADFStack)</span>
+<span class="nc" id="L77">            (state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L78">                p,def.push(P_STACK),ADFStack.class));</span>
+<span class="nc" id="L79">        stack.setup(state,p);</span>
+
+<span class="nc" id="L81">        p = base.push(P_DATA);</span>
+<span class="nc" id="L82">        input = (GPData)</span>
+<span class="nc" id="L83">            (state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L84">                p,def.push(P_DATA),GPData.class));</span>
+<span class="nc" id="L85">        input.setup(state,p);</span>
+<span class="nc" id="L86">        }</span>
+
+    public Object clone()
+        {
+<span class="nc" id="L90">        GPProblem prob = (GPProblem)(super.clone());</span>
+        
+        // deep-clone the stack; it's not shared
+<span class="nc" id="L93">        prob.stack = (ADFStack)(stack.clone());</span>
+        
+        // deep-clone the data
+<span class="nc" id="L96">        prob.input = (GPData)(input.clone());</span>
+        
+<span class="nc" id="L98">        return prob;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

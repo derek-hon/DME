@@ -1,0 +1,288 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPNodeBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPNodeBuilder.java</span></div><h1>GPNodeBuilder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * GPNodeBuilder.java
+ * 
+ * Created: Thu Oct  7 17:31:41 1999
+ * By: Sean Luke
+ */
+
+/**
+ * GPNodeBuilder is a Prototype which defines the superclass for objects
+ * which create (&quot;grow&quot;) GP trees, whether for population initialization,
+ * subtree mutation, or whatnot.  It defines a single abstract method, 
+ * newRootedTree(...), which must be implemented to grow the tree.
+ *
+ * &lt;p&gt;GPNodeBuilder also provides some facilities for user-specification
+ * of probabilities of various tree sizes, which the tree builder can use
+ * as it sees fit (or totally ignore).  
+ * There are two such facilities.  First, the user might
+ * specify a minimum and maximum range for tree sizes to be picked from;
+ * trees would likely be picked uniformly from this range.  Second, the
+ * user might specify an array, &lt;tt&gt;num-sizes&lt;/tt&gt; long, of probabilities of 
+ * tree sizes, in order to give a precise probability distribution. 
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1, or undefined&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(smallest valid size, see discussion above)&lt;/td&gt;&lt;/tr&gt;
+   
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= &lt;tt&gt;min-size&lt;/tt&gt;, or undefined&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(largest valid size, see discussion above)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-sizes&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1, or underfined&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of sizes in the size distribution, see discussion above)
+ &lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;size&lt;/tt&gt;.&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0&lt;/font&gt;, or undefined&lt;/td&gt;
+ &lt;td valign=top&gt;(probability of choosing size &lt;i&gt;n&lt;/i&gt;.  See discussion above)
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L60">public abstract class GPNodeBuilder implements Prototype</span>
+    {
+    /** Produces a new rooted tree of GPNodes whose root's return type is
+        swap-compatible with &lt;i&gt;type&lt;/i&gt;.  When you build a brand-new
+        tree out of GPNodes cloned from the
+        prototypes stored in the GPNode[] arrays, you must remember
+        to call resetNode() on each cloned GPNode.  This gives ERCs a chance
+        to randomize themselves and set themselves up. 
+
+        &lt;p&gt;requestedSize is an
+        optional argument which differs based on the GPNodeBuilder used.
+        Typically it is set to a tree size that the calling method wants
+        the GPNodeBuilder to produce; the GPNodeBuilder is not obligated to
+        produce a tree of this size, but it should attempt to interpret this
+        argument as appropriate for the given algorithm.  To indicate that
+        you don't care what size the tree should be, you can pass NOSIZEGIVEN. 
+        However if the algorithm &lt;i&gt;requires&lt;/i&gt; you to provide a size, it
+        will generate a fatal error to let you know. */
+
+    public static final int NOSIZEGIVEN = -1;
+    public static final int CHECK_BOUNDARY = 8;
+    public static final String P_MINSIZE = &quot;min-size&quot;;
+    public static final String P_MAXSIZE = &quot;max-size&quot;;
+    public static final String P_NUMSIZES = &quot;num-sizes&quot;;
+    public static final String P_SIZE = &quot;size&quot;;
+
+    public int minSize;  /** the minium possible size  -- if unused, it's 0 */
+    public int maxSize;  /** the maximum possible size  -- if unused, it's 0 */
+    public double[] sizeDistribution;  /* sizeDistribution[x] represents
+                                          the likelihood of size x appearing 
+                                          -- if unused, it's null */
+                        
+    /** Returns true if some size distribution (either minSize and maxSize,
+        or sizeDistribution) is set up by the user in order to pick sizes randomly. */
+    public boolean canPick()
+        {
+<span class="nc bnc" id="L96" title="All 4 branches missed.">        return (minSize!=0 || sizeDistribution !=null);</span>
+        }
+    
+    /** Assuming that either minSize and maxSize, or sizeDistribution, is defined,
+        picks a random size from minSize...maxSize inclusive, or randomly
+        from sizeDistribution. */ 
+    public int pickSize(final EvolutionState state, final int thread)
+        {
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (minSize&gt;0)</span>
+            {
+            // pick from minSize...maxSize
+<span class="nc" id="L107">            return state.random[thread].nextInt(maxSize-minSize+1) + minSize;</span>
+            }
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        else if (sizeDistribution!=null)</span>
+            {
+            // pick from distribution
+<span class="nc" id="L112">            return RandomChoice.pickFromDistribution(</span>
+                sizeDistribution,
+<span class="nc" id="L114">                state.random[thread].nextDouble()) + 1 ;</span>
+            }
+<span class="nc" id="L116">        else throw new InternalError(&quot;Neither minSize nor sizeDistribution is defined in GPNodeBuilder&quot;);</span>
+        }
+
+
+    public Object clone()
+        {
+        try
+            {
+<span class="nc" id="L124">            GPNodeBuilder c = (GPNodeBuilder)(super.clone());</span>
+
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            if (sizeDistribution != null) c.sizeDistribution = </span>
+<span class="nc" id="L127">                                              (double[]) (sizeDistribution.clone());</span>
+
+<span class="nc" id="L129">            return c;</span>
+            }
+<span class="nc" id="L131">        catch (CloneNotSupportedException e)</span>
+<span class="nc" id="L132">            { throw new InternalError(); } // never happens</span>
+        }
+
+
+
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L140">        Parameter def = defaultBase();</span>
+
+        // min and max size
+
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_MINSIZE),</span>
+<span class="nc" id="L145">                def.push(P_MINSIZE)))</span>
+            {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">            if (!(state.parameters.exists(base.push(P_MAXSIZE),</span>
+<span class="nc" id="L148">                        def.push(P_MAXSIZE))))</span>
+<span class="nc" id="L149">                state.output.fatal(&quot;This GPNodeBuilder has a &quot; + </span>
+                    P_MINSIZE + &quot; but not a &quot; + P_MAXSIZE + &quot;.&quot;);
+           
+<span class="nc" id="L152">            minSize = state.parameters.getInt(</span>
+<span class="nc" id="L153">                base.push(P_MINSIZE), def.push(P_MINSIZE),1);</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">            if (minSize==0) </span>
+<span class="nc" id="L155">                state.output.fatal(&quot;The GPNodeBuilder must have a min size &gt;= 1.&quot;,</span>
+<span class="nc" id="L156">                    base.push(P_MINSIZE), def.push(P_MINSIZE));</span>
+            
+<span class="nc" id="L158">            maxSize = state.parameters.getInt(</span>
+<span class="nc" id="L159">                base.push(P_MAXSIZE), def.push(P_MAXSIZE),1);</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">            if (maxSize==0) </span>
+<span class="nc" id="L161">                state.output.fatal(&quot;The GPNodeBuilder must have a max size &gt;= 1.&quot;,</span>
+<span class="nc" id="L162">                    base.push(P_MAXSIZE), def.push(P_MAXSIZE));</span>
+
+<span class="nc bnc" id="L164" title="All 2 branches missed.">            if (minSize &gt; maxSize)</span>
+<span class="nc" id="L165">                state.output.fatal(</span>
+                    &quot;The GPNodeBuilder must have min size &lt;= max size.&quot;,
+<span class="nc" id="L167">                    base.push(P_MINSIZE), def.push(P_MINSIZE));</span>
+            }
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        else if (state.parameters.exists(base.push(P_MAXSIZE),</span>
+<span class="nc" id="L170">                def.push(P_MAXSIZE)))</span>
+<span class="nc" id="L171">            state.output.fatal(&quot;This GPNodeBuilder has a &quot; + </span>
+                P_MAXSIZE + &quot; but not a &quot; + P_MINSIZE + &quot;.&quot;,
+<span class="nc" id="L173">                base.push(P_MAXSIZE), def.push(P_MAXSIZE));</span>
+
+        // load sizeDistribution
+
+<span class="nc bnc" id="L177" title="All 2 branches missed.">        else if (state.parameters.exists(base.push(P_NUMSIZES),</span>
+<span class="nc" id="L178">                def.push(P_NUMSIZES)))</span>
+            {
+<span class="nc" id="L180">            int siz = state.parameters.getInt(</span>
+<span class="nc" id="L181">                base.push(P_NUMSIZES), def.push(P_NUMSIZES),1);</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">            if (siz==0)</span>
+<span class="nc" id="L183">                state.output.fatal(&quot;The number of sizes in the GPNodeBuilder's distribution must be &gt;= 1. &quot;);</span>
+<span class="nc" id="L184">            sizeDistribution = new double[siz];</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_SIZE).push(&quot;0&quot;),</span>
+<span class="nc" id="L186">                    def.push(P_SIZE).push(&quot;0&quot;)))</span>
+<span class="nc" id="L187">                state.output.warning(</span>
+                    &quot;GPNodeBuilder does not use size #0 in the distribution&quot;,
+<span class="nc" id="L189">                    base.push(P_SIZE).push(&quot;0&quot;),</span>
+<span class="nc" id="L190">                    def.push(P_SIZE).push(&quot;0&quot;));</span>
+            
+<span class="nc" id="L192">            double sum = 0.0;</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">            for(int x=0;x&lt;siz;x++)</span>
+                {
+<span class="nc" id="L195">                sizeDistribution[x] = state.parameters.getDouble(</span>
+<span class="nc" id="L196">                    base.push(P_SIZE).push(&quot;&quot;+(x+1)), </span>
+<span class="nc" id="L197">                    def.push(P_SIZE).push(&quot;&quot;+(x+1)), 0.0);</span>
+<span class="nc bnc" id="L198" title="All 2 branches missed.">                if (sizeDistribution[x]&lt;0.0)</span>
+                    {
+<span class="nc" id="L200">                    state.output.warning(</span>
+                        &quot;Distribution value #&quot; + x + &quot; negative or not defined, assumed to be 0.0&quot;,
+<span class="nc" id="L202">                        base.push(P_SIZE).push(&quot;&quot;+(x+1)), </span>
+<span class="nc" id="L203">                        def.push(P_SIZE).push(&quot;&quot;+(x+1)));</span>
+<span class="nc" id="L204">                    sizeDistribution[x] = 0.0;</span>
+                    }
+<span class="nc" id="L206">                sum += sizeDistribution[x];</span>
+                }
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            if (sum&gt;1.0)</span>
+<span class="nc" id="L209">                state.output.warning(</span>
+                    &quot;Distribution sums to greater than 1.0&quot;,
+<span class="nc" id="L211">                    base.push(P_SIZE),</span>
+<span class="nc" id="L212">                    def.push(P_SIZE));</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">            if (sum==0.0)</span>
+<span class="nc" id="L214">                state.output.fatal(</span>
+                    &quot;Distribution is all 0's&quot;,
+<span class="nc" id="L216">                    base.push(P_SIZE),</span>
+<span class="nc" id="L217">                    def.push(P_SIZE));</span>
+            
+            // normalize and prepare
+<span class="nc" id="L220">            RandomChoice.organizeDistribution(sizeDistribution);</span>
+            }
+<span class="nc" id="L222">        }</span>
+
+    public abstract GPNode newRootedTree(final EvolutionState state,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final GPFunctionSet set,
+        final int argposition,
+        final int requestedSize);
+        
+    /** Issues a warning that no terminal was found with a return type of the given type, and that an algorithm
+        had requested one.  If fail is true, then a fatal is issued rather than a warning.  The warning takes
+        the form of a one-time big explanatory message, followed by a one-time-per-type message. */
+    protected void warnAboutNoTerminalWithType(GPType type, boolean fail, EvolutionState state)
+        {
+        // big explanation -- appears only once
+<span class="nc" id="L238">        state.output.warnOnce(&quot;A GPNodeBuilder has been requested at least once to generate a one-node tree with &quot; +</span>
+            &quot;a return value type-compatable with a certain type; but there is no TERMINAL which is type-compatable &quot; +
+            &quot;in this way.  As a result, the algorithm was forced to use a NON-TERMINAL, making the tree larger than &quot; +
+            &quot;requested, and exposing more child slots to fill, which if not carefully considered, could &quot; +
+            &quot;recursively repeat this problem and eventually fill all memory.&quot;);
+                
+        // shorter explanation -- appears for each node builder and type combo
+<span class="nc bnc" id="L245" title="All 2 branches missed.">        if (fail)</span>
+<span class="nc" id="L246">            state.output.fatal(&quot;&quot; + this.getClass() + &quot; can't find a terminal type-compatable with &quot; + type + </span>
+                &quot; and cannot replace it with a nonterminal.  You may need to try a different node-builder algorithm.&quot;);
+        else
+<span class="nc" id="L249">            state.output.warnOnce(&quot;&quot; + this.getClass() + &quot; can't find a terminal type-compatable with &quot; + type);</span>
+<span class="nc" id="L250">        }</span>
+                
+    /** If the given test is true, issues a warning that no terminal was found with a return type of the given type, and that an algorithm
+        had requested one.  If fail is true, then a fatal is issued rather than a warning.  The warning takes
+        the form of a one-time big explanatory message, followed by a one-time-per-type message. Returns the value of the test.
+        This form makes it easy to insert warnings into if-statements.  */
+    protected boolean warnAboutNonterminal(boolean test, GPType type, boolean fail, EvolutionState state)
+        {
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        if (test) warnAboutNonTerminalWithType(type, fail, state);</span>
+<span class="nc" id="L259">        return test;</span>
+        }
+         
+    /** Issues a warning that no nonterminal was found with a return type of the given type, and that an algorithm
+        had requested one.  If fail is true, then a fatal is issued rather than a warning.  The warning takes
+        the form of a one-time big explanatory message, followed by a one-time-per-type message. */
+    protected void warnAboutNonTerminalWithType(GPType type, boolean fail, EvolutionState state)
+        {
+        // big explanation -- appears only once
+<span class="nc" id="L268">        state.output.warnOnce(&quot;A GPNodeBuilder has been requested at least once to generate a tree with &quot; +</span>
+            &quot;a return value type-compatable with a certain type; but there is no NON-TERMINAL which is type-compatable &quot; +
+            &quot;in this way.  As a result, the algorithm was forced to use a TERMINAL, making the tree smaller than &quot; +
+            &quot;requested.&quot;);
+                
+        // shorter explanation -- appears for each node builder and type combo
+<span class="nc bnc" id="L274" title="All 2 branches missed.">        if (fail)</span>
+<span class="nc" id="L275">            state.output.fatal(&quot;&quot; + this.getClass() + &quot; can't find a non-terminal type-compatable with &quot; + type + </span>
+                &quot; and cannot replace it with a terminal.  You may need to try a different node-builder algorithm.&quot;);
+        else
+<span class="nc" id="L278">            state.output.warnOnce(&quot;&quot; + this.getClass() + &quot; can't find a non-terminal type-compatable with &quot; + type);</span>
+<span class="nc" id="L279">        }</span>
+
+    /** Issues a fatal error that no node (nonterminal or terminal) was found with a return type of the given type, and that an algorithm
+        had requested one.  */
+    protected void errorAboutNoNodeWithType(GPType type, EvolutionState state)
+        {
+<span class="nc" id="L285">        state.output.fatal(&quot;&quot; + this.getClass() + &quot; could find no terminal or nonterminal type-compatable with &quot; + type);</span>
+<span class="nc" id="L286">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PTC1.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.build</a> &gt; <span class="el_source">PTC1.java</span></div><h1>PTC1.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.build;
+import ec.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * PTC1.java
+ * 
+ * Created: Tue Jan 25 21:36:02 2000
+ * By: Sean Luke
+ */
+
+/**
+ * PTC1 implements the &quot;Strongly-typed Probabilistic Tree Creation 1 (PTC1)&quot; algorithm described in 
+ *
+ * &lt;p&gt;Luke, Sean. 2000. &lt;i&gt;Issues in Scaling Genetic Programming: Breeding Strategies, Tree Generation, and Code Bloat.&lt;/i&gt; Ph.D. Dissertation, Department of Computer Science, University of Maryland, College Park, Maryland. 
+ *
+ * &lt;p&gt; ...and also in
+ *
+ * &lt;p&gt;Luke, Sean. 2000. Two fast tree-creation algorithms for genetic programming. In &lt;i&gt;IEEE Transactions on Evolutionary Computation&lt;/i&gt; 4:3 (September 2000), 274-283. IEEE. 
+ *
+ * &lt;p&gt; Both can be found at &lt;a href=&quot;http://www.cs.gmu.edu/~sean/papers/&quot;&gt;http://www.cs.gmu.edu/~sean/papers/&lt;/a&gt;
+ * 
+ * &lt;p&gt; PTC1 requires that your function set to implement PTCFunctionSetForm.  The
+ * provided function set, PTCFunctionSet, does exactly this.
+ *
+ * &lt;p&gt;The Strongly-typed PTC1 algorithm is a derivative of the GROW algorithm
+ * used in ec.gp.koza.GrowBuilder.  The primary differences are:
+ * 
+ &lt;ul&gt;
+ &lt;li&gt; PTC1 guarantees that trees generated will have an &lt;i&gt;expected&lt;/i&gt; (mean) tree size, provided by the user.  There is no guarantee on variance.  This is different from GROW, which doesn't give any user control at all.
+ &lt;li&gt; PTC1 does not have a min-depth value.  In essence, PTC1's min-depth value is always set to 1.
+ &lt;li&gt; PTC1's max-depth value should really only be used to enforce a large memory restriction.  Unlike GROW, where it's used to keep GROW from going nuts.
+ &lt;li&gt; PTC1 has provisions for picking nonterminals with various probabilities over other nonterminals (and likewise for terminals).  To use this, tweak the PTCFunctionSetForm object.
+ &lt;/ul&gt;
+ *
+ * PTC1 assumes that the requested size passed to newRootedTree(...) is the &lt;i&gt;expected&lt;/i&gt; size.   If the value is NOSIZEGIVEN, then PTC1 will use the expected size defined by the &lt;tt&gt;expected-size&lt;/tt&gt; parameter.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;expected-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;default expected tree size&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-depth&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;maximum allowable tree depth (usually a big value)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.build.ptc1
+
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L64">public class PTC1 extends GPNodeBuilder </span>
+    {
+    public static final String P_PTC1 = &quot;ptc1&quot;;
+    public static final String P_EXPECTED = &quot;expected-size&quot;;
+    public static final String P_MAXDEPTH = &quot;max-depth&quot;;
+
+    /** The largest maximum tree depth PTC1 can specify -- should be big. */
+    public int maxDepth;
+
+    /** The default expected tree size for PTC1 */
+    public int expectedSize;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L78">        return GPBuildDefaults.base().push(P_PTC1);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L83">        super.setup(state,base);</span>
+
+<span class="nc" id="L85">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L87">        expectedSize = state.parameters.getInt(base.push(P_EXPECTED),</span>
+<span class="nc" id="L88">            def.push(P_EXPECTED),1);</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (expectedSize &lt; 1)</span>
+<span class="nc" id="L90">            state.output.fatal(&quot;Default expected size must be &gt;= 1&quot;,</span>
+<span class="nc" id="L91">                base.push(P_EXPECTED),</span>
+<span class="nc" id="L92">                def.push(P_EXPECTED));</span>
+
+<span class="nc" id="L94">        maxDepth = state.parameters.getInt(base.push(P_MAXDEPTH),</span>
+<span class="nc" id="L95">            def.push(P_MAXDEPTH),1);</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (maxDepth &lt; 1)</span>
+<span class="nc" id="L97">            state.output.fatal(&quot;Maximum depth must be &gt;= 1&quot;,</span>
+<span class="nc" id="L98">                base.push(P_MAXDEPTH),</span>
+<span class="nc" id="L99">                def.push(P_MAXDEPTH));</span>
+        
+<span class="nc" id="L101">        }</span>
+
+
+    public GPNode newRootedTree(final EvolutionState state,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final GPFunctionSet set,
+        final int argposition,
+        final int requestedSize)
+        {
+<span class="nc bnc" id="L112" title="All 2 branches missed.">        if (!(set instanceof PTCFunctionSetForm))</span>
+<span class="nc" id="L113">            state.output.fatal(&quot;Set &quot; + set.name + &quot; is not of the form ec.gp.build.PTCFunctionSetForm, and so cannot be used with PTC Nodebuilders.&quot;);</span>
+
+        // build the tree
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (requestedSize == NOSIZEGIVEN)  // use the default</span>
+            {
+<span class="nc" id="L118">            return ptc1(state,0,type,thread,parent,argposition,</span>
+                set,(PTCFunctionSetForm)set,
+<span class="nc" id="L120">                ((PTCFunctionSetForm)set).nonterminalSelectionProbabilities(expectedSize));</span>
+            }
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (requestedSize &lt; 1)</span>
+<span class="nc" id="L123">            state.output.fatal(&quot;etc.gp.build.PTC1 was requested to build a tree, but a requested size was given that is &lt; 1.&quot;);</span>
+<span class="nc" id="L124">        return ptc1(state,0,type,thread,parent,argposition,</span>
+            set,(PTCFunctionSetForm)set,
+<span class="nc" id="L126">            ((PTCFunctionSetForm)set).nonterminalSelectionProbabilities(requestedSize));</span>
+        }
+
+    
+
+    /** A private function which recursively returns a GROW tree to newRootedTree(...) */
+    private GPNode ptc1(final EvolutionState state,
+        final int current,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final int argposition,
+        final GPFunctionSet set,
+        final PTCFunctionSetForm pset, // same as set
+        final double[] nonterminalSelectionProbabilities) 
+        
+        {
+        // ptc1 can mess up if there are no available terminals for a given type.  If this occurs,
+        // and we find ourselves unable to pick a terminal when we want to do so, we will issue a warning,
+        // and pick a nonterminal, violating the PTC1 size and depth contracts.  This can lead to pathological situations
+        // where the system will continue to go on and on unable to stop because it can't pick a terminal,
+        // resulting in running out of memory or some such.  But there are cases where we'd want to let
+        // this work itself out.
+<span class="nc" id="L149">        boolean triedTerminals = false;</span>
+                
+<span class="nc" id="L151">        int t = type.type;</span>
+<span class="nc" id="L152">        GPNode[] terminals = set.terminals[t];</span>
+<span class="nc" id="L153">        GPNode[] nonterminals = set.nonterminals[t];</span>
+<span class="nc" id="L154">        GPNode[] nodes = set.nodes[t];          </span>
+
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (nodes.length == 0)</span>
+<span class="nc" id="L157">            errorAboutNoNodeWithType(type, state);   // total failure</span>
+
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        if ((  (current+1 &gt;= maxDepth) ||                                                    // Now pick if we're at max depth</span>
+<span class="nc bnc" id="L160" title="All 4 branches missed.">                !(state.random[thread].nextBoolean(nonterminalSelectionProbabilities[t])) ||  // OR if we're below p_y</span>
+<span class="nc bnc" id="L161" title="All 6 branches missed.">                warnAboutNonterminal(nonterminals.length==0, type, false, state)) &amp;&amp;         // OR if there are NO nonterminals!</span>
+            (triedTerminals = true) &amp;&amp;                                                       // [first set triedTerminals]
+            terminals.length != 0)                                                           // AND if there are available terminals
+            {
+<span class="nc" id="L165">            GPNode n = (GPNode)</span>
+<span class="nc" id="L166">                terminals[RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L167">                    pset.terminalProbabilities(t),</span>
+<span class="nc" id="L168">                    state.random[thread].nextDouble())].lightClone();</span>
+<span class="nc" id="L169">            n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L170">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L171">            n.parent = parent;</span>
+<span class="nc" id="L172">            return n;</span>
+            }
+        else  // above p_y, pick a nonterminal by q_ny probabilities
+            {
+<span class="nc bnc" id="L176" title="All 2 branches missed.">            if (triedTerminals) warnAboutNoTerminalWithType(type, false, state);        // we tried terminals and we're here because there were none!</span>
+
+<span class="nc" id="L178">            GPNode n = (GPNode)</span>
+<span class="nc" id="L179">                nonterminals[RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L180">                    pset.nonterminalProbabilities(t),</span>
+<span class="nc" id="L181">                    state.random[thread].nextDouble())].lightClone();</span>
+<span class="nc" id="L182">            n.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+<span class="nc" id="L183">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L184">            n.parent = parent;</span>
+
+            // Populate the node...
+<span class="nc" id="L187">            GPType[] childtypes = n.constraints(((GPInitializer)state.initializer)).childtypes;</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">            for(int x=0;x&lt;childtypes.length;x++)</span>
+<span class="nc" id="L189">                n.children[x] = ptc1(state,current+1,childtypes[x],thread,n,x,set,pset,nonterminalSelectionProbabilities);</span>
+<span class="nc" id="L190">            return n;       </span>
+            }
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

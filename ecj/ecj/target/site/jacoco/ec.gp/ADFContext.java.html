@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ADFContext.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">ADFContext.java</span></div><h1>ADFContext.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * ADFContext.java
+ * 
+ * Created: Tue Oct 26 13:36:46 1999
+ * By: Sean Luke
+ */
+
+/**
+ * ADFContext is the object pushed onto an ADF stack which represents
+ * the current context of an ADM or ADF function call, that is, how to
+ * get the argument values that argument_terminals need to return.
+ *
+ * &lt;p&gt;&lt;i&gt;adf&lt;/i&gt; contains the relevant ADF/ADM node. 
+ * If it's an ADF
+ * function call, then &lt;i&gt;arguments[]&lt;/i&gt; contains the evaluated arguments
+ * to the ADF.  If it's an ADM function call,
+ * then &lt;i&gt;arguments[]&lt;/i&gt; is set to false.
+ *
+ * &lt;p&gt;You set up the ADFContext object for a given ADF or ADM node with
+ * the prepareADF(...) and prepareADM(...) functions.
+ *
+ * &lt;p&gt;To evaluate an argument number from an ADFContext, call evaluate(...),
+ * and the results are evaluated and copied into input.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L40">public class ADFContext implements Prototype</span>
+    {
+    public final static String P_ADFCONTEXT = &quot;adf-context&quot;;  // deprecated
+
+    /** The ADF/ADM node proper */
+    public ADF adf;
+
+    /** An array of GPData nodes (none of the null, when it's used) 
+        holding an ADF's arguments' return results */
+<span class="nc" id="L49">    public GPData[] arguments = new GPData[0];</span>
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L53">        return GPDefaults.base().push(P_ADFCONTEXT);</span>
+        }
+
+    public Object clone()
+        {
+        try 
+            {
+<span class="nc" id="L60">            ADFContext myobj = (ADFContext) (super.clone());</span>
+
+            // deep-clone the contexts
+<span class="nc" id="L63">            myobj.arguments = new GPData[arguments.length];</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">            for(int x=0;x&lt;myobj.arguments.length;x++)</span>
+<span class="nc" id="L65">                myobj.arguments[x] = (GPData)(arguments[x].clone());</span>
+
+<span class="nc" id="L67">            return myobj;</span>
+            }
+<span class="nc" id="L69">        catch (CloneNotSupportedException e)</span>
+<span class="nc" id="L70">            { throw new InternalError(); }</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L75">        }</span>
+
+
+    /** Evaluates the argument number in the current context */
+    public void evaluate(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem,
+        final int argument)
+        {
+        // do I have that many arguments?
+<span class="nc bnc" id="L88" title="All 4 branches missed.">        if (argument &gt;= adf.children.length || argument &lt; 0)  // uh oh </span>
+            {
+<span class="nc" id="L90">            individual.printIndividual(state,0);</span>
+<span class="nc" id="L91">            state.output.fatal(&quot;Invalid argument number for &quot; + adf.errorInfo());</span>
+            }
+
+        // Am I an ADM or an ADF?
+        //if (adf==null)
+        //    state.output.fatal(&quot;ADF is null for &quot; + adf.errorInfo());
+        // else 
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (!(adf instanceof ADM))  // it's an ADF</span>
+<span class="nc" id="L99">            arguments[argument].copyTo(input);</span>
+        else // it's an ADM
+            {
+            // get rid of my context temporarily
+<span class="nc bnc" id="L103" title="All 2 branches missed.">            if (stack.moveOntoSubstack(1)!=1)</span>
+<span class="nc" id="L104">                state.output.fatal(&quot;Substack prematurely empty for &quot;  + adf.errorInfo());</span>
+
+            // Call the GPNode
+<span class="nc" id="L107">            adf.children[argument].eval(state,thread,input,stack,individual,problem);</span>
+            
+            // restore my context
+<span class="nc bnc" id="L110" title="All 2 branches missed.">            if (stack.moveFromSubstack(1)!=1)</span>
+<span class="nc" id="L111">                state.output.fatal(&quot;Stack prematurely empty for &quot; + adf.errorInfo());</span>
+            }
+<span class="nc" id="L113">        }</span>
+
+    
+    /** Increases arguments to accommodate space if necessary.
+        Sets adf to a.
+        You need to then fill out the arguments yourself. */
+    public final void prepareADF(ADF a, GPProblem problem)
+        {
+        // set to the length requested or longer
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (a.children.length &gt; arguments.length)  // the first time this will nearly always be true</span>
+            {
+<span class="nc" id="L124">            GPData[] newarguments = new GPData[a.children.length];</span>
+<span class="nc" id="L125">            System.arraycopy(arguments,0,newarguments,0,arguments.length);</span>
+            // fill gap -- ugh, luckily this doesn't happen but a few times
+<span class="nc bnc" id="L127" title="All 2 branches missed.">            for(int x=arguments.length;x&lt;newarguments.length;x++)</span>
+<span class="nc" id="L128">                newarguments[x] = (GPData)(problem.input.clone());</span>
+<span class="nc" id="L129">            arguments = newarguments;</span>
+            }
+<span class="nc" id="L131">        adf = a;</span>
+<span class="nc" id="L132">        }</span>
+
+    /** Sets adf to a */
+    public final void prepareADM(ADM a)
+        {
+<span class="nc" id="L137">        adf = a;</span>
+<span class="nc" id="L138">        }</span>
+
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

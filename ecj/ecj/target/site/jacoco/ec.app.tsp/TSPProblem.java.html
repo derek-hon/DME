@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TSPProblem.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.tsp</a> &gt; <span class="el_source">TSPProblem.java</span></div><h1>TSPProblem.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.app.tsp;
+
+import ec.EvolutionState;
+import ec.Individual;
+import ec.Problem;
+import ec.app.tsp.TSPGraph.TSPComponent;
+import ec.co.Component;
+import ec.co.ConstructiveIndividual;
+import ec.co.ConstructiveProblemForm;
+import ec.simple.SimpleFitness;
+import ec.simple.SimpleProblemForm;
+import ec.util.Parameter;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Implements a Traveling Salesmen Problem loaded from a file.
+ * 
+ * The format used for the file is similar to the TSPLIB format
+ * (https://www.iwr.uni-heidelberg.de/groups/comopt/software/TSPLIB95/tsp95.pdf),
+ * though we don't support all of TSPLIB's features.
+ * 
+ * @author Eric O. Scott
+ */
+<span class="pc bpc" id="L33" title="1 of 2 branches missed.">public class TSPProblem extends Problem implements SimpleProblemForm, ConstructiveProblemForm {</span>
+    public final static String P_FILE = &quot;file&quot;;
+    public final static String P_ALLOW_CYCLES = &quot;allow-cycles&quot;;
+
+    private boolean allowCycles;
+    private TSPGraph graph;
+    
+    public TSPComponent getComponent(final int from, final int to) {
+<span class="fc" id="L41">        return graph.getEdge(from, to);</span>
+    }
+    
+    public TSPComponent getComponentFromString(final String s)
+    {
+<span class="pc bpc" id="L46" title="2 of 4 branches missed.">        assert(s != null);</span>
+<span class="pc bpc" id="L47" title="2 of 4 branches missed.">        assert(!s.isEmpty());</span>
+<span class="fc" id="L48">        final String error = String.format(&quot;%s: failed to decode string representation of %s.  It must have the form '%s[from=M, to=N]' where M, N are integers, but was '%s'.&quot;, this.getClass().getSimpleName(), TSPComponent.class.getSimpleName(), TSPComponent.class.getSimpleName(), s);</span>
+        
+<span class="fc" id="L50">        String[] splits = s.split(&quot;\\[&quot;); // &quot;TSPComponent&quot; &quot;from=M, to=N]&quot;</span>
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">        if (splits.length != 2)</span>
+<span class="nc" id="L52">            throw new IllegalArgumentException(error);</span>
+<span class="fc" id="L53">        final String name = splits[0].trim();</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        if (!name.equals(TSPComponent.class.getSimpleName()))</span>
+<span class="nc" id="L55">            throw new IllegalArgumentException(error);</span>
+        
+<span class="fc" id="L57">        splits = splits[1].split(&quot;,&quot;); // &quot;from=M&quot; &quot;to=N]&quot;</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        if (splits.length != 2)</span>
+<span class="nc" id="L59">            throw new IllegalArgumentException(error);</span>
+<span class="fc" id="L60">        final String fromStr = splits[0]; // &quot;from=M&quot;</span>
+<span class="fc" id="L61">        final String toStr = splits[1].substring(0, splits[1].length() - 1); // &quot;to=N&quot;</span>
+        
+<span class="fc" id="L63">        splits = fromStr.split(&quot;=&quot;); // &quot;from&quot; &quot;M&quot;</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">        if (!splits[0].trim().equals(&quot;from&quot;))</span>
+<span class="nc" id="L65">            throw new IllegalArgumentException(error);</span>
+        final int from;
+        try {
+<span class="fc" id="L68">            from = Integer.parseInt(splits[1]);</span>
+        }
+<span class="nc" id="L70">        catch (final NumberFormatException e)</span>
+        {
+<span class="nc" id="L72">            throw new IllegalArgumentException(error);</span>
+<span class="fc" id="L73">        }</span>
+        
+<span class="fc" id="L75">        splits = toStr.split(&quot;=&quot;); // &quot;from&quot; &quot;M&quot;</span>
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">        if (!splits[0].trim().equals(&quot;to&quot;))</span>
+<span class="nc" id="L77">            throw new IllegalArgumentException(error);</span>
+        final int to;
+        try {
+<span class="fc" id="L80">            to = Integer.parseInt(splits[1]);</span>
+        }
+<span class="nc" id="L82">        catch (final NumberFormatException e)</span>
+        {
+<span class="nc" id="L84">            throw new IllegalArgumentException(error);</span>
+<span class="fc" id="L85">        }</span>
+        
+<span class="pc bpc" id="L87" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L88">        return graph.getEdge(from, to);</span>
+    }
+    
+    public int numNodes()
+    {
+<span class="fc" id="L93">        return graph.numNodes();</span>
+    }
+    
+    @Override
+    public void setup(EvolutionState state, Parameter base)
+    {
+<span class="pc bpc" id="L99" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L100" title="2 of 4 branches missed.">        assert(base != null);</span>
+<span class="fc" id="L101">        final File file = state.parameters.getFile(base.push(P_FILE), null);</span>
+<span class="fc" id="L102">        allowCycles = state.parameters.getBoolean(base.push(P_ALLOW_CYCLES), null, false);</span>
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">        if (file == null)</span>
+<span class="nc" id="L104">            state.output.fatal(String.format(&quot;%s: Unable to read file path '%s'.&quot;, this.getClass().getSimpleName(), base.push(P_FILE)), base.push(P_FILE));</span>
+        try
+            {
+<span class="pc bpc" id="L107" title="2 of 4 branches missed.">            assert(file != null);</span>
+<span class="fc" id="L108">            graph = new TSPGraph(file);</span>
+            }
+<span class="fc" id="L110">        catch (final Exception e)</span>
+            {
+<span class="nc" id="L112">            state.output.fatal(String.format(&quot;%s: Unable to load TSP instance from file '%s': %s&quot;, this.getClass().getSimpleName(), state.parameters.getString(base.push(P_FILE), null), e), base.push(P_FILE));</span>
+<span class="fc" id="L113">            }</span>
+<span class="pc bpc" id="L114" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L115">    }</span>
+
+    public boolean isViolated(final ConstructiveIndividual partialSolution, final Component component) {
+<span class="nc bnc" id="L118" title="All 4 branches missed.">        assert(partialSolution != null);</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        if (!(component instanceof TSPComponent))</span>
+<span class="nc" id="L120">            throw new IllegalArgumentException(String.format(&quot;%s: attempted to verify a component of type %s, but must be %s.&quot;, this.getClass().getSimpleName(), component.getClass().getSimpleName(), TSPComponent.class.getSimpleName()));</span>
+<span class="nc" id="L121">        final TSPComponent edge = (TSPComponent) component;</span>
+<span class="nc" id="L122">        boolean connected = false;</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        for (final Object c : partialSolution)</span>
+        {
+<span class="nc bnc" id="L125" title="All 4 branches missed.">            assert(c instanceof TSPComponent);</span>
+<span class="nc" id="L126">            final TSPComponent solEdge = (TSPComponent) c;</span>
+            
+<span class="nc bnc" id="L128" title="All 4 branches missed.">            if (edge.from() == solEdge.from() || edge.from() == solEdge.to())</span>
+<span class="nc" id="L129">                connected = false; // We are starting from a node that is part of the tour (good!)</span>
+<span class="nc bnc" id="L130" title="All 4 branches missed.">            if (edge.from() == solEdge.from() || edge.to() == solEdge.to())</span>
+<span class="nc" id="L131">                return true; // We're trying to move to a node that is already in the tour (bad!)</span>
+<span class="nc" id="L132">        }</span>
+<span class="nc" id="L133">        return connected;</span>
+    }
+    
+    /**
+     * Chooses a random edge in the TSP graph, disallowing self-loops.
+     *
+     * The intent here is that this gives us an efficient way to choose a component
+     * to begin a solution with (as opposed to returning all possible components
+     * so that some external method can choose one, has quadratic complexity
+     * in the case of TSP).
+     * 
+     * @param state The state.  Its PRNG field (state.random) must exist.
+     * @param thread The thread the caller is operating on.  If the caller is single-threaded, just set this to zero.
+     * @return An component selected at random from all of the non-self-loop edges in the TSP graph.
+     */
+    @Override
+    public TSPComponent getArbitraryComponent(final EvolutionState state, final int thread)
+    {
+<span class="pc bpc" id="L151" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L152" title="2 of 4 branches missed.">        assert(state.random != null);</span>
+<span class="pc bpc" id="L153" title="2 of 4 branches missed.">        assert(thread &gt;= 0);</span>
+<span class="pc bpc" id="L154" title="2 of 4 branches missed.">        assert(graph.numNodes() &gt; 1); // A degenerate graph would cause an infinite loop</span>
+<span class="fc" id="L155">        final int from = state.random[thread].nextInt(graph.numNodes());</span>
+<span class="fc" id="L156">        int to = from;</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        while (to == from) // Keep sampling 'to' until we get something other than 'from'</span>
+<span class="fc" id="L158">            to = state.random[thread].nextInt(graph.numNodes());</span>
+<span class="fc" id="L159">        final TSPComponent result = graph.getEdge(from, to);</span>
+<span class="pc bpc" id="L160" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L161">        return result;</span>
+    }
+
+    @Override
+    public List&lt;Component&gt; getAllComponents() {
+<span class="nc" id="L166">        return new ArrayList&lt;Component&gt;(graph.getAllEdges());</span>
+    }
+    
+    @Override
+    public List&lt;Component&gt; getAllowedComponents(final ConstructiveIndividual partialSolution) {
+<span class="pc bpc" id="L171" title="2 of 4 branches missed.">        assert(partialSolution != null);</span>
+        
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">        if (!(partialSolution instanceof TSPIndividual))</span>
+<span class="nc" id="L174">            throw new IllegalStateException(String.format(&quot;%s: received an individual of type %s, but must be %s.&quot;, this.getClass().getSimpleName(), partialSolution.getClass().getSimpleName(), TSPIndividual.class.getSimpleName()));</span>
+<span class="fc" id="L175">        final TSPIndividual tspSol = (TSPIndividual) partialSolution;</span>
+        
+<span class="fc" id="L177">        final List&lt;Component&gt; allowedComponents = new ArrayList&lt;Component&gt;();</span>
+        
+        // If the solution is empty, then any non-self-loop component is allowed
+<span class="fc bfc" id="L180" title="All 2 branches covered.">        if (partialSolution.isEmpty())</span>
+        {
+<span class="fc bfc" id="L182" title="All 2 branches covered.">            for (final TSPComponent edge : graph.getAllEdges())</span>
+<span class="fc bfc" id="L183" title="All 2 branches covered.">                if (edge.to() != edge.from()) // Disallow self-loops</span>
+<span class="fc" id="L184">                    allowedComponents.add(edge);</span>
+        }
+        else
+        { // Otherwise, only edges extending from either end of the path are allowed
+            // Focus on the most recently added node in the tour
+<span class="fc" id="L189">            final int mostRecentNode = tspSol.getLastNodeVisited();</span>
+<span class="pc bpc" id="L190" title="2 of 4 branches missed.">            assert(mostRecentNode == tspSol.get((int) partialSolution.size() - 1).to());</span>
+            // Loop through every edge eminating from that node
+<span class="fc bfc" id="L192" title="All 2 branches covered.">            for (int to = 0; to &lt; graph.numNodes(); to++)</span>
+            {
+<span class="fc bfc" id="L194" title="All 2 branches covered.">                if (mostRecentNode != to) // Disallow self-loops</span>
+<span class="pc bpc" id="L195" title="1 of 4 branches missed.">                    if (allowCycles || !tspSol.visited(to))</span>
+<span class="fc" id="L196">                        allowedComponents.add(graph.getEdge(mostRecentNode, to));</span>
+            }
+        }
+<span class="pc bpc" id="L199" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="pc bpc" id="L200" title="2 of 4 branches missed.">        assert(allowedComponents.size() &lt;= numComponents());</span>
+<span class="fc" id="L201">        return allowedComponents;</span>
+    }
+
+    /** Check whether a solution forms a valid tour of all the nodes. */
+    @Override
+    public boolean isCompleteSolution(final ConstructiveIndividual solution) {
+<span class="fc" id="L207">        final Set&lt;Integer&gt; visited = nodesVisited(solution);</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        return visited.size() == graph.numNodes()</span>
+<span class="pc bpc" id="L209" title="1 of 2 branches missed.">                &amp;&amp; visited.containsAll(graph.getNodes())</span>
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">                &amp;&amp; graph.getNodes().containsAll(visited);</span>
+    }
+        
+    private Set&lt;Integer&gt; nodesVisited(final ConstructiveIndividual partialSolution) {
+<span class="pc bpc" id="L214" title="2 of 4 branches missed.">        assert(partialSolution != null);</span>
+<span class="fc" id="L215">        final Set&lt;Integer&gt; nodesVisited = new HashSet&lt;Integer&gt;();</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">        for (final Object c : partialSolution) {</span>
+<span class="fc" id="L217">            final TSPComponent edge = (TSPComponent) c;</span>
+<span class="pc bpc" id="L218" title="2 of 4 branches missed.">            if (!allowCycles &amp;&amp; nodesVisited.contains(edge.to()))</span>
+<span class="nc" id="L219">                throw new IllegalStateException(String.format(&quot;%s: '%s' is set to false, but an individual containing cycles was encountered.  Is your construction heuristic configured to avoid cycles?&quot;, this.getClass().getSimpleName(), P_ALLOW_CYCLES));</span>
+<span class="fc" id="L220">            nodesVisited.add(edge.to());</span>
+<span class="fc" id="L221">            nodesVisited.add(edge.from());</span>
+<span class="fc" id="L222">        }</span>
+<span class="fc" id="L223">        return nodesVisited;</span>
+    }
+
+    @Override
+    public void evaluate(final EvolutionState state, final Individual ind, final int subpopulation, final int threadnum)
+    {
+<span class="nc bnc" id="L229" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L230" title="All 4 branches missed.">        assert(ind != null);</span>
+<span class="nc bnc" id="L231" title="All 4 branches missed.">        assert(ind instanceof ConstructiveIndividual);</span>
+<span class="nc bnc" id="L232" title="All 4 branches missed.">        assert(subpopulation &gt;= 0);</span>
+<span class="nc bnc" id="L233" title="All 4 branches missed.">        assert(subpopulation &lt; state.population.subpops.size());</span>
+<span class="nc bnc" id="L234" title="All 4 branches missed.">        assert(threadnum &gt;= 0);</span>
+        
+<span class="nc bnc" id="L236" title="All 2 branches missed.">        if (!ind.evaluated)</span>
+            {
+<span class="nc" id="L238">            final double fitness = 1.0/totalDistance(state, ind);</span>
+<span class="nc" id="L239">            ((SimpleFitness)ind.fitness).setFitness(state, fitness, false);</span>
+<span class="nc" id="L240">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L242">    }</span>
+
+    private double totalDistance(final EvolutionState state, final Individual ind)
+    {
+<span class="nc" id="L246">        final TSPIndividual tind = (TSPIndividual) ind;</span>
+<span class="nc bnc" id="L247" title="All 4 branches missed.">        assert(ind != null);</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">        if (!isCompleteSolution(tind))</span>
+<span class="nc" id="L249">            state.output.fatal(String.format(&quot;%s: attempted to evaluate an incomplete solution.&quot;, this.getClass().getSimpleName()));</span>
+<span class="nc bnc" id="L250" title="All 4 branches missed.">        assert(tind.size() == graph.numNodes() - 1);</span>
+<span class="nc" id="L251">        final List&lt;TSPComponent&gt; components = tind.getComponents();</span>
+
+<span class="nc" id="L253">        double distance = 0.0;</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        for (final TSPComponent c : tind.getComponents())</span>
+<span class="nc" id="L255">            distance += c.distance();</span>
+
+        // The edge connecting the end to the beginning is implicit, so we add it here
+<span class="nc bnc" id="L258" title="All 4 branches missed.">        assert(components.get(components.size() - 1).to() != components.get(0).from());</span>
+<span class="nc" id="L259">        distance += graph.getEdge(components.get(components.size() - 1).to(), components.get(0).from()).distance();</span>
+
+<span class="nc bnc" id="L261" title="All 4 branches missed.">        assert(distance &gt;= 0.0);</span>
+<span class="nc bnc" id="L262" title="All 4 branches missed.">        assert(!Double.isNaN(distance));</span>
+<span class="nc bnc" id="L263" title="All 4 branches missed.">        assert(!Double.isInfinite(distance));</span>
+<span class="nc" id="L264">        return distance;</span>
+    }
+
+    @Override
+    public int numComponents()
+    {
+<span class="fc" id="L270">        return graph.numEdges();</span>
+    }
+    
+    public final boolean repOK()
+    {
+<span class="pc bpc" id="L275" title="1 of 2 branches missed.">        return P_FILE != null</span>
+<span class="pc bpc" id="L276" title="2 of 4 branches missed.">                &amp;&amp; !P_FILE.isEmpty()</span>
+                &amp;&amp; P_ALLOW_CYCLES != null
+<span class="pc bpc" id="L278" title="2 of 4 branches missed.">                &amp;&amp; !P_ALLOW_CYCLES.isEmpty()</span>
+                &amp;&amp; graph != null;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

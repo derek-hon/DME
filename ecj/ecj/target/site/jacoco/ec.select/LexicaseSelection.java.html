@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LexicaseSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">LexicaseSelection.java</span></div><h1>LexicaseSelection.java</h1><pre class="source lang-java linenums">package ec.select;
+
+import ec.EvolutionState;
+import ec.Fitness;
+import ec.Individual;
+import ec.SelectionMethod;
+import ec.util.MersenneTwisterFast;
+import ec.util.Parameter;
+import java.util.ArrayList;
+import java.util.Iterator;
+
+/**
+ *
+ * @author Eric 'Siggy' Scott
+ */
+<span class="pc bpc" id="L16" title="1 of 2 branches missed.">public class LexicaseSelection extends SelectionMethod</span>
+    {
+    private static final long serialVersionUID = 1;
+    
+    public static final String P_LEXICASESELECT = &quot;lexicaseselect&quot;;
+
+    @Override
+    public Parameter defaultBase()
+        {
+<span class="fc" id="L25">        return SelectDefaults.base().push(P_LEXICASESELECT);</span>
+        }
+
+    @Override
+    public int produce(final int subpopulation, final EvolutionState state, final int thread)
+        {
+<span class="pc bpc" id="L31" title="2 of 4 branches missed.">        assert(state != null);</span>
+<span class="pc bpc" id="L32" title="2 of 4 branches missed.">        assert(subpopulation &gt;= 0);</span>
+<span class="pc bpc" id="L33" title="2 of 4 branches missed.">        assert(subpopulation &lt; state.population.subpops.size());</span>
+<span class="pc bpc" id="L34" title="2 of 4 branches missed.">        assert(state.population.subpops.get(subpopulation) != null);</span>
+<span class="pc bpc" id="L35" title="2 of 4 branches missed.">        assert(state.population.subpops.get(subpopulation).individuals.size() &gt; 0);</span>
+        
+<span class="fc" id="L37">        final ArrayList&lt;Individual&gt; pop = state.population.subpops.get(subpopulation).individuals;</span>
+        
+        // Initialize the candidates to the entire population
+<span class="fc" id="L40">        final ArrayList&lt;Integer&gt; candidates = new ArrayList&lt;Integer&gt;();</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        for (int i = 0; i &lt; pop.size(); i++)</span>
+<span class="fc" id="L42">            candidates.add(i);</span>
+        
+        // Shuffle test cases
+<span class="pc bpc" id="L45" title="2 of 4 branches missed.">        assert(pop.get(candidates.get(0)).fitness.trials != null);</span>
+<span class="fc" id="L46">        final int numCases = pop.get(0).fitness.trials.size();</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">        if (numCases == 0)</span>
+<span class="nc" id="L48">            state.output.fatal(String.format(&quot;Attempted to use %s on an individual with an empty list of trials.&quot;, this.getClass().getSimpleName()));</span>
+<span class="fc" id="L49">        final int[] caseOrder = new int[numCases];</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">        for (int i = 0; i &lt; numCases; i++)</span>
+<span class="fc" id="L51">            caseOrder[i] = i;</span>
+<span class="fc" id="L52">        shuffle(state, caseOrder);</span>
+        
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        for (int i = 0; i &lt; caseOrder.length; i++)</span>
+            {
+<span class="fc" id="L56">            final int currentCase = caseOrder[i];</span>
+            
+            // Find the best value of the current test case
+<span class="fc" id="L59">            Fitness best = (Fitness) pop.get(candidates.get(0)).fitness.trials.get(currentCase);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">            for (int j = 1; j &lt; candidates.size(); j++)</span>
+                {
+<span class="pc bpc" id="L62" title="2 of 4 branches missed.">                assert(pop.get(candidates.get(j)).fitness.trials != null);</span>
+<span class="pc bpc" id="L63" title="2 of 4 branches missed.">                assert(pop.get(candidates.get(j)).fitness.trials.size() == numCases);</span>
+<span class="fc" id="L64">                final Fitness caseFitness = (Fitness) pop.get(candidates.get(j)).fitness.trials.get(currentCase);</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">                if (caseFitness.betterThan(best))</span>
+<span class="fc" id="L66">                    best = caseFitness;</span>
+                }
+            
+            // Reduce candidates to the subset that performs best on the current test case
+<span class="fc" id="L70">            final Iterator&lt;Integer&gt; it = candidates.iterator();</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">            while (it.hasNext())</span>
+                {
+<span class="fc" id="L73">                final Fitness caseFitness = (Fitness) pop.get(it.next()).fitness.trials.get(currentCase);</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">                if (caseFitness.compareTo(best) &gt; 0) // if strictly worse than best</span>
+<span class="fc" id="L75">                    it.remove();</span>
+<span class="fc" id="L76">                }</span>
+            
+            // If only one individual is left, return it
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">            if (candidates.size() == 1)</span>
+                {
+<span class="fc" id="L81">                return candidates.get(0);</span>
+                }
+            
+            // If this was the last test case, return a random candidate
+<span class="nc bnc" id="L85" title="All 2 branches missed.">            if (i == caseOrder.length - 1)</span>
+                {
+<span class="nc" id="L87">                return candidates.get(state.random[0].nextInt(candidates.size()));</span>
+                }
+            }
+<span class="nc" id="L90">        throw new IllegalStateException();</span>
+        }
+    
+
+    private void shuffle(final EvolutionState state, final int[] a)
+        {
+<span class="fc" id="L96">        final MersenneTwisterFast mtf = state.random[0];</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        for(int x = a.length - 1; x &gt;= 1; x--)</span>
+            {
+<span class="fc" id="L99">            int rand = mtf.nextInt(x+1);</span>
+<span class="fc" id="L100">            int obj = a[x];</span>
+<span class="fc" id="L101">            a[x] = a[rand];</span>
+<span class="fc" id="L102">            a[rand] = obj;</span>
+            }
+<span class="fc" id="L104">        }</span>
+    
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

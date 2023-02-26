@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BoltzmannSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">BoltzmannSelection.java</span></div><h1>BoltzmannSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.select;
+import ec.util.*;
+import ec.*;
+
+/* 
+ * BoltzmannSelection.java
+ * 
+ * Created: Thu May 14 2009
+ * By: Jack Compton
+ */
+
+/**
+ * Similar to FitProportionateSelection, but with a Simulated Annealing style twist. BoltzmannSelection picks individuals of a population in 
+ * proportion to an adjusted version of their fitnesses instead of their actual fitnesses as returned by fitness(). The adjusted fitness is 
+ * calculated by e^(fitness/current_temperature) where current_temperature is a temperature value that decreases by a constant cooling rate as 
+ * generations of evolution pass. The current_temperature is calculated by starting-temperature - (cooling-rate * the_current_generation_number). 
+ * When the temperature dips below 1.0, annealing ceases and BoltzmannSelection reverts to normal FitProportionateSelection behavior.
+ *
+ * &lt;p&gt;
+ * Like FitProportionateSelection this is not appropriate for steady-state evolution.
+ * If you're not familiar with the relative advantages of 
+ * selection methods and just want a good one,
+ * use TournamentSelection instead. Not appropriate for
+ * multiobjective fitnesses.
+ *
+ * &lt;p&gt;&lt;b&gt;&lt;font color=red&gt;
+ * Note: Fitnesses must be non-negative.  0 is assumed to be the worst fitness.
+ * &lt;/font&gt;&lt;/b&gt;
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;starting-temperature&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;double = some large number (defaults to 1.0)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the starting temperature for our simulated annealing style adjusted fitness proportions)&lt;/td&gt;&lt;/tr&gt;
+ 
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;cooling-rate&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; double = some smaller number (defaults to 0.0 which causes BoltzmannSelection to behave just as FitProportionateSelection would)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(how slow, or fast, do you want to cool the annealing fitness proportions?)&lt;/td&gt;&lt;/tr&gt;
+ 
+ &lt;/table&gt; 
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.boltzmann
+
+ *
+ * @author Jack Compton
+ * @version 1.0 
+ */
+
+<span class="nc" id="L60">public class BoltzmannSelection extends FitProportionateSelection</span>
+    {
+    /** Default base */
+    public static final String P_BOLTZMANN = &quot;boltzmann&quot;;
+                
+    /** Starting temperature parameter */
+    public static final String P_STARTING_TEMPERATURE = &quot;starting-temperature&quot;;
+                
+    /** Cooling rate parameter */
+    public static final String P_COOLING_RATE = &quot;cooling-rate&quot;;
+                
+    /** Starting temperature **/
+    private double startingTemperature;
+                
+    /** Cooling rate */
+    private double coolingRate;
+                
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L79">        return SelectDefaults.base().push(P_BOLTZMANN);</span>
+        }
+                
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L84">        super.setup(state,base);</span>
+                        
+<span class="nc" id="L86">        Parameter def = defaultBase();</span>
+                        
+<span class="nc" id="L88">        coolingRate = state.parameters.getDouble(base.push(P_COOLING_RATE),def.push(P_COOLING_RATE)); // default cooling rate of 1.0 per generation</span>
+<span class="nc" id="L89">        startingTemperature = state.parameters.getDouble(base.push(P_STARTING_TEMPERATURE),def.push(P_STARTING_TEMPERATURE)); // default starting temp is 0.0/completely cooled - will act as normal fit proportionate selection</span>
+                        
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if (coolingRate &lt;= 0)</span>
+            {
+            //Hey! you gotta cool! Set your cooling rate to a positive value!
+<span class="nc" id="L94">            state.output.fatal(&quot;Cooling rate should be a positive value.&quot;,base.push(P_COOLING_RATE),def.push(P_COOLING_RATE));</span>
+            }
+                        
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if ((startingTemperature - coolingRate) &lt;= 0) {</span>
+            // C'mon, you should cool slowly if you want boltzmann selection to be effective.
+<span class="nc" id="L99">            state.output.fatal(&quot;For best results, try to set your temperature to cool to 0 a more slowly. This can be acheived by increasing your starting-temperature and/or decreasing your cooling rate.\nstarting-temperatire/cooling-rate: &quot; + startingTemperature + &quot; / &quot; + coolingRate);                             </span>
+            }
+                        
+<span class="nc" id="L102">        int total_generations = state.numGenerations;</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (total_generations == 0)</span>
+            {
+            //Load from parameter database!!
+<span class="nc" id="L106">            state.output.fatal(&quot;Hey now, we gotta load the total_generations from the param DB&quot;);</span>
+            }
+                        
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if ((startingTemperature - (coolingRate * total_generations)) &gt; 0)</span>
+            {
+            //Either your cooling rate is to low, or your starting temp is too high, because at this rate you will never cool to 0! (kind of essential to reaping the benefits of boltzmann selection)
+<span class="nc" id="L112">            state.output.warning(&quot;If you want BoltzmannnSelection to be effective, your temperature should cool to 0 before all generations have passed. Make sure that (starting-temperature - (cooling-rate * generations)) &lt;= 0.&quot;);</span>
+            }
+        
+<span class="nc" id="L115">        }</span>
+
+    // completely override FitProportionateSelection.prepareToProduce
+    public void prepareToProduce(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L122">        super.prepareToProduce(s, subpopulation, thread);</span>
+
+        // load fitnesses
+<span class="nc" id="L125">        fitnesses = new double[s.population.subpops.get(subpopulation).individuals.size()];</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">        for(int x=0;x&lt;fitnesses.length;x++)</span>
+            {
+<span class="nc" id="L128">            fitnesses[x] = (double) boltzmannExpectedValue(</span>
+<span class="nc" id="L129">                ((Individual)(s.population.subpops.get(subpopulation).individuals.get(x))).fitness.fitness(),</span>
+                s); // adjust the fitness proportion according to current temperature.
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            if (fitnesses[x] &lt; 0) // uh oh</span>
+<span class="nc" id="L132">                s.output.fatal(&quot;Discovered a negative fitness value.  BoltzmannnSelection requires that all fitness values be non-negative(offending subpopulation #&quot; + subpopulation + &quot;)&quot;);</span>
+            }
+        
+        // organize the distribution.  All zeros in fitness is fine
+<span class="nc" id="L136">        RandomChoice.organizeDistribution(fitnesses, true);</span>
+<span class="nc" id="L137">        }</span>
+
+    double boltzmannExpectedValue(double fitness, final EvolutionState s)
+        {
+<span class="nc" id="L141">        double current_temperature = startingTemperature - (coolingRate * s.generation);</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        if (current_temperature &lt; 1.0)</span>
+<span class="nc" id="L143">            return fitness;</span>
+<span class="nc" id="L144">        return Math.exp(fitness/current_temperature);</span>
+        }
+        
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

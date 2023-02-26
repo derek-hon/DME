@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RandomRestarts.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.evolve</a> &gt; <span class="el_source">RandomRestarts.java</span></div><h1>RandomRestarts.java</h1><pre class="source lang-java linenums">package ec.evolve;
+
+import ec.*;
+import ec.util.*;
+
+/**
+ * A special Statistics class which performs random restarts on the population,
+ * effectively reininitializing the population and starting over again.
+ * RandomRestarts has two ways of determining when to perform a restart.  If
+ * the restart type is &quot;fixed&quot;, then the restart will occur precisely when
+ * the generation is a multiple of restart-upper-bound, minus one.  (That's
+ * hardly random, of course).  If the restart type is &quot;random&quot;, then at the
+ * beginning of the run, and after every restart, a new restart is chosen 
+ * randomly from one to restart-upper-bound.
+ *
+ * &lt;p&gt;This class is compatible with populations which load from files -- it
+ * temporarily disables the load-from-file feature when telling the population
+ * to populate itself again, forcing the population to do so by creating random
+ * individuals.
+ *
+ * @author James O'Beirne
+  
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;start&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 0 (default = 1)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;The first generation where the clock may be started.&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;restart-type&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;random (default) or fixed&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;Either initiates clock at a random value or a fixed one.&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;restart-upper-bound&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;1 &amp;lt; int &amp;lt; \inf&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;Maximum time clock can initiate with.&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+*/
+ 
+<span class="nc" id="L37">public class RandomRestarts extends Statistics</span>
+    {
+    public static final String P_RESTART_TYPE = &quot;restart-type&quot;;
+    public static final String P_RESTART_UPPERBOUND = &quot;restart-upper-bound&quot;;
+    public static final String P_START = &quot;start&quot;;
+
+    public int countdown;              // what we'll use for the &quot;ticking&quot; clock
+    public int upperbound;             // highest possible value on the clock
+    public int start;
+   
+    String restartType;    // are we doing random or fixed?
+
+    /** Gets the clock ticking. */
+    public void setup( final EvolutionState state, final Parameter base )
+        {
+<span class="nc" id="L52">        super.setup( state, base );</span>
+
+<span class="nc" id="L54">        restartType = state.parameters.getString(base.push(P_RESTART_TYPE),  null);</span>
+        
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if (restartType == null)</span>
+<span class="nc" id="L57">            restartType = &quot;random&quot;;</span>
+        
+<span class="nc" id="L59">        upperbound = state.parameters.getInt( base.push(P_RESTART_UPPERBOUND), null, 1);</span>
+
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_START), null))</span>
+            {
+<span class="nc" id="L63">            start = state.parameters.getInt(base.push(P_START), null, 0);</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">            if (start &lt; 0) </span>
+<span class="nc" id="L65">                state.output.fatal(&quot;Start value must be &gt;= 0&quot;, base.push(P_START));</span>
+            }
+<span class="nc" id="L67">        else start = 1;</span>
+
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if( upperbound &lt; 1 )</span>
+<span class="nc" id="L70">            state.output.fatal(&quot;Parameter either not found or invalid (&lt;1).&quot;, base.push(P_RESTART_UPPERBOUND));</span>
+                        
+<span class="nc bnc" id="L72" title="All 4 branches missed.">        if( !restartType.equals( &quot;random&quot; ) &amp;&amp; !restartType.equals( &quot;fixed&quot; ) )</span>
+<span class="nc" id="L73">            state.output.fatal(&quot;Parameter must be either 'fixed' or 'random'.&quot;, base.push(P_RESTART_TYPE));</span>
+<span class="nc" id="L74">        }</span>
+
+    /**
+     * Checks the clock; if it's time to restart, we repopulate the population. 
+     * Afterwards, we reset the clock.
+     *
+     * If it's not time yet, the clock goes tick.
+     */
+    public void preEvaluationStatistics( final EvolutionState state )
+        {
+<span class="nc" id="L84">        super.preEvaluationStatistics(state);</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        if (state.generation == start) resetClock(state); // first time only</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">        if (state.generation &gt;= start) possiblyRestart(state);</span>
+<span class="nc" id="L87">        }</span>
+
+    void possiblyRestart(EvolutionState state)
+        {
+<span class="nc" id="L91">        countdown--;</span>
+        Subpopulation currentSubp;
+        // time to restart!
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if( countdown == 0 )</span>
+            {
+<span class="nc" id="L96">            state.output.message( &quot;Restarting the population prior to evaluating generation &quot; + state.generation );</span>
+            // for each subpopulation
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            for(int subp = 0; subp &lt; state.population.subpops.size(); subp++ )</span>
+                {
+<span class="nc" id="L100">                currentSubp = state.population.subpops.get(subp);</span>
+<span class="nc" id="L101">                boolean temp = currentSubp.loadInds;</span>
+                // disable loadInds so we generate candidates randomly
+<span class="nc" id="L103">                currentSubp.loadInds = false;</span>
+<span class="nc" id="L104">                currentSubp.populate( state, 0 );</span>
+<span class="nc" id="L105">                currentSubp.loadInds = temp;</span>
+                }
+<span class="nc" id="L107">            this.resetClock( state );</span>
+            }
+<span class="nc" id="L109">        }</span>
+
+    void resetClock( final EvolutionState state )
+        {
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        if(restartType.equals( &quot;fixed&quot; ))</span>
+<span class="nc" id="L114">            countdown = upperbound;</span>
+        else
+            // might need to fix random index to support multithreading
+<span class="nc" id="L117">            countdown = state.random[0].nextInt( upperbound) + 1;</span>
+<span class="nc" id="L118">        }</span>
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

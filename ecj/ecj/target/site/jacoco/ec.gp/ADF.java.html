@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ADF.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">ADF.java</span></div><h1>ADF.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+/* 
+ * ADF.java
+ * 
+ * Created: Mon Oct 25 18:42:09 1999
+ * By: Sean Luke
+ */
+
+/**
+ * An ADF is a GPNode which implements an &quot;Automatically Defined Function&quot;,
+ * as described in Koza II.  
+ *
+ * &lt;p&gt;In this system, the ADF facility consists of several classes: ADF,
+ * ADM, ADFStack, ADFContext, and ADFArgument. ADFs, and their cousins
+ * ADMs (&quot;Automatically Defined Macros [Lee Spector]&quot;), appear as
+ * typical function nodes in a GP tree.  However, they have a special
+ * &lt;i&gt;associated tree&lt;/i&gt; in the individual's tree forest which 
+ * they evaluate as a kind of a &quot;subfunction&quot;.
+ *
+ * &lt;p&gt;When an ADF is evaluated, it first evaluates all of its children
+ * and stores away their results.  It then evaluates its associated tree.
+ * In the associated tree may exist one or more &lt;i&gt;ADF Argument Terminals&lt;/i&gt;,
+ * defined by the ADFArgument class.  These terminal nodes are associated
+ * with a single number which represents the &quot;argument&quot; in the original ADF
+ * which evaluated their tree.  When an Argument Terminal is evaluated,
+ * it returns the stored result for that child number in the parent ADF.
+ * Ultimately, when the associated tree completes its evaluation, the ADF
+ * returns that value.
+ *
+ * &lt;p&gt;ADMs work slightly differently.  When an ADM is evaluated, it
+ * immediately evaluates its associated tree without first evaluating
+ * any children.  When an Argument Terminal is evaluated, it evaluates
+ * the subtree of the appropriate child number in the parent ADM and returns
+ * that result.  These subtrees can be evaluated many times.  When the
+ * associated tree completes its evaluation, the ADM returns that value.
+ * 
+ * &lt;p&gt;Obviously, if you have Argument Terminals in a tree, that tree must
+ * be only callable by ADFs and ADMs, otherwise the Argument Terminals
+ * won't have anything to return.  Furthermore, you must make sure that
+ * you don't have an Argument Terminal in a tree whose number is higher
+ * than the smallest arity (number of arguments) of a calling ADF or ADM.
+ *
+ * &lt;p&gt;The mechanism behind ADFs and ADMs is complex, requiring two specially-
+ * stored stacks (contained in the ADFStack object) of ADFContexts.  For
+ * information on how this mechanism works, see ADFStack.
+ *
+ *
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The &quot;associated tree&quot; of the ADF)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;name&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String, can be undefined&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(A simple &quot;name&quot; of the ADF to distinguish it from other ADF functions in your function set.  Use only letters, numbers, hyphens, and underscores.  Lowercase is best.)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.adf
+
+ * @see ec.gp.ADFStack
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L78">public class ADF extends GPNode</span>
+    {
+    public static final String P_ADF = &quot;adf&quot;;
+    public static final String P_ASSOCIATEDTREE = &quot;tree&quot;;
+    public static final String P_FUNCTIONNAME = &quot;name&quot;;
+
+    /** The ADF's associated tree */
+    public int associatedTree;
+
+    /** The &quot;function name&quot; of the ADF, to distinguish it from other GP
+        functions you might provide.  */
+    public String name;
+<span class="nc" id="L90">    public String name() { return name; }</span>
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L94">        return GPDefaults.base().push(P_ADF);</span>
+        }
+
+    public void writeNode(final EvolutionState state, final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L99">        dataOutput.writeInt(associatedTree);</span>
+<span class="nc" id="L100">        dataOutput.writeUTF(name);</span>
+<span class="nc" id="L101">        }</span>
+         
+ 
+    public void readNode(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L106">        associatedTree = dataInput.readInt();</span>
+<span class="nc" id="L107">        name = dataInput.readUTF();</span>
+<span class="nc" id="L108">        }</span>
+
+    /** Returns name.hashCode() + class.hashCode() + associatedTree.  Hope
+        that's reasonably random. */
+
+    public int nodeHashCode()
+        {
+<span class="nc" id="L115">        return (this.getClass().hashCode() + name.hashCode() + associatedTree);</span>
+        }
+
+    /** Determines node equality by comparing the class, associated tree, and
+        function name of the nodes. */
+    public boolean nodeEquals(final GPNode node)
+        {
+<span class="nc bnc" id="L122" title="All 4 branches missed.">        if (!this.getClass().equals(node.getClass()) ||</span>
+<span class="nc" id="L123">            children.length != node.children.length) return false;</span>
+<span class="nc" id="L124">        ADF adf = (ADF)node;</span>
+<span class="nc bnc" id="L125" title="All 4 branches missed.">        return (associatedTree==adf.associatedTree &amp;&amp; name.equals(adf.name));</span>
+        }
+
+    /** Checks type-compatibility constraints between the ADF, its argument terminals, and the tree type of its associated tree, and also checks to make sure the tree exists, there aren't invalid argument terminals in it, and there are sufficient argument terminals (a warning).  Whew! */
+    public void checkConstraints(final EvolutionState state,
+        final int tree,
+        final GPIndividual typicalIndividual,
+        final Parameter individualBase)
+        {
+<span class="nc" id="L134">        super.checkConstraints(state,tree,typicalIndividual,individualBase);</span>
+        
+        // does the associated tree exist?
+        
+<span class="nc bnc" id="L138" title="All 4 branches missed.">        if (associatedTree &lt; 0 || associatedTree &gt;= typicalIndividual.trees.length)</span>
+<span class="nc" id="L139">            state.output.error(&quot;The node &quot; + toStringForError() + &quot; of individual &quot; + </span>
+                individualBase + &quot; must have an associated tree that is &gt;= 0 and &lt; &quot; + typicalIndividual.trees.length + &quot;.  Value provided was: &quot; + associatedTree);
+        else
+            {
+            
+            // is the associated tree of the correct type?  Issue an error.
+<span class="nc" id="L145">            GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+            
+<span class="nc bnc" id="L147" title="All 2 branches missed.">            if (!constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L148">                    typicalIndividual.trees[associatedTree].constraints(initializer).treetype))</span>
+<span class="nc" id="L149">                state.output.error(&quot;The return type of the node &quot; + toStringForError() </span>
+                    + &quot; of individual &quot; + 
+                    individualBase + &quot;is not type-compatible with the tree type of its associated tree.&quot;);
+            
+<span class="nc" id="L153">            GPNode[][] funcs = </span>
+                typicalIndividual.trees[associatedTree].
+<span class="nc" id="L155">                constraints(initializer).functionset.nodes;</span>
+                        
+<span class="nc" id="L157">            ADFArgument validArgument[] = new ADFArgument[children.length];</span>
+
+<span class="nc bnc" id="L159" title="All 2 branches missed.">            for(int w=0;w&lt;funcs.length;w++)</span>
+                {
+                // does the tree's function set have argument terminals 
+                // that are beyond what I can provide?  (issue an error)
+                
+<span class="nc" id="L164">                GPNode[] gpfi = funcs[w];</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">                for (int x=0;x&lt;gpfi.length;x++)</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                    if (gpfi[x] instanceof ADFArgument)</span>
+                        {
+<span class="nc" id="L168">                        ADFArgument argument = (ADFArgument)(gpfi[x]);</span>
+<span class="nc" id="L169">                        int arg = argument.argument;</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">                        if (arg &gt;= children.length)  // uh oh</span>
+<span class="nc" id="L171">                            state.output.error(&quot;The node &quot; +</span>
+<span class="nc" id="L172">                                toStringForError() + </span>
+                                &quot; in individual &quot;  + 
+                                individualBase + &quot; would call its associated tree, which has an argument terminal with an argument number (&quot; + arg + &quot;) &gt;= the ADF/ADM's arity (&quot; + children.length +&quot;).  The argument terminal in question is &quot; 
+<span class="nc" id="L175">                                + gpfi[x].toStringForError()); </span>
+                        else
+                            {
+<span class="nc bnc" id="L178" title="All 4 branches missed.">                            if (validArgument[arg]!=null &amp;&amp; validArgument[arg]!=argument)  // got one already</span>
+<span class="nc" id="L179">                                state.output.warning(&quot;There exists more than one Argument terminal for argument #&quot; </span>
+                                    + arg + &quot; for the node &quot; +
+<span class="nc" id="L181">                                    toStringForError() + </span>
+                                    &quot; in individual &quot; + 
+                                    individualBase);
+<span class="nc" id="L184">                            else validArgument[arg] = argument;</span>
+                            
+                            // is the argument terminal of the correct return type?  Issue an error.
+<span class="nc bnc" id="L187" title="All 2 branches missed.">                            if (!gpfi[x].constraints(initializer).returntype.compatibleWith(initializer,</span>
+<span class="nc" id="L188">                                    constraints(initializer).childtypes[arg]))</span>
+<span class="nc" id="L189">                                state.output.error(&quot;The node &quot; +</span>
+<span class="nc" id="L190">                                    toStringForError() + </span>
+                                    &quot; in individual &quot; +
+                                    individualBase + &quot; would call its associated tree, which has an argument terminal which is not type-compatible with the related argument position of the ADF/ADM.  The argument terminal in question is &quot; 
+<span class="nc" id="L193">                                    + gpfi[x].toStringForError()); </span>
+                            }
+                        }
+                }
+
+            // does the tree's function set have fewer argument terminals
+            // than I can provide? (issue a warning)
+            
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            for (int x=0;x&lt;children.length;x++)</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                if (validArgument[x] == null) </span>
+<span class="nc" id="L203">                    state.output.warning(&quot;There is no argument terminal for argument #&quot; </span>
+                        + x + &quot; for the node &quot; 
+<span class="nc" id="L205">                        + toStringForError() + &quot; in individual &quot; + </span>
+                        individualBase);
+            
+            }
+<span class="nc" id="L209">        }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // we don't know our name yet, (used in toStringForError(),
+        // which is used in GPNode's setup(...) method),
+        // so WE load parameters before our parent does.
+
+<span class="nc" id="L217">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L219">        associatedTree = </span>
+<span class="nc" id="L220">            state.parameters.getInt(base.push(P_ASSOCIATEDTREE),def.push(P_FUNCTIONNAME),0);</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">        if (associatedTree &lt; 0)</span>
+<span class="nc" id="L222">            state.output.fatal(</span>
+                &quot;ADF/ADM node must have a positive-numbered associated tree.&quot;,
+<span class="nc" id="L224">                base.push(P_ASSOCIATEDTREE),def.push(P_FUNCTIONNAME));</span>
+
+<span class="nc" id="L226">        name = state.parameters.getString(base.push(P_FUNCTIONNAME),def.push(P_FUNCTIONNAME));</span>
+<span class="nc bnc" id="L227" title="All 4 branches missed.">        if (name == null || name.equals(&quot;&quot;))</span>
+            {
+<span class="nc" id="L229">            name = &quot;ADF&quot; + (associatedTree - 1);</span>
+<span class="nc" id="L230">            state.output.warning(&quot;ADF/ADM node for Tree &quot; + associatedTree + &quot; has no function name.  Using the name &quot; + name(),</span>
+<span class="nc" id="L231">                base.push(P_FUNCTIONNAME),def.push(P_FUNCTIONNAME));</span>
+            }
+                        
+<span class="nc bnc" id="L234" title="All 2 branches missed.">        if (name.length() == 1)</span>
+            {
+<span class="nc" id="L236">            state.output.warning(&quot;Using old-style ADF/ADM name.  You should change it to something longer and more descriptive, such as ADF&quot; + name,</span>
+<span class="nc" id="L237">                base.push(P_FUNCTIONNAME),def.push(P_FUNCTIONNAME));</span>
+            }
+
+        // now we let our parent set up.  
+<span class="nc" id="L241">        super.setup(state,base);</span>
+<span class="nc" id="L242">        }</span>
+    
+<span class="nc" id="L244">    public String toString() { return name(); }</span>
+    
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+        // get a context and prepare it
+<span class="nc" id="L254">        ADFContext c = stack.get();</span>
+<span class="nc" id="L255">        c.prepareADF(this, (GPProblem) problem);</span>
+
+        // evaluate my arguments and load 'em in 
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+            {
+<span class="nc" id="L260">            input.copyTo(c.arguments[x]);</span>
+<span class="nc" id="L261">            children[x].eval(state,thread,c.arguments[x],</span>
+                stack,individual,problem);
+            }
+
+        // Now push the context onto the stack.
+<span class="nc" id="L266">        stack.push(c);</span>
+
+        // evaluate the top of the associatedTree
+<span class="nc" id="L269">        individual.trees[associatedTree].child.eval(</span>
+            state,thread,input,stack,individual,problem);
+
+        // pop the context off, and we're done!
+<span class="nc bnc" id="L273" title="All 2 branches missed.">        if (stack.pop(1) != 1)</span>
+<span class="nc" id="L274">            state.output.fatal(&quot;Stack prematurely empty for &quot; + toStringForError());</span>
+<span class="nc" id="L275">        }</span>
+            
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

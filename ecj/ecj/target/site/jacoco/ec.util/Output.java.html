@@ -1,0 +1,965 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Output.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">Output.java</span></div><h1>Output.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+import java.io.*;
+import java.util.Vector;
+import java.util.Enumeration;
+
+/*
+ * Output.java
+ * Created: Sat Aug  7 15:30:54 1999
+ *
+ */
+
+/**
+ * &lt;p&gt;Outputs and logs system messages, errors, and other various
+ * items printed as a result of a run.
+ *
+ * &lt;p&gt; Output maintains zero or more logs, which contain Writers which
+ * write out stuff.  Each log has an associated verbosity; if request
+ * is made to write text to a log, and the text's maximal verbosity
+ * is lower than the verbosity of the log, the log will not write it.
+ * Each Output instance also has an instance-level global verbosity;
+ * incoming requests to write text are additionally subject to this
+ * verbosity test.  Lastly, the Output class itself has a global
+ * verbosity as well.  This last verbosity is useful for shutting
+ * down writing to all logs in the entire system in a simple way.
+ *
+ * &lt;p&gt;When the system fails for some reason and must be started back
+ * up from a checkpoint, Output's log files may be overwritten.  Output
+ * offers three approaches here.  First, Output can clear the log file
+ * and overwrite it.  Second, Output can append to the existing log file;
+ * because checkpoints are only done occasionally, this may result in
+ * duplicate outputs to a file, so keep this in mind.  Third, Output can
+ * keep certain written text, typically &lt;i&gt;announcements&lt;/i&gt;, in memory;
+ * this text gets written out into the checkpoint file, and so it is sound.
+ *
+ * &lt;p&gt;There are several kinds of announcements, in different levels
+ * of importance.
+ *
+ * &lt;ol&gt;
+ * &lt;li&gt; FATAL ERRORs.  These errors cause the system to exit(1) immediately.
+ * &lt;li&gt; Simple ERRORs.  These errors set the &quot;errors&quot; flag to true; at 
+ * the end of a stream of simple errors, the system in general is expected
+ * to exit with a fatal error due to the flag being set.  That's the
+ * protocol anyway.  On restart from a checkpoint, if there were any
+ * simple errors, the system ends with a fatal error automatically.
+ * &lt;li&gt; WARNINGs.  These errors do not cause the system to exit under any
+ * circumstances.
+ * &lt;li&gt; MESSAGEs.  Useful facts printed out for the benefit of the user.
+ * &lt;li&gt; SYSTEM MESSAGEs.  Useful system-level facts printed out for the
+ * benefit of the user.
+ * &lt;/ol&gt;
+ *
+ * 
+ * &lt;p&gt;Output will also store all announcements in memory by default so as to reproduce
+ * them if it's restarted from a checkpoint.  You can change this behavior also by
+ *
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+public class Output implements Serializable
+    {
+    private static final long serialVersionUID = 1;
+
+    public static class OutputExitException extends RuntimeException 
+        {
+        public OutputExitException(String message)
+            {
+<span class="fc" id="L75">            super(message);</span>
+<span class="fc" id="L76">            }</span>
+        }
+    
+    boolean errors;
+<span class="fc" id="L80">    Vector logs = new Vector();</span>
+<span class="fc" id="L81">    Vector announcements = new Vector();</span>
+    // boolean flush = true;
+<span class="fc" id="L83">    boolean store = true;</span>
+<span class="fc" id="L84">    String filePrefix = &quot;&quot;;</span>
+<span class="fc" id="L85">    boolean throwsErrors = false;</span>
+
+    /** Total verbosity */
+    public static final int V_VERBOSE = 0;
+    /** Don't print messages */
+    public static final int V_NO_MESSAGES = 1000;
+    /** Don't print warnings or messages */
+    public static final int V_NO_WARNINGS = 2000;
+    /** The standard verbosity to use if you don't want common reporting (like statistics) */
+    public static final int V_NO_GENERAL = 3000;
+    /** Don't print warnings, messages, or simple errors  */
+    public static final int V_NO_ERRORS = 4000;
+    /** No verbosity at all, not even system messages or fatal errors*/
+    public static final int V_TOTALLY_SILENT = 5000;
+
+    public static final int ALL_MESSAGE_LOGS = -1;
+    /** When passed to print functions, doesn't do any printing */
+    public static final int NO_LOGS = -2;
+        
+    public synchronized void setFilePrefix(String filePrefix) {
+<span class="nc" id="L105">        this.filePrefix = filePrefix;</span>
+<span class="nc" id="L106">        }</span>
+
+    public synchronized void setThrowsErrors(boolean val)
+        {
+<span class="fc" id="L110">        throwsErrors = val;</span>
+<span class="fc" id="L111">        }</span>
+        
+<span class="nc" id="L113">    public synchronized boolean getThrowsErrors() { return throwsErrors; }</span>
+
+    protected void finalize() throws Throwable
+        {
+        // flush the logs
+<span class="fc" id="L118">        close();</span>
+
+        // do super.finalize, just for good style
+<span class="fc" id="L121">        super.finalize();</span>
+<span class="fc" id="L122">        }</span>
+
+    private static void exitWithError(Output output, String message, boolean throwException)
+        {
+        // flush logs first
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">        if (output != null) output.close();</span>
+<span class="fc" id="L128">        System.out.flush();</span>
+<span class="fc" id="L129">        System.err.flush();</span>
+
+        // exit
+<span class="pc bpc" id="L132" title="1 of 2 branches missed.">        if (throwException)</span>
+<span class="fc" id="L133">            throw new OutputExitException(message);</span>
+        else
+<span class="nc" id="L135">            System.exit(1);</span>
+<span class="nc" id="L136">        }</span>
+
+    /** Closes the logs -- ONLY call this if you are preparing to quit */
+    public synchronized void close()
+        {
+        // just in case
+<span class="fc" id="L142">        flush();</span>
+        
+<span class="fc" id="L144">        Enumeration e = logs.elements();</span>
+<span class="fc bfc" id="L145" title="All 2 branches covered.">        while(e.hasMoreElements())</span>
+            {
+<span class="fc" id="L147">            Log log = (Log)e.nextElement();</span>
+<span class="fc bfc" id="L148" title="All 2 branches covered.">            if (!log.isLoggingToSystemOut)</span>
+<span class="fc" id="L149">                log.writer.close();</span>
+<span class="fc" id="L150">            }</span>
+<span class="fc" id="L151">        }</span>
+
+    /** Flushes the logs */
+    public synchronized void flush()
+        {
+<span class="fc" id="L156">        Enumeration e = logs.elements();</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">        while(e.hasMoreElements())</span>
+            {
+<span class="fc" id="L159">            Log log = (Log)e.nextElement();</span>
+<span class="fc" id="L160">            log.writer.flush();</span>
+<span class="fc" id="L161">            }</span>
+        // just in case...
+<span class="fc" id="L163">        System.out.flush();</span>
+<span class="fc" id="L164">        System.err.flush();</span>
+<span class="fc" id="L165">        }</span>
+
+    /** Creates a new, verbose, empty Output object. 
+        @deprecated Verbosity no longer has an effect.
+    */
+    public Output(boolean storeAnnouncementsInMemory, int _verbosity)
+        {
+<span class="nc" id="L172">        this(storeAnnouncementsInMemory);</span>
+<span class="nc" id="L173">        }</span>
+
+    /** Creates a new, verbose, empty Output object. */
+    public Output(boolean storeAnnouncementsInMemory)
+<span class="fc" id="L177">        {</span>
+<span class="fc" id="L178">        errors = false;</span>
+<span class="fc" id="L179">        store = storeAnnouncementsInMemory;</span>
+<span class="fc" id="L180">        }</span>
+
+    /** Sets whether the Output flushes its announcements.
+        @deprecated We now always flush 
+    */
+    public synchronized void setFlush(boolean v)
+        {
+        // flush = v;
+<span class="nc" id="L188">        }</span>
+    
+    /* Returns the Output's flushing behavior. 
+       @deprecated We now always flush 
+    */
+    public synchronized boolean getFlush()
+        {
+        // return flush;
+<span class="nc" id="L196">        return true;</span>
+        }
+    
+    /** Sets whether the Output stores its announcements.*/
+    public synchronized void setStore(boolean v)
+        {
+<span class="nc" id="L202">        store = v;</span>
+<span class="nc" id="L203">        }</span>
+
+    /* Returns the Output's storing behavior. */
+    public synchronized boolean getStore()
+        {
+<span class="nc" id="L208">        return store;</span>
+        }
+    
+    /** Sets the Output object's general verbosity to &lt;i&gt;v&lt;/i&gt;. 
+        @deprecated Verbosity no longer has an effect.
+    */
+    public synchronized void setVerbosity(int v)
+        {
+        //        verbosity = v;
+<span class="nc" id="L217">        }</span>
+    
+    /** Returns the Output object's general verbosity
+        @deprecated Verbosity no longer has an effect.
+    */
+    public synchronized int getVerbosity()
+        {
+<span class="nc" id="L224">        return V_VERBOSE;</span>
+        }
+
+    /** Creates a new log of minimal verbosity &lt;i&gt;verbosity&lt;/i&gt; and adds it 
+        to Output.  This log will write to the file &lt;i&gt;file&lt;/i&gt;, and may
+        or may not &lt;i&gt;post announcements&lt;/i&gt; to the log. If the log must be
+        reset upon restarting from a checkpoint, it will append to the file
+        or erase the file and start over depending on &lt;i&gt;appendOnRestart&lt;/i&gt;.
+        If &lt;i&gt;appendOnRestart&lt;/i&gt; is false and &lt;i&gt;postAnnouncements&lt;/i&gt; is
+        true, then this log will repost all the announcements on restarting
+        from a checkpoint. Returns the position of the log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart.
+        The log can be compressed with gzip, but you cannot appendOnRestart
+        and compress at the same time.
+        @deprecated Verbosity no longer has an effect.
+    */
+
+    public synchronized int addLog(File file,
+        int _verbosity,
+        boolean postAnnouncements,
+        boolean appendOnRestart,
+        boolean gzip) throws IOException
+        {
+<span class="pc bpc" id="L248" title="2 of 4 branches missed.">        if (filePrefix != null &amp;&amp; filePrefix.length()&gt;0)</span>
+<span class="nc" id="L249">            file = new File(file.getParent(),filePrefix+file.getName());</span>
+<span class="fc" id="L250">        logs.addElement(new Log(file,postAnnouncements,appendOnRestart,gzip));</span>
+<span class="fc" id="L251">        return logs.size()-1;</span>
+        }
+        
+    /** Creates a new log of minimal verbosity &lt;i&gt;verbosity&lt;/i&gt; and adds it 
+        to Output.  This log will write to the file &lt;i&gt;file&lt;/i&gt;, and may
+        or may not &lt;i&gt;post announcements&lt;/i&gt; to the log. If the log must be
+        reset upon restarting from a checkpoint, it will append to the file
+        or erase the file and start over depending on &lt;i&gt;appendOnRestart&lt;/i&gt;.
+        If &lt;i&gt;appendOnRestart&lt;/i&gt; is false and &lt;i&gt;postAnnouncements&lt;/i&gt; is
+        true, then this log will repost all the announcements on restarting
+        from a checkpoint. Returns the position of the log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart. 
+        @deprecated Verbosity no longer has an effect
+    */
+
+    public synchronized int addLog(File file,
+        int _verbosity,
+        boolean postAnnouncements,
+        boolean appendOnRestart) throws IOException
+        {
+<span class="nc" id="L272">        return addLog(file, postAnnouncements, appendOnRestart, false);</span>
+        }
+
+
+    /** Creates a new log &lt;!-- of minimal verbosity V_NO_GENERAL-1 --&gt; and adds it 
+        to Output.  This log will write to the file &lt;i&gt;file&lt;/i&gt;, and may
+        or may not &lt;i&gt;post announcements&lt;/i&gt; to the log. If the log must be
+        reset upon restarting from a checkpoint, it will append to the file
+        or erase the file and start over depending on &lt;i&gt;appendOnRestart&lt;/i&gt;.
+        If &lt;i&gt;appendOnRestart&lt;/i&gt; is false and &lt;i&gt;postAnnouncements&lt;/i&gt; is
+        true, then this log will repost all the announcements on restarting
+        from a checkpoint. Returns the position of the log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart.
+        The log can be compressed with gzip, but you cannot appendOnRestart
+        and compress at the same time.
+    */
+
+    public synchronized int addLog(File file,
+        boolean postAnnouncements,
+        boolean appendOnRestart,
+        boolean gzip) throws IOException
+        {
+<span class="fc" id="L295">        return addLog(file, V_VERBOSE, postAnnouncements, appendOnRestart, gzip);</span>
+        }
+
+
+    /** Creates a new log &lt;!-- of minimal verbosity V_NO_GENERAL-1 --&gt; and adds it 
+        to Output.  This log will write to the file &lt;i&gt;file&lt;/i&gt;, and you may
+        not post announcements to the log. If the log must be
+        reset upon restarting from a checkpoint, it will append to the file
+        or erase the file and start over depending on &lt;i&gt;appendOnRestart&lt;/i&gt;.
+        Returns the position of the log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart.
+        The log can be compressed with gzip, but you cannot appendOnRestart
+        and compress at the same time.*/
+
+    public synchronized int addLog(File file,
+        boolean appendOnRestart,
+        boolean gzip) throws IOException
+        {
+<span class="fc" id="L314">        return addLog(file, false, appendOnRestart, gzip);</span>
+        }
+        
+    /** Creates a new log &lt;!-- of minimal verbosity V_NO_GENERAL-1 --&gt; and adds it 
+        to Output.  This log will write to the file &lt;i&gt;file&lt;/i&gt;, and you may
+        not post announcements to the log. If the log must be
+        reset upon restarting from a checkpoint, it will append to the file
+        or erase the file and start over depending on &lt;i&gt;appendOnRestart&lt;/i&gt;.
+        Returns the position of the log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart. */
+
+    public synchronized int addLog(File file,
+        boolean appendOnRestart) throws IOException
+        {
+<span class="nc" id="L329">        return addLog(file, false, appendOnRestart, false);</span>
+        }
+
+
+    /** Creates a new log of minimal verbosity &lt;i&gt;verbosity&lt;/i&gt; and adds it 
+        to Output.  This log will write to stdout (descriptor == Log.D_STDOUT) 
+        or stderr (descriptor == Log.D_STDERR), and may or may not
+        &lt;i&gt;post announcements&lt;/i&gt; to the log. Returns the position of the 
+        log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart. 
+        @deprecated Verbosity no longer has an effect
+    */
+    
+    public synchronized int addLog(int descriptor,
+        int _verbosity,
+        boolean postAnnouncements)
+        {
+<span class="fc" id="L347">        logs.addElement(new Log(descriptor,postAnnouncements));</span>
+<span class="fc" id="L348">        return logs.size()-1;</span>
+        }
+
+    /** Creates a new log and adds it 
+        to Output.  This log will write to stdout (descriptor == Log.D_STDOUT) 
+        or stderr (descriptor == Log.D_STDERR), and may or may not
+        &lt;i&gt;post announcements&lt;/i&gt; to the log. Returns the position of the 
+        log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart. 
+    */
+    
+    public synchronized int addLog(int descriptor,
+        boolean postAnnouncements)
+        {
+<span class="fc" id="L363">        return addLog(descriptor, V_VERBOSE, postAnnouncements);</span>
+        }
+
+    /** Creates a new log of minimal verbosity &lt;i&gt;verbosity&lt;/i&gt; and adds it 
+        to Output.  This log may or may not &lt;i&gt;post announcements&lt;/i&gt; to
+        the log, and if it does, it additionally may or may not &lt;i&gt;repost&lt;/i&gt;
+        all of its announcements to the log upon a restart.  The log
+        writes to &lt;i&gt;writer&lt;/i&gt;, which is reset upon system restart by
+        &lt;i&gt;restarter&lt;/i&gt;. Returns the position of the log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart. 
+        @deprecated Verbosity no longer has an effect
+    */
+
+    public synchronized int addLog(Writer writer,
+        LogRestarter restarter,
+        int _verbosity,
+        boolean postAnnouncements,
+        boolean repostAnnouncements)
+        {
+<span class="nc" id="L383">        logs.addElement(new Log(writer,restarter,postAnnouncements,repostAnnouncements));</span>
+<span class="nc" id="L384">        return logs.size()-1;</span>
+        }
+
+    /** Creates a new log &lt;!-- of minimal verbosity V_NO_GENERAL-1 --&gt; and adds it 
+        to Output.  This log may or may not &lt;i&gt;post announcements&lt;/i&gt; to
+        the log, and if it does, it additionally may or may not &lt;i&gt;repost&lt;/i&gt;
+        all of its announcements to the log upon a restart.  The log
+        writes to &lt;i&gt;writer&lt;/i&gt;, which is reset upon system restart by
+        &lt;i&gt;restarter&lt;/i&gt;. Returns the position of the log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart. 
+    */
+
+    public synchronized int addLog(Writer writer,
+        LogRestarter restarter,
+        boolean postAnnouncements,
+        boolean repostAnnouncements)
+        {
+<span class="nc" id="L402">        logs.addElement(new Log(writer,restarter,postAnnouncements,repostAnnouncements));</span>
+<span class="nc" id="L403">        return logs.size()-1;</span>
+        }
+
+
+    /** Adds the given log to Output.  In general you shouldn't use this
+        method unless you really &lt;i&gt;really&lt;/i&gt; need something custom. 
+        Returns the position of the log in Output's 
+        collection of logs -- you should use this to access the log always;
+        never store the log itself, which may go away upon a system restart. */
+
+    public synchronized int addLog(Log l)
+        {
+<span class="nc" id="L415">        logs.addElement(l);</span>
+<span class="nc" id="L416">        return logs.size()-1;</span>
+        }
+
+    /** Returns the number of logs currently posted. */
+    public synchronized int numLogs()
+        {
+<span class="nc" id="L422">        return logs.size();</span>
+        }
+
+    /** Returns the given log. */
+    public synchronized Log getLog(int x)
+        {
+<span class="fc" id="L428">        return (Log)logs.elementAt(x);</span>
+        }
+
+    /** Removes the given log. */
+    public synchronized Log removeLog(int x)
+        {
+<span class="nc" id="L434">        Log l = getLog(x);</span>
+<span class="nc" id="L435">        logs.removeElementAt(x);</span>
+<span class="nc" id="L436">        return l;</span>
+        }
+    
+    /** Prints an initial warning to System.err.  This is only to
+        be used by ec.Evolve in starting up the system. */
+    public static void initialWarning(String s)
+        {
+<span class="nc" id="L443">        initialWarning(s, null, null);</span>
+<span class="nc" id="L444">        }</span>
+
+    /** Prints an initial warning to System.err.  This is only to
+        be used by ec.Evolve in starting up the system. */
+    public static void initialWarning(String s, Parameter p1)
+        {
+<span class="nc" id="L450">        initialWarning(s, p1, null);</span>
+<span class="nc" id="L451">        }</span>
+
+    /** Prints an initial warning to System.err.  This is only to
+        be used by ec.Evolve in starting up the system. */
+    public static void initialWarning(String s, Parameter p1, Parameter p2)
+        {
+<span class="nc" id="L457">        System.err.println(&quot;STARTUP WARNING:\n&quot; + s);</span>
+<span class="nc bnc" id="L458" title="All 2 branches missed.">        if (p1!=null) </span>
+            {
+<span class="nc" id="L460">            System.err.println(&quot;PARAMETER: &quot; + p1);</span>
+            }
+
+<span class="nc bnc" id="L463" title="All 4 branches missed.">        if (p2!=null &amp;&amp; p1!=null)</span>
+            {
+<span class="nc" id="L465">            System.err.println(&quot;     ALSO: &quot; + p2);</span>
+            }
+<span class="nc" id="L467">        }</span>
+
+    /** Prints an initial error to System.err.  This is only to
+        be used by ec.Evolve in starting up the system. */
+    public static void initialError(String s)
+        {
+<span class="nc" id="L473">        String er = &quot;STARTUP ERROR:\n&quot; + s;</span>
+<span class="nc" id="L474">        System.err.println(er);</span>
+
+        //System.exit(1);
+<span class="nc" id="L477">        exitWithError(null, er, false);</span>
+<span class="nc" id="L478">        }</span>
+
+    /** Prints an initial error to System.err.  This is only to
+        be used by ec.Evolve in starting up the system. */
+    public static void initialError(String s, Parameter p1)
+        {
+<span class="nc" id="L484">        String er = &quot;STARTUP ERROR:\n&quot; + s;</span>
+<span class="nc" id="L485">        System.err.println(er);</span>
+<span class="nc bnc" id="L486" title="All 2 branches missed.">        if (p1!=null) </span>
+            {
+<span class="nc" id="L488">            er += &quot;PARAMETER: &quot; + p1;</span>
+<span class="nc" id="L489">            System.err.println(&quot;PARAMETER: &quot; + p1);</span>
+            }
+
+        //System.exit(1);
+<span class="nc" id="L493">        exitWithError(null, er, false);</span>
+<span class="nc" id="L494">        }</span>
+
+    /** Prints an initial error to System.err.  This is only to
+        be used by ec.Evolve in starting up the system. */
+    public static void initialError(String s, Parameter p1, Parameter p2)
+        {
+<span class="nc" id="L500">        String er = &quot;STARTUP ERROR:\n&quot; + s;</span>
+<span class="nc" id="L501">        System.err.println(er);</span>
+<span class="nc bnc" id="L502" title="All 2 branches missed.">        if (p1!=null) </span>
+            {
+<span class="nc" id="L504">            er += &quot;PARAMETER: &quot; + p1;</span>
+<span class="nc" id="L505">            System.err.println(&quot;PARAMETER: &quot; + p1);</span>
+            }
+
+<span class="nc bnc" id="L508" title="All 4 branches missed.">        if (p2!=null &amp;&amp; p1!=null)</span>
+            {
+<span class="nc" id="L510">            er += &quot;     ALSO: &quot; + p2;</span>
+<span class="nc" id="L511">            System.err.println(&quot;     ALSO: &quot; + p2);</span>
+            }
+
+        //System.exit(1);
+<span class="nc" id="L515">        exitWithError(null, er, false);</span>
+<span class="nc" id="L516">        }</span>
+
+    /** Prints an initial message to System.err.  This is only to
+        be used by ec.Evolve in starting up the system.  These messages are not logged. */
+    public static void initialMessage(String s)
+        {
+<span class="nc" id="L522">        System.err.println(s);</span>
+<span class="nc" id="L523">        System.err.flush();</span>
+<span class="nc" id="L524">        }</span>
+
+    /** Posts a system message. */
+    public synchronized void systemMessage(String s)
+        {
+<span class="fc" id="L529">        println(s, V_NO_MESSAGES ,ALL_MESSAGE_LOGS, true);</span>
+<span class="fc" id="L530">        }</span>
+
+<span class="fc" id="L532">    StringBuilder error = new StringBuilder();</span>
+    // builds up an error message in case the user wants to throw
+    // an exception rather than quit
+    String a(String str)
+        {
+<span class="fc" id="L537">        error.append(str);</span>
+<span class="fc" id="L538">        error.append(&quot;\n&quot;);</span>
+<span class="fc" id="L539">        return str;</span>
+        }
+                
+    /** Posts a fatal error.  This causes the system to exit. */
+    public synchronized void fatal(String s)
+        {
+<span class="fc" id="L545">        StringBuilder error = new StringBuilder();</span>
+<span class="fc" id="L546">        println(a(&quot;FATAL ERROR:\n&quot;+s), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L547">        exitWithError(this, error.toString(), throwsErrors);</span>
+<span class="nc" id="L548">        }</span>
+            
+    /** Posts a fatal error.  This causes the system to exit. */
+    public synchronized void fatal(String s, Parameter p1)
+        {
+<span class="fc" id="L553">        println(a(&quot;FATAL ERROR:\n&quot;+s), ALL_MESSAGE_LOGS, true);</span>
+<span class="pc bpc" id="L554" title="1 of 2 branches missed.">        if (p1!=null) println(a(&quot;PARAMETER: &quot; + p1), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L555">        exitWithError(this, error.toString(), throwsErrors);</span>
+<span class="nc" id="L556">        }</span>
+
+    /** Posts a fatal error.  This causes the system to exit. */
+    public synchronized void fatal(String s, Parameter p1, Parameter p2)
+        {
+<span class="fc" id="L561">        println(a(&quot;FATAL ERROR:\n&quot;+s), ALL_MESSAGE_LOGS, true);</span>
+<span class="pc bpc" id="L562" title="1 of 2 branches missed.">        if (p1!=null) println(a(&quot;PARAMETER: &quot; + p1), ALL_MESSAGE_LOGS, true);</span>
+<span class="pc bpc" id="L563" title="2 of 4 branches missed.">        if (p2!=null &amp;&amp; p1!=null) println(a(&quot;     ALSO: &quot; + p2), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L564">        else println(a(&quot;PARAMETER: &quot; + p2), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L565">        exitWithError(this, error.toString(), throwsErrors);</span>
+<span class="nc" id="L566">        }</span>
+
+    /** Posts a simple error. This causes the error flag to be raised as well. */
+    public synchronized void error(String s)
+        {
+<span class="nc" id="L571">        println(a(&quot;ERROR:\n&quot;+s), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L572">        errors = true;</span>
+<span class="nc" id="L573">        }</span>
+            
+    /** Posts a simple error. This causes the error flag to be raised as well. */
+    public synchronized void error(String s, Parameter p1)
+        {
+<span class="nc" id="L578">        println(a(&quot;ERROR:\n&quot;+s), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc bnc" id="L579" title="All 2 branches missed.">        if (p1!=null) println(a(&quot;PARAMETER: &quot; + p1), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L580">        errors = true;</span>
+<span class="nc" id="L581">        }</span>
+
+    /** Posts a simple error. This causes the error flag to be raised as well. */
+    public synchronized void error(String s, Parameter p1, Parameter p2)
+        {
+<span class="nc" id="L586">        println(a(&quot;ERROR:\n&quot;+s), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc bnc" id="L587" title="All 2 branches missed.">        if (p1!=null) println(a(&quot;PARAMETER: &quot; + p1), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc bnc" id="L588" title="All 4 branches missed.">        if (p2!=null &amp;&amp; p1!=null) println(a(&quot;     ALSO: &quot; + p2), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L589">        else println(a(&quot;PARAMETER: &quot; + p2), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L590">        errors = true;</span>
+<span class="nc" id="L591">        }</span>
+
+    /** Posts a warning. */
+    public synchronized void warning(String s, Parameter p1, Parameter p2)
+        {
+<span class="fc" id="L596">        println(&quot;WARNING:\n&quot;+s, ALL_MESSAGE_LOGS, true);</span>
+<span class="pc bpc" id="L597" title="1 of 2 branches missed.">        if (p1!=null) println(&quot;PARAMETER: &quot; + p1, ALL_MESSAGE_LOGS, true);</span>
+<span class="pc bpc" id="L598" title="2 of 4 branches missed.">        if (p2!=null &amp;&amp; p1!=null) println(&quot;     ALSO: &quot; + p2, ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L599">        else println(&quot;PARAMETER: &quot; + p2, ALL_MESSAGE_LOGS, true);</span>
+<span class="fc" id="L600">        }</span>
+
+    /** Posts a warning. */
+    public synchronized void warning(String s, Parameter p1)
+        {
+<span class="fc" id="L605">        println(&quot;WARNING:\n&quot;+s, ALL_MESSAGE_LOGS, true);</span>
+<span class="pc bpc" id="L606" title="1 of 2 branches missed.">        if (p1!=null) println(&quot;PARAMETER: &quot; + p1, ALL_MESSAGE_LOGS, true);</span>
+<span class="fc" id="L607">        }</span>
+
+    /** Posts a warning. */
+    public synchronized void warning(String s)
+        {
+<span class="nc" id="L612">        println(&quot;WARNING:\n&quot;+s, ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L613">        }</span>
+    
+<span class="fc" id="L615">    java.util.HashSet oneTimeWarnings = new java.util.HashSet();</span>
+    /** Posts a warning one time only. */
+    public synchronized void warnOnce(String s)
+        {
+<span class="nc bnc" id="L619" title="All 2 branches missed.">        if (!oneTimeWarnings.contains(s))</span>
+            {
+<span class="nc" id="L621">            oneTimeWarnings.add(s);</span>
+<span class="nc" id="L622">            println(&quot;ONCE-ONLY WARNING:\n&quot;+s, ALL_MESSAGE_LOGS, true);</span>
+            }
+<span class="nc" id="L624">        }</span>
+        
+    public synchronized void warnOnce(String s, Parameter p1)
+        {
+<span class="pc bpc" id="L628" title="1 of 2 branches missed.">        if (!oneTimeWarnings.contains(s))</span>
+            {
+<span class="fc" id="L630">            oneTimeWarnings.add(s);</span>
+<span class="fc" id="L631">            println(&quot;ONCE-ONLY WARNING:\n&quot;+s, ALL_MESSAGE_LOGS, true);</span>
+<span class="pc bpc" id="L632" title="1 of 2 branches missed.">            if (p1!=null) println(&quot;PARAMETER: &quot; + p1, ALL_MESSAGE_LOGS, true);</span>
+            }
+<span class="fc" id="L634">        }</span>
+        
+    public synchronized void warnOnce(String s, Parameter p1, Parameter p2)
+        {
+<span class="nc bnc" id="L638" title="All 2 branches missed.">        if (!oneTimeWarnings.contains(s))</span>
+            {
+<span class="nc" id="L640">            oneTimeWarnings.add(s);</span>
+<span class="nc" id="L641">            println(&quot;ONCE-ONLY WARNING:\n&quot;+s, ALL_MESSAGE_LOGS, true);</span>
+<span class="nc bnc" id="L642" title="All 2 branches missed.">            if (p1!=null) println(&quot;PARAMETER: &quot; + p1, ALL_MESSAGE_LOGS, true);</span>
+<span class="nc bnc" id="L643" title="All 4 branches missed.">            if (p2!=null &amp;&amp; p1!=null) println(&quot;     ALSO: &quot; + p2, ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L644">            else println(&quot;PARAMETER: &quot; + p2, ALL_MESSAGE_LOGS, true);</span>
+            }
+<span class="nc" id="L646">        }</span>
+
+    
+    /** Posts a message. */
+    public synchronized void message(String s)
+        {
+<span class="fc" id="L652">        println(s, ALL_MESSAGE_LOGS, true);</span>
+<span class="fc" id="L653">        }</span>
+  
+    /** Forces a file-based log to reopen, erasing its previous contents.
+        non-file logs ignore this. */
+    
+    public synchronized void reopen(int _log) throws IOException
+        {
+<span class="nc" id="L660">        Log oldlog = (Log)logs.elementAt(_log);</span>
+<span class="nc" id="L661">        logs.setElementAt(oldlog.reopen(),_log);</span>
+<span class="nc" id="L662">        }</span>
+    
+    /** Forces one or more file-based logs to reopen, erasing 
+        their previous contents.  non-file logs ignore this. */
+    
+    public synchronized void reopen(int[] _logs) throws IOException
+        {
+<span class="nc bnc" id="L669" title="All 2 branches missed.">        for(int x=0;x&lt;_logs.length;x++)</span>
+            {
+<span class="nc" id="L671">            Log oldlog = (Log)logs.elementAt(_logs[x]);</span>
+<span class="nc" id="L672">            logs.setElementAt(oldlog.reopen(),_logs[x]);</span>
+            }
+<span class="nc" id="L674">        }</span>
+    
+
+    /** Prints a message to a given log, with a certain verbosity.  
+        &lt;i&gt;_announcement&lt;/i&gt; indicates that the message is an announcement. 
+        If the log is null, nothing is printed.
+        @deprecated Verbosity no longer has an effect
+    */
+
+    synchronized void println(String s,
+        int _verbosity,
+        Log log,
+        boolean _announcement,
+        boolean _reposting) throws OutputException
+        {
+<span class="pc bpc" id="L689" title="1 of 2 branches missed.">        if (log==null) return;</span>
+<span class="pc bpc" id="L690" title="1 of 2 branches missed.">        if (log.writer==null) throw new OutputException(&quot;Log with a null writer: &quot; + log);</span>
+<span class="fc bfc" id="L691" title="All 4 branches covered.">        if (!log.postAnnouncements &amp;&amp; _announcement) return;  // don't write it</span>
+        // if (log.verbosity &gt;= _verbosity) return;  // don't write it
+        // if (verbosity &gt;= _verbosity) return;  // don't write it
+<span class="fc bfc" id="L694" title="All 2 branches covered.">        if (log.silent) return;  // don't write it</span>
+        // now write it
+<span class="fc" id="L696">        log.writer.println(s);</span>
+        // if (flush) 
+        // always flush
+<span class="fc" id="L699">        log.writer.flush();</span>
+        //...and stash it in memory maybe
+<span class="pc bpc" id="L701" title="2 of 6 branches missed.">        if (store &amp;&amp; _announcement &amp;&amp; !_reposting)</span>
+<span class="fc" id="L702">            announcements.addElement(new Announcement(s));</span>
+<span class="fc" id="L703">        }</span>
+
+
+    /** Prints a message to a given log, 
+        with a certain verbosity.  If log==ALL_MESSAGE_LOGS, posted to all logs which accept announcements. 
+        If the log is NO_LOGS, nothing is printed.
+        @deprecated Verbosity no longer has an effect
+    */
+    synchronized void println(String s,
+        int _verbosity,
+        int log,
+        boolean _announcement) throws OutputException
+        {
+<span class="pc bpc" id="L716" title="1 of 2 branches missed.">        if (log==NO_LOGS) return;</span>
+<span class="pc bpc" id="L717" title="1 of 4 branches missed.">        if (log==ALL_MESSAGE_LOGS) for (int x = 0; x&lt;logs.size();x++)</span>
+                                       {
+<span class="fc" id="L719">                                       Log l = (Log) logs.elementAt(x);</span>
+<span class="pc bpc" id="L720" title="1 of 2 branches missed.">                                       if (l==null) throw new OutputException(&quot;Unknown log number&quot; + l);</span>
+<span class="fc" id="L721">                                       println(s,_verbosity,l,_announcement,false);</span>
+                                       }
+        else
+            {
+<span class="nc" id="L725">            Log l = (Log) logs.elementAt(log);</span>
+<span class="nc bnc" id="L726" title="All 2 branches missed.">            if (l==null) throw new OutputException(&quot;Unknown log number&quot; + log);</span>
+<span class="nc" id="L727">            println(s,_verbosity,l,_announcement,false);</span>
+            }
+<span class="fc" id="L729">        }</span>
+
+    /** Prints a message to a given log.  If log==ALL_MESSAGE_LOGS, posted to all logs which accept announcements. 
+        If the log is NO_LOGS, nothing is printed.
+    */
+    public synchronized void println(String s,
+        int log,
+        boolean _announcement) throws OutputException
+        {
+<span class="pc bpc" id="L738" title="1 of 2 branches missed.">        if (log==NO_LOGS) return;</span>
+<span class="fc" id="L739">        println(s, V_VERBOSE, log, _announcement);</span>
+<span class="fc" id="L740">        }</span>
+
+
+    /** Prints a non-announcement message to the given logs, 
+        with a certain verbosity. 
+        If a log is NO_LOGS, nothing is printed to that log.
+        @deprecated Verbosity no longer has an effect
+    */
+    public synchronized void println(String s,
+        int _verbosity,
+        int[] _logs) throws OutputException
+        {
+<span class="nc bnc" id="L752" title="All 2 branches missed.">        for(int x=0;x&lt;_logs.length;x++)</span>
+            {
+<span class="nc bnc" id="L754" title="All 2 branches missed.">            if (_logs[x]==NO_LOGS) break;</span>
+<span class="nc" id="L755">            println(s,V_VERBOSE,(Log)(logs.elementAt(_logs[x])),false,false);</span>
+            }
+<span class="nc" id="L757">        }</span>
+
+
+    /** Prints a non-announcement message to the given logs, 
+        with a certain verbosity. 
+        If the log is NO_LOGS, nothing is printed.
+        @deprecated Verbosity no longer has an effect
+    */
+    public synchronized void println(String s,
+        int _verbosity,
+        int log) throws OutputException
+        {
+<span class="pc bpc" id="L769" title="1 of 2 branches missed.">        if (log==NO_LOGS) return;</span>
+<span class="fc" id="L770">        println(s,V_VERBOSE,(Log)(logs.elementAt(log)),false,false);</span>
+<span class="fc" id="L771">        }</span>
+
+
+    /** 
+        Prints a non-announcement message to the given logs, with a verbosity of V_NO_GENERAL. 
+        If the log is NO_LOGS, nothing is printed.
+    */
+    public synchronized void println(String s,
+        int log) throws OutputException
+        {
+<span class="pc bpc" id="L781" title="1 of 2 branches missed.">        if (log==NO_LOGS) return;</span>
+<span class="fc" id="L782">        println(s,V_VERBOSE,log);</span>
+<span class="fc" id="L783">        }</span>
+
+
+    /** Prints a non-announcement message to a given log, with a 
+        certain verbosity. No '\n' is printed.  
+        If the log is null, nothing is printed.
+    */
+    protected synchronized void print(String s,
+        int _verbosity,
+        Log log) throws OutputException
+        {
+<span class="pc bpc" id="L794" title="1 of 2 branches missed.">        if (log==null) return;</span>
+<span class="pc bpc" id="L795" title="1 of 2 branches missed.">        if (log.writer==null) throw new OutputException(&quot;Log with a null writer: &quot; + log);</span>
+        //if (log.verbosity &gt;= _verbosity) return;  // don't write it
+        //if (verbosity &gt;= _verbosity) return;  // don't write it
+<span class="pc bpc" id="L798" title="1 of 2 branches missed.">        if (log.silent) return;  // don't write it</span>
+        // now write it
+<span class="fc" id="L800">        log.writer.print(s);</span>
+        // do not flush until you get a println
+        //if (flush) log.writer.flush();
+<span class="fc" id="L803">        }</span>
+
+    /** Prints a non-announcement message to a given log, with a
+        certain verbosity. If log==ALL_MESSAGE_LOGS, posted to all logs which accept announcements. 
+        No '\n' is printed.  
+        If the log is NO_LOGS, nothing is printed.
+    */
+    public synchronized void print(String s,
+        int _verbosity,
+        int log) throws OutputException
+        {
+<span class="pc bpc" id="L814" title="1 of 2 branches missed.">        if (log==NO_LOGS) return;</span>
+<span class="pc bpc" id="L815" title="3 of 4 branches missed.">        if (log==ALL_MESSAGE_LOGS) for (int x = 0; x&lt;logs.size();x++)</span>
+                                       {
+<span class="nc" id="L817">                                       Log l = (Log) logs.elementAt(x);</span>
+<span class="nc bnc" id="L818" title="All 2 branches missed.">                                       if (l==null) throw new OutputException(&quot;Unknown log number&quot; + l);</span>
+<span class="nc" id="L819">                                       print(s,V_VERBOSE,l);</span>
+                                       }
+        else
+            {
+<span class="fc" id="L823">            Log l = (Log) logs.elementAt(log);</span>
+<span class="pc bpc" id="L824" title="1 of 2 branches missed.">            if (l==null) throw new OutputException(&quot;Unknown log number&quot; + log);</span>
+<span class="fc" id="L825">            print(s,V_VERBOSE,l);</span>
+            }
+<span class="fc" id="L827">        }</span>
+
+    /** Prints a non-announcement message to a given log&lt;!--, with a verbosity of V_NO_GENERAL--&gt;.
+        If log==ALL_MESSAGE_LOGS, posted to all logs which accept announcements. No '\n' is printed.  
+        If the log is NO_LOGS, nothing is printed.
+    */
+    public synchronized void print(String s,
+        int log) throws OutputException
+        {
+<span class="fc" id="L836">        print(s, V_VERBOSE, log);</span>
+<span class="fc" id="L837">        }</span>
+
+    /** Prints a non-announcement message to the given logs, 
+        with a certain verbosity. No '\n' is printed.  
+        If a log is NO_LOGS, nothing is printed to that log.
+        @deprecated Verbosity no longer has any effect 
+    */
+    public synchronized void print(String s,
+        int _verbosity,
+        int[] _logs) throws OutputException
+        {
+<span class="nc bnc" id="L848" title="All 2 branches missed.">        for(int x=0;x&lt;_logs.length;x++)</span>
+            {
+<span class="nc bnc" id="L850" title="All 2 branches missed.">            if (_logs[x]==NO_LOGS) return;</span>
+<span class="nc" id="L851">            print(s,_logs[x]);</span>
+            }
+<span class="nc" id="L853">        }</span>
+
+    /** Prints a non-announcement message to the given logs, 
+        with a certain verbosity. No '\n' is printed.  
+        If a log is NO_LOGS, nothing is printed to that log.
+    */
+    public synchronized void print(String s,
+        int[] _logs) throws OutputException
+        {
+<span class="nc" id="L862">        print(s, V_VERBOSE, _logs);</span>
+<span class="nc" id="L863">        }</span>
+
+    /** Exits with a fatal error if the error flag has been raised. */
+    public synchronized void exitIfErrors()
+        {
+<span class="pc bpc" id="L868" title="1 of 2 branches missed.">        if (errors) </span>
+            {
+<span class="nc" id="L870">            println(a(&quot;SYSTEM EXITING FROM ERRORS\n&quot;), ALL_MESSAGE_LOGS, true);</span>
+<span class="nc" id="L871">            exitWithError(this, error.toString(), throwsErrors);</span>
+            }
+<span class="fc" id="L873">        }</span>
+
+    /** Clears the error flag. */
+    public synchronized void clearErrors()
+        {
+<span class="nc" id="L878">        errors = false;</span>
+<span class="nc" id="L879">        }</span>
+
+
+    /** Clears out announcements.  Note that this will cause these
+        announcements to be unavailable for reposting after a restart! */
+    public synchronized void clearAnnouncements()
+        {
+<span class="nc bnc" id="L886" title="All 2 branches missed.">        if (announcements!=null)</span>
+<span class="nc" id="L887">            announcements = new Vector();</span>
+<span class="nc" id="L888">        }</span>
+
+    public synchronized void restart() throws IOException
+        {
+        // restart logs, then repost announcements to them
+<span class="nc" id="L893">        int ls = logs.size();</span>
+<span class="nc bnc" id="L894" title="All 2 branches missed.">        for(int x=0;x&lt;ls;x++)</span>
+            {
+<span class="nc" id="L896">            Log l = (Log)(logs.elementAt(x));</span>
+<span class="nc" id="L897">            logs.setElementAt(l = l.restarter.restart(l),x);</span>
+<span class="nc bnc" id="L898" title="All 4 branches missed.">            if (l.repostAnnouncementsOnRestart &amp;&amp; store)</span>
+                {    
+<span class="nc" id="L900">                int as = announcements.size();</span>
+<span class="nc bnc" id="L901" title="All 2 branches missed.">                for (int y=0;y&lt;as;y++)</span>
+                    {
+<span class="nc" id="L903">                    Announcement a = (Announcement)(announcements.elementAt(y));</span>
+<span class="nc" id="L904">                    println(a.text,V_VERBOSE,l,true,true);</span>
+                    }
+                }
+            }
+
+        // exit with a fatal error if the errors flag is set. 
+<span class="nc" id="L910">        exitIfErrors();</span>
+<span class="nc" id="L911">        }</span>
+        
+    /** Returns a compressing input stream using JZLib (http://www.jcraft.com/jzlib/).  If JZLib is not available on
+     * your system, this method will return null. */
+    public static InputStream makeCompressingInputStream(InputStream in)
+        {
+        // to do this, we're going to use reflection.  But here's the equivalent code:
+        /*
+          return new com.jcraft.jzlib.ZInputStream(in);
+        */
+        try
+            {
+<span class="nc" id="L923">            return (InputStream)(Class.forName(&quot;com.jcraft.jzlib.ZInputStream&quot;).getConstructor(new Class[] { InputStream.class } ).newInstance(new Object[] { in }));</span>
+            }
+        // just in case of RuntimeExceptions
+<span class="nc" id="L926">        catch (Exception e) { return null; }  // failed, probably doesn't have JZLib on the system</span>
+        }
+
+    /** Returns a compressing output stream using JZLib (http://www.jcraft.com/jzlib/).  If JZLib is not available on
+     * your system, this method will return null. */
+    public static OutputStream makeCompressingOutputStream(OutputStream out)
+        {
+        // to do this, we're going to use reflection.  But here's the equivalent code:
+        /*
+            com.jcraft.jzlib.DeflaterOutputStream stream = new com.jcraft.jzlib.DeflaterOutputStream(out);
+            stream.setSyncFlush(true);
+            return stream;
+        */
+
+        try
+            {
+<span class="nc" id="L942">            Class outc = Class.forName(&quot;com.jcraft.jzlib.DeflaterOutputStream&quot;);</span>
+<span class="nc" id="L943">            Object outi = outc.getConstructor(new Class[] { OutputStream.class }).newInstance(new Object[] { out });</span>
+<span class="nc" id="L944">            outc.getMethod(&quot;setSyncFlush&quot;, new Class[] { Boolean.TYPE }).invoke(outi, new Object[] { true });</span>
+<span class="nc" id="L945">            return (OutputStream) outi;</span>
+            }
+        // just in case of RuntimeExceptions
+<span class="nc" id="L948">        catch (Exception e) { return null; } // failed, probably doesn't have JZLib on the system</span>
+        }
+
+
+    static class Announcement implements Serializable
+        {
+        /** The announcement's...anouncement.*/
+        public String text;
+
+        /** Creates a new announcement with text &lt;i&gt;t&lt;/i&gt; and verbosity value &lt;i&gt;v&lt;/i&gt; */
+        public Announcement (String t)
+<span class="fc" id="L959">            {</span>
+<span class="fc" id="L960">            text = t;</span>
+<span class="fc" id="L961">            }</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ForceBreedingPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.breed</a> &gt; <span class="el_source">ForceBreedingPipeline.java</span></div><h1>ForceBreedingPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.breed;
+import ec.*;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * ForceBreedingPipeline.java
+ * 
+ * Created: December 28, 1999
+ * By: Sean Luke
+ */
+
+/**
+ *
+ * ForceBreedingPipeline has one source.  To fill its quo for produce(...),
+ * ForceBreedingPipeline repeatedly forces its source to produce exactly numInds
+ * individuals at a time, except possibly the last time, where the number of
+ * individuals its source produces may be as low as 1.  This is useful for forcing
+ * Crossover to produce only one individual, or mutation to produce 2 individuals
+ * always, etc.
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Determined by &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-inds&lt;/tt&gt;
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-inds&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The number of individuals this breeding pipeline will force its
+ source to produce each time in order to fill the quo for produce(...).)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ breed.force
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L53">public class ForceBreedingPipeline extends BreedingPipeline</span>
+    {
+    public static final String P_NUMINDS = &quot;num-inds&quot;;
+    public static final String P_FORCE = &quot;force&quot;;
+
+    public int numInds;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L62">        return BreedDefaults.base().push(P_FORCE);</span>
+        }
+
+<span class="nc" id="L65">    public int numSources() { return 1; }    </span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L69">        super.setup(state,base);</span>
+<span class="nc" id="L70">        Parameter def = defaultBase();</span>
+<span class="nc" id="L71">        numInds = state.parameters.getInt(base.push(P_NUMINDS),def.push(P_NUMINDS),1);</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (numInds==0)</span>
+<span class="nc" id="L73">            state.output.fatal(&quot;ForceBreedingPipeline must produce at least 1 child at a time&quot;, base.push(P_NUMINDS),def.push(P_NUMINDS));</span>
+
+        // declare that likelihood isn't used
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        if (likelihood &lt; 1.0)</span>
+<span class="nc" id="L77">            state.output.warning(&quot;ForceBreedingPipeline does not respond to the 'likelihood' parameter.&quot;,</span>
+<span class="nc" id="L78">                base.push(P_LIKELIHOOD), def.push(P_LIKELIHOOD));</span>
+<span class="nc" id="L79">        }</span>
+
+    /** Returns the max of typicalIndsProduced() of all its children */
+    public int typicalIndsProduced()
+        {
+<span class="nc" id="L84">        return numInds;</span>
+        }
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+
+        {
+<span class="nc" id="L95">        int start = inds.size();</span>
+
+<span class="nc" id="L97">        int n = numInds;</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (n &lt; min) n = min;</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        if (n &gt; max) n = max;</span>
+
+        int total;
+        int numToProduce;
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        for(total=0; total&lt;n; )  // note empty term</span>
+            {
+<span class="nc" id="L105">            numToProduce = n - total;</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">            if (numToProduce &gt; numInds)</span>
+<span class="nc" id="L107">                numToProduce = numInds;</span>
+
+<span class="nc" id="L109">            total += sources[0].produce(numToProduce, numToProduce, subpopulation, inds, state, thread, misc);</span>
+            }
+        
+<span class="nc" id="L112">        return total;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

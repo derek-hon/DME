@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DOVSSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.dovs</a> &gt; <span class="el_source">DOVSSpecies.java</span></div><h1>DOVSSpecies.java</h1><pre class="source lang-java linenums">
+package ec.eda.dovs;
+
+import ec.*;
+import ec.vector.*;
+import ec.util.*;
+import java.util.*;
+
+/**
+ * DOVSSpecies is a IntegerVectorSpecies which implements DOVS algorithm. The
+ * two most important method for a Species in DOVS problem is
+ * updateMostPromisingArea(...) and mostPromisingAreaSamples(...). We call these
+ * two methods in sequence to first determine an area around best individual and
+ * sample new individual from that area. However, there are several ways to
+ * implements these two methods, thus, we let the subclasses to determine the
+ * implementation of these two method, e.g. HyperboxSpecies.
+ * 
+ * 
+ * &lt;p&gt;
+ * DOVSSpecies must be used in combination with DOVSBreeder, which will call it
+ * at appropriate times to reproduce new individuals for next generations. It
+ * must also be used in combination with DOVSInitializer and DOVSEvaluator. The
+ * former will be used to generate the initial population, and the later will
+ * determine a suitable number of evaluation for each individual.
+ *
+ *
+ * &lt;p&gt;
+ * &lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.initial-reps&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Integer &amp;gt; 1&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Base value of number of evaluations for each individual.&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.warmup&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Integer &amp;gt; 1&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Number of trial we want to randomize one dimension of the
+ * individual, used for sampling.&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.constraints-size&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Integer&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Number of constraints for the initial optimization problem.
+ * link&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.constraints-A&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;A string of double number separate by whitespace specified the
+ * left hand side coefficients of the constraint Ax&lt;=b.&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.constraints-B&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Double&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;A double number specified the right hand side of the constraint Ax&amp;lt;=b.&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.stochastic&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Boolean (default = false)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Is it the problem a stochastic problem?&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * 
+ * 
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ * dovs.species
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;species&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;species (the subpopulations' species)&lt;/td&gt;
+ * &lt;/tr&gt;
+ *
+ *
+ * 
+ * @author Ermo Wei and David Freelan
+ * 
+ */
+
+<span class="nc" id="L85">public class DOVSSpecies extends IntegerVectorSpecies</span>
+    {
+
+    public static final String P_DOVS_SPECIES = &quot;species&quot;;
+    public static final String P_INITIAL_REPETITION = &quot;initial-reps&quot;;
+    public static final String P_STOCHASTIC = &quot;stochastic&quot;;
+    //public static final String P_OCBA = &quot;ocba&quot;;
+    public static final String P_CONSTRAINTS_SIZE = &quot;constraints-size&quot;;
+    public static final String P_A = &quot;constraints-A&quot;;
+    public static final String P_B = &quot;constraints-b&quot;;
+    public static final String P_WARM_UP = &quot;warmup&quot;;
+
+    /**
+     * This integer indicate the index of optimal individual in the visited
+     * array.
+     */
+<span class="nc" id="L101">    public int optimalIndex = -1;</span>
+
+    /** warm up period for RMD sampling. */
+    public int warmUp;
+
+    /**
+     * This list contains all the sample we have visited during current
+     * algorithm run.
+     */
+    public ArrayList&lt;Individual&gt; visited;
+
+    /**
+     * Given a individual, return the index of this individual in ArrayList
+     * visited
+     */
+    public HashMap&lt;Individual, Integer&gt; visitedIndexMap;
+
+    /**
+     * CornerMaps for the all the visisted individuals. This record the
+     * key-value pair for each individuals, where key is the coordinates and
+     * value is individual itself.
+     */
+    public ArrayList&lt;CornerMap&gt; corners;
+
+    /**
+     * activeSolutions contains all the samples that is on the boundary of the
+     * most promising area.
+     */
+    public ArrayList&lt;Individual&gt; activeSolutions;
+
+    /**
+     * This is the Ek in original paper, where is the collection all the
+     * individuals evaluated in generation k.
+     */
+    public ArrayList&lt;Individual&gt; Ek;
+
+    /* Ocba flag. */
+    //public boolean ocba;
+
+    /** Is the problem a stochastic problem. */
+    public boolean stochastic;
+
+    /** Base value of number evaluation for each individual. */
+    public int initialReps;
+
+    /**
+     * This value will be updated at each generation to determine how many
+     * evaluation is needed for one individual. It make use of the initialReps.
+     */
+    public int repetition;
+
+    /** This is for future using. */
+<span class="nc" id="L153">    public long numOfTotalSamples = 0;</span>
+
+    /** Constraint coefficients */
+    public ArrayList&lt;double[]&gt; A;
+
+    /** Constratin coefficients */
+    public double[] b;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L163">        return DOVSDefaults.base().push(P_DOVS_SPECIES);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L168">        super.setup(state, base);</span>
+                
+<span class="nc" id="L170">        activeSolutions = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L171">        Ek = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L172">        visited = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L173">        visitedIndexMap = new HashMap&lt;Individual, Integer&gt;();</span>
+<span class="nc" id="L174">        corners = new ArrayList&lt;CornerMap&gt;();</span>
+        // initialize corner map
+<span class="nc bnc" id="L176" title="All 2 branches missed.">        for (int i = 0; i &lt; genomeSize; ++i)</span>
+<span class="nc" id="L177">            corners.add(new CornerMap());</span>
+
+<span class="nc" id="L179">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L181">        stochastic = state.parameters.getBoolean(base.push(P_STOCHASTIC), def.push(P_STOCHASTIC), true);</span>
+        //ocba = state.parameters.getBoolean(base.push(P_OCBA), def.push(P_OCBA), true);
+
+<span class="nc" id="L184">        initialReps = state.parameters.getInt(base.push(P_INITIAL_REPETITION), def.push(P_INITIAL_REPETITION), 1);</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        if (initialReps &lt; 1)</span>
+<span class="nc" id="L186">            state.output.fatal(&quot;Initial number of repetitions must be &gt;= 1&quot;, base.push(P_INITIAL_REPETITION), def.push(P_INITIAL_REPETITION));</span>
+
+<span class="nc" id="L188">        warmUp = state.parameters.getInt(base.push(P_WARM_UP), def.push(P_WARM_UP), 1);</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        if (warmUp &lt; 1)</span>
+<span class="nc" id="L190">            state.output.fatal(&quot;Warm-up Period must be &gt;= 1&quot;, base.push(P_WARM_UP), def.push(P_WARM_UP));</span>
+
+        // read in the constraint
+<span class="nc" id="L193">        int size = state.parameters.getInt(base.push(P_CONSTRAINTS_SIZE), def.push(P_CONSTRAINTS_SIZE), 0);</span>
+
+<span class="nc" id="L195">        A = new ArrayList&lt;double[]&gt;();</span>
+<span class="nc" id="L196">        b = new double[size];</span>
+
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        if (size &gt; 0)</span>
+            {
+            // Set up the constraints for A
+<span class="nc bnc" id="L201" title="All 2 branches missed.">            for (int x = 0; x &lt; size; x++)</span>
+                {
+<span class="nc" id="L203">                Parameter p = base.push(P_A).push(&quot;&quot; + x);</span>
+<span class="nc" id="L204">                Parameter defp = def.push(P_A).push(&quot;&quot; + x);</span>
+                                
+<span class="nc" id="L206">                double[] d = state.parameters.getDoublesUnconstrained(p, defp, this.genomeSize);</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">                if (d == null)</span>
+<span class="nc" id="L208">                    state.output.fatal(&quot;Row &quot; + x + &quot; of DOVSSpecies constraints array A must be a space- or tab-delimited list of exactly &quot; + this.genomeSize + &quot; numbers.&quot;,</span>
+                        p, defp); 
+<span class="nc" id="L210">                A.add(d);</span>
+                }
+                        
+<span class="nc" id="L213">            Parameter p = base.push(P_B);</span>
+<span class="nc" id="L214">            Parameter defp = def.push(P_B);</span>
+                                
+<span class="nc" id="L216">            b = state.parameters.getDoublesUnconstrained(p, defp, size);</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">            if (b == null)</span>
+<span class="nc" id="L218">                state.output.fatal(&quot;DOVSSpecies constraints vector b must be a space- or tab-delimited list of exactly &quot; + size + &quot; numbers.&quot;,</span>
+                    p, defp); 
+
+            }
+
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        repetition = stochastic ? initialReps : 1;</span>
+
+<span class="nc" id="L225">        }</span>
+
+    /**
+     * Define a most promising area for search of next genertion of individuals.
+     */
+    public void updateMostPromisingArea(EvolutionState state)
+        {
+<span class="nc" id="L232">        throw new UnsupportedOperationException(&quot;updateMostPromisingArea method not implementd!&quot;);</span>
+        }
+
+    /**
+     * Sample from the most promising area to get new generation of individual
+     * for evaluation.
+     */
+    public ArrayList&lt;Individual&gt; mostPromisingAreaSamples(EvolutionState state, int size)
+        {
+<span class="nc" id="L241">        throw new UnsupportedOperationException(&quot;mostPromisingAreaSamples method not implementd!&quot;);</span>
+        }
+
+    /**
+     * To find the best sample for each generation, we need to go through each
+     * individual in the current population, and also best individual and
+     * individuals in actionSolutions. These three type of individuals are
+     * exactly the individuals evaluated in DOVSEvaluator.
+     */
+    public void findBestSample(EvolutionState state, Subpopulation subpop)
+        {
+        // clear Ek
+<span class="nc" id="L253">        Ek.clear();</span>
+
+<span class="nc" id="L255">        ArrayList&lt;Individual&gt; individuals = subpop.individuals;</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">        for (int i = 0; i &lt; individuals.size(); ++i)</span>
+<span class="nc" id="L257">            Ek.add(individuals.get(i));</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        for (int i = 0; i &lt; activeSolutions.size(); ++i)</span>
+<span class="nc" id="L259">            Ek.add(activeSolutions.get(i));</span>
+<span class="nc" id="L260">        Ek.add(visited.get(optimalIndex));</span>
+<span class="nc" id="L261">        optimalIndex = findOptimalIndividual(Ek);</span>
+<span class="nc" id="L262">        }</span>
+
+    /**
+     * Given a list of individuals, it will find the one with highest fitness
+     * value and retrieve its index in visited solution list.
+     */
+    private int findOptimalIndividual(ArrayList&lt;Individual&gt; list)
+        {
+<span class="nc" id="L270">        double maximum = Integer.MIN_VALUE;</span>
+<span class="nc" id="L271">        IntegerVectorIndividual bestInd = null;</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        for (int i = 0; i &lt; list.size(); ++i)</span>
+            {
+<span class="nc" id="L274">            IntegerVectorIndividual ind = (IntegerVectorIndividual) list.get(i);</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">            if (((DOVSFitness)(ind.fitness)).mean &gt; maximum)</span>
+                {
+<span class="nc" id="L277">                maximum = ((DOVSFitness)(ind.fitness)).mean;</span>
+<span class="nc" id="L278">                bestInd = ind;</span>
+                }
+            }
+
+<span class="nc" id="L282">        return visitedIndexMap.get(bestInd);</span>
+        }
+
+    /**
+     * This method will take a candidate list and identify is there is redundant
+     * individual in it. If yes, it will get rid of the redundant individuals.
+     * After that, it will check if all the samples from this generation have
+     * been visited in previous generation. If yes, it will retrieve the samples
+     * from previous generations.
+     */
+    public ArrayList&lt;Individual&gt; uniqueSamples(EvolutionState state, ArrayList&lt;Individual&gt; candidates)
+        {
+        // first filter out the redundant sample with in the set of candidates
+<span class="nc" id="L295">        HashSet&lt;Individual&gt; set = new HashSet&lt;Individual&gt;();</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        for (int i = 0; i &lt; candidates.size(); ++i)</span>
+            {
+<span class="nc bnc" id="L298" title="All 2 branches missed.">            if (!set.contains(candidates.get(i)))</span>
+<span class="nc" id="L299">                set.add(candidates.get(i));</span>
+            }
+        // now all the individual in candidates are unique with in the set
+<span class="nc" id="L302">        candidates = new ArrayList&lt;Individual&gt;(set);</span>
+
+        // Sk will be the new population
+<span class="nc" id="L305">        ArrayList&lt;Individual&gt; Sk = new ArrayList&lt;Individual&gt;();</span>
+
+        // see if we have these individual in visted array before
+<span class="nc bnc" id="L308" title="All 2 branches missed.">        for (int i = 0; i &lt; candidates.size(); ++i)</span>
+            {
+<span class="nc" id="L310">            IntegerVectorIndividual individual = (IntegerVectorIndividual) candidates.get(i);</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">            if (visitedIndexMap.containsKey(individual))</span>
+                {
+                // we have this individual before, retrieve that
+<span class="nc" id="L314">                int index = visitedIndexMap.get(individual);</span>
+                // get the original individual
+<span class="nc" id="L316">                individual = (IntegerVectorIndividual) visited.get(index);</span>
+<span class="nc" id="L317">                }</span>
+            else
+                {
+<span class="nc" id="L320">                visited.add(individual);</span>
+<span class="nc" id="L321">                visitedIndexMap.put(individual, visited.size() - 1);</span>
+
+                // We add the new individual into the CornerMap
+                // NOTE: if the individual already, we still need to do this?
+                // original code says yes, but it seems to be wrong
+                // so we do this only the new individual is new
+<span class="nc bnc" id="L327" title="All 2 branches missed.">                for (int j = 0; j &lt; genomeSize; ++j)</span>
+                    {
+                    // The individual is the content. The key is its
+                    // coordinate position
+<span class="nc" id="L331">                    corners.get(j).insert(individual.genome[j], individual);</span>
+                    }
+                }
+
+<span class="nc" id="L335">            Sk.add(individual);</span>
+            }
+
+<span class="nc" id="L338">        return Sk;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

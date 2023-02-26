@@ -1,0 +1,113 @@
+parent.0 = ../../gp/koza/koza.params
+
+stat = ec.thesisStatistics.BaselineStatistics
+
+eval.problem = ec.app.experiments.WaveletExperiment.VanillaPT.ProceduralTextureFitness
+eval.problem.data = ec.app.experiments.GeneralandFitness.MultiData
+eval.problem.target = src/main/resources/ec/app/thesisExperiments/fish.jpg
+
+
+evalthreads = 				1
+breedthreads = 				1
+
+vanilla=true
+
+
+gray=true
+generations = 200
+eval.problem.imagesize = 256
+
+pop.subpop.0.size = 1500
+select.tournament.size =  5
+stat.do-description = true
+stat.do-final = true
+stat.do-evaluation = true
+eval.problem.save-path = /waveletExp2/GP/
+stat.do-memory = true
+stat.do-time = true
+stat.modulus = 1
+
+eval.problem.min_x = -2
+eval.problem.max_x = 2
+eval.problem.min_y = -2
+eval.problem.max_y = 2
+
+pop.subpop.0.species.pipe.num-sources = 2
+pop.subpop.0.species.pipe.source.0 = ec.gp.koza.CrossoverPipeline
+pop.subpop.0.species.pipe.source.0.prob = 0.9
+pop.subpop.0.species.pipe.source.1 = ec.gp.koza.MutationPipeline
+pop.subpop.0.species.pipe.source.1.prob = 0.1
+
+#(Gray) Each individual has a single tree
+pop.subpop.0.species.ind.numtrees = 1
+pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+pop.subpop.0.species.ind.tree.0.tc = tc0
+
+#(RGB)
+#pop.subpop.0.species.ind.numtrees = 3
+#pop.subpop.0.species.ind.tree.0 = ec.gp.GPTree
+#pop.subpop.0.species.ind.tree.0.tc = tc0
+#pop.subpop.0.species.ind.tree.1 = ec.gp.GPTree
+#pop.subpop.0.species.ind.tree.1.tc = tc0
+#pop.subpop.0.species.ind.tree.2 = ec.gp.GPTree
+#pop.subpop.0.species.ind.tree.2.tc = tc0
+
+# ======= Nodes =======
+# We have some functions.  They are:
+gp.fs.0.size = 25
+# Math (10):
+gp.fs.0.func.0 = ec.app.experiments.Functions.Func_Math$Add
+gp.fs.0.func.0.nc = nc2
+gp.fs.0.func.1 = ec.app.experiments.Functions.Func_Math$Sub
+gp.fs.0.func.1.nc = nc2
+gp.fs.0.func.2 = ec.app.experiments.Functions.Func_Math$Mul
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = ec.app.experiments.Functions.Func_Math$Div
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = ec.app.experiments.Functions.Func_Math$Sin
+gp.fs.0.func.4.nc = nc1
+gp.fs.0.func.5 = ec.app.experiments.Functions.Func_Math$Cos
+gp.fs.0.func.5.nc = nc1
+gp.fs.0.func.6 = ec.app.experiments.Functions.Func_Math$Max
+gp.fs.0.func.6.nc = nc2
+gp.fs.0.func.7 = ec.app.experiments.Functions.Func_Math$Min
+gp.fs.0.func.7.nc = nc2
+gp.fs.0.func.8 = ec.app.experiments.Functions.Func_Math$Exp
+gp.fs.0.func.8.nc = nc1
+gp.fs.0.func.9 = ec.app.experiments.Functions.Func_Math$Neg
+gp.fs.0.func.9.nc = nc1
+#
+# Ephemerals (3)
+gp.fs.0.func.10 = ec.app.experiments.Functions.Func_Ephemeral$Eph_1
+gp.fs.0.func.10.nc = nc0
+gp.fs.0.func.11 = ec.app.experiments.Functions.Func_Ephemeral$Eph_10
+gp.fs.0.func.11.nc = nc0
+gp.fs.0.func.12 = ec.app.experiments.Functions.Func_Ephemeral$Eph_100
+gp.fs.0.func.12.nc = nc0
+#
+# Extended functions (12)
+gp.fs.0.func.13 = ec.app.experiments.Functions.Func_Math$Abs
+gp.fs.0.func.13.nc = nc1
+gp.fs.0.func.14 = ec.app.experiments.Functions.Func_Math$Pow
+gp.fs.0.func.14.nc = nc2
+gp.fs.0.func.15 = ec.app.experiments.Functions.Func_Math$Log10
+gp.fs.0.func.15.nc = nc1
+gp.fs.0.func.16 = ec.app.experiments.Functions.Func_Math$LogE
+gp.fs.0.func.16.nc = nc1
+gp.fs.0.func.17 = ec.app.experiments.Functions.Func_Math$Floor
+gp.fs.0.func.17.nc = nc1
+gp.fs.0.func.18 = ec.app.experiments.Functions.Func_Math$Ceil
+gp.fs.0.func.18.nc = nc1
+gp.fs.0.func.19 = ec.app.experiments.Functions.Func_Math$Tan
+gp.fs.0.func.19.nc = nc1
+gp.fs.0.func.20 = ec.app.experiments.Functions.Func_Math$Sqrt
+gp.fs.0.func.20.nc = nc1
+gp.fs.0.func.21 = ec.app.experiments.Functions.Func_Math$Square
+gp.fs.0.func.21.nc = nc1
+gp.fs.0.func.22 = ec.app.experiments.Functions.Func_Math$Cube
+gp.fs.0.func.22.nc = nc1
+# Direct Variables (2)
+gp.fs.0.func.23  = ec.app.experiments.Functions.Func_Variable$Pos_X
+gp.fs.0.func.23.nc  = nc0
+gp.fs.0.func.24  = ec.app.experiments.Functions.Func_Variable$Pos_Y
+gp.fs.0.func.24.nc  = nc0

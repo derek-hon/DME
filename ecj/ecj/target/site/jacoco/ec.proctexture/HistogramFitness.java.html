@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HistogramFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.proctexture</a> &gt; <span class="el_source">HistogramFitness.java</span></div><h1>HistogramFitness.java</h1><pre class="source lang-java linenums">package ec.proctexture;
+
+import ec.EvolutionState;
+import ec.Individual;
+import ec.util.Parameter;
+import java.awt.Point;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import ec.gp.koza.*;
+
+/**
+ * HistogramFitness.java
+ * Created: 05/05/2020
+ * By: Michael Gircys, Derek Hon
+ *
+ * Simple Procedural Texture Generation using histogram as the fitness
+ **/
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L20">public class HistogramFitness extends Experiment implements TextureProblemForm {</span>
+
+    static final String P_COEF_COUNT = &quot;m&quot;;
+    static final String P_TARGET_CHISTQ = &quot;colours&quot;;
+
+<span class="nc" id="L25">    int CoefficientCount = 0;</span>
+<span class="nc" id="L26">    double[][] FourierPowerCoefficientTarget = new double[PSDTools.SideLength][PSDTools.SideLength];</span>
+<span class="nc" id="L27">    double[][] FourierPhaseCoefficientTarget = new double[PSDTools.SideLength][PSDTools.SideLength];</span>
+<span class="nc" id="L28">    Point[] TargetSignificantCoefficients = null;</span>
+
+<span class="nc" id="L30">    public BufferedImage TargetImage_ColourScheme = null;</span>
+<span class="nc" id="L31">    public ColorHistogram TargetColourHistogram = null;</span>
+<span class="nc" id="L32">    public DirectMatch TargetDirectMatch = null;</span>
+<span class="nc" id="L33">    public SSIM TargetSSIM = null;</span>
+
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+<span class="nc" id="L39">        super.setup(state, base);</span>
+
+        // Load targets from existing image
+<span class="nc bnc" id="L42" title="All 2 branches missed.">        if( TargetImage == null )</span>
+<span class="nc" id="L43">            state.output.fatal(&quot;Problem &quot; + this.getClass() + &quot; requires a target image.&quot;);</span>
+<span class="nc" id="L44">        TargetColourHistogram = new ColorHistogram(TargetImage);</span>
+<span class="nc" id="L45">        TargetDirectMatch = new DirectMatch(TargetImage);</span>
+<span class="nc" id="L46">        TargetSSIM = new SSIM(state, targetFile, TargetImage);</span>
+
+
+<span class="nc" id="L49">        state.output.systemMessage(&quot;Problem &quot; + this.getClass() + &quot; initialized.&quot;);</span>
+<span class="nc" id="L50">    }</span>
+
+    // This is done across multiple threads.
+    @Override
+    public void evaluate(EvolutionState state, Individual ind, int subpopulation, int threadnum)
+    {
+<span class="nc bnc" id="L56" title="All 2 branches missed.">        if(ind.evaluated) return;</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if(!(ind instanceof TextureIndividual))</span>
+<span class="nc" id="L58">            state.output.fatal(&quot;&quot; + this.getClass() + &quot; expects individuals of type TextureIndividual&quot;);</span>
+
+        // Generate image.
+<span class="nc" id="L61">        TextureIndividual texind = (TextureIndividual)ind;</span>
+<span class="nc" id="L62">        super.evaluate(state, texind, subpopulation, threadnum);</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if(texind.trees.length==1) PSDExtensions.ImageToArrayStrategyDefault = PSDExtensions.ImageToArrayStrategy.Channel_R;</span>
+        
+        //Compute Colour Histogram distance
+<span class="nc" id="L66">        ColorHistogram colourHist = new ColorHistogram(texind.Rendering);</span>
+<span class="nc" id="L67">        double fitness = TargetColourHistogram.colorHistDistance(colourHist);</span>
+        // DirectMatch match = new DirectMatch(texind.Rendering);
+        // double fitness = TargetDirectMatch.luminosityDistance(match);
+        // TargetSSIM.calculateWindows(PSDExtensions.ImageToDouble2D(texind.Rendering, null));
+        // double fitness = TargetSSIM.getSSIM();
+
+<span class="nc" id="L73">        KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc" id="L74">        f.setStandardizedFitness(state, fitness);</span>
+<span class="nc" id="L75">        ind.evaluated = true;</span>
+
+<span class="nc" id="L77">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

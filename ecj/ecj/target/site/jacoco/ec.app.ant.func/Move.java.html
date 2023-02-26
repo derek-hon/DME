@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Move.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.ant.func</a> &gt; <span class="el_source">Move.java</span></div><h1>Move.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.ant.func;
+import ec.*;
+import ec.app.ant.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * Move.java
+ * 
+ * Created: Wed Nov  3 18:26:37 1999
+ * By: Sean Luke
+ */
+
+/**
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L26">public class Move extends GPNode implements EvalPrint</span>
+    {
+<span class="nc" id="L28">    public String toString() { return &quot;move&quot;; }</span>
+
+    /*
+      public void checkConstraints(final EvolutionState state,
+      final int tree,
+      final GPIndividual typicalIndividual,
+      final Parameter individualBase)
+      {
+      super.checkConstraints(state,tree,typicalIndividual,individualBase);
+      if (children.length!=0)
+      state.output.error(&quot;Incorrect number of children for node &quot; + 
+      toStringForError() + &quot; at &quot; +
+      individualBase);
+      }
+    */
+<span class="nc" id="L43">    public int expectedChildren() { return 0; }</span>
+
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+<span class="nc" id="L52">        Ant p = (Ant)problem;</span>
+<span class="nc bnc" id="L53" title="All 5 branches missed.">        switch (p.orientation)</span>
+            {
+            case Ant.O_UP:
+<span class="nc" id="L56">                p.posy--;</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">                if (p.posy&lt;0) p.posy = p.maxy-1;</span>
+                break;
+            case Ant.O_LEFT:
+<span class="nc" id="L60">                p.posx--;</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">                if (p.posx&lt;0) p.posx = p.maxx-1;</span>
+                break;
+            case Ant.O_DOWN:
+<span class="nc" id="L64">                p.posy++;</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">                if (p.posy&gt;=p.maxy) p.posy=0;</span>
+                break;
+            case Ant.O_RIGHT:
+<span class="nc" id="L68">                p.posx++;</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                if (p.posx&gt;=p.maxx) p.posx=0;</span>
+                break;
+            default:  // whoa!
+<span class="nc" id="L72">                state.output.fatal(&quot;Whoa, somehow I got a bad orientation! (&quot; + p.orientation + &quot;)&quot;);</span>
+                break;
+            }
+
+<span class="nc" id="L76">        p.moves++;</span>
+<span class="nc bnc" id="L77" title="All 4 branches missed.">        if (p.map[p.posx][p.posy]==Ant.FOOD &amp;&amp; p.moves &lt; p.maxMoves )</span>
+            {
+<span class="nc" id="L79">            p.sum++;</span>
+<span class="nc" id="L80">            p.map[p.posx][p.posy]=Ant.ATE;</span>
+            }
+<span class="nc" id="L82">        }</span>
+
+    /** Just like eval, but it retraces the map and prints out info */
+    public void evalPrint(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem,
+        final int[][] map2)
+        {
+<span class="nc" id="L93">        Ant p = (Ant)problem;</span>
+<span class="nc bnc" id="L94" title="All 5 branches missed.">        switch (p.orientation)</span>
+            {
+            case Ant.O_UP:
+<span class="nc" id="L97">                p.posy--;</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">                if (p.posy&lt;0) p.posy = p.maxy-1;</span>
+                break;
+            case Ant.O_LEFT:
+<span class="nc" id="L101">                p.posx--;</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                if (p.posx&lt;0) p.posx = p.maxx-1;</span>
+                break;
+            case Ant.O_DOWN:
+<span class="nc" id="L105">                p.posy++;</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                if (p.posy&gt;=p.maxy) p.posy=0;</span>
+                break;
+            case Ant.O_RIGHT:
+<span class="nc" id="L109">                p.posx++;</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">                if (p.posx&gt;=p.maxx) p.posx=0;</span>
+                break;
+            default:  // whoa!
+<span class="nc" id="L113">                state.output.fatal(&quot;Whoa, somehow I got a bad orientation! (&quot; + p.orientation + &quot;)&quot;);</span>
+                break;
+            }
+
+<span class="nc" id="L117">        p.moves++;</span>
+<span class="nc bnc" id="L118" title="All 4 branches missed.">        if (p.map[p.posx][p.posy]==Ant.FOOD &amp;&amp; p.moves &lt; p.maxMoves)</span>
+            {
+<span class="nc" id="L120">            p.sum++;</span>
+<span class="nc" id="L121">            p.map[p.posx][p.posy]=Ant.ATE;</span>
+            }
+
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (p.moves&lt;p.maxMoves)</span>
+            {
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            if (++p.pmod &gt; 122 /* ascii z */) p.pmod=97; /* ascii a */</span>
+<span class="nc" id="L127">            map2[p.posx][p.posy]=p.pmod;</span>
+            }
+<span class="nc" id="L129">        }</span>
+    }
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPNodeConstraints.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPNodeConstraints.java</span></div><h1>GPNodeConstraints.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+
+/* GPNodeConstraints.java
+ * 
+ * Created: Fri Aug 27 17:40:40 1999
+ * By: Sean Luke
+ *
+ */
+
+/**
+ * A GPNodeConstraints is a Clique which defines constraint information
+ * common to many different GPNode functions, namely return types,
+ * child types, and number of children. 
+ * GPNodeConstraints have unique names by which
+ * they are identified.
+ *
+ * &lt;p&gt;In adding new things to GPNodeConstraints, you should ask yourself
+ * the following questions: first, is this something that takes up too
+ * much memory to store in GPNodes themselves?  second, is this something
+ * that needs to be accessed very rapidly, so cannot be implemented
+ * as a method call in a GPNode?  third, can this be shared among
+ * different GPNodes, even ones representing different functions?
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of node constraints)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;name&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(name of node constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;returns&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(return type for node constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of child arguments for node constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;child.&lt;/tt&gt;&lt;i&gt;m&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(name of type for child argument &lt;i&gt;m&lt;/i&gt; of node constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;prob&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;double &amp;gt;= 0.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(auxillary probability of selection -- used by ec.gp.build.PTC1 and ec.gp.build.PTC2)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L65">public class GPNodeConstraints implements Clique</span>
+    {
+    public static final int SIZE_OF_BYTE = 256;
+    public final static String P_NAME = &quot;name&quot;;
+    public final static String P_RETURNS = &quot;returns&quot;;
+    public final static String P_CHILD = &quot;child&quot;;
+    public final static String P_SIZE = &quot;size&quot;;
+    public final static String P_PROBABILITY = &quot;prob&quot;;
+    public final static double DEFAULT_PROBABILITY = 1.0;
+
+    /** Probability of selection -- an auxillary measure mostly used by PTC1/PTC2
+        right now */
+    public double probabilityOfSelection;
+
+    /** The byte value of the constraints -- we can only have 256 of them */
+    public byte constraintNumber;
+
+    /** The return type for a GPNode */
+    public GPType returntype;
+
+    /** The children types for a GPNode */
+    public GPType[] childtypes;
+
+    /** The name of the GPNodeConstraints object -- this is NOT the
+        name of the GPNode */
+    public String name;
+
+<span class="nc" id="L92">    public String toString() { return name; }</span>
+
+    /** A little memory optimization: if GPNodes have no children, they are welcome to
+        use share this zero-sized array as their children array. */
+<span class="nc" id="L96">    public GPNode zeroChildren[] = new GPNode[0];</span>
+
+    /** This must be called &lt;i&gt;after&lt;/i&gt; the GPTypes have been set up. */
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // What's my name?
+<span class="nc" id="L102">        name = state.parameters.getString(base.push(P_NAME),null);</span>
+<span class="nc bnc" id="L103" title="All 2 branches missed.">        if (name==null)</span>
+<span class="nc" id="L104">            state.output.fatal(&quot;No name was given for this node constraints.&quot;,</span>
+<span class="nc" id="L105">                base.push(P_NAME));</span>
+
+        // Register me
+<span class="nc" id="L108">        GPNodeConstraints old_constraints = (GPNodeConstraints)(((GPInitializer)state.initializer).nodeConstraintRepository.put(name,this));</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (old_constraints != null)</span>
+<span class="nc" id="L110">            state.output.fatal(&quot;The GP node constraint \&quot;&quot; + name + &quot;\&quot; has been defined multiple times.&quot;, base.push(P_NAME));</span>
+
+        // What's my return type?
+<span class="nc" id="L113">        String s = state.parameters.getString(base.push(P_RETURNS),null);</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (s==null)</span>
+<span class="nc" id="L115">            state.output.fatal(&quot;No return type given for the GPNodeConstraints &quot; + name, base.push(P_RETURNS));</span>
+<span class="nc" id="L116">        returntype = GPType.typeFor(s,state);</span>
+
+        // Load probability of selection
+
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_PROBABILITY),null))</span>
+            {
+<span class="nc" id="L122">            double f = state.parameters.getDouble(base.push(P_PROBABILITY),null,0);</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">            if (f &lt; 0)</span>
+<span class="nc" id="L124">                state.output.fatal(&quot;The probability of selection is &lt; 0, which is not valid.&quot;,base.push(P_PROBABILITY),null);</span>
+<span class="nc" id="L125">            probabilityOfSelection = f;</span>
+<span class="nc" id="L126">            }</span>
+<span class="nc" id="L127">        else probabilityOfSelection = DEFAULT_PROBABILITY;</span>
+
+        // How many child types do I have?
+        
+<span class="nc" id="L131">        int x = state.parameters.getInt(base.push(P_SIZE),null,0);</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        if (x &lt; 0)</span>
+<span class="nc" id="L133">            state.output.fatal(&quot;The number of children types for the GPNodeConstraints &quot; + name + &quot; must be &gt;= 0.&quot;, base.push(P_SIZE));</span>
+
+<span class="nc" id="L135">        childtypes = new GPType[x];</span>
+
+<span class="nc" id="L137">        Parameter p = base.push(P_CHILD);</span>
+
+        // Load my children
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        for (x=0;x&lt;childtypes.length;x++)</span>
+            {
+<span class="nc" id="L142">            s = state.parameters.getString(p.push(&quot;&quot;+x),null);</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">            if (s==null)</span>
+<span class="nc" id="L144">                state.output.fatal(&quot;Type #&quot; + x + &quot; is not defined for the GPNodeConstraints &quot; + name +  &quot;.&quot;, base.push(&quot;&quot;+x));</span>
+<span class="nc" id="L145">            childtypes[x] = GPType.typeFor(s,state);</span>
+            }
+        // ...because I promised when I called typeFor(...)
+<span class="nc" id="L148">        state.output.exitIfErrors();    </span>
+<span class="nc" id="L149">        }</span>
+
+
+    /** You must guarantee that after calling constraintsFor(...) one or
+        several times, you call state.output.exitIfErrors() once. */
+
+    public static GPNodeConstraints constraintsFor(final String constraintsName,
+        final EvolutionState state)
+        {
+<span class="nc" id="L158">        GPNodeConstraints myConstraints = (GPNodeConstraints)(((GPInitializer)state.initializer).nodeConstraintRepository.get(constraintsName));</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">        if (myConstraints==null)</span>
+<span class="nc" id="L160">            state.output.error(&quot;The GP node constraint \&quot;&quot; + constraintsName + &quot;\&quot; could not be found.&quot;);</span>
+<span class="nc" id="L161">        return myConstraints;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

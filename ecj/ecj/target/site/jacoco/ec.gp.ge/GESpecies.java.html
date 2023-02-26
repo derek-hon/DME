@@ -1,0 +1,773 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GESpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.ge</a> &gt; <span class="el_source">GESpecies.java</span></div><h1>GESpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2010 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.gp.ge;
+
+import java.io.*;
+import java.util.*;
+
+import ec.gp.*;
+import ec.*;
+import ec.vector.*;
+import ec.util.*;
+
+import java.util.regex.*;
+
+/*
+ * GESpecies.java
+ *
+ * Created: Sun Dec  5 11:33:43 EST 2010
+ * By: Eric Kangas, Joseph Zelibor III, Houston Mooers, and Sean Luke
+ *
+ */
+
+/**
+ * &lt;p&gt;GESpecies generates GPIndividuals from GEIndividuals through the application of a grammar parse graph
+ * computed by the GrammarParser.
+ *
+ * &lt;p&gt;GESpecies uses a &lt;b&gt;GrammarParser&lt;/b&gt; to do its dirty work.  This parser's job is to take a grammar (in the form of a BufferedReader)
+ * and convert it to a tree of GrammarNodes which define the parse graph of the grammar. The GESpecies then interprets his parse graph
+ * according to the values in the GEIndividual to produce the equivalent GPIndividual, which is then evaluated.
+ *
+ * &lt;p&gt;To do this, GESpecies relies on a subsidiary GPSpecies which defines the GPIndividual and various GPFunctionSets from which to
+ * build the parser.  This is a grand hack -- the GPSpecies does not know it's being used this way, and so we must provide various dummy
+ * parameters to keep the GPSpecies happy even though they'll never be used.
+ *
+ * &lt;p&gt;If you are daring, you can replace the GrammarParser with one of your own to customize the parse structure and grammar.
+ *
+ * &lt;p&gt;&lt;b&gt;ECJ's Default GE Grammar&lt;/b&gt;  GE traditionally can use any grammar, and builds parse graphs from that.  For simplicity, and in order to
+ * remain as compatable as possible with ECJ's existing GP facilities (and GP tradition), ECJ only uses a single Lisp-like grammar which
+ * generates standard ECJ trees.  This doesn't lose much in generality as the grammar is quite genral.
+ *
+ * &lt;p&gt;The grammar assumes that expansion points are enclosed in &amp;lt;&gt; and functions are enclosed in ().  For example:
+ *
+ * &lt;p&gt;&lt;tt&gt;
+ * # This is a comment
+ * &amp;lt;prog&gt; ::= &amp;lt;op&gt;&lt;br&gt;
+ * &amp;lt;op&gt; ::= (if-food-ahead &amp;lt;op&gt; &amp;lt;op&gt;)&lt;br&gt;
+ * &amp;lt;op&gt; ::=  (progn2 &amp;lt;op&gt; &amp;lt;op&gt;)&lt;br&gt;
+ * &amp;lt;op&gt; ::= (progn3 &amp;lt;op&gt; &amp;lt;op&gt; &amp;lt;op&gt;)&lt;br&gt;
+ * &amp;lt;op&gt; ::= (left) | (right) | (move)&lt;br&gt;
+ * &lt;/tt&gt;
+ *
+ * &lt;p&gt;alternatively the grammar could also be writen in the following format:
+ *
+ * &lt;p&gt;&lt;tt&gt;
+ * &amp;lt;prog&gt; ::= &amp;lt;op&gt;&lt;br&gt;
+ * &amp;lt;op&gt; ::= (if-food-ahead &amp;lt;op&gt; &amp;lt;op&gt;) | (progn2 &amp;lt;op&gt; &amp;lt;op&gt;) | (progn3 &amp;lt;op&gt; &amp;lt;op&gt; &amp;lt;op&gt;) | (left) | (right) | (move)&lt;br&gt;
+ * &lt;/tt&gt;
+ *
+ * &lt;p&gt;Note that you can use several lines to define the same grammar rule: for example, &lt;tt&gt;&amp;lt;op&gt;&lt;/tt&gt; was defined by several lines when
+ * it could have consisted of several elements separated by vertical pipes ( &lt;tt&gt;|&lt;/tt&gt; ).  Either way is fine, or a combination of both.
+ *
+ * &lt;p&gt;GPNodes are included in the grammar by using their name.  This includes ERCs, ADFs, ADMs, and ADFArguments, which should all work just fine.
+ * For example, since most ERC GPNodes are simply named &quot;ERC&quot;, if you have only one ERC GPNode in your function set, you can just use &lt;tt&gt;(ERC)&lt;/tt&gt;
+ * in your grammar.
+ *
+ * &lt;p&gt;Once the gammar file has been created and setup has been run trees can the be created using the genome (chromosome) of a GEIndividual.
+ * A genome of an individual is an array of random integers each of which are one int long.  These numbers are used when a decision point
+ * (a rule having more that one choice) is reached within the grammar.  Once a particular gene (index) in the genome has been used it will
+ * not be used again (this may change) when creating the tree.
+ *
+ * &lt;p&gt;For example:&lt;br&gt;
+ * number of chromosomes used = 0&lt;br&gt;
+ * genome = {23, 654, 86}&lt;br&gt;
+ * the current rule we are considering is &amp;lt;op&gt;.&lt;br&gt;
+ * %lt;op&gt; can map into one of the following: (if-food-ahead &amp;lt;op&gt; &amp;lt;op&gt;) | (progn2 &amp;lt;op&gt; &amp;lt;op&gt;) | (progn3 &amp;lt;op&gt; &amp;lt;op&gt; &amp;lt;op&gt;)
+ * | (left) | (right) | (move)&lt;br&gt;
+ * Since the rule &amp;lt;op&gt; has more than one choice that it can map to, we must consult the genome to decide which choice to take.  In this case
+ * the number of chromosomes used is 0 so genome[0] is used and number of chromosomes used is incremented.  Since values in the genome can
+ * be negitive values they are offset by 128 (max negitive of a int) giving us a value from 0-255.  A modulus is performed on this resulting
+ * number by the number of choices present for the given rule.  In the above example since we are using genome[0] the resulting operation would
+ * look like: 23+128=151, number of choices for &amp;lt;op&gt; = 6, 151%6=1 so we use choices[1] which is: (progn2 &amp;lt;op&gt; &amp;lt;op&gt;).  If all the genes
+ * in a genome are used and the tree is still incompete an invalid tree error is returned.
+ *
+ * &lt;p&gt;Each node in the tree is a GPNode and trees are constructed depth first.
+ *
+ *
+ * &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;file&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the file is where the rules of the gammar are stored)&lt;/td&gt;&lt;/tr&gt;
+ *
+ * &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;gp-species&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;classname, inherits and != ec.gp.GPSpecies&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the GPSpecies subservient to the GESpecies)&lt;/td&gt;&lt;/tr&gt;
+ *
+ * &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;parser&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;classname, inherits and != ge.GrammarParser&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;(the GrammarParser used by the GESpecies)&lt;/td&gt;&lt;/tr&gt;
+ *
+ * &lt;/table&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ * ge.GESpecies
+ *
+ * @author Joseph Zelibor III, Eric Kangas, Houston Mooers, and Sean Luke
+ * @version 1.0
+ */
+
+<span class="nc" id="L113">public class GESpecies extends IntegerVectorSpecies</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_GESPECIES = &quot;species&quot;;
+    public static final String P_FILE = &quot;file&quot;;
+    public static final String P_GPSPECIES = &quot;gp-species&quot;;
+    public static final String P_PARSER = &quot;parser&quot;;
+    public static final String P_PASSES = &quot;passes&quot;;
+    public static final String P_INITSCHEME = &quot;init-scheme&quot; ;
+
+    /* Return value which denotes that the tree has grown too large. */
+    public static final int BIG_TREE_ERROR = -1;
+
+    /** The GPSpecies subsidiary to GESpecies. */
+    public GPSpecies gpspecies;
+
+    /**
+       All the ERCs created so far, the ERCs are mapped as,
+       &quot;key --&gt; list of ERC nodes&quot;, where the key = (genome[i] - minGene[i]);
+       The ERCBank is &quot;static&quot;, beacause we need one identical copy
+       for all the individuals; Moreover, this copy may be sent to
+       other sub-populations as well.
+    */
+    public HashMap ERCBank;
+
+    /** The parsed grammars. */
+    public GrammarRuleNode[] grammar;
+        
+
+    /** The number of passes permitted through the genome if we're wrapping.   Must be &gt;= 1. */
+    public int passes;
+
+<span class="nc" id="L146">    public String initScheme = &quot;default&quot; ;</span>
+
+    /** The prototypical parser used to parse the grammars. */
+    public GrammarParser parser_prototype;
+
+    /** Parser for each grammar -- khaled */ 
+<span class="nc" id="L152">    public GrammarParser[] grammarParser = null ; </span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L156">        super.setup(state, base);</span>
+
+<span class="nc" id="L158">        Parameter p = base;</span>
+<span class="nc" id="L159">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L161">        p = base.push(P_GPSPECIES);</span>
+<span class="nc" id="L162">        gpspecies = (GPSpecies) (state.parameters.getInstanceForParameterEq(p, def.push(P_GPSPECIES), GPSpecies.class));</span>
+<span class="nc" id="L163">        gpspecies.setup(state, p);</span>
+
+        // check to make sure that our individual prototype is a GPIndividual
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (!(i_prototype instanceof IntegerVectorIndividual))</span>
+<span class="nc" id="L167">            state.output.fatal(&quot;The Individual class for the Species &quot;</span>
+<span class="nc" id="L168">                + getClass().getName()</span>
+                + &quot; is must be a subclass of ge.GEIndividual.&quot;, base);
+<span class="nc" id="L170">        ERCBank = new HashMap();</span>
+
+        // load the grammars, one per ADF tree
+<span class="nc" id="L173">        GPIndividual gpi = (GPIndividual) (gpspecies.i_prototype);</span>
+<span class="nc" id="L174">        GPTree[] trees = gpi.trees;</span>
+<span class="nc" id="L175">        int numGrammars = trees.length; // no. of trees = no. of grammars</span>
+
+<span class="nc" id="L177">        parser_prototype = (GrammarParser) (state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L178">                base.push(P_PARSER),</span>
+<span class="nc" id="L179">                def.push(P_PARSER),</span>
+                GrammarParser.class));
+<span class="nc" id="L181">        grammar = new GrammarRuleNode[numGrammars];</span>
+<span class="nc" id="L182">        grammarParser = new GrammarParser[numGrammars] ;</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">        for(int i = 0; i &lt; numGrammars; i++)</span>
+            {
+<span class="nc" id="L185">            p = base.push(P_FILE);</span>
+<span class="nc" id="L186">            def = defaultBase();</span>
+
+            // File grammarFile = state.parameters.getFile(p, def.push(P_FILE).push(&quot;&quot; + i));
+<span class="nc" id="L189">            InputStream grammarFile = state.parameters.getResource(p,</span>
+<span class="nc" id="L190">                def.push(P_FILE).push(&quot;&quot; + i));</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">            if(grammarFile == null)</span>
+<span class="nc" id="L192">                state.output.fatal(&quot;Error retrieving grammar file(s): &quot;</span>
+<span class="nc" id="L193">                    + def.toString() + &quot;.&quot;+ P_FILE + &quot;.&quot; + i</span>
+                    + &quot; is undefined.&quot;);
+<span class="nc" id="L195">            GPFunctionSet gpfs =</span>
+<span class="nc" id="L196">                trees[i].constraints((GPInitializer) state.initializer).functionset;</span>
+            // now we need different parser object for each of the grammars,
+            // why? see GrammarParser.java for details -- khaled
+<span class="nc" id="L199">            grammarParser[i] = (GrammarParser)parser_prototype.clone();</span>
+<span class="nc" id="L200">            BufferedReader br = new BufferedReader(new InputStreamReader(grammarFile));</span>
+<span class="nc" id="L201">            grammar[i] = grammarParser[i].parseRules(state, br, gpfs);</span>
+                        
+            // Enumerate the grammar tree -- khaled
+<span class="nc" id="L204">            grammarParser[i].enumerateGrammarTree(grammar[i]);</span>
+            // Generate the predictive parse table -- khaled
+<span class="nc" id="L206">            grammarParser[i].populatePredictiveParseTable(grammar[i]);</span>
+                        
+            try
+                {
+<span class="nc" id="L210">                br.close();</span>
+                }
+<span class="nc" id="L212">            catch (IOException e)</span>
+                {
+                // do nothing
+<span class="nc" id="L215">                }</span>
+            }
+
+        // get the initialization scheme -- khaled
+<span class="nc" id="L219">        initScheme = state.parameters.getString(base.push(P_INITSCHEME), def.push(P_INITSCHEME));</span>
+<span class="nc bnc" id="L220" title="All 4 branches missed.">        if( initScheme != null &amp;&amp; initScheme.equals(&quot;sensible&quot;))</span>
+<span class="nc" id="L221">            state.output.warnOnce(&quot;Using a \&quot;hacked\&quot; version of \&quot;sensible initialization\&quot;&quot;);</span>
+        else
+<span class="nc" id="L223">            state.output.warnOnce(&quot;Using default GE initialization scheme&quot;);</span>
+
+        // setup the &quot;passes&quot; parameters
+<span class="nc" id="L226">        final int MAXIMUM_PASSES = 1024;</span>
+
+<span class="nc" id="L228">        passes = state.parameters.getInt(base.push(P_PASSES), def.push(P_PASSES), 1);</span>
+<span class="nc bnc" id="L229" title="All 4 branches missed.">        if (passes &lt; 1 || passes &gt; MAXIMUM_PASSES)</span>
+<span class="nc" id="L230">            state.output.fatal(&quot;Number of allowed passes must be &gt;= 1 and &lt;=&quot;</span>
+                + MAXIMUM_PASSES + &quot;, likely small, such as &lt;= 16.&quot;,
+<span class="nc" id="L232">                base.push(P_PASSES), def.push(P_PASSES));</span>
+<span class="nc" id="L233">        int oldpasses = passes;</span>
+<span class="nc" id="L234">        passes = nextPowerOfTwo(passes);</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">        if (oldpasses != passes)</span>
+<span class="nc" id="L236">            state.output.warning(&quot;Number of allowed passes must be a power of 2.  Bumping from &quot;</span>
+                + oldpasses + &quot; to &quot; + passes,
+<span class="nc" id="L238">                base.push(P_PASSES), def.push(P_PASSES));</span>
+<span class="nc" id="L239">        }</span>
+
+    int nextPowerOfTwo(int v)
+        {
+        // if negative or 0, couldn't bump.
+        // See http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
+<span class="nc" id="L245">        v--;</span>
+<span class="nc" id="L246">        v |= v &gt;&gt; 1;</span>
+<span class="nc" id="L247">        v |= v &gt;&gt; 2;</span>
+<span class="nc" id="L248">        v |= v &gt;&gt; 4;</span>
+<span class="nc" id="L249">        v |= v &gt;&gt; 8;</span>
+<span class="nc" id="L250">        v |= v &gt;&gt; 16;</span>
+<span class="nc" id="L251">        v++;</span>
+<span class="nc" id="L252">        return v;</span>
+        }
+
+    /**
+     * This is an ugly hack to simulate the &quot;Sensible Initialization&quot;,
+     * First we create a GPIndividual, then reverse-map it to GEIndividuals,
+     * We do not need to call IntegerVectorSpecies.newIndividual() since it is overriden
+     * by the GPSpecies.newIndividual();
+     *
+     * Moreover, as in the case for non-identical representations (i,e, GP-GE island
+     * models etc,), the grammar rules, tree constraints, ERC's etc, are supposed to be
+     * identical across all islands, so we are using the same &quot;gpspecies&quot; inside this class.
+     *
+     * However, the identicality of the GPTree particulars like grammar, constraints, ADFs,
+     * ERC's may not be universally true.
+     */
+    public Individual newIndividual(final EvolutionState state, int thread)
+        {
+<span class="nc" id="L270">        GEIndividual gei = null ;</span>
+<span class="nc bnc" id="L271" title="All 4 branches missed.">        if(initScheme != null &amp;&amp; initScheme.equals(&quot;sensible&quot;))</span>
+            {
+<span class="nc" id="L273">            GPIndividual gpi = (GPIndividual)gpspecies.newIndividual(state, thread);</span>
+<span class="nc" id="L274">            gei = reverseMap(state, gpi, thread);</span>
+<span class="nc" id="L275">            }</span>
+        else
+            {
+<span class="nc" id="L278">            gei = (GEIndividual)super.newIndividual(state, thread);</span>
+<span class="nc" id="L279">            gei.species = this ;</span>
+            }
+<span class="nc" id="L281">        return gei ;</span>
+        }
+
+    /**
+     * creates all of an individual's trees
+     * @param state Evolution state
+     * @param trees array of trees for the individual
+     * @param ind the GEIndividual
+     * @param threadnum tread number
+     * @return number of chromosomes consumed
+     */
+    public int makeTrees(EvolutionState state, GEIndividual ind, GPTree[] trees,
+        int threadnum, HashMap ercMapsForFancyPrint)
+        {
+<span class="nc" id="L295">        int[] genome = ind.genome ;</span>
+<span class="nc" id="L296">        int position = 0 ;</span>
+
+        // We start with one pass, then repeatedly double the genome length and
+        // try again until it's big enough. This is simple but very costly in terms of
+        // memory so our maximum pass size is MAXIMUM_PASSES, which should be small enough
+        // to allow for even pretty long genomes.
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        for(int i = 1; i &lt;= passes; i *= 2)  // note i starts at 1</span>
+            {
+<span class="nc" id="L304">            position = makeTrees(state, genome, trees, threadnum, ercMapsForFancyPrint);</span>
+<span class="nc bnc" id="L305" title="All 4 branches missed.">            if (position &lt; 0 &amp;&amp; i &lt; passes)  // gotta try again</span>
+                {
+                // this is a total hack
+<span class="nc" id="L308">                int[] old = genome;</span>
+<span class="nc" id="L309">                genome = new int[old.length * 2]; </span>
+<span class="nc" id="L310">                System.arraycopy(old, 0, genome, 0, old.length);</span>
+<span class="nc" id="L311">                System.arraycopy(old, 0, genome, old.length, old.length);  // duplicate</span>
+                }
+            }
+<span class="nc" id="L314">        return (Math.min(position, ind.genome.length));</span>
+        }
+
+    // called by the above
+    public int makeTrees(EvolutionState state, int[] genome, GPTree[] trees,
+        int threadnum, HashMap ercMapsForFancyPrint)
+        {
+<span class="nc" id="L321">        int position = 0;</span>
+
+<span class="nc bnc" id="L323" title="All 2 branches missed.">        for (int i = 0; i &lt; trees.length; i++)</span>
+            {
+            // cannot complete one of the trees with the given chromosome
+<span class="nc bnc" id="L326" title="All 2 branches missed.">            if(position &lt; 0)</span>
+<span class="nc" id="L327">                return BIG_TREE_ERROR;</span>
+<span class="nc" id="L328">            position = makeTree(state, genome, trees[i], position, i, threadnum, ercMapsForFancyPrint);</span>
+            }
+<span class="nc" id="L330">        return position;</span>
+        }
+
+    /**
+     * makeTree, edits the tree that its given by adding a root (and all subtrees attached)
+     * @return the number of chromosomes used, or an BIG_TREE_ERROR sentinel value.
+     */
+    public int makeTree(EvolutionState state, int[] genome, GPTree tree,
+        int position, int treeNum, int threadnum, HashMap ercMapsForFancyPrint)
+        {
+        // hack, use an array to pass an extra value
+<span class="nc" id="L341">        int[] countNumberOfChromosomesUsed = {  position  };</span>
+
+<span class="nc" id="L343">        GPFunctionSet gpfs = tree.constraints((GPInitializer) state.initializer).functionset;</span>
+        GPNode root;
+
+        try // get the tree, or return an error.
+            {
+<span class="nc" id="L348">            root = makeSubtree(countNumberOfChromosomesUsed, genome, state, gpfs,</span>
+                grammar[treeNum], treeNum, threadnum, ercMapsForFancyPrint, tree, (byte)0);
+            }
+<span class="nc" id="L351">        catch (BigTreeException e)</span>
+            {
+<span class="nc" id="L353">            return BIG_TREE_ERROR;</span>
+<span class="nc" id="L354">            }</span>
+
+<span class="nc bnc" id="L356" title="All 2 branches missed.">        if(root == null)</span>
+<span class="nc" id="L357">            state.output.fatal(&quot;Invalid tree: tree #&quot; + treeNum);</span>
+
+<span class="nc" id="L359">        root.parent = tree;</span>
+<span class="nc" id="L360">        tree.child = root;</span>
+<span class="nc" id="L361">        return countNumberOfChromosomesUsed[0];</span>
+        }
+
+    // thrown by makeSubtree when chromosome is not large enough for the generated tree.
+<span class="nc" id="L365">    static class BigTreeException extends RuntimeException</span>
+        {
+        static final long serialVersionUID = 1L;
+        }
+
+    GPNode makeSubtree(int[] index, int[] genome, EvolutionState es, GPFunctionSet gpfs,
+        GrammarRuleNode rule, int treeNum, int threadnum, HashMap ercMapsForFancyPrint,
+        GPNodeParent parent, byte argposition)
+        {
+        // have we exceeded the length of the genome?  No point in going further.
+<span class="nc bnc" id="L375" title="All 2 branches missed.">        if (index[0] &gt;= genome.length)</span>
+<span class="nc" id="L376">            throw new BigTreeException();</span>
+
+        // expand the rule with the chromosome to get a body element
+        int i;
+
+        // non existant rule got passed in
+<span class="nc bnc" id="L382" title="All 2 branches missed.">        if (rule == null)</span>
+<span class="nc" id="L383">            es.output.fatal(&quot;An undefined rule exists within the grammar.&quot;);</span>
+                
+        // more than one rule to consider, pick one based off the genome, and consume the current gene
+        // avoid mod operation as much as possible
+<span class="nc bnc" id="L387" title="All 2 branches missed.">        if (rule.getNumChoices() &gt; 1)</span>
+<span class="nc" id="L388">            i = (genome[index[0]] - ((int)this.minGene(index[0]))) % rule.getNumChoices();</span>
+        else
+<span class="nc" id="L390">            i = 0;</span>
+<span class="nc" id="L391">        index[0]++;</span>
+<span class="nc" id="L392">        GrammarNode choice = rule.getChoice(i);</span>
+
+        // if body is another rule head
+        // look up rule
+<span class="nc bnc" id="L396" title="All 2 branches missed.">        if(choice instanceof GrammarRuleNode)</span>
+            {
+<span class="nc" id="L398">            GrammarRuleNode nextrule = (GrammarRuleNode) choice;</span>
+<span class="nc" id="L399">            return makeSubtree(index, genome, es, gpfs, nextrule,</span>
+                treeNum, threadnum, ercMapsForFancyPrint, parent, argposition);
+            }
+        else // handle functions
+            {
+<span class="nc" id="L404">            GrammarFunctionNode funcgrammarnode = (GrammarFunctionNode) choice;</span>
+
+<span class="nc" id="L406">            GPNode validNode = funcgrammarnode.getGPNodePrototype();</span>
+
+<span class="nc" id="L408">            int numChildren = validNode.children.length;</span>
+            // index 0 is the node itself
+<span class="nc" id="L410">            int numChildrenInGrammar = funcgrammarnode.getNumArguments();</span>
+
+            // does the grammar contain the correct amount of children that the GPNode requires
+<span class="nc bnc" id="L413" title="All 2 branches missed.">            if (numChildren != numChildrenInGrammar)</span>
+                {
+<span class="nc" id="L415">                es.output.fatal(&quot;GPNode &quot; + validNode.toStringForHumans() + &quot; requires &quot;</span>
+                    + numChildren + &quot; children.  &quot;
+                    + numChildrenInGrammar
+                    + &quot; children found in the grammar.&quot;);
+                }
+
+            // check to see if it is an ERC node
+<span class="nc bnc" id="L422" title="All 2 branches missed.">            if (validNode instanceof ERC)</span>
+                {
+                // have we exceeded the length of the genome?  No point in going further.
+<span class="nc bnc" id="L425" title="All 2 branches missed.">                if (index[0] &gt;= genome.length)</span>
+<span class="nc" id="L426">                    throw new BigTreeException();</span>
+
+                // ** do we actually need to maintain two vlaues ? key and originalVal ?
+                // ** there is no problem if we use the originalVal for both ERCBank and
+                // ** ercMapsForFancyPrint, moreover, this will also make the reverse-mapping case
+                // ** easier -- khaled
+
+                // these below two lines are from the original code --
+                // key for ERC hashtable look ups is the current index within the genome.  Consume it.
+                // int key = ((genome[index[0]]) - ((int)(this.minGene(index[0]))));
+                // int originalVal = genome[index[0]];
+
+                // this single line is khaled's mod --
+<span class="nc" id="L439">                int genomeVal = genome[index[0]];</span>
+<span class="nc" id="L440">                index[0]++;</span>
+<span class="nc" id="L441">                validNode = obtainERC(es, genomeVal, threadnum, validNode, ercMapsForFancyPrint);</span>
+<span class="nc" id="L442">                }</span>
+            // non ERC node
+            else
+<span class="nc" id="L445">                validNode = validNode.lightClone();</span>
+
+            // get the rest.
+<span class="nc bnc" id="L448" title="All 2 branches missed.">            for (int j = 0, childNumber = 0; j &lt; funcgrammarnode.getNumArguments(); j++)</span>
+                {
+                // get and link children to the current GPNode
+<span class="nc" id="L451">                validNode.children[childNumber] = makeSubtree(index, genome, es, gpfs,</span>
+<span class="nc" id="L452">                    (GrammarRuleNode)funcgrammarnode.getArgument(j), </span>
+                    treeNum, threadnum, ercMapsForFancyPrint, validNode, (byte)childNumber);
+<span class="nc bnc" id="L454" title="All 2 branches missed.">                if(validNode.children[childNumber] == null)</span>
+<span class="nc" id="L455">                    return null;</span>
+<span class="nc" id="L456">                childNumber++;</span>
+                }
+<span class="nc" id="L458">            validNode.argposition = argposition ;</span>
+<span class="nc" id="L459">            validNode.parent = parent ;</span>
+<span class="nc" id="L460">            return validNode;</span>
+            }
+        }
+
+    /**
+       Loads an ERC from the ERCBank given the value in the genome.
+       If there is no such ERC, then one is created and randomized,
+       then added to the bank. The point of this mechanism is to enable
+       ERCs to appear in multiple places in a GPTree.
+    */
+    public GPNode obtainERC(EvolutionState state, int genomeVal, int threadnum, GPNode node, HashMap ercMapsForFancyPrint)
+        {
+<span class="nc" id="L472">        ArrayList ERCList = (ArrayList) (ERCBank.get(Integer.valueOf(genomeVal)));</span>
+
+        // No such ERC, create a new ERCList.
+<span class="nc bnc" id="L475" title="All 2 branches missed.">        if (ERCList == null)</span>
+            {
+<span class="nc" id="L477">            ERCList = new ArrayList();</span>
+<span class="nc" id="L478">            ERCBank.put(new Integer(genomeVal), ERCList);</span>
+            }
+
+<span class="nc" id="L481">        GPNode dummy = null;</span>
+
+        // search array list for an ERC of the same type we want
+<span class="nc bnc" id="L484" title="All 2 branches missed.">        for (int i = 0; i &lt; ERCList.size(); i++)</span>
+            {
+<span class="nc" id="L486">            dummy = (GPNode) ERCList.get(i);</span>
+
+            // ERC was found inside the arraylist
+<span class="nc bnc" id="L489" title="All 2 branches missed.">            if (dummy.nodeEquivalentTo(node))</span>
+                {
+<span class="nc bnc" id="L491" title="All 2 branches missed.">                if (ercMapsForFancyPrint != null) </span>
+<span class="nc" id="L492">                    ercMapsForFancyPrint.put(new Integer(genomeVal), dummy);                              </span>
+<span class="nc" id="L493">                return dummy.lightClone();</span>
+                }
+            }
+
+        // erc was not found in the array list lets make one
+<span class="nc" id="L498">        node = node.lightClone();</span>
+<span class="nc" id="L499">        node.resetNode(state, threadnum);</span>
+<span class="nc" id="L500">        ERCList.add(node);</span>
+<span class="nc bnc" id="L501" title="All 2 branches missed.">        if (ercMapsForFancyPrint != null) ercMapsForFancyPrint.put(new Integer(genomeVal), node);               </span>
+<span class="nc" id="L502">        return node;</span>
+        }
+
+    public Object clone()
+        {
+<span class="nc" id="L507">        GESpecies other = (GESpecies) (super.clone());</span>
+<span class="nc" id="L508">        other.gpspecies = (GPSpecies) (gpspecies.clone());</span>
+        // ERCBank isn't cloned
+        // ** I think we need to clone it -- khaled
+<span class="nc" id="L511">        return other;</span>
+        }
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L516">        return GEDefaults.base().push(P_GESPECIES);</span>
+        }
+
+    /** Returns the number of elements consumed from the GEIndividual array to produce
+        the tree, else returns -1 if an error occurs, specifically if all elements were
+        consumed and the tree had still not been completed. */
+    public int consumed(EvolutionState state, GEIndividual ind, int threadnum)
+        {
+        // create a dummy individual
+<span class="nc" id="L525">        GPIndividual newind = ((GPIndividual) (gpspecies.i_prototype)).lightClone();</span>
+
+        // do the mapping and return the number consumed
+<span class="nc" id="L528">        return makeTrees(state, ind, newind.trees, threadnum, null);</span>
+        }
+
+    /**
+       Returns a dummy GPIndividual with a single tree which was built by mapping
+       over the elements of the given GEIndividual. Null is returned if an error occurs,
+       specifically, if all elements were consumed and the tree had still not been completed.
+       If you pass in a non-null HashMap for ercMapsForFancyPrint, then ercMapsForFancyPrint will be loaded
+       with key-&gt;ERCvalue pairs of ERC mappings used in this map.
+    */
+    public GPIndividual map(EvolutionState state, GEIndividual ind, int threadnum, HashMap ercMapsForFancyPrint)
+        {
+        // create a dummy individual
+<span class="nc" id="L541">        GPIndividual newind = ((GPIndividual) (gpspecies.i_prototype)).lightClone();</span>
+
+        // Do NOT initialize its trees
+
+        // Set the fitness to the IntegerVectorIndividual's fitness
+<span class="nc" id="L546">        newind.fitness = ind.fitness;</span>
+<span class="nc" id="L547">        newind.evaluated = false;</span>
+
+        // Set the species to me
+<span class="nc" id="L550">        newind.species = gpspecies;</span>
+
+        // do the mapping
+<span class="nc bnc" id="L553" title="All 2 branches missed.">        if (makeTrees(state, ind, newind.trees, threadnum, ercMapsForFancyPrint) &lt; 0)  // error</span>
+<span class="nc" id="L554">            return null;</span>
+        else
+<span class="nc" id="L556">            return newind;</span>
+        }
+
+    /** Flattens an S-expression */
+    public List flattenSexp(EvolutionState state, int threadnum, GPTree tree)
+        {
+<span class="nc" id="L562">        List nodeList = gatherNodeString(state, threadnum, tree.child, 0);</span>
+<span class="nc" id="L563">        return nodeList ;</span>
+        }
+
+    /** Used by the above function */
+    public List gatherNodeString(EvolutionState state, int threadnum, GPNode node, int index)
+        {
+<span class="nc" id="L569">        List list = new ArrayList();</span>
+<span class="nc bnc" id="L570" title="All 2 branches missed.">        if(node instanceof ERC)</span>
+            {
+            // Now, get the &quot;key&quot; from the &quot;node&quot;, NOTE: the &quot;node&quot; is inside an ArrayList,
+            // since the ERCBank is mapped as key --&gt; ArrayList of GPNodes.
+            // The &quot;key&quot; is the corresponding int value for the ERC.
+<span class="nc" id="L575">            list.add(node.name().trim()); // add &quot;ERC&quot;</span>
+            // then add the ERC key (original genome value)
+<span class="nc" id="L577">            list.add(getKeyFromNode(state, threadnum, node, index).trim());</span>
+            }
+        else
+<span class="nc" id="L580">            list.add(node.toString().trim());</span>
+<span class="nc bnc" id="L581" title="All 2 branches missed.">        if(node.children.length &gt; 0)</span>
+            {
+<span class="nc bnc" id="L583" title="All 2 branches missed.">            for(int i = 0 ; i &lt; node.children.length ; i++)</span>
+                {
+<span class="nc" id="L585">                index++ ;</span>
+<span class="nc" id="L586">                List sublist =</span>
+<span class="nc" id="L587">                    gatherNodeString(state, threadnum, node.children[i], index);</span>
+<span class="nc" id="L588">                list.addAll(sublist);</span>
+                }
+            }
+<span class="nc" id="L591">        return list ;</span>
+        }
+
+    public String getKeyFromNode(EvolutionState state, int threadnum, GPNode node, int index)
+        {
+<span class="nc" id="L596">        String str = null ;</span>
+        // ERCBank has some contents at least.
+<span class="nc bnc" id="L598" title="All 4 branches missed.">        if(ERCBank != null &amp;&amp; !ERCBank.isEmpty())</span>
+            {
+<span class="nc" id="L600">            Iterator iter = ERCBank.entrySet().iterator() ;</span>
+<span class="nc bnc" id="L601" title="All 2 branches missed.">            while(iter.hasNext())</span>
+                {
+<span class="nc" id="L603">                Map.Entry pairs = (Map.Entry)iter.next();</span>
+<span class="nc" id="L604">                ArrayList nodeList = (ArrayList)pairs.getValue();</span>
+<span class="nc bnc" id="L605" title="All 2 branches missed.">                if(Collections.binarySearch(</span>
+                        nodeList, 
+                        node, 
+<span class="nc" id="L608">                        new Comparator(){</span>
+                            public int compare(Object o1, Object o2)
+                                {
+<span class="nc bnc" id="L611" title="All 4 branches missed.">                                if(o1 instanceof GPNode &amp;&amp; o2 instanceof GPNode)</span>
+<span class="nc" id="L612">                                    return ((GPNode)o1).toString().</span>
+<span class="nc" id="L613">                                        compareTo(((GPNode)o2).toString());</span>
+<span class="nc" id="L614">                                return 0;</span>
+                                }
+                            }) &gt;= 0 )
+                    {
+                    // a match found, save the key, break loop.
+<span class="nc" id="L619">                    str = ((Integer)pairs.getKey()).toString();</span>
+<span class="nc" id="L620">                    break ;</span>
+                    }
+<span class="nc" id="L622">                }</span>
+            }
+
+        // If a suitable match is not found in the above loop,
+        // Add the node in a new list and add it to the ERCBank
+        // with a new random value as a key.
+<span class="nc bnc" id="L628" title="All 2 branches missed.">        if(str == null)</span>
+            {
+            // if the hash-map is not created yet
+<span class="nc bnc" id="L631" title="All 2 branches missed.">            if(ERCBank == null) ERCBank = new HashMap();</span>
+            // if the index is still in the range of minGene.length, use it.
+            // otherwise use the minGene[0] value.
+<span class="nc bnc" id="L634" title="All 2 branches missed.">            int minIndex = 0 ; if(index &lt; minGene.length) minIndex = index ;</span>
+            // now generate a new key
+<span class="nc" id="L636">            Integer key = Integer.valueOf((int)minGene[minIndex] </span>
+<span class="nc" id="L637">                + state.random[threadnum].nextInt(</span>
+                    (int)(maxGene[minIndex] - minGene[minIndex] + 1)));
+<span class="nc" id="L639">            ArrayList list = new ArrayList();</span>
+<span class="nc" id="L640">            list.add(node.lightClone());</span>
+<span class="nc" id="L641">            ERCBank.put(key, list);</span>
+<span class="nc" id="L642">            str = key.toString();</span>
+            }
+<span class="nc" id="L644">        return str ;</span>
+        }
+        
+    /**
+     * The LL(1) parsing algorithm to parse the lisp tree, the lisp tree is actually
+     * fed as a flattened list, the parsing code uses the &quot;exact&quot; (and as-is) procedure 
+     * described in the dragon book.
+     **/
+    public int[] parseSexp(ArrayList flatSexp, GrammarParser gp)
+        {
+        // We can't use array here, because we don't know how we are going to traverse
+        // the grammar tree, so the length is not known beforehand.
+<span class="nc" id="L656">        ArrayList intList = new ArrayList();</span>
+<span class="nc" id="L657">        Queue input = new LinkedList((ArrayList)flatSexp.clone()) ;</span>
+<span class="nc" id="L658">        Stack stack = new Stack();</span>
+<span class="nc" id="L659">        stack.push(((GrammarNode)gp.productionRuleList.get(0)).getHead());</span>
+<span class="nc" id="L660">        int index = 0 ;</span>
+<span class="nc bnc" id="L661" title="All 2 branches missed.">        while(!input.isEmpty())</span>
+            {
+<span class="nc" id="L663">            String token = (String)input.remove();</span>
+            while(true)
+                {
+<span class="nc bnc" id="L666" title="All 2 branches missed.">                if(stack.peek().equals(token))</span>
+                    {
+                    // if found a match, pop it from the stack
+<span class="nc" id="L669">                    stack.pop();</span>
+                    // if the stack top is an ERC, read the next token
+<span class="nc bnc" id="L671" title="All 2 branches missed.">                    if(token.equals(&quot;ERC&quot;))</span>
+                        {
+<span class="nc" id="L673">                        token = (String)input.remove();</span>
+<span class="nc" id="L674">                        intList.add(Integer.valueOf(token));</span>
+                        }
+                    break;
+                    }
+                else
+                    {
+<span class="nc" id="L680">                    int rIndex = ((Integer)gp.ruleHeadToIndex.get(stack.peek())).intValue();</span>
+<span class="nc" id="L681">                    int fIndex = ((Integer)gp.functionHeadToIndex.get(token)).intValue();</span>
+<span class="nc" id="L682">                    Integer ruleIndex = new Integer(gp.predictiveParseTable[rIndex][fIndex]);</span>
+                    // get the action (rule) to expand
+<span class="nc" id="L684">                    GrammarNode action = (GrammarNode)gp.indexToRule.get(ruleIndex);</span>
+                    // if the index is still in the range of minGene.length, use it.
+                    // otherwise use the minGene[0] value.
+<span class="nc bnc" id="L687" title="All 2 branches missed.">                    int minIndex = 0 ; if(index &lt; minGene.length) minIndex = index ;</span>
+                    // now add
+<span class="nc" id="L689">                    intList.add(new Integer(((Integer)gp.absIndexToRelIndex.get(ruleIndex)).intValue() + (int)minGene[minIndex]));</span>
+<span class="nc" id="L690">                    index++;</span>
+<span class="nc" id="L691">                    stack.pop();</span>
+<span class="nc" id="L692">                    action = action.children.get(0);</span>
+<span class="nc bnc" id="L693" title="All 2 branches missed.">                    if(action instanceof GrammarFunctionNode)</span>
+                        {
+                        // push the rule (action) arguments in reverse way
+<span class="nc" id="L696">                        for(int i = ((GrammarFunctionNode)action).getNumArguments() - 1 </span>
+<span class="nc bnc" id="L697" title="All 2 branches missed.">                                ; i &gt;= 0 ; i--)</span>
+<span class="nc" id="L698">                            stack.push(((GrammarFunctionNode)action).getArgument(i).getHead());</span>
+                        // the rule (action) head should be on the top
+<span class="nc" id="L700">                        stack.push(action.getHead());</span>
+                        }
+<span class="nc bnc" id="L702" title="All 2 branches missed.">                    else if(action instanceof GrammarRuleNode) // push as usual</span>
+<span class="nc" id="L703">                        stack.push(((GrammarRuleNode)action).getHead());</span>
+<span class="nc" id="L704">                    }</span>
+                }
+<span class="nc" id="L706">            }</span>
+        // now convert the list into an array
+<span class="nc" id="L708">        int[] genomeVals = new int[intList.size()];</span>
+<span class="nc bnc" id="L709" title="All 2 branches missed.">        for(int i = 0 ; i &lt; intList.size() ; i++) { genomeVals[i] = ((Integer)intList.get(i)).intValue() ; }</span>
+<span class="nc" id="L710">        return genomeVals ;</span>
+        }
+
+    /**
+       Reverse of the original map() function, takes a GPIndividual and returns
+       a corresponding GEIndividual; The GPIndividual may contain more than one trees,
+       and such cases are handled accordingly, see the 3rd bullet below --
+
+       NOTE:
+       * This reverse mapping is only valid for S-expression trees ;
+
+       * This procedure supports ERC for the current population (not for population
+       /subpopulation from other islands); However, that could be done by merging
+       all ERCBanks from all the sub-populations but that is not done yet ;
+
+       * Support for the ADF's are done as follows -- suppose in one GPIndividual,
+       there are N trees -- T1, T2, ,,, Tn and each of them follows n different
+       grammars G1, G2, ,,, Gn respectively; now if they are reverse-mapped to
+       int arrays, there will be n int arrays A1[], A2[], ,,, An[]; and suppose
+       the i-th tree Ti is reverse mapped to int array Ai[] and morevoer Ai[] is 
+       the longest among all the arrays (Bj[]s); so Bi[] is sufficient to build 
+       all ADF trees Tjs.
+    */
+    public GEIndividual reverseMap(EvolutionState state, GPIndividual ind, int threadnum)
+        {
+        // create a dummy individual
+<span class="nc" id="L736">        GEIndividual newind = (GEIndividual)i_prototype.clone();</span>
+
+        // The longest int will be able to contain all ADF trees.
+<span class="nc" id="L739">        int longestIntLength = -1 ;</span>
+<span class="nc" id="L740">        int[] longestInt = null ;</span>
+        // Now go through all the ADF trees.
+<span class="nc bnc" id="L742" title="All 2 branches missed.">        for(int treeIndex = 0 ; treeIndex &lt; ind.trees.length ; treeIndex++)</span>
+            {
+            // Flatten the Lisp tree
+<span class="nc" id="L745">            ArrayList flatSexp = (ArrayList)flattenSexp(state, threadnum,</span>
+                ind.trees[treeIndex]);
+            // Now convert the flatten list into an array of ints
+            // no. of trees == no. of grammars
+<span class="nc" id="L749">            int[] genomeVals = parseSexp(flatSexp, grammarParser[treeIndex]);</span>
+            // store the longest int array
+<span class="nc bnc" id="L751" title="All 2 branches missed.">            if(genomeVals.length &gt;= longestIntLength)</span>
+                {
+<span class="nc" id="L753">                longestIntLength = genomeVals.length ;</span>
+<span class="nc" id="L754">                longestInt = new int[genomeVals.length] ;</span>
+<span class="nc" id="L755">                System.arraycopy(genomeVals, 0, longestInt, 0, genomeVals.length);</span>
+                }
+<span class="nc" id="L757">            genomeVals = null ;</span>
+            }
+        // assign the longest int to the individual's genome
+<span class="nc" id="L760">        newind.genome = longestInt ;</span>
+
+        // update the GPIndividual's fitness information
+<span class="nc" id="L763">        newind.fitness = ind.fitness ;</span>
+<span class="nc" id="L764">        newind.evaluated = false;</span>
+
+        // Set the species to me ? not sure.
+<span class="nc" id="L767">        newind.species = this;</span>
+
+        // return it
+<span class="nc" id="L770">        return newind ;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

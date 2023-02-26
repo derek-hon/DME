@@ -1,0 +1,170 @@
+parent.0 = ../../mapelites/mapelites.params
+
+eval.problem = ec.app.proceduralTexture.DirectMatchFitness
+eval.problem.data = ec.app.proceduralTexture.MultiData
+eval.problem.target = src/main/resources/ec/app/proceduralTexture/testimgsplit.jpg
+
+stat.file = $out.stat
+stat = ec.mapelites.MapElitesStatistics
+
+map.imagesize = 125
+
+# ======= Map Parameters =======
+evaluations          = 10000
+quit-on-run-complete = true
+
+eval.problem.min_x = -1.5
+eval.problem.max_x = 2.25
+eval.problem.min_y = -0.5
+eval.problem.max_y = 1.25
+
+current-job = 0
+jobs        = 1
+
+breedthreads = 1
+evalthreads  = 1
+
+map.behaviours = 2
+
+stat.saveAll   = true
+stat.save-path = ./ec/app/proceduralTexture/images/
+stat.map-name = x-1dot5to2dot25y-dot5to1dot25
+
+# ===== Breeding Parameters =====
+
+map.species.fitness = ec.gp.koza.KozaFitness
+
+map.species = ec.mapelites.MapElitesGPSpecies
+map.species.ind = ec.mapelites.Elite
+map.species.fitness = ec.gp.koza.KozaFitness
+map.species.pipe = ec.mapelites.MapElitesMultiBreedingPipeline
+
+map.duplicate-retries = 100
+
+map.species.ind.numtrees = 3
+map.species.ind.tree.0 = ec.gp.GPTree
+map.species.ind.tree.0.tc = tc0
+map.species.ind.tree.1 = ec.gp.GPTree
+map.species.ind.tree.1.tc = tc0
+map.species.ind.tree.2 = ec.gp.GPTree
+map.species.ind.tree.2.tc = tc0
+
+map.species.pipe.num-sources = 2
+map.species.pipe.source.0 = ec.mapelites.MapElitesCrossoverPipeline
+map.species.pipe.source.0.prob = 0.9
+map.species.pipe.source.1 = ec.mapelites.MapElitesMutationPipeline
+map.species.pipe.source.1.prob = 0.1
+
+
+# ===== Behaviour 1 =====
+map.behaviour.0 = ec.mapelites.Behaviours
+map.behaviour.0.name = red
+map.behaviour.0.intervals = 17
+map.behaviour.0.interval.0.ubound = 15
+map.behaviour.0.interval.1.ubound = 30
+map.behaviour.0.interval.2.ubound = 45
+map.behaviour.0.interval.3.ubound = 60
+map.behaviour.0.interval.4.ubound = 75
+map.behaviour.0.interval.5.ubound = 90
+map.behaviour.0.interval.6.ubound = 105
+map.behaviour.0.interval.7.ubound = 120
+map.behaviour.0.interval.8.ubound = 135
+map.behaviour.0.interval.9.ubound = 150
+map.behaviour.0.interval.10.ubound = 165
+map.behaviour.0.interval.11.ubound = 180
+map.behaviour.0.interval.12.ubound = 195
+map.behaviour.0.interval.13.ubound = 210
+map.behaviour.0.interval.14.ubound = 225
+map.behaviour.0.interval.15.ubound = 240
+map.behaviour.0.interval.16.ubound = 255
+
+# ===== Behaviour 1 =====
+map.behaviour.1 = ec.mapelites.Behaviours
+map.behaviour.1.name = green
+map.behaviour.1.intervals = 17
+map.behaviour.1.interval.0.ubound = 15
+map.behaviour.1.interval.1.ubound = 30
+map.behaviour.1.interval.2.ubound = 45
+map.behaviour.1.interval.3.ubound = 60
+map.behaviour.1.interval.4.ubound = 75
+map.behaviour.1.interval.5.ubound = 90
+map.behaviour.1.interval.6.ubound = 105
+map.behaviour.1.interval.7.ubound = 120
+map.behaviour.1.interval.8.ubound = 135
+map.behaviour.1.interval.9.ubound = 150
+map.behaviour.1.interval.10.ubound = 165
+map.behaviour.1.interval.11.ubound = 180
+map.behaviour.1.interval.12.ubound = 195
+map.behaviour.1.interval.13.ubound = 210
+map.behaviour.1.interval.14.ubound = 225
+map.behaviour.1.interval.15.ubound = 240
+map.behaviour.1.interval.16.ubound = 255
+
+map.species.ind.numtrees = 3
+map.species.ind.tree.0 = ec.gp.GPTree
+map.species.ind.tree.0.tc = tc0
+map.species.ind.tree.1 = ec.gp.GPTree
+map.species.ind.tree.1.tc = tc0
+map.species.ind.tree.2 = ec.gp.GPTree
+map.species.ind.tree.2.tc = tc0
+
+map.startInds = 100
+
+do-2D-graph = false
+behaviour-source = ec.app.proceduralTexture.TestEvaluation
+doGraph = false
+
+# ======= Nodes =======
+# We have some functions.  They are:
+gp.fs.0.size = 23
+# Math (10):
+gp.fs.0.func.0 = ec.app.proceduralTexture.Func_Math$Add
+gp.fs.0.func.0.nc = nc2
+gp.fs.0.func.1 = ec.app.proceduralTexture.Func_Math$Sub
+gp.fs.0.func.1.nc = nc2
+gp.fs.0.func.2 = ec.app.proceduralTexture.Func_Math$Mul
+gp.fs.0.func.2.nc = nc2
+gp.fs.0.func.3 = ec.app.proceduralTexture.Func_Math$Div
+gp.fs.0.func.3.nc = nc2
+gp.fs.0.func.4 = ec.app.proceduralTexture.Func_Math$Sin
+gp.fs.0.func.4.nc = nc1
+gp.fs.0.func.5 = ec.app.proceduralTexture.Func_Math$Cos
+gp.fs.0.func.5.nc = nc1
+gp.fs.0.func.6 = ec.app.proceduralTexture.Func_Math$Max
+gp.fs.0.func.6.nc = nc2
+gp.fs.0.func.7 = ec.app.proceduralTexture.Func_Math$Min
+gp.fs.0.func.7.nc = nc2
+gp.fs.0.func.8 = ec.app.proceduralTexture.Func_Math$Exp
+gp.fs.0.func.8.nc = nc1
+gp.fs.0.func.9 = ec.app.proceduralTexture.Func_Math$Neg
+gp.fs.0.func.9.nc = nc1
+#
+# Ephemerals (3)
+gp.fs.0.func.10 = ec.app.proceduralTexture.Func_Ephemeral$Eph_1
+gp.fs.0.func.10.nc = nc0
+gp.fs.0.func.11 = ec.app.proceduralTexture.Func_Ephemeral$Eph_10
+gp.fs.0.func.11.nc = nc0
+gp.fs.0.func.12 = ec.app.proceduralTexture.Func_Ephemeral$Eph_100
+gp.fs.0.func.12.nc = nc0
+#
+# Extended functions (12)
+gp.fs.0.func.13 = ec.app.proceduralTexture.Func_Math$Abs
+gp.fs.0.func.13.nc = nc1
+gp.fs.0.func.14 = ec.app.proceduralTexture.Func_Math$Pow
+gp.fs.0.func.14.nc = nc2
+gp.fs.0.func.15 = ec.app.proceduralTexture.Func_Math$Log10
+gp.fs.0.func.15.nc = nc1
+gp.fs.0.func.16 = ec.app.proceduralTexture.Func_Math$LogE
+gp.fs.0.func.16.nc = nc1
+gp.fs.0.func.17 = ec.app.proceduralTexture.Func_Math$Floor
+gp.fs.0.func.17.nc = nc1
+gp.fs.0.func.18 = ec.app.proceduralTexture.Func_Math$Ceil
+gp.fs.0.func.18.nc = nc1
+gp.fs.0.func.19 = ec.app.proceduralTexture.Func_Math$Tan
+gp.fs.0.func.19.nc = nc1
+gp.fs.0.func.20 = ec.app.proceduralTexture.Func_Math$Sqrt
+gp.fs.0.func.20.nc = nc1
+gp.fs.0.func.21 = ec.app.proceduralTexture.Func_Math$Square
+gp.fs.0.func.21.nc = nc1
+gp.fs.0.func.22 = ec.app.proceduralTexture.Func_Math$Cube
+gp.fs.0.func.22.nc = nc1

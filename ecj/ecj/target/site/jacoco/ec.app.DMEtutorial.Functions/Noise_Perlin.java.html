@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Noise_Perlin.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.Functions</a> &gt; <span class="el_source">Noise_Perlin.java</span></div><h1>Noise_Perlin.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.Functions;
+
+import ec.util.MersenneTwisterFast;
+
+/**
+ * Michael Gircys' adaptation from:
+ * &lt;http://riven8192.blogspot.fr/2009/08/perlinnoise.html&gt;
+ */
+public class Noise_Perlin
+{
+<span class="nc" id="L11">	private final int[] perm = new int[512];</span>
+	private float x0, y0, z0;
+
+	
+<span class="nc" id="L15">	public Noise_Perlin() { this((long)0); }</span>
+	public Noise_Perlin(long seed)
+<span class="nc" id="L17">	{</span>
+<span class="nc" id="L18">		MersenneTwisterFast rand = new MersenneTwisterFast(seed);</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">		for(int i=0; i&lt;256; i++)</span>
+<span class="nc" id="L20">			perm[i] = (short)(((short)rand.nextByte())&amp;0xFF);</span>
+<span class="nc bnc" id="L21" title="All 2 branches missed.">		for(int i=256; i&lt;512; i++)</span>
+<span class="nc" id="L22">			perm[i] = perm[i &amp; 255];</span>
+<span class="nc" id="L23">	}</span>
+	
+	
+	public final void offset(float x, float y, float z)
+	{
+<span class="nc" id="L28">		this.x0 = x;</span>
+<span class="nc" id="L29">		this.y0 = y;</span>
+<span class="nc" id="L30">		this.z0 = z;</span>
+<span class="nc" id="L31">	}</span>
+	
+	// AKA FractalSum.
+	public final float smoothNoise(float x, float y, float z, int octaves)
+	{
+<span class="nc" id="L36">		float height = 0.0f;</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">		for (int octave = 1; octave &lt;= octaves; octave++)</span>
+<span class="nc" id="L38">			height += noise(x, y, z, octave);</span>
+<span class="nc" id="L39">		return height;</span>
+	}
+
+	public final float turbulentNoise(float x, float y, float z, int octaves)
+	{
+<span class="nc" id="L44">		float height = 0.0f;</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">		for (int octave = 1; octave &lt;= octaves; octave++)</span>
+		{
+<span class="nc" id="L47">			float h = noise(x, y, z, octave);</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">			if (h &lt; 0.0f) h *= -1.0f;</span>
+<span class="nc" id="L49">			height += h;</span>
+		}
+<span class="nc" id="L51">		return height;</span>
+	}
+	
+	// As per Texturing &amp; Modelling: A Procedural Approach 2E, p85-86
+	public final float marble(float x, float y, float z)
+	{
+<span class="nc" id="L57">		int octaves = 4;</span>
+<span class="nc" id="L58">		float height = 0.0f;</span>
+<span class="nc" id="L59">		float f = 1.0f;</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">		for (int i = 1; i &lt;= octaves; i++)</span>
+		{
+<span class="nc" id="L62">			height += this.noise(x * f + this.x0, y * f + this.y0, z * f + this.z0) / f;</span>
+<span class="nc" id="L63">			f *= 2.17;</span>
+		}
+<span class="nc" id="L65">		return height;</span>
+	}
+	
+
+	public final float noise(float x, float y, float z)
+	{
+<span class="nc" id="L71">		float fx = floor(x);</span>
+<span class="nc" id="L72">		float fy = floor(y);</span>
+<span class="nc" id="L73">		float fz = floor(z);</span>
+
+<span class="nc" id="L75">		int gx = (int) fx &amp; 0xFF;</span>
+<span class="nc" id="L76">		int gy = (int) fy &amp; 0xFF;</span>
+<span class="nc" id="L77">		int gz = (int) fz &amp; 0xFF;</span>
+
+<span class="nc" id="L79">		float u = fade(x -= fx);</span>
+<span class="nc" id="L80">		float v = fade(y -= fy);</span>
+<span class="nc" id="L81">		float w = fade(z -= fz);</span>
+
+<span class="nc" id="L83">		int a0 = perm[gx + 0] + gy;</span>
+<span class="nc" id="L84">		int b0 = perm[gx + 1] + gy;</span>
+<span class="nc" id="L85">		int aa = perm[a0 + 0] + gz;</span>
+<span class="nc" id="L86">		int ab = perm[a0 + 1] + gz;</span>
+<span class="nc" id="L87">		int ba = perm[b0 + 0] + gz;</span>
+<span class="nc" id="L88">		int bb = perm[b0 + 1] + gz;</span>
+
+<span class="nc" id="L90">		float a1 = grad(perm[bb + 1], x - 1, y - 1, z - 1);</span>
+<span class="nc" id="L91">		float a2 = grad(perm[ab + 1], x - 0, y - 1, z - 1);</span>
+<span class="nc" id="L92">		float a3 = grad(perm[ba + 1], x - 1, y - 0, z - 1);</span>
+<span class="nc" id="L93">		float a4 = grad(perm[aa + 1], x - 0, y - 0, z - 1);</span>
+<span class="nc" id="L94">		float a5 = grad(perm[bb + 0], x - 1, y - 1, z - 0);</span>
+<span class="nc" id="L95">		float a6 = grad(perm[ab + 0], x - 0, y - 1, z - 0);</span>
+<span class="nc" id="L96">		float a7 = grad(perm[ba + 0], x - 1, y - 0, z - 0);</span>
+<span class="nc" id="L97">		float a8 = grad(perm[aa + 0], x - 0, y - 0, z - 0);</span>
+
+<span class="nc" id="L99">		float a2_1 = lerp(u, a2, a1);</span>
+<span class="nc" id="L100">		float a4_3 = lerp(u, a4, a3);</span>
+<span class="nc" id="L101">		float a6_5 = lerp(u, a6, a5);</span>
+<span class="nc" id="L102">		float a8_7 = lerp(u, a8, a7);</span>
+<span class="nc" id="L103">		float a8_5 = lerp(v, a8_7, a6_5);</span>
+<span class="nc" id="L104">		float a4_1 = lerp(v, a4_3, a2_1);</span>
+<span class="nc" id="L105">		float a8_1 = lerp(w, a8_5, a4_1);</span>
+
+<span class="nc" id="L107">		return a8_1;</span>
+	}
+
+	private final float noise(float x, float y, float z, int octave)
+	{
+<span class="nc" id="L112">		float p = pow[octave];</span>
+<span class="nc" id="L113">		return this.noise(x * p + this.x0, y * p + this.y0, z * p + this.z0) / p;</span>
+	}
+
+	
+	
+	private static final float floor(float v)
+	{
+<span class="nc" id="L120">		return (int) v;</span>
+	}
+
+	private static final float fade(float t)
+	{
+<span class="nc" id="L125">		return t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f);</span>
+	}
+
+	private static final float lerp(float t, float a, float b)
+	{
+<span class="nc" id="L130">		return a + t * (b - a);</span>
+	}
+
+	private static final float grad(int hash, float x, float y, float z)
+	{
+<span class="nc" id="L135">		int h = hash &amp; 15;</span>
+<span class="nc bnc" id="L136" title="All 2 branches missed.">		float u = (h &lt; 8) ? x : y;</span>
+<span class="nc bnc" id="L137" title="All 6 branches missed.">		float v = (h &lt; 4) ? y : ((h == 12 || h == 14) ? x : z);</span>
+<span class="nc bnc" id="L138" title="All 4 branches missed.">		return ((h &amp; 1) == 0 ? u : -u) + ((h &amp; 2) == 0 ? v : -v);</span>
+	}
+
+<span class="nc" id="L141">	private static final float[] pow  = new float[32];</span>
+	
+	static
+	{
+<span class="nc bnc" id="L145" title="All 2 branches missed.">		for (int i = 0; i &lt; pow.length; i++)</span>
+<span class="nc" id="L146">			pow[i] = (float) Math.pow(2, i);</span>
+<span class="nc" id="L147">	}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

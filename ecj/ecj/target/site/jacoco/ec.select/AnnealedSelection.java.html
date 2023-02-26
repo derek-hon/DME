@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AnnealedSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">AnnealedSelection.java</span></div><h1>AnnealedSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2017 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.select;
+import ec.util.*;
+
+import java.util.ArrayList;
+
+import ec.*;
+/* 
+ * AnnealedSelection.java
+ * 
+ * Created: Thu Jun  8 14:27:40 CEST 2017
+ * By: Sean Luke
+ */
+
+/**
+ * Returns an individual using a form of simulated annealing.
+ *
+ * &lt;p&gt;This works as follows.  If there is only one individual in the population, he
+ * is selected.  Otherwise we pick a random individual from among the individuals
+ * &lt;i&gt;other&lt;/i&gt; than the first individual.  If that random individual is &lt;i&gt;fitter&lt;/i&gt;
+ * than the first individual, it is selected.  Otherwise if that random individual is
+ * &lt;i&gt;as fit&lt;/i&gt; as the first individual, one of the two is selected at random.  Otherwise
+ * if the random individual is &lt;i&gt;not as fit&lt;/i&gt; as the first individual, it is selected
+ * with a probability P = e^((fit(random ind) - fit(first ind)) / t), where t is a
+ * TEMPERATURE.  Otherwise the first individual is selected.
+ *
+ * &lt;p&gt;The temperature starts at a high value &gt;&gt; 0, and is slowly cut down by multiplying
+ * it by a CUTDOWN value every generation.  When the temperature reaches 0, then the first 
+ * individual is selected every time.  
+ *
+ * &lt;p&gt;The selected individual can be &lt;i&gt;cached&lt;/i&gt; so the same individual is returned
+ * multiple times without being recomputed.  This cache is cleared after 
+ * &lt;tt&gt;prepareToProduce(...)&lt;/tt&gt; is called.  Note that this option is not appropriate
+ * for Steady State Evolution, which only calls &lt;tt&gt;prepareToProduce(...)&lt;/tt&gt; once.
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;cache&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we cache the individual?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;temperature&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; double &gt; 0 (or undefined)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(annealing start temperature)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;cutdown&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; 0.0 &amp;lt;= double &amp;gt;= 1.0 (default is 0.95)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(annealing cutdown)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.annealed
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L65">public class AnnealedSelection extends SelectionMethod </span>
+    {
+    /** Default base */
+    public static final String P_ANNEALED = &quot;annealed&quot;;
+    public static final String P_CACHE = &quot;cache&quot;;
+    public static final String P_TEMPERATURE = &quot;temperature&quot;;
+    public static final String P_CUTDOWN = &quot;cutdown&quot;;
+    
+    public static final double V_CUTDOWN = 0.95;
+    
+    boolean cache;
+    int best;
+    double temperature;
+    double t;
+    double cutdown;
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L83">        return SelectDefaults.base().push(P_ANNEALED);</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L88">        super.setup(state,base);</span>
+        
+<span class="nc" id="L90">        Parameter def = defaultBase();</span>
+        
+<span class="nc" id="L92">        cache = state.parameters.getBoolean(base.push(P_CACHE),def.push(P_CACHE), false);</span>
+<span class="nc" id="L93">        temperature = state.parameters.getDoubleWithDefault(base.push(P_TEMPERATURE),def.push(P_TEMPERATURE), 0);</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (temperature &lt; 0)</span>
+            {
+<span class="nc" id="L96">            state.output.fatal(&quot;TopSelection temperature, if defined, must be &gt;= 0&quot;, </span>
+<span class="nc" id="L97">                base.push(P_TEMPERATURE),def.push(P_TEMPERATURE));</span>
+            }
+<span class="nc" id="L99">        cutdown = state.parameters.getDoubleWithDefault(base.push(P_CUTDOWN),def.push(P_CUTDOWN), 0.95);</span>
+<span class="nc bnc" id="L100" title="All 4 branches missed.">        if (cutdown &lt; 0 || cutdown &gt; 1)</span>
+            {
+<span class="nc" id="L102">            state.output.fatal(&quot;TopSelection cutdown, if defined, must be between 0 and 1.  Default is 0.95.&quot;, </span>
+<span class="nc" id="L103">                base.push(P_TEMPERATURE),def.push(P_TEMPERATURE));</span>
+            }
+<span class="nc" id="L105">        }</span>
+
+    public void prepareToProduce(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L111">        super.prepareToProduce(s, subpopulation, thread);</span>
+        
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        if (cache) </span>
+<span class="nc" id="L114">            best = -1;</span>
+<span class="nc" id="L115">        }</span>
+        
+    public void cacheBest(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+<span class="nc" id="L121">        ArrayList&lt;Individual&gt; oldinds = state.population.subpops.get(subpopulation).individuals;</span>
+<span class="nc" id="L122">        int len = oldinds.size();</span>
+                
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        if (len == 1)  // uh oh</span>
+<span class="nc" id="L125">            best = 0;</span>
+        else
+            {
+<span class="nc" id="L128">            int candidate = state.random[thread].nextInt(len - 1) + 1;</span>
+                
+<span class="nc" id="L130">            Individual first = oldinds.get(0);</span>
+<span class="nc" id="L131">            Individual next = oldinds.get(candidate);</span>
+                
+<span class="nc bnc" id="L133" title="All 2 branches missed.">            if (next.fitness.betterThan(first.fitness))</span>
+<span class="nc" id="L134">                best = candidate;</span>
+                        
+<span class="nc bnc" id="L136" title="All 4 branches missed.">            else if (next.fitness.equivalentTo(first.fitness) &amp;&amp; state.random[thread].nextBoolean())</span>
+<span class="nc" id="L137">                best = candidate;</span>
+
+            // he's worse           
+<span class="nc bnc" id="L140" title="All 2 branches missed.">            else if (state.random[thread].nextBoolean(Math.exp((next.fitness.fitness() - first.fitness.fitness()) / t)))</span>
+<span class="nc" id="L141">                best = candidate;</span>
+                        
+<span class="nc" id="L143">            else best = 0;</span>
+            }
+
+        // note that we do NOT do temperature = temperature * cutdown,
+        // which would ordinarily make perfect sense, except that we're
+        // cloning from a prototype.
+<span class="nc" id="L149">        t = temperature * Math.pow(cutdown, state.generation);</span>
+<span class="nc" id="L150">        }</span>
+
+    public int produce(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+<span class="nc bnc" id="L156" title="All 4 branches missed.">        if (cache &amp;&amp; best &gt;= 0)</span>
+            {
+            // do nothing, it's cached
+            }
+        else
+            {
+<span class="nc" id="L162">            cacheBest(subpopulation, state, thread);</span>
+            }
+<span class="nc" id="L164">        return best;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

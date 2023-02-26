@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HaarFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets</a> &gt; <span class="el_source">HaarFilter.java</span></div><h1>HaarFilter.java</h1><pre class="source lang-java linenums">package ec.app.experiments.WaveletExperiment.wavelets;
+
+import java.awt.image.BufferedImage;
+
+/*
+ * This source code has been placed into the public domain.
+ */
+
+/*
+ * Note: This class only supports the non-standard construction of Haar wavelet
+ * basis functions. There is currently no provision for standard basis functions.
+ * For a good explanation see http://grail.cs.washington.edu/pub/stoll/wavelet1.pdf
+ */
+
+/**
+ * &lt;p&gt;Instances of this class provide methods for applying a Haar wavelet filter to
+ * two dimensional values stored in a byte array. It is primarily intended to be
+ * used for image processing. It also provides methods for reversing the filter
+ * and converting filters and data into images.&lt;/p&gt;
+ * 
+ * &lt;p&gt;Applying a filter to a byte array containing values in the range [0-255]
+ * results in a same length integer array that contains the filter values; as
+ * per the parameters set on the HaarFilter instance. A fractional integer
+ * encoding is used for reasons of performance; it also ensures that filters
+ * constructed with a sufficient number of fractional bits can be inverted
+ * perfectly. As a consequence of the current implementation of this encoding
+ * by this class, there is an upper limit to the size of value array that can be
+ * filtered - presently 4096x4096.&lt;/p&gt;
+ * 
+ * &lt;p&gt;&lt;strong&gt;Filtering can only be performed on data arrays that have a size
+ * which is a square of a power of two. At present, the class only supports
+ * non-standard basis functions. NOTE: This implementation has not been
+ * heavily tested and may contain any number of bugs or inadequacies, see NOTES
+ * in the source for further information.&lt;/strong&gt;&lt;/p&gt;
+ * 
+ * @author Tom Gibara
+ */
+
+public class HaarFilter {
+
+	/**
+	 * The length of the side of the data to be filtered
+	 */
+	private final int size;
+	
+	/**
+	 * The square of the size.
+	 */
+	private final int sizeSqr;
+	
+	/**
+	 * A buffer that is allocated for performing filtering.
+	 */
+<span class="nc" id="L54">	private int[] buffer = null;</span>
+	
+	/**
+	 * The number of filtering iterations performed.
+	 */
+	private int iterations;
+	
+	/**
+	 * The number of bits in the filter arrays processed.
+	 */
+	private int fractionalBits;
+
+	/**
+	 * Constructs a new object for performing filtering. Individual filtering
+	 * instances are constructed to operate on data of a predetermined size. All
+	 * arrays passed to a filter must have a length which corresponds to the
+	 * size specified at construction (specifically size x size).
+	 * 
+	 * @param size the length of the side of all squares of data/filter values
+	 */
+	
+	public HaarFilter(int size) {
+<span class="nc" id="L76">		this(size, -1, -1);</span>
+<span class="nc" id="L77">	}</span>
+
+	/**
+	 * Constructs a new object for performing filtering. Individual filtering
+	 * instances are constructed to operate on data of a predetermined size. All
+	 * arrays passed to a filter must have a length which corresponds to the
+	 * size specified at construction (specifically size x size). See 
+	 * 
+	 * @see #setIterations(int) for information about the iterations parameter 
+	 * @see #setFractionalBits(int) for information about the fractionalBits parameter 
+	 * 
+	 * @param size the length of the side of all squares of data/filter values
+	 * @param iterations the number of iterations performed during filtering, or
+	 *        -1 to use the default value
+	 * @param fractionalBits the number of binary fractional bits in the
+	 * 	      number representation used in filters, or -1 to use the default
+	 *        value
+	 */
+	
+<span class="nc" id="L96">	public HaarFilter(int size, int iterations, int fractionalBits) {</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">		if (size &lt;= 0) throw new IllegalArgumentException(&quot;size not strictly positive&quot;);</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">		if (size != Integer.highestOneBit(size)) throw new IllegalArgumentException(&quot;size not a power of two&quot;);</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">		if (size &gt; 4096) throw new IllegalArgumentException(&quot;size too large to support int size arithmetic&quot;);</span>
+
+<span class="nc" id="L101">		this.size = size;</span>
+<span class="nc" id="L102">		this.sizeSqr = size * size;</span>
+
+<span class="nc" id="L104">		setIterations(iterations);</span>
+<span class="nc" id="L105">		setFractionalBits(fractionalBits);</span>
+<span class="nc" id="L106">	}</span>
+
+	/**
+	 * The number of iterations that will be applied during a call to the
+	 * &lt;code&gt;filter&lt;/code&gt; method.
+	 * 
+	 * @see #setIterations(int) for more information
+	 *  
+	 * @return the number of iterations performed during filtering, never negative
+	 */
+	
+	public int getIterations() {
+<span class="nc" id="L118">		return iterations;</span>
+	}
+	
+	/**
+	 * The number of fractional bits that will be used in the filtered values
+	 * returned by the &lt;code&gt;filter&lt;/code&gt; method.
+	 * 
+	 * @see #setFractionalBits(int) for more information
+	 *  
+	 * @return the number of binary fractional bits in the number representation
+	 *         used in filters, never negative
+	 */
+	
+	public int getFractionalBits() {
+<span class="nc" id="L132">		return fractionalBits;</span>
+	}
+	
+	/**
+	 * Specifies the number of times that the Haar wavelet is successively
+	 * applied during a call to the &lt;code&gt;filter&lt;/code&gt; method. This cannot
+	 * exceed ln2(size). This maximum forms the sensible default value and
+	 * can be specified by passing a negative number to this method.
+	 * 
+	 * @param the number of iterations performed during filtering, or -1 for the
+	 *        default value
+	 */
+	
+	public void setIterations(int iterations) {
+<span class="nc bnc" id="L146" title="All 2 branches missed.">		if (iterations &lt; 0) iterations = Integer.numberOfTrailingZeros(size);</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">		if (1 &lt;&lt; iterations &gt; size) throw new IllegalArgumentException(&quot;too many iterations for size&quot;);</span>
+<span class="nc" id="L148">		this.iterations = iterations;</span>
+<span class="nc" id="L149">	}</span>
+	
+	/**
+	 * Specifies the number of bits in the integers returned by the
+	 * &lt;code&gt;filter&lt;/code&gt; method that represent fractions of a whole number.
+	 * If fractionalBits is not zero, these bits will form the least
+	 * significant bits of the integers. Due to the size constraints that arise
+	 * from arithmetic on &lt;code&gt;int&lt;/code&gt;s the number of fractional bits cannot
+	 * exceed 23. The sensible default value for the number of fractional bits
+	 * is twice the number of iterations; this default can be specified by
+	 * passing a negative number to this method.
+	 * 
+	 * @param fractionalBits the number of binary fractional bits in the number
+	 *        representation used in filters, or -1 for the default value
+	 */
+	
+	public void setFractionalBits(int fractionalBits) {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">		if (fractionalBits &lt; 0) fractionalBits = iterations &lt;&lt; 1;</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">		if (fractionalBits &gt; 23) throw new IllegalArgumentException(&quot;fractionalBits exceeds 23, the largest storable in an int&quot;);</span>
+<span class="nc" id="L168">		this.fractionalBits = fractionalBits;</span>
+<span class="nc" id="L169">	}</span>
+	
+	/**
+	 * Filters the byte values supplied by applying the Haar wavelet for a
+	 * number of iterations and stores the result in the specified integer array.
+	 * If no filter array is supplied then a new array is created. The values
+	 * returned may have been scaled to accomodate fractional bits.
+	 * 
+	 * @param values a byte array of length containing the values to be filtered, not null
+	 * @param filter an array which is to contain the filter values, or null
+	 * @return the array which contains the filter values
+	 */
+	
+	public int[] filter(byte[] values, int[] filter) {
+		//validate arguments
+<span class="nc bnc" id="L184" title="All 2 branches missed.">		if (values == null) throw new IllegalArgumentException(&quot;null values&quot;);</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">		if (values.length != sizeSqr) throw new IllegalArgumentException(&quot;values array incorrect length&quot;);</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">		if (filter == null) {</span>
+<span class="nc" id="L187">			filter = new int[sizeSqr];</span>
+		} else {
+<span class="nc bnc" id="L189" title="All 2 branches missed.">			if (filter.length != sizeSqr) throw new IllegalArgumentException(&quot;filter array incorrect length&quot;);</span>
+		}
+		
+		//lazily allocate a buffer
+<span class="nc bnc" id="L193" title="All 2 branches missed.">		if (buffer == null) buffer = new int[sizeSqr];</span>
+		
+		//convert values into integers
+<span class="nc bnc" id="L196" title="All 2 branches missed.">		for (int i = 0; i &lt; filter.length; i++) {</span>
+<span class="nc" id="L197">			filter[i] = values[i] &amp; 0xff;</span>
+		}
+		
+		//filter the values
+<span class="nc bnc" id="L201" title="All 2 branches missed.">		for (int i = 0; i &lt; iterations; i++) {</span>
+			int[] s;
+			int[] t;
+
+<span class="nc" id="L205">			int length = size &gt;&gt; i;</span>
+			//horizontal processing
+<span class="nc" id="L207">			s = filter;</span>
+<span class="nc" id="L208">			t = buffer;</span>
+<span class="nc" id="L209">			int hOffset = length &gt;&gt; 1;</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">			for (int y = 0; y &lt; length; y++) {</span>
+				int sIndex, tIndex;
+<span class="nc" id="L212">				tIndex = sIndex = y * size;</span>
+<span class="nc bnc" id="L213" title="All 2 branches missed.">				for (int x = 0; x &lt; length; x+=2) {</span>
+<span class="nc" id="L214">					int a = s[sIndex];</span>
+<span class="nc" id="L215">					int b = s[sIndex + 1];</span>
+<span class="nc" id="L216">					t[tIndex] = a + b;</span>
+<span class="nc" id="L217">					t[tIndex + hOffset] = a - b;</span>
+<span class="nc" id="L218">					sIndex += 2;</span>
+<span class="nc" id="L219">					tIndex ++;</span>
+				}
+			}
+			//vertical processing
+<span class="nc" id="L223">			s = buffer;</span>
+<span class="nc" id="L224">			t = filter;</span>
+<span class="nc" id="L225">			int vOffset = (length &gt;&gt; 1) * size;</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">			for (int x = 0; x &lt; length; x++) {</span>
+				int sIndex, tIndex;
+<span class="nc" id="L228">				sIndex = tIndex = x;</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">				for (int y = 0; y &lt; length; y += 2) {</span>
+<span class="nc" id="L230">					int a = s[sIndex];</span>
+<span class="nc" id="L231">					int b = s[sIndex + size];</span>
+<span class="nc" id="L232">					t[tIndex] = a + b;</span>
+<span class="nc" id="L233">					t[tIndex + vOffset] = a - b;</span>
+<span class="nc" id="L234">					sIndex += size &lt;&lt; 1;</span>
+<span class="nc" id="L235">					tIndex += size;</span>
+				}
+			}
+			
+<span class="nc" id="L239">			length &lt;&lt;= 1;</span>
+		}
+
+		//normalize the number of fractional bits before returning
+<span class="nc" id="L243">		normalize(filter);</span>
+<span class="nc" id="L244">		return filter;</span>
+	}
+
+	/**
+	 * Converts a filter created by this object back into the supplied byte
+	 * array. If no byte array is supplied a new one is created.
+	 * 
+	 * If the &lt;code&gt;iterations&lt;/code&gt; and &lt;code&gt;fractionalBits&lt;/code&gt; parameters
+	 * of this object have been modified since the filter was created then the
+	 * data will not be faithfully reconstructed. If the number of fractional
+	 * bits is less than its default value then the inversion may be imperfect
+	 * due to accumulated rounding errors.
+	 * 
+	 * &lt;strong&gt;This method destroys the supplied filter array - this is done
+	 * intentionally for performance reasons. If you want to preserve your
+	 * filter clone it before passing it into this method.&lt;/strong&gt;
+	 * 
+	 * @param filter an array containing the filter values, not null
+	 * @param values an array which is to contain the recovered data, or null
+	 * @return the array which contains the recovered data
+	 */
+	
+	/*
+	 * NOTE: As indicated, this implementation has not been thoroughly tested.
+	 * In particular, it might be possible that this method could overflow when
+	 * inverting large filters. I have not yet had the time to prove otherwise.
+	 */
+
+	public byte[] invert(int[] filter, byte[] values) {
+		//validate arguments
+<span class="nc bnc" id="L274" title="All 2 branches missed.">		if (filter == null) throw new IllegalArgumentException(&quot;null filter&quot;);</span>
+<span class="nc bnc" id="L275" title="All 2 branches missed.">		if (filter.length != sizeSqr) throw new IllegalArgumentException(&quot;filter array incorrect length&quot;);</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">		if (values == null) {</span>
+<span class="nc" id="L277">			values = new byte[sizeSqr];</span>
+		} else {
+<span class="nc bnc" id="L279" title="All 2 branches missed.">			if (values.length != sizeSqr) throw new IllegalArgumentException(&quot;values array incorrect length&quot;);</span>
+		}
+		
+		//lazily allocate a buffer
+<span class="nc bnc" id="L283" title="All 2 branches missed.">		if (buffer == null) buffer = new int[sizeSqr];</span>
+
+		//reverse the filtering process
+<span class="nc bnc" id="L286" title="All 2 branches missed.">		for (int i = iterations - 1; i &gt;= 0; i--) {</span>
+			int[] s;
+			int[] t;
+
+<span class="nc" id="L290">			int length = size &gt;&gt; i;</span>
+			//vertical processing
+<span class="nc" id="L292">			s = filter;</span>
+<span class="nc" id="L293">			t = buffer;</span>
+<span class="nc" id="L294">			int vOffset = (length &gt;&gt; 1) * size;</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">			for (int x = 0; x &lt; length; x++) {</span>
+				int sIndex, tIndex;
+<span class="nc" id="L297">				sIndex = tIndex = x;</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">				for (int y = 0; y &lt; length; y += 2) {</span>
+<span class="nc" id="L299">					int a = s[sIndex];</span>
+<span class="nc" id="L300">					int b = s[sIndex + vOffset];</span>
+<span class="nc" id="L301">					t[tIndex] = a + b;</span>
+<span class="nc" id="L302">					t[tIndex + size] = a - b;</span>
+<span class="nc" id="L303">					sIndex += size;</span>
+<span class="nc" id="L304">					tIndex += size &lt;&lt; 1;</span>
+				}
+			}
+			//horizontal processing
+<span class="nc" id="L308">			s = buffer;</span>
+<span class="nc" id="L309">			t = filter;</span>
+<span class="nc" id="L310">			int hOffset = length &gt;&gt; 1;</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">			for (int y = 0; y &lt; length; y++) {</span>
+				int sIndex, tIndex;
+<span class="nc" id="L313">				tIndex = sIndex = y * size;</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">				for (int x = 0; x &lt; length; x+=2) {</span>
+<span class="nc" id="L315">					int a = s[sIndex];</span>
+<span class="nc" id="L316">					int b = s[sIndex + hOffset];</span>
+<span class="nc" id="L317">					t[tIndex] = a + b;</span>
+<span class="nc" id="L318">					t[tIndex + 1] = a - b;</span>
+<span class="nc" id="L319">					sIndex ++;</span>
+<span class="nc" id="L320">					tIndex += 2;</span>
+				}
+			}
+			
+<span class="nc" id="L324">			length &gt;&gt;= 1;</span>
+		}
+
+		//remove the fractional bits and convert to bytes
+<span class="nc bnc" id="L328" title="All 2 branches missed.">		for (int i = 0; i &lt; values.length; i++) {</span>
+<span class="nc" id="L329">			int value = filter[i] &gt;&gt; fractionalBits;</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">			if (value &gt; 255) value = 255;</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">			else if (value &lt; 0) value = 0;</span>
+<span class="nc" id="L332">			values[i] = (byte) value;</span>
+		}
+		
+<span class="nc" id="L335">		return values;</span>
+	}
+
+	/**
+	 * A utility method for converting filter values generated by this object
+	 * into an &lt;code&gt;TYPE_BYTE_GRAY&lt;/code&gt; &lt;code&gt;BufferedImage&lt;/code&gt;. If the
+	 * &lt;code&gt;fractionalBits&lt;/code&gt; parameter of this object has been modified
+	 * since the filter was created then the image may not be accurately
+	 * generated.
+	 * 
+	 * @param filter an array containing the filter values, not null
+	 * @return the generated image
+	 */
+	
+	public BufferedImage filterToImage(int[] filter) {
+<span class="nc bnc" id="L350" title="All 2 branches missed.">		if (filter == null) throw new IllegalArgumentException(&quot;null filter&quot;);</span>
+<span class="nc bnc" id="L351" title="All 2 branches missed.">		if (filter.length != sizeSqr) throw new IllegalArgumentException(&quot;filter array incorrect length&quot;);</span>
+<span class="nc" id="L352">		byte[] data = new byte[filter.length];</span>
+
+<span class="nc" id="L354">		int shift = fractionalBits + 1;</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">		for (int i = 0; i &lt; data.length; i++) {</span>
+<span class="nc" id="L356">			data[i] = (byte) (128 + (filter[i] &gt;&gt; shift));</span>
+		}
+<span class="nc" id="L358">		BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_BYTE_GRAY);</span>
+<span class="nc" id="L359">		image.getWritableTile(0, 0).setDataElements(0, 0, size, size, data);</span>
+<span class="nc" id="L360">		image.releaseWritableTile(0, 0);</span>
+<span class="nc" id="L361">		return image;</span>
+	}
+
+	/**
+	 * A utility method for converting data values into an
+	 * &lt;code&gt;TYPE_BYTE_GRAY&lt;/code&gt; &lt;code&gt;BufferedImage&lt;/code&gt;.
+	 * 
+	 * @param values an array containing the data values, not null
+	 * @return the generated image
+	 */
+	
+	public BufferedImage valuesToImage(byte[] values) {
+<span class="nc bnc" id="L373" title="All 2 branches missed.">		if (values == null) throw new IllegalArgumentException(&quot;null values&quot;);</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">		if (values.length != sizeSqr) throw new IllegalArgumentException(&quot;values array incorrect length&quot;);</span>
+
+<span class="nc" id="L376">		BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_BYTE_GRAY);</span>
+<span class="nc" id="L377">		image.getWritableTile(0, 0).setDataElements(0, 0, size, size, values);</span>
+<span class="nc" id="L378">		image.releaseWritableTile(0, 0);</span>
+<span class="nc" id="L379">		return image;</span>
+	}
+	
+	/*
+	 * Adjusts for accumulated fractional bits in the raw filter array.
+	 */
+
+	private void normalize(int[] filter) {
+<span class="nc" id="L387">		int shiftD = -2;</span>
+<span class="nc" id="L388">		int shiftY = (iterations &lt;&lt; 1) - fractionalBits;</span>
+		
+<span class="nc" id="L390">		int nextY = size &gt;&gt; (iterations-1);</span>
+<span class="nc bnc" id="L391" title="All 2 branches missed.">		for (int y = 0; y &lt; size; y++) {</span>
+<span class="nc bnc" id="L392" title="All 2 branches missed.">			if (y == nextY) {</span>
+<span class="nc" id="L393">				shiftY += shiftD;</span>
+<span class="nc" id="L394">				nextY &lt;&lt;= 1;</span>
+			}
+<span class="nc" id="L396">			int i = y * size;</span>
+<span class="nc" id="L397">			int nextX = nextY;</span>
+<span class="nc" id="L398">			int shiftX = shiftY;</span>
+<span class="nc bnc" id="L399" title="All 2 branches missed.">			for (int x = 0; x &lt; size; x++) {</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">				if (x == nextX) {</span>
+<span class="nc" id="L401">					shiftX += shiftD;</span>
+<span class="nc" id="L402">					nextX &lt;&lt;= 1;</span>
+				}
+<span class="nc bnc" id="L404" title="All 2 branches missed.">				if (shiftX &gt; 0) {</span>
+<span class="nc" id="L405">					filter[i] &gt;&gt;= shiftX;</span>
+<span class="nc bnc" id="L406" title="All 2 branches missed.">				} else if (shiftX &lt; 0) {</span>
+<span class="nc" id="L407">					filter[i] &lt;&lt;= -shiftX;</span>
+				}
+<span class="nc" id="L409">				i++;</span>
+			}
+		}
+<span class="nc" id="L412">	}</span>
+	
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

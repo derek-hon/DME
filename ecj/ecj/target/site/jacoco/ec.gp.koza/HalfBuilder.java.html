@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HalfBuilder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.koza</a> &gt; <span class="el_source">HalfBuilder.java</span></div><h1>HalfBuilder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.koza;
+import ec.*;
+import ec.gp.*;
+import ec.util.*;
+
+/* 
+ * HalfBuilder.java
+ * 
+ * Created: Thu Oct  7 18:03:49 1999
+ * By: Sean Luke
+ */
+
+/** HalfBuilder is a GPNodeBuilder which 
+    implements the RAMPED HALF-AND-HALF tree building method described in Koza I/II.  
+
+    &lt;p&gt;RAMPED HALF-AND-HALF works by choosing a random integer &lt;i&gt;d&lt;/i&gt; between minDepth and maxDepth, inclusive.  It then grows a tree of depth 1 to &lt;i&gt;d&lt;/i&gt; inclusive.  (1-pickGrowProbability) of the time (by default, 0.5) it grows a tree using the FULL method, which generates full trees of exactly depth &lt;i&gt;d&lt;/i&gt;.  (pickGrowProbability) of the time, it grows a tree using the GROW method, which may generate trees of any size between 1 and &lt;i&gt;d&lt;/i&gt; inclusive.
+
+    &lt;p&gt;Actually, claiming to implement the Koza I/II approach is a bit of a fib -- Koza's original code is somewhat ad-hoc.  In the Koza approach, &lt;i&gt;d&lt;/i&gt; is chosen in a kind of round-robin fashion rather than at random, if RAMPED HALF/HALF is used.  Also, for all three algorithms (RAMPED HALF/HALF, GROW, FULL), the algorithm will not generate a tree consisting of a single terminal, unless forced to.
+
+    &lt;p&gt;This implementation instead follows lil-gp's approach, which is to choose &lt;i&gt;d&lt;/i&gt; at random from between minDepth and maxDepth, inclusive, and to allow trees consisting of single terminals.   
+
+    &lt;p&gt;Determining what various algorithms do is a little confusing, mostly because the source code for lil-gp and Koza don't actually quite do what they claim.  The table below lists the depth values actually used (counting nodes, rather than edges, for depth).  It's probably not what you had expected!
+
+
+    &lt;br&gt;
+    &lt;br&gt;
+    &lt;div align=&quot;center&quot;&gt;
+    &lt;table border=&quot;0&quot; cellspacing=&quot;1&quot; cellpadding=&quot;2&quot;&gt;
+    &lt;tr&gt;
+    &lt;td bgcolor=&quot;#ffffff&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;Koza I Min&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;Koza I Max&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;Koza II Min&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;Koza II Max&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;lil-gp Min&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;lil-gp Max&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;ECJ Min&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot; &gt;ECJ Max&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;/tr&gt;&lt;tr&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot;&gt;GROW (mut)&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;&amp;nbsp;&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;&amp;nbsp;&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;tr&gt;&lt;/tr&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot;&gt;GROW (new)&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;7&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;7&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;6? 7?&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;6? 7?&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;3&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;7&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;tr&gt;&lt;/tr&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot;&gt;FULL (new)&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;7&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;7&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;6? 7?&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;6? 7?&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;3&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;7&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;&amp;nbsp;&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;&amp;nbsp;&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;tr&gt;&lt;/tr&gt;
+    &lt;td bgcolor=&quot;#3366cc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot; color=&quot;#ffffff&quot;&gt;HALF (new)&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;2&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;6&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;2&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;5? 6?&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;3&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;7&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;2&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;td bgcolor=&quot;#cccccc&quot;&gt;&lt;font size=&quot;-1&quot; face=&quot;simple,geneva,arial,helvetica&quot;&gt;6&lt;/font&gt;&lt;br&gt;&lt;/td&gt;
+    &lt;/tr&gt;&lt;/table&gt;
+    &lt;/div&gt;
+    &lt;br&gt;
+    &lt;br&gt;
+
+
+
+    The table cell is empty when that parameter is not defined by the system by default.  Koza II has two values each because of a possible typo in the text -- while page 656 gives one maximum, page 671 gives another.  Note the odd fact that in Koza I/II GROW and FULL have &lt;i&gt;effectively&lt;/i&gt; one-deeper tree values than HALF does, even though they use the same code parameters!  This is because of a quirk in Koza's code.
+
+    &lt;p&gt; This algorithm ignores &lt;tt&gt;requestedSize&lt;/tt&gt;, so no pipelines can ask it to grow a tree of a specific fixed size.  The algorithm also ignores any user-provided size distributions.
+
+
+    &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+    &lt;table&gt;
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;growp&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(the likelihood of choosing GROW (as opposed to FULL)&gt;&lt;/tr&gt;
+
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-depth&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(smallest &quot;maximum&quot; depth the builder may use for building a tree.  2 is the default.)&lt;/td&gt;&lt;/tr&gt;
+   
+    &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-depth&lt;/tt&gt;&lt;br&gt;
+    &lt;font size=-1&gt;int &amp;gt;= &lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-depth&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+    &lt;td valign=top&gt;(largest &quot;maximum&quot; depth the builder may use for building a tree. 6 is the default.)&lt;/td&gt;&lt;/tr&gt;
+    &lt;/table&gt;
+   
+    &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+    gp.koza.half
+
+    * @author Sean Luke
+    * @version 1.0 
+    */
+
+
+<span class="nc" id="L121">public class HalfBuilder extends KozaBuilder</span>
+    {
+    public static final String P_HALFBUILDER = &quot;half&quot;;
+    public static final String P_PICKGROWPROBABILITY = &quot;growp&quot;;
+
+    /** The likelihood of using GROW over FULL. */
+    public double pickGrowProbability;
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L131">        return GPKozaDefaults.base().push(P_HALFBUILDER); </span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L136">        super.setup(state,base);</span>
+
+<span class="nc" id="L138">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L140">        pickGrowProbability = state.parameters.getDoubleWithMax(</span>
+<span class="nc" id="L141">            base.push(P_PICKGROWPROBABILITY),</span>
+<span class="nc" id="L142">            def.push(P_PICKGROWPROBABILITY),0.0,1.0);</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (pickGrowProbability &lt; 0.0)</span>
+<span class="nc" id="L144">            state.output.fatal(&quot;The Pick-Grow Probability for HalfBuilder must be a double floating-point value between 0.0 and 1.0 inclusive.&quot;, base.push(P_MAXDEPTH),def.push(P_MAXDEPTH));</span>
+<span class="nc" id="L145">        }</span>
+    
+    public GPNode newRootedTree(final EvolutionState state,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final GPFunctionSet set,
+        final int argposition,
+        final int requestedSize)
+        {
+<span class="nc bnc" id="L155" title="All 2 branches missed.">        if (state.random[thread].nextDouble() &lt; pickGrowProbability)</span>
+<span class="nc" id="L156">            return growNode(state,0,state.random[thread].nextInt(maxDepth-minDepth+1) + minDepth,type,thread,parent,argposition,set);</span>
+        else
+<span class="nc" id="L158">            return fullNode(state,0,state.random[thread].nextInt(maxDepth-minDepth+1) + minDepth,type,thread,parent,argposition,set);</span>
+        }
+
+    }
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

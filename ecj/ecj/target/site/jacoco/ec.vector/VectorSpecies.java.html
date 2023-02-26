@@ -1,0 +1,724 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VectorSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector</a> &gt; <span class="el_source">VectorSpecies.java</span></div><h1>VectorSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.vector;
+
+import ec.util.*;
+import java.io.*;
+import ec.*;
+
+/* 
+ * VectorSpecies.java
+ * 
+ * Created: Thu Mar 22 17:44:00 2001
+ * By: Liviu Panait
+ */
+
+/**
+ * VectorSpecies is a species which can create VectorIndividuals.  Different
+ * VectorSpecies are used for different kinds of VectorIndividuals: a plain
+ * VectorSpecies is probably only applicable for BitVectorIndividuals.
+ * 
+ * &lt;p&gt;VectorSpecies supports the following recombination methods:&lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;One-point crossover&lt;/b&gt;.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;Two-point crossover&lt;/b&gt;.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;Uniform crossover&lt;/b&gt; - inaccurately called &quot;any-point&quot;.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;Line recombination&lt;/b&gt; - children are random points on a line between
+ *      the two parents.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;Intermediate recombination&lt;/b&gt; - the value of each component of the
+ *      vector is between the values of that component of the parent vectors.
+ *      &lt;/li&gt;
+ * &lt;/ul&gt;
+ * 
+ * &lt;P&gt;Note that BitVectorIndividuals (which use VectorSpecies) and GeneVectorIndividuals
+ * (which use GeneVectorSpecies, a subclass of VectorSpecies) do not support
+ * Line or Intermediate Recombination.
+ *
+ * &lt;p&gt;Also note that for LongVectorIndividuals, there are certain values that will
+ * never be created by line and intermediate recombination, because the
+ * recombination is calculated using doubles and then rounded to the nearest
+ * long. For large enough values (but still smaller than the maximum long), the
+ * difference between one double and the next is greater than one.&lt;/p&gt;
+ *
+ * &lt;p&gt;VectorSpecies has three wasy to determine the initial size of the individual:&lt;/p&gt;
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;A fixed size&lt;/b&gt;.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;Geometric distribution&lt;/b&gt;.&lt;/li&gt;
+ * &lt;li&gt;&lt;b&gt;Uniform distribution&lt;/b&gt;&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;If the algorithm used is the geometric distribution, the VectorSpecies starts at a
+ * minimum size and continues flipping a coin with a certain &quot;resize probability&quot;,
+ * increasing the size each time, until the coin comes up tails (fails).  The chunk size
+ * must be 1 in this case.
+ *
+ * &lt;p&gt; If the algorithm used is the uniform distribution, the VectorSpecies picks a random
+ * size between a provided minimum and maximum size, inclusive.  The chunk size
+ * must be 1 in this case.
+ *
+ * &lt;p&gt;If the size is fixed, then you can also provide a &quot;chunk size&quot; which constrains the
+ * locations in which crossover can be performed (only along chunk boundaries).  The genome
+ * size must be a multiple of the chunk size in this case.
+ *
+ * &lt;p&gt;VectorSpecies also contains a number of parameters guiding how the individual
+ * crosses over and mutates.
+ *
+ * &lt;p&gt;&lt;b&gt;Per-Gene and Per-Segment Specification.&lt;/b&gt;  VectorSpecies and its subclasses
+ * specify a lot of parameters, notably mutation and initialization parameters, in one
+ * of three ways.  We will use the &lt;b&gt;&lt;tt&gt;mutation-probability&lt;/tt&gt;&lt;/b&gt;
+ * parameter as an example.
+ *
+ * &lt;ol&gt;
+ * &lt;li&gt; Globally for all genes in the genome.
+ *      This is done by specifying:
+ *      &lt;p&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-probability&lt;/tt&gt;
+ *      &lt;br&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-gene&lt;/tt&gt;
+ *      &lt;p&gt;&lt;i&gt;Note:&lt;/i&gt; you &lt;b&gt;must&lt;/b&gt; provide these values even if you don't use them,
+ *      as they're used as defaults by #2 and #3 below.
+ *&lt;p&gt;
+ * &lt;li&gt; You may provide parameters for genes in segments (regions) along
+ *      the genome.  The idea is to allow you to specify large chunks of genes
+ *      all having the same parameter features.  
+ *      To do this you must first specify how many segments there are:
+ *      &lt;p&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-segments&lt;/tt&gt;
+ *      &lt;p&gt;The segments then may be defined by either start or end indices of genes. 
+ *      This is controlled by specifying the value of:
+ *      &lt;p&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment-type&lt;/tt&gt;
+ *      &lt;p&gt;...which can assume the value of start or end, with start being the default.
+ *      The indices are defined using Java array style, i.e. the first gene has the index of 0, 
+ *      and the last gene has the index of genome-size - 1.
+ *      &lt;p&gt;Using this method, each segment is specified by&lt;i&gt;j&lt;/i&gt;...
+ *      &lt;p&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment.&lt;/tt&gt;&lt;i&gt;j&lt;/i&gt;&lt;tt&gt;.start&lt;/tt&gt;
+ *      &lt;br&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment.&lt;/tt&gt;&lt;i&gt;j&lt;/i&gt;&lt;tt&gt;.mutation-probability&lt;/tt&gt;
+ *      if segment-type value was chosen as start or by:
+ *      &lt;p&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment.&lt;/tt&gt;&lt;i&gt;j&lt;/i&gt;&lt;tt&gt;.end&lt;/tt&gt;
+ *      &lt;br&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment.&lt;/tt&gt;&lt;i&gt;j&lt;/i&gt;&lt;tt&gt;.mutation-probability&lt;/tt&gt;
+ *      if segment-type value is equal to end.
+ *&lt;p&gt;
+ * &lt;li&gt; You may parameters for each separate gene.  
+ *      This is done by specifying (for each gene location &lt;i&gt;i&lt;/i&gt; you wish to specify)
+ *      &lt;p&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-probability&lt;/tt&gt;.&lt;i&gt;i&lt;/i&gt;
+ * &lt;/ol&gt;
+ * 
+ * &lt;p&gt;Any settings for #3 override #2, and both override #1. 
+ *
+ * &lt;p&gt;The only parameter which can be specified this way in VectorSpecies is at present
+ * &lt;tt&gt;mutation-probability&lt;/tt&gt;.  However a number of parameters are specified this way
+ * in subclasses. 
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;genome-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1 or one of: geometric, uniform&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(size of the genome, or if 'geometric' or 'uniform', the algorithm used to size the initial genome)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;chunk-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;1 &amp;lt;= int &amp;lt;= genome-size (default=1)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the chunk size for crossover (crossover will only occur on chunk boundaries))&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;geometric-prob&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt; 1.0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the coin-flip probability for increasing the initial size using the geometric distribution)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;min-initial-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the minimum initial size of the genome)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;max-initial-size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= min-initial-size&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the maximum initial size of the genome)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;crossover-type&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;string, one of: one, two, any&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(default crossover type (one-point, one-point-nonempty, two-point, two-point-nonempty, any-point (uniform), line, or intermediate)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;crossover-prob&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;gt;= double &amp;gt;= 1.0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(probability that a gene will get crossed over during any-point (uniform) or simulated binary crossover)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;line-extension&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;double &amp;gt;= 0.0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(for line and intermediate recombination, how far along the line or outside of the hypercube children can be. If this value is zero, all children must be within the hypercube.)
+
+
+ &lt;tr&gt;&lt;td&gt;&amp;nbsp;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-prob&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;segment&lt;/tt&gt;.&lt;i&gt;segment-number&lt;/i&gt;.&lt;tt&gt;mutation-prob&lt;/tt&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;&lt;i&gt;or&lt;/i&gt;&lt;br&gt;
+ &lt;tr&gt;&lt;td valign=top style=&quot;white-space: nowrap&quot;&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;mutation-prob&lt;/tt&gt;.&lt;i&gt;gene-number&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0.0 &amp;lt;= double &amp;lt;= 1.0 &lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(probability that a gene will get mutated over default mutation)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ vector.species
+
+ * @author Sean Luke and Liviu Panait
+ * @version 1.0 
+ */
+
+<span class="fc" id="L165">public class VectorSpecies extends Species</span>
+    {
+    public static final String P_VECTORSPECIES = &quot;species&quot;;
+        
+    public final static String P_CROSSOVERTYPE = &quot;crossover-type&quot;;
+    public final static String P_CHUNKSIZE = &quot;chunk-size&quot;;
+    public final static String V_ONE_POINT = &quot;one&quot;;
+    public final static String V_ONE_POINT_NO_NOP = &quot;one-nonempty&quot;;
+    public final static String V_TWO_POINT = &quot;two&quot;;
+    public final static String V_TWO_POINT_NO_NOP = &quot;two-nonempty&quot;;
+    public final static String V_ANY_POINT = &quot;any&quot;;
+    public final static String V_LINE_RECOMB = &quot;line&quot;;
+    public final static String V_INTERMED_RECOMB = &quot;intermediate&quot;;
+    public final static String V_SIMULATED_BINARY = &quot;sbx&quot;;
+    public final static String P_CROSSOVER_DISTRIBUTION_INDEX = &quot;crossover-distribution-index&quot;;
+    public final static String P_MUTATIONPROB = &quot;mutation-prob&quot;;
+    public final static String P_CROSSOVERPROB = &quot;crossover-prob&quot;;
+    public final static String P_GENOMESIZE = &quot;genome-size&quot;;
+    public final static String P_LINEDISTANCE = &quot;line-extension&quot;;
+    public final static String V_GEOMETRIC = &quot;geometric&quot;;
+    public final static String P_GEOMETRIC_PROBABILITY = &quot;geometric-prob&quot;;
+    public final static String V_UNIFORM = &quot;uniform&quot;;
+    public final static String P_UNIFORM_MIN = &quot;min-initial-size&quot;;
+    public final static String P_UNIFORM_MAX = &quot;max-initial-size&quot;;
+    public final static String P_NUM_SEGMENTS = &quot;num-segments&quot;;
+    public final static String P_SEGMENT_TYPE = &quot;segment-type&quot;;
+    public final static String P_SEGMENT_START = &quot;start&quot;;
+    public final static String P_SEGMENT_END = &quot;end&quot;;
+    public final static String P_SEGMENT = &quot;segment&quot;;
+    public final static String P_DUPLICATE_RETRIES = &quot;duplicate-retries&quot;;
+
+    public final static int C_ONE_POINT = 0;
+    public final static int C_ONE_POINT_NO_NOP = 2;
+    public final static int C_TWO_POINT = 4;
+    public final static int C_TWO_POINT_NO_NOP = 8;
+    public final static int C_ANY_POINT = 128;
+    public final static int C_LINE_RECOMB = 256;
+    public final static int C_INTERMED_RECOMB = 512;
+    public final static int C_SIMULATED_BINARY = 1024;
+    
+    public final static int C_NONE = 0;
+    public final static int C_GEOMETRIC = 1;
+    public final static int C_UNIFORM = 2;
+
+    /** How often do we retry until we get a non-duplicate gene? */
+    protected int[] duplicateRetries;
+
+    /** Probability that a gene will mutate, per gene.
+        This array is one longer than the standard genome length.
+        The top element in the array represents the parameters for genes in
+        genomes which have extended beyond the genome length.  */
+    protected double[] mutationProbability;
+    
+    /** Probability that a gene will cross over -- ONLY used in V_ANY_POINT crossover */
+    public double crossoverProbability;
+    /** What kind of crossover do we have? */
+    public int crossoverType;
+    /** How big of a genome should we create on initialization? */
+    public int genomeSize;
+    /** What should the SBX distribution index be? */
+    public int crossoverDistributionIndex;
+    /** How should we reset the genome? */
+    public int genomeResizeAlgorithm;
+    /** What's the smallest legal genome? */
+    public int minInitialSize;
+    /** What's the largest legal genome? */
+    public int maxInitialSize;
+    /** With what probability would our genome be at least 1 larger than it is now during initialization? */
+    public double genomeIncreaseProbability;
+    /** How big of chunks should we define for crossover? */
+    public int chunksize;
+    /** How far along the long a child can be located for line or intermediate recombination */
+    public double lineDistance;
+    /** Was the initial size determined dynamically? */
+<span class="fc" id="L239">    public boolean dynamicInitialSize = false;</span>
+
+    public double mutationProbability(int gene)
+        {
+<span class="fc" id="L243">        double[] m = mutationProbability;</span>
+<span class="pc bpc" id="L244" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L245">            gene = m.length - 1;</span>
+<span class="fc" id="L246">        return m[gene];</span>
+        }
+
+    public int duplicateRetries(int gene)
+        {
+<span class="fc" id="L251">        int[] m = duplicateRetries;</span>
+<span class="pc bpc" id="L252" title="1 of 2 branches missed.">        if (m.length &lt;= gene)</span>
+<span class="nc" id="L253">            gene = m.length - 1;</span>
+<span class="fc" id="L254">        return m[gene];</span>
+        }
+
+    public Parameter defaultBase()
+        {
+<span class="fc" id="L259">        return VectorDefaults.base().push(P_VECTORSPECIES);</span>
+        }
+
+
+    protected void setupGenome(final EvolutionState state, final Parameter base)
+        {        
+<span class="fc" id="L265">        Parameter def = defaultBase();        </span>
+
+<span class="fc" id="L267">        String genomeSizeForm = state.parameters.getString(base.push(P_GENOMESIZE),def.push(P_GENOMESIZE));</span>
+<span class="pc bpc" id="L268" title="1 of 2 branches missed.">        if (genomeSizeForm == null) // clearly an error</span>
+            {
+<span class="nc" id="L270">            state.output.fatal(&quot;No genome size specified.&quot;, base.push(P_GENOMESIZE),def.push(P_GENOMESIZE));</span>
+            }
+<span class="pc bpc" id="L272" title="1 of 2 branches missed.">        else if (genomeSizeForm.equals(V_GEOMETRIC))</span>
+            {
+<span class="nc" id="L274">            dynamicInitialSize = true;</span>
+<span class="nc" id="L275">            genomeSize = 1;</span>
+<span class="nc" id="L276">            genomeResizeAlgorithm = C_GEOMETRIC;</span>
+<span class="nc" id="L277">            chunksize = state.parameters.getIntWithDefault(base.push(P_CHUNKSIZE),def.push(P_CHUNKSIZE),1);</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">            if (chunksize != 1)</span>
+<span class="nc" id="L279">                state.output.fatal(&quot;To use Geometric size initialization, VectorSpecies must have a chunksize of 1&quot;,</span>
+<span class="nc" id="L280">                    base.push(P_CHUNKSIZE),def.push(P_CHUNKSIZE));</span>
+<span class="nc" id="L281">            minInitialSize = state.parameters.getInt(base.push(P_UNIFORM_MIN),def.push(P_UNIFORM_MIN), 0);</span>
+<span class="nc bnc" id="L282" title="All 2 branches missed.">            if (minInitialSize &lt; 0)</span>
+                {
+<span class="nc" id="L284">                state.output.warning(&quot;Gemoetric size initialization used, but no minimum initial size provided.  Assuming minimum is 0.&quot;);</span>
+<span class="nc" id="L285">                minInitialSize = 0;</span>
+                }
+<span class="nc" id="L287">            genomeIncreaseProbability = state.parameters.getDoubleWithMax(base.push(P_GEOMETRIC_PROBABILITY),def.push(P_GEOMETRIC_PROBABILITY),0.0, 1.0);</span>
+<span class="nc bnc" id="L288" title="All 4 branches missed.">            if (genomeIncreaseProbability &lt; 0.0 || genomeIncreaseProbability &gt;= 1.0)  // note &gt;=</span>
+<span class="nc" id="L289">                state.output.fatal(&quot;To use Gemoetric size initialization, the genome increase probability must be &gt;= 0.0 and &lt; 1.0&quot;,</span>
+<span class="nc" id="L290">                    base.push(P_GEOMETRIC_PROBABILITY),def.push(P_GEOMETRIC_PROBABILITY));</span>
+            }
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">        else if (genomeSizeForm.equals(V_UNIFORM))</span>
+            {
+<span class="nc" id="L294">            dynamicInitialSize = true;</span>
+<span class="nc" id="L295">            genomeSize = 1;</span>
+<span class="nc" id="L296">            genomeResizeAlgorithm = C_UNIFORM;</span>
+<span class="nc" id="L297">            chunksize = state.parameters.getIntWithDefault(base.push(P_CHUNKSIZE),def.push(P_CHUNKSIZE),1);</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">            if (chunksize != 1)</span>
+<span class="nc" id="L299">                state.output.fatal(&quot;To use Uniform size initialization, VectorSpecies must have a chunksize of 1&quot;,</span>
+<span class="nc" id="L300">                    base.push(P_CHUNKSIZE),def.push(P_CHUNKSIZE));</span>
+<span class="nc" id="L301">            minInitialSize = state.parameters.getInt(base.push(P_UNIFORM_MIN),def.push(P_UNIFORM_MIN),0);</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">            if (minInitialSize &lt; 0)</span>
+<span class="nc" id="L303">                state.output.fatal(&quot;To use Uniform size initialization, you must set a minimum initial size &gt;= 0&quot;,</span>
+<span class="nc" id="L304">                    base.push(P_UNIFORM_MIN),def.push(P_UNIFORM_MIN));</span>
+<span class="nc" id="L305">            maxInitialSize = state.parameters.getInt(base.push(P_UNIFORM_MAX),def.push(P_UNIFORM_MAX),0);</span>
+<span class="nc bnc" id="L306" title="All 2 branches missed.">            if (maxInitialSize &lt; 0)</span>
+<span class="nc" id="L307">                state.output.fatal(&quot;To use Uniform size initialization, you must set a maximum initial size &gt;= 0&quot;,</span>
+<span class="nc" id="L308">                    base.push(P_UNIFORM_MAX),def.push(P_UNIFORM_MAX));</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">            if (maxInitialSize &lt; minInitialSize)</span>
+<span class="nc" id="L310">                state.output.fatal(&quot;To use Uniform size initialization, you must set a maximum initial size &gt;= the minimum initial size&quot;,</span>
+<span class="nc" id="L311">                    base.push(P_UNIFORM_MAX),def.push(P_UNIFORM_MAX));</span>
+            }
+        else  // it's a number
+            {
+<span class="fc" id="L315">            genomeSize = state.parameters.getInt(base.push(P_GENOMESIZE),def.push(P_GENOMESIZE),1);</span>
+<span class="pc bpc" id="L316" title="1 of 2 branches missed.">            if (genomeSize==0)</span>
+<span class="nc" id="L317">                state.output.fatal(&quot;VectorSpecies must have a genome size &gt; 0&quot;,</span>
+<span class="nc" id="L318">                    base.push(P_GENOMESIZE),def.push(P_GENOMESIZE));</span>
+                        
+<span class="fc" id="L320">            genomeResizeAlgorithm = C_NONE;</span>
+
+<span class="fc" id="L322">            chunksize = state.parameters.getIntWithDefault(base.push(P_CHUNKSIZE),def.push(P_CHUNKSIZE),1);</span>
+<span class="pc bpc" id="L323" title="2 of 4 branches missed.">            if (chunksize &lt;= 0 || chunksize &gt; genomeSize)</span>
+<span class="nc" id="L324">                state.output.fatal(&quot;VectorSpecies must have a chunksize which is &gt; 0 and &lt; genomeSize&quot;,</span>
+<span class="nc" id="L325">                    base.push(P_CHUNKSIZE),def.push(P_CHUNKSIZE));</span>
+<span class="pc bpc" id="L326" title="1 of 2 branches missed.">            if (genomeSize % chunksize != 0)</span>
+<span class="nc" id="L327">                state.output.fatal(&quot;VectorSpecies must have a genomeSize which is a multiple of chunksize&quot;,</span>
+<span class="nc" id="L328">                    base.push(P_CHUNKSIZE),def.push(P_CHUNKSIZE));</span>
+            }
+<span class="fc" id="L330">        }</span>
+
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L335">        Parameter def = defaultBase();        </span>
+        // We will construct, but NOT set up, a sacrificial individual here.
+        // Actual setup is done at the end of this method (in super.setup(...) )
+        // The purpose of this sacrificial individual is to enable methods such
+        // as inNumericalTypeRange() to run properly, since they require knowledge
+        // of which KIND of individual it is
+                
+<span class="fc" id="L342">        i_prototype = (Individual)(state.parameters.getInstanceForParameter(</span>
+<span class="fc" id="L343">                base.push(P_INDIVIDUAL),def.push(P_INDIVIDUAL),</span>
+                Individual. class));
+
+        // this will get thrown away and replaced with a new one during super.setup(...).
+                
+                
+        
+        // this might get called twice, I don't think it's a big deal
+<span class="fc" id="L351">        setupGenome(state, base);</span>
+
+
+        // MUTATION
+
+<span class="fc" id="L356">        double _mutationProbability = state.parameters.getDoubleWithMax(base.push(P_MUTATIONPROB), def.push(P_MUTATIONPROB), 0.0, 1.0);</span>
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">        if (_mutationProbability == -1.0)</span>
+<span class="nc" id="L358">            state.output.fatal(&quot;Global mutation probability must be between 0.0 and 1.0 inclusive&quot;,</span>
+<span class="nc" id="L359">                base.push(P_MUTATIONPROB),def.push(P_MUTATIONPROB));</span>
+<span class="fc" id="L360">        mutationProbability = fill(new double[genomeSize + 1], _mutationProbability);</span>
+
+<span class="fc" id="L362">        int _duplicateRetries = state.parameters.getIntWithDefault(base.push(P_DUPLICATE_RETRIES), def.push(P_DUPLICATE_RETRIES), 0);</span>
+<span class="pc bpc" id="L363" title="1 of 2 branches missed.">        if (_duplicateRetries &lt; 0)</span>
+            {
+<span class="nc" id="L365">            state.output.fatal(&quot;Duplicate Retries, if defined, must be a value &gt;= 0&quot;, base.push(P_DUPLICATE_RETRIES), def.push(P_DUPLICATE_RETRIES));</span>
+            }
+<span class="fc" id="L367">        duplicateRetries = fill(new int[genomeSize + 1], _duplicateRetries);</span>
+        
+        // CROSSOVER
+
+<span class="fc" id="L371">        String ctype = state.parameters.getStringWithDefault(base.push(P_CROSSOVERTYPE), def.push(P_CROSSOVERTYPE), null);</span>
+<span class="fc" id="L372">        crossoverType = C_ONE_POINT;</span>
+<span class="fc bfc" id="L373" title="All 2 branches covered.">        if (ctype==null)</span>
+<span class="fc" id="L374">            state.output.warning(&quot;No crossover type given for VectorSpecies, assuming one-point crossover (\&quot;one\&quot;)&quot;,</span>
+<span class="fc" id="L375">                base.push(P_CROSSOVERTYPE),def.push(P_CROSSOVERTYPE));</span>
+<span class="pc bpc" id="L376" title="1 of 2 branches missed.">        else if (ctype.equalsIgnoreCase(V_ONE_POINT))</span>
+<span class="nc" id="L377">            crossoverType=C_ONE_POINT;  // redundant</span>
+<span class="pc bpc" id="L378" title="1 of 2 branches missed.">        else if (ctype.equalsIgnoreCase(V_ONE_POINT_NO_NOP))</span>
+<span class="nc" id="L379">            crossoverType=C_ONE_POINT_NO_NOP;</span>
+<span class="pc bpc" id="L380" title="1 of 2 branches missed.">        else if (ctype.equalsIgnoreCase(V_TWO_POINT))</span>
+<span class="nc" id="L381">            crossoverType=C_TWO_POINT;</span>
+<span class="pc bpc" id="L382" title="1 of 2 branches missed.">        else if (ctype.equalsIgnoreCase(V_TWO_POINT_NO_NOP))</span>
+<span class="nc" id="L383">            crossoverType=C_TWO_POINT_NO_NOP;</span>
+<span class="pc bpc" id="L384" title="1 of 2 branches missed.">        else if (ctype.equalsIgnoreCase(V_ANY_POINT))</span>
+<span class="nc" id="L385">            crossoverType=C_ANY_POINT;</span>
+<span class="pc bpc" id="L386" title="1 of 2 branches missed.">        else if (ctype.equalsIgnoreCase(V_LINE_RECOMB))</span>
+<span class="nc" id="L387">            crossoverType=C_LINE_RECOMB;</span>
+<span class="pc bpc" id="L388" title="1 of 2 branches missed.">        else if (ctype.equalsIgnoreCase(V_INTERMED_RECOMB))</span>
+<span class="nc" id="L389">            crossoverType=C_INTERMED_RECOMB;</span>
+<span class="pc bpc" id="L390" title="1 of 2 branches missed.">        else if (ctype.equalsIgnoreCase(V_SIMULATED_BINARY))</span>
+<span class="fc" id="L391">            crossoverType=C_SIMULATED_BINARY;</span>
+<span class="nc" id="L392">        else state.output.fatal(&quot;VectorSpecies given a bad crossover type: &quot; + ctype,</span>
+<span class="nc" id="L393">            base.push(P_CROSSOVERTYPE),def.push(P_CROSSOVERTYPE));</span>
+    
+<span class="pc bpc" id="L395" title="2 of 4 branches missed.">        if (crossoverType==C_LINE_RECOMB || crossoverType==C_INTERMED_RECOMB)</span>
+            {
+<span class="nc bnc" id="L397" title="All 4 branches missed.">            if (!(this instanceof IntegerVectorSpecies) &amp;&amp; !(this instanceof FloatVectorSpecies))</span>
+<span class="nc" id="L398">                state.output.fatal(&quot;Line and intermediate recombinations are only supported by IntegerVectorSpecies and FloatVectorSpecies&quot;, base.push(P_CROSSOVERTYPE), def.push(P_CROSSOVERTYPE));</span>
+<span class="nc" id="L399">            lineDistance = state.parameters.getDouble(</span>
+<span class="nc" id="L400">                base.push(P_LINEDISTANCE), def.push(P_LINEDISTANCE), 0.0);</span>
+<span class="nc bnc" id="L401" title="All 2 branches missed.">            if (lineDistance==-1.0)</span>
+<span class="nc" id="L402">                state.output.fatal(&quot;If it's going to use line or intermediate recombination, VectorSpecies needs a line extension &gt;= 0.0  (0.25 is common)&quot;, base.push(P_LINEDISTANCE), def.push(P_LINEDISTANCE));</span>
+            }
+<span class="fc" id="L404">        else lineDistance = 0.0;</span>
+
+<span class="pc bpc" id="L406" title="1 of 2 branches missed.">        if (crossoverType==C_ANY_POINT)</span>
+            {
+<span class="nc" id="L408">            crossoverProbability = state.parameters.getDoubleWithMax(</span>
+<span class="nc" id="L409">                base.push(P_CROSSOVERPROB),def.push(P_CROSSOVERPROB),0.0,0.5);</span>
+<span class="nc bnc" id="L410" title="All 2 branches missed.">            if (crossoverProbability==-1.0)</span>
+<span class="nc" id="L411">                state.output.fatal(&quot;If it's going to use any-point crossover, VectorSpecies must have a crossover probability between 0.0 and 0.5 inclusive&quot;,</span>
+<span class="nc" id="L412">                    base.push(P_CROSSOVERPROB),def.push(P_CROSSOVERPROB));</span>
+            }
+<span class="fc bfc" id="L414" title="All 2 branches covered.">        else if (crossoverType==C_SIMULATED_BINARY)</span>
+            {
+<span class="pc bpc" id="L416" title="1 of 2 branches missed.">            if (!(this instanceof FloatVectorSpecies))</span>
+<span class="nc" id="L417">                state.output.fatal(&quot;Simulated binary crossover (SBX) is only supported by FloatVectorSpecies&quot;, base.push(P_CROSSOVERTYPE), def.push(P_CROSSOVERTYPE));</span>
+<span class="fc" id="L418">            crossoverDistributionIndex = state.parameters.getInt(base.push(P_CROSSOVER_DISTRIBUTION_INDEX), def.push(P_CROSSOVER_DISTRIBUTION_INDEX), 0);</span>
+<span class="pc bpc" id="L419" title="1 of 2 branches missed.">            if (crossoverDistributionIndex &lt; 0)</span>
+<span class="nc" id="L420">                state.output.fatal(&quot;If FloatVectorSpecies is going to use simulated binary crossover (SBX), the distribution index must be defined and &gt;= 0.&quot;,</span>
+<span class="nc" id="L421">                    base.push(P_CROSSOVER_DISTRIBUTION_INDEX), def.push(P_CROSSOVER_DISTRIBUTION_INDEX));</span>
+            }
+<span class="fc" id="L423">        else crossoverProbability = 0.0;</span>
+
+<span class="fc" id="L425">        state.output.exitIfErrors();</span>
+                
+<span class="pc bpc" id="L427" title="2 of 4 branches missed.">        if (crossoverType != C_ANY_POINT &amp;&amp; state.parameters.exists(base.push(P_CROSSOVERPROB),def.push(P_CROSSOVERPROB)))</span>
+<span class="nc" id="L428">            state.output.warning(&quot;The 'crossover-prob' parameter may only be used with any-point crossover.  It states the probability that a particular gene will be crossed over.  If you were looking for the probability of crossover happening at *all*, look at the 'likelihood' parameter.&quot;,</span>
+<span class="nc" id="L429">                base.push(P_CROSSOVERPROB),def.push(P_CROSSOVERPROB));</span>
+        
+
+
+
+        
+        // SEGMENTS
+        
+        // Set number of segments to 0 by default
+<span class="fc" id="L438">        int numSegments = 0;</span>
+        // Now check to see if segments of genes (genes having the same min and
+        // max values) exist
+<span class="pc bpc" id="L441" title="1 of 2 branches missed.">        if (state.parameters.exists(base.push(P_NUM_SEGMENTS), def.push(P_NUM_SEGMENTS)))</span>
+            {
+<span class="nc bnc" id="L443" title="All 2 branches missed.">            if (dynamicInitialSize)</span>
+<span class="nc" id="L444">                state.output.warnOnce(&quot;Using dynamic initial sizing, but per-segment min/max gene declarations.  This is probably wrong.  You probably want to use global min/max declarations.&quot;,</span>
+<span class="nc" id="L445">                    base.push(P_NUM_SEGMENTS), def.push(P_NUM_SEGMENTS));</span>
+                        
+<span class="nc" id="L447">            numSegments = state.parameters.getIntWithDefault(base.push(P_NUM_SEGMENTS), </span>
+<span class="nc" id="L448">                def.push(P_NUM_SEGMENTS), 0);</span>
+                        
+<span class="nc bnc" id="L450" title="All 2 branches missed.">            if(numSegments == 0)</span>
+<span class="nc" id="L451">                state.output.warning(</span>
+                    &quot;The number of genome segments has been defined to be equal to 0.\n&quot;
+                    + &quot;Hence, no genome segments will be defined.&quot;, 
+<span class="nc" id="L454">                    base.push(P_NUM_SEGMENTS), </span>
+<span class="nc" id="L455">                    def.push(P_NUM_SEGMENTS));</span>
+<span class="nc bnc" id="L456" title="All 2 branches missed.">            else if(numSegments &lt; 0)</span>
+<span class="nc" id="L457">                state.output.fatal(</span>
+                    &quot;Invalid number of genome segments: &quot; + numSegments
+                    + &quot;\nIt must be a nonnegative value.&quot;, 
+<span class="nc" id="L460">                    base.push(P_NUM_SEGMENTS), </span>
+<span class="nc" id="L461">                    def.push(P_NUM_SEGMENTS));</span>
+                                                        
+            //read the type of segment definition using the default start value
+<span class="nc" id="L464">            String segmentType = state.parameters.getStringWithDefault(base.push(P_SEGMENT_TYPE), </span>
+<span class="nc" id="L465">                def.push(P_SEGMENT_TYPE), P_SEGMENT_START);</span>
+                        
+<span class="nc bnc" id="L467" title="All 2 branches missed.">            if(segmentType.equalsIgnoreCase(P_SEGMENT_START))</span>
+<span class="nc" id="L468">                initializeGenomeSegmentsByStartIndices(state, base, def, numSegments);</span>
+<span class="nc bnc" id="L469" title="All 2 branches missed.">            else if(segmentType.equalsIgnoreCase(P_SEGMENT_END))</span>
+<span class="nc" id="L470">                initializeGenomeSegmentsByEndIndices(state, base, def, numSegments);</span>
+            else
+<span class="nc" id="L472">                state.output.fatal(</span>
+                    &quot;Invalid specification of genome segment type: &quot; + segmentType
+                    + &quot;\nThe &quot; + P_SEGMENT_TYPE + &quot; parameter must have the value of &quot; + P_SEGMENT_START + &quot; or &quot; + P_SEGMENT_END, 
+<span class="nc" id="L475">                    base.push(P_SEGMENT_TYPE), </span>
+<span class="nc" id="L476">                    def.push(P_SEGMENT_TYPE));</span>
+            }
+<span class="fc" id="L478">        state.output.exitIfErrors();          </span>
+
+            
+            
+        // PER-GENE VALUES
+
+<span class="fc bfc" id="L484" title="All 2 branches covered.">        for (int x = 0; x &lt; genomeSize; x++)</span>
+            {
+<span class="fc" id="L486">            loadParametersForGene(state, x, base, def, &quot;&quot; + x);</span>
+            }
+<span class="fc" id="L488">        state.output.exitIfErrors();          </span>
+              
+            
+            
+        // NOW call super.setup(...), which will in turn set up the prototypical individual
+<span class="fc" id="L493">        super.setup(state,base);</span>
+                
+<span class="fc" id="L495">        }</span>
+
+
+    /** Called when VectorSpecies is setting up per-gene and per-segment parameters.  The index
+        is the current gene whose parameter is getting set up.  The Parameters in question are the
+        bases for the gene.  The postfix should be appended to the end of any parameter looked up
+        (it often contains a number indicating the gene in question), such as
+        state.parameters.exists(base.push(P_PARAM).push(postfix), def.push(P_PARAM).push(postfix)
+                        
+        &lt;p&gt;If you override this method, be sure to call super(...) at some point, ideally first.
+    */
+    protected void loadParametersForGene(EvolutionState state, int index, Parameter base, Parameter def, String postfix)
+        {       
+        // our only per-gene parameter is mutation probablity.
+        
+<span class="pc bpc" id="L510" title="1 of 2 branches missed.">        if (state.parameters.exists(base.push(P_MUTATIONPROB).push(postfix), def.push(P_MUTATIONPROB).push(postfix)))</span>
+            {
+<span class="nc" id="L512">            mutationProbability[index] = state.parameters.getDoubleWithMax(base.push(P_MUTATIONPROB).push(postfix), def.push(P_MUTATIONPROB).push(postfix), 0.0, 1.0);</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">            if (mutationProbability[index] == -1.0)</span>
+<span class="nc" id="L514">                state.output.fatal(&quot;Per-gene or per-segment mutation probability must be between 0.0 and 1.0 inclusive&quot;,</span>
+<span class="nc" id="L515">                    base.push(P_MUTATIONPROB).push(postfix),def.push(P_MUTATIONPROB).push(postfix));</span>
+            }
+
+<span class="pc bpc" id="L518" title="1 of 2 branches missed.">        if (state.parameters.exists(base.push(P_DUPLICATE_RETRIES).push(postfix), def.push(P_DUPLICATE_RETRIES).push(postfix)))</span>
+            {
+<span class="nc" id="L520">            duplicateRetries[index] = state.parameters.getInt(base.push(P_DUPLICATE_RETRIES).push(postfix), def.push(P_DUPLICATE_RETRIES).push(postfix));</span>
+<span class="nc bnc" id="L521" title="All 2 branches missed.">            if (duplicateRetries[index] &lt; 0)</span>
+<span class="nc" id="L522">                state.output.fatal(&quot;Duplicate Retries for gene &quot; + index + &quot;, if defined must be a value &gt;= 0&quot;, </span>
+<span class="nc" id="L523">                    base.push(P_DUPLICATE_RETRIES).push(postfix), def.push(P_DUPLICATE_RETRIES).push(postfix));</span>
+            }
+                        
+<span class="fc" id="L526">        }            </span>
+
+    /** Looks up genome segments using start indices.  Segments run up to the next declared start index.  */
+    protected void initializeGenomeSegmentsByStartIndices(final EvolutionState state, 
+        final Parameter base, 
+        final Parameter def,
+        int numSegments)
+        {
+        //loop in reverse order 
+<span class="nc" id="L535">        int previousSegmentEnd = genomeSize;</span>
+<span class="nc" id="L536">        int currentSegmentEnd = 0;</span>
+                
+<span class="nc bnc" id="L538" title="All 2 branches missed.">        for (int i = numSegments - 1; i &gt;= 0; i--)</span>
+            {
+            //check if the segment data exist
+<span class="nc bnc" id="L541" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_START), </span>
+<span class="nc" id="L542">                    def.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_START)))</span>
+                {
+                //Read the index of the end gene specifying current segment
+<span class="nc" id="L545">                currentSegmentEnd = state.parameters.getInt(base.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_START), </span>
+<span class="nc" id="L546">                    def.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_START));</span>
+                                
+                }
+            else
+                {
+<span class="nc" id="L551">                state.output.fatal(&quot;Genome segment &quot; + i + &quot; has not been defined!&quot; +</span>
+                    &quot;\nYou must specify start indices for &quot; + numSegments + &quot; segment(s)&quot;, 
+<span class="nc" id="L553">                    base.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_START),</span>
+<span class="nc" id="L554">                    base.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_START));</span>
+                }
+                        
+            //check if the start index is valid
+<span class="nc bnc" id="L558" title="All 4 branches missed.">            if(currentSegmentEnd &gt;= previousSegmentEnd || currentSegmentEnd &lt; 0)</span>
+<span class="nc" id="L559">                state.output.fatal(</span>
+                    &quot;Invalid start index value for segment &quot; + i + &quot;: &quot; + currentSegmentEnd 
+                    +  &quot;\nThe value must be smaller than &quot; + previousSegmentEnd +
+                    &quot; and greater than or equal to  &quot; + 0);
+                        
+            //check if the index of the first segment is equal to 0
+<span class="nc bnc" id="L565" title="All 4 branches missed.">            if(i == 0 &amp;&amp; currentSegmentEnd != 0)</span>
+<span class="nc" id="L566">                state.output.fatal(</span>
+                    &quot;Invalid start index value for the first segment &quot; + i + &quot;: &quot; + currentSegmentEnd 
+                    +  &quot;\nThe value must be equal to &quot; + 0);
+                        
+            //and assign min and max values for all genes in this segment
+<span class="nc bnc" id="L571" title="All 2 branches missed.">            for(int j = previousSegmentEnd-1; j &gt;= currentSegmentEnd; j--)</span>
+                {
+<span class="nc" id="L573">                loadParametersForGene(state, j, base.push(P_SEGMENT).push(&quot;&quot;+i), def.push(P_SEGMENT).push(&quot;&quot;+i), &quot;&quot;);</span>
+                }                        
+                        
+<span class="nc" id="L576">            previousSegmentEnd = currentSegmentEnd;</span>
+                        
+            }
+                
+<span class="nc" id="L580">        }</span>
+        
+    /** Looks up genome segments using end indices.  Segments run from the previously declared end index. */
+    protected void initializeGenomeSegmentsByEndIndices(final EvolutionState state, 
+        final Parameter base, 
+        final Parameter def,
+        int numSegments)
+        {
+<span class="nc" id="L588">        int previousSegmentEnd = -1;  </span>
+<span class="nc" id="L589">        int currentSegmentEnd = 0;</span>
+        // iterate over segments and set genes values for each segment
+<span class="nc bnc" id="L591" title="All 2 branches missed.">        for (int i = 0; i &lt; numSegments; i++)</span>
+            {
+            //check if the segment data exist
+<span class="nc bnc" id="L594" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_END), def.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_END)))</span>
+                {
+                //Read the index of the end gene specifying current segment
+<span class="nc" id="L597">                currentSegmentEnd = state.parameters.getInt(base.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_END), </span>
+<span class="nc" id="L598">                    def.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_END));</span>
+                                
+                }
+            else
+                {
+<span class="nc" id="L603">                state.output.fatal(&quot;Genome segment &quot; + i + &quot; has not been defined!&quot; +</span>
+                    &quot;\nYou must specify end indices for &quot; + numSegments + &quot; segment(s)&quot;, 
+<span class="nc" id="L605">                    base.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_END),</span>
+<span class="nc" id="L606">                    base.push(P_SEGMENT).push(&quot;&quot;+i).push(P_SEGMENT_END));</span>
+                }
+                        
+            //check if the end index is valid
+<span class="nc bnc" id="L610" title="All 4 branches missed.">            if(currentSegmentEnd &lt;= previousSegmentEnd || currentSegmentEnd &gt;= genomeSize)</span>
+<span class="nc" id="L611">                state.output.fatal(</span>
+                    &quot;Invalid end index value for segment &quot; + i + &quot;: &quot; + currentSegmentEnd 
+                    +  &quot;\nThe value must be greater than &quot; + previousSegmentEnd +
+                    &quot; and smaller than &quot; + genomeSize);
+                        
+            //check if the index of the final segment is equal to the genomeSize
+<span class="nc bnc" id="L617" title="All 4 branches missed.">            if(i == numSegments - 1 &amp;&amp; currentSegmentEnd != (genomeSize-1))</span>
+<span class="nc" id="L618">                state.output.fatal(</span>
+                    &quot;Invalid end index value for the last segment &quot; + i + &quot;: &quot; + currentSegmentEnd 
+                    +  &quot;\nThe value must be equal to the index of the last gene in the genome:  &quot; + (genomeSize-1));
+                        
+                        
+            //and assign min and max values for all genes in this segment
+<span class="nc bnc" id="L624" title="All 2 branches missed.">            for(int j = previousSegmentEnd+1; j &lt;= currentSegmentEnd; j++)</span>
+                {
+<span class="nc" id="L626">                loadParametersForGene(state, j, base.push(P_SEGMENT).push(&quot;&quot;+i), def.push(P_SEGMENT).push(&quot;&quot;+i), &quot;&quot;);</span>
+                }
+                        
+<span class="nc" id="L629">            previousSegmentEnd = currentSegmentEnd;</span>
+            }
+<span class="nc" id="L631">        }</span>
+
+
+    public Individual newIndividual(final EvolutionState state, int thread) 
+        
+        {
+<span class="fc" id="L637">        VectorIndividual newind = (VectorIndividual)(super.newIndividual(state, thread));</span>
+
+<span class="pc bpc" id="L639" title="1 of 2 branches missed.">        if (genomeResizeAlgorithm == C_NONE)</span>
+<span class="fc" id="L640">            newind.reset( state, thread );</span>
+<span class="nc bnc" id="L641" title="All 2 branches missed.">        else if (genomeResizeAlgorithm == C_UNIFORM)</span>
+            {
+<span class="nc" id="L643">            int size = state.random[thread].nextInt(maxInitialSize - minInitialSize + 1) + minInitialSize;</span>
+<span class="nc" id="L644">            newind.reset(state, thread, size);</span>
+<span class="nc" id="L645">            }</span>
+<span class="nc bnc" id="L646" title="All 2 branches missed.">        else if (genomeResizeAlgorithm == C_GEOMETRIC)</span>
+            {
+<span class="nc" id="L648">            int size = minInitialSize;</span>
+<span class="nc bnc" id="L649" title="All 2 branches missed.">            while(state.random[thread].nextBoolean(genomeIncreaseProbability)) size++;</span>
+<span class="nc" id="L650">            newind.reset(state, thread, size);</span>
+            }
+                        
+<span class="fc" id="L653">        return newind;</span>
+        }
+
+
+
+
+    // These convenience methods are used by subclasses to fill arrays and check to see if
+    // arrays contain certain values.
+
+    /** Utility method: fills the array with the given value and returns it. */
+    protected long[] fill(long[] array, long val)
+        {
+<span class="fc bfc" id="L665" title="All 2 branches covered.">        for(int i =0; i &lt; array.length; i++) array[i] = val;</span>
+<span class="fc" id="L666">        return array;</span>
+        }
+        
+    /** Utility method: fills the array with the given value and returns it. */
+    protected int[] fill(int[] array, int val)
+        {
+<span class="fc bfc" id="L672" title="All 2 branches covered.">        for(int i =0; i &lt; array.length; i++) array[i] = val;</span>
+<span class="fc" id="L673">        return array;</span>
+        }
+        
+    /** Utility method: fills the array with the given value and returns it. */
+    protected boolean[] fill(boolean[] array, boolean val)
+        {
+<span class="fc bfc" id="L679" title="All 2 branches covered.">        for(int i =0; i &lt; array.length; i++) array[i] = val;</span>
+<span class="fc" id="L680">        return array;</span>
+        }
+        
+    /** Utility method: fills the array with the given value and returns it. */
+    protected double[] fill(double[] array, double val)
+        {
+<span class="fc bfc" id="L686" title="All 2 branches covered.">        for(int i =0; i &lt; array.length; i++) array[i] = val;</span>
+<span class="fc" id="L687">        return array;</span>
+        }
+
+    /** Utility method: returns the first array slot which contains the given value, else -1. */
+    protected int contains(boolean[] array, boolean val)
+        {
+<span class="nc bnc" id="L693" title="All 2 branches missed.">        for(int i =0; i &lt; array.length; i++)</span>
+<span class="nc bnc" id="L694" title="All 2 branches missed.">            if (array[i] == val) return i;</span>
+<span class="nc" id="L695">        return -1;</span>
+        }
+        
+    /** Utility method: returns the first array slot which contains the given value, else -1. */
+    protected int contains(long[] array, long val)
+        {
+<span class="nc bnc" id="L701" title="All 2 branches missed.">        for(int i =0; i &lt; array.length; i++)</span>
+<span class="nc bnc" id="L702" title="All 2 branches missed.">            if (array[i] == val) return i;</span>
+<span class="nc" id="L703">        return -1;</span>
+        }
+        
+    /** Utility method: returns the first array slot which contains the given value, else -1. */
+    protected int contains(int[] array, int val)
+        {
+<span class="nc bnc" id="L709" title="All 2 branches missed.">        for(int i =0; i &lt; array.length; i++)</span>
+<span class="nc bnc" id="L710" title="All 2 branches missed.">            if (array[i] == val) return i;</span>
+<span class="nc" id="L711">        return -1;</span>
+        }
+        
+    /** Utility method: returns the first array slot which contains the given value, else -1. */
+    protected int contains(double[] array, double val)
+        {
+<span class="nc bnc" id="L717" title="All 2 branches missed.">        for(int i =0; i &lt; array.length; i++)</span>
+<span class="nc bnc" id="L718" title="All 2 branches missed.">            if (array[i] == val) return i;</span>
+<span class="nc" id="L719">        return -1;</span>
+        }
+    }
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

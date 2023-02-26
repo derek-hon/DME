@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Log.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">Log.java</span></div><h1>Log.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+import java.io.*;
+import java.util.zip.*;
+
+/*
+ * Log.java
+ * Created: Sun Aug  8 18:53:49 1999
+ */
+
+/**
+ * Defines a log to which Output outputs. 
+ *
+ * Logs can be &lt;i&gt;restarted&lt;/i&gt; after a computer outage by using the 
+ * information stored in the LogRestarter
+ * &lt;tt&gt;restarter&lt;/tt&gt;.  
+ *
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+
+public class Log implements Serializable
+    {
+    private static final long serialVersionUID = 1;
+
+    // basic log features
+    
+    /** Should we write to this log at all? */
+<span class="pc" id="L36">    public boolean silent = false;</span>
+
+    /** The log's writer */
+    public transient PrintWriter writer;   // the actual writer.
+
+    /** A filename, if the writer writes to a file */
+    public File filename;                // the filename to write to, if any
+
+    /** Should the log post announcements? */
+    public boolean postAnnouncements;      // will the log post announcements?
+
+    // stuff for restarting
+
+    /** The log's restarter */
+    public LogRestarter restarter;         // resets the log
+
+    /** Should the log repost all announcements on restart */
+    public boolean repostAnnouncementsOnRestart;   // repost all announcements?
+
+    /** If the log writes to a file, should it append to the file on restart,
+        or should it overwrite the file? */
+    public boolean appendOnRestart;        // append to a file or replace it?
+    
+    public boolean isLoggingToSystemOut;
+
+
+    // values for specifying logs based on System.out or System.err
+
+    /** Specifies that the log should write to stdout (System.out) */
+    public final static int D_STDOUT = 0;
+    
+    /** Specifies that the log should write to stderr (System.err) */
+    public final static int D_STDERR = 1;
+
+    protected void finalize() throws Throwable 
+        { 
+        // rarely happens though... :-(
+<span class="fc" id="L73">        super.finalize();</span>
+<span class="pc bpc" id="L74" title="2 of 4 branches missed.">        if (writer!=null &amp;&amp; !isLoggingToSystemOut) writer.close();</span>
+<span class="fc" id="L75">        }</span>
+
+    /** Creates a log to a given filename; this file may or may not
+        be appended to on restart, depending on _appendOnRestart.  If
+        and only if the file is &lt;i&gt;not&lt;/i&gt; appended to on restart, then
+        announcements are reposted on restart.*/
+    
+    public Log(File _filename,
+        boolean _postAnnouncements,
+        boolean _appendOnRestart) throws IOException
+        {
+<span class="nc" id="L86">        this(_filename, _postAnnouncements, _appendOnRestart, false);</span>
+<span class="nc" id="L87">        }</span>
+        
+    /** Creates a log to a given filename; this file may or may not
+        be appended to on restart, depending on _appendOnRestart.  If
+        and only if the file is &lt;i&gt;not&lt;/i&gt; appended to on restart, then
+        announcements are reposted on restart. The file can be compressed
+        with gzip, but you may not both gzip AND appendOnRestart.  If gzipped,
+        then .gz is automagically appended to the file name.*/
+    
+    public Log(File _filename,
+        boolean _postAnnouncements,
+        boolean _appendOnRestart,
+        boolean gzip) throws IOException
+<span class="fc" id="L100">        {</span>
+<span class="fc" id="L101">        postAnnouncements = _postAnnouncements;</span>
+<span class="pc bpc" id="L102" title="1 of 2 branches missed.">        repostAnnouncementsOnRestart = !_appendOnRestart;</span>
+<span class="fc" id="L103">        appendOnRestart = _appendOnRestart;</span>
+<span class="fc" id="L104">        isLoggingToSystemOut = false;</span>
+                    
+<span class="pc bpc" id="L106" title="1 of 2 branches missed.">        if (gzip)</span>
+            {
+<span class="nc" id="L108">            filename = new File(_filename.getAbsolutePath() + &quot;.gz&quot;);</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">            if (appendOnRestart) throw new IOException(&quot;Cannot gzip and appendOnRestart at the same time: new Log(File,int,boolean,boolean,boolean)&quot;);</span>
+
+<span class="nc" id="L111">            writer = new PrintWriter(new OutputStreamWriter(new GZIPOutputStream(</span>
+                        new BufferedOutputStream(
+                            new FileOutputStream(filename)))));
+<span class="nc" id="L114">            restarter = new LogRestarter()</span>
+<span class="nc" id="L115">                {</span>
+                public Log restart(Log l) throws IOException
+                    {
+<span class="nc" id="L118">                    return reopen(l);</span>
+                    }
+                public Log reopen(Log l) throws IOException
+                    {
+<span class="nc bnc" id="L122" title="All 4 branches missed.">                    if (l.writer!=null &amp;&amp; !l.isLoggingToSystemOut) l.writer.close();</span>
+<span class="nc" id="L123">                    l.writer = new PrintWriter(new OutputStreamWriter(new GZIPOutputStream(</span>
+                                new BufferedOutputStream(new FileOutputStream(l.filename)))));
+<span class="nc" id="L125">                    return l;</span>
+                    }
+                };
+            }
+                            
+        else 
+            {
+<span class="fc" id="L132">            filename = _filename;</span>
+<span class="fc" id="L133">            writer = new PrintWriter(new BufferedWriter(new FileWriter(filename)));</span>
+<span class="fc" id="L134">            restarter = new LogRestarter()</span>
+<span class="fc" id="L135">                {</span>
+                public Log restart(Log l) throws IOException
+                    {
+<span class="nc" id="L138">                    l.writer = new PrintWriter(new BufferedWriter(new FileWriter(l.filename.getPath(),l.appendOnRestart)));</span>
+<span class="nc" id="L139">                    return l;</span>
+                    }
+                public Log reopen(Log l) throws IOException
+                    {
+<span class="nc bnc" id="L143" title="All 4 branches missed.">                    if (l.writer!=null &amp;&amp; !isLoggingToSystemOut) l.writer.close();</span>
+<span class="nc" id="L144">                    l.writer = new PrintWriter(new BufferedWriter(new FileWriter(l.filename)));</span>
+<span class="nc" id="L145">                    return l;</span>
+                    }
+                };
+            }
+<span class="fc" id="L149">        }</span>
+
+    /** Creates a log on stdout (descriptor == Log.D_STDOUT) 
+        or stderr (descriptor == Log.D_STDERR). */
+
+    public Log(int descriptor,
+        boolean _postAnnouncements)
+<span class="fc" id="L156">        {</span>
+<span class="fc" id="L157">        filename = null;</span>
+<span class="fc" id="L158">        postAnnouncements = _postAnnouncements;</span>
+<span class="fc" id="L159">        repostAnnouncementsOnRestart = true;</span>
+<span class="fc" id="L160">        appendOnRestart = true;  // doesn't matter</span>
+<span class="fc" id="L161">        isLoggingToSystemOut = true;</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">        if (descriptor == D_STDOUT)</span>
+            {
+<span class="fc" id="L164">            writer = new PrintWriter(System.out);</span>
+<span class="fc" id="L165">            restarter = new LogRestarter()</span>
+<span class="fc" id="L166">                {</span>
+                public Log restart(Log l) throws IOException
+                    {
+<span class="nc" id="L169">                    l.writer = new PrintWriter(System.out);</span>
+<span class="nc" id="L170">                    return l;</span>
+                    }
+                public Log reopen(Log l) throws IOException
+                    {
+<span class="nc" id="L174">                    return l;  // makes no sense</span>
+                    }
+                };
+            }
+        else  // D_STDERR
+            {
+<span class="fc" id="L180">            writer = new PrintWriter(System.err);</span>
+<span class="fc" id="L181">            restarter = new LogRestarter()</span>
+<span class="fc" id="L182">                {</span>
+                public Log restart(Log l) throws IOException
+                    {
+<span class="nc" id="L185">                    l.writer = new PrintWriter(System.err);</span>
+<span class="nc" id="L186">                    return l;</span>
+                    }
+                public Log reopen(Log l) throws IOException
+                    {
+<span class="nc" id="L190">                    return l;  // makes no sense</span>
+                    }
+                };
+            }
+<span class="fc" id="L194">        }</span>
+
+
+    /** Creates a log on a given Writer and custom LogRestarter.  In general,
+        You should not use this to write to a file.  Use Log(_filename...
+        instead. */
+
+    public Log(Writer _writer,
+        LogRestarter _restarter,
+        boolean _postAnnouncements,
+        boolean _repostAnnouncementsOnRestart)
+<span class="nc" id="L205">        {</span>
+<span class="nc" id="L206">        filename = null;</span>
+<span class="nc" id="L207">        postAnnouncements = _postAnnouncements;</span>
+<span class="nc" id="L208">        repostAnnouncementsOnRestart = _repostAnnouncementsOnRestart;</span>
+<span class="nc" id="L209">        appendOnRestart = true;  // doesn't matter</span>
+        /*
+         * Unfortunately, we can't know if the specified Writer wraps
+         * System.out.  Err on the side of caution and assume we're not.
+         */
+<span class="nc" id="L214">        isLoggingToSystemOut = false;</span>
+<span class="nc" id="L215">        writer = new PrintWriter(new BufferedWriter(_writer));</span>
+<span class="nc" id="L216">        restarter = _restarter;</span>
+<span class="nc" id="L217">        }</span>
+
+
+    /** Restarts a log after a system restart from checkpoint.  Returns
+        the restarted log -- note that it may not be the same log! */
+    
+    public Log restart() throws IOException
+        {
+<span class="nc" id="L225">        return restarter.restart(this);</span>
+        }
+
+    /** Forces a file-based log to reopen, erasing its previous contents.
+        non-file logs ignore this. */
+
+    public Log reopen() throws IOException
+        {
+<span class="nc" id="L233">        return restarter.reopen(this);</span>
+        }
+
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

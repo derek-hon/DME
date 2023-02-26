@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Regression.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.push</a> &gt; <span class="el_source">Regression.java</span></div><h1>Regression.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.push;
+import ec.gp.push.*;
+import org.spiderland.Psh.*;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+import java.io.*;
+import java.util.*;
+
+<span class="nc" id="L19">public class Regression extends PushProblem implements SimpleProblemForm</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_SIZE = &quot;size&quot;;
+    public static final String P_FILE = &quot;file&quot;;
+    public static final String P_USE_FUNCTION = &quot;use-function&quot;;
+    public static final String P_MAX_STEPS = &quot;max-steps&quot;;
+
+    public int trainingSetSize;
+    public boolean useFunction;  // if we have a file, should we use the function to compute the output values?  Or are they also contained?
+    
+    // these are read-only during evaluation-time, so
+    // they can be just light-cloned and not deep cloned.
+    // cool, huh?
+    
+    public double inputs[];
+    public double outputs[];
+
+    public double func(double x)
+<span class="nc" id="L39">        { return x*x*x*x + x*x*x + x*x + x; }</span>
+
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L45">        super.setup(state,base);</span>
+
+<span class="nc" id="L47">        trainingSetSize = state.parameters.getInt(base.push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (trainingSetSize&lt;1) state.output.fatal(&quot;Training Set Size must be an integer greater than 0&quot;, base.push(P_SIZE)); </span>
+
+        // should we load our x parameters from a file, or generate them randomly?
+        //file = state.parameters.getFile(base.push(P_FILE), null);
+<span class="nc" id="L52">        InputStream inputfile = state.parameters.getResource(base.push(P_FILE), null);</span>
+
+        // *IF* we load from a file, should we generate the output through the function, or load the output as well?
+<span class="nc" id="L55">        useFunction = state.parameters.getBoolean(base.push(P_USE_FUNCTION), null, true);</span>
+
+        // Compute our inputs so they can be copied with clone later
+<span class="nc" id="L58">        inputs = new double[trainingSetSize];</span>
+<span class="nc" id="L59">        outputs = new double[trainingSetSize];</span>
+        
+        //if (file != null)  // use the file
+<span class="nc bnc" id="L62" title="All 2 branches missed.">        if (inputfile != null)</span>
+            {
+            try
+                {
+<span class="nc" id="L66">                Scanner scan = new Scanner(inputfile);</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">                for(int x = 0; x &lt; trainingSetSize; x++)</span>
+                    {
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                    if (scan.hasNextDouble())</span>
+<span class="nc" id="L70">                        inputs[x] = scan.nextDouble();</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">                    else state.output.fatal(&quot;Not enough data points in file: expected &quot; + (trainingSetSize * (useFunction ? 1 : 2)));</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                    if (!useFunction)</span>
+                        {
+<span class="nc bnc" id="L74" title="All 2 branches missed.">                        if (scan.hasNextDouble())</span>
+<span class="nc" id="L75">                            outputs[x] = scan.nextDouble();</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                        else state.output.fatal(&quot;Not enough data points in file: expected &quot; + (trainingSetSize * (useFunction ? 1 : 2)));</span>
+                        }
+                    }
+                }
+<span class="nc" id="L80">            catch (NumberFormatException e)</span>
+                {
+<span class="nc" id="L82">                state.output.fatal(&quot;Some tokens in the file were not numbers.&quot;);</span>
+<span class="nc" id="L83">                }</span>
+            }
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        else for(int x=0;x&lt;trainingSetSize;x++)</span>
+                 {
+                 // On p. 242 of Koza-I, he claims that the points are chosen from the
+                 // fully-closed interval [-1, 1].  This is likely not true as Koza's lisp
+                 // code usually selected stuff from half-open intervals.  But just to be
+                 // absurdly exact here, we're allowing 1 as a valid number.
+<span class="nc" id="L91">                 inputs[x] = state.random[0].nextDouble(true, true) * 2.0 - 1.0;     // fully closed interval.</span>
+                 }
+                        
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        for(int x=0;x&lt;trainingSetSize;x++)</span>
+            {
+<span class="nc bnc" id="L96" title="All 2 branches missed.">            if (useFunction)</span>
+<span class="nc" id="L97">                outputs[x] = func(inputs[x]);</span>
+<span class="nc" id="L98">            state.output.message(&quot;{&quot; + inputs[x] + &quot;,&quot; + outputs[x] + &quot;},&quot;);</span>
+            }
+
+<span class="nc" id="L101">        maxSteps = state.parameters.getInt(base.push(P_MAX_STEPS),null,0);</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        if (maxSteps &lt; 0)</span>
+<span class="nc" id="L103">            state.output.fatal(&quot;Maximum Steps not specified, must be 1 or greater, or 0 to indicate no maximum number of steps.&quot;);</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (maxSteps == 0)</span>
+<span class="nc" id="L105">            state.output.warning(&quot;No maximum number of steps:. Push interpreter may get into an infinite loop.&quot;);</span>
+<span class="nc" id="L106">        }</span>
+
+
+    public int maxSteps;
+    
+    public void evaluate(final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L116" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+<span class="nc" id="L118">            int hits = 0;</span>
+<span class="nc" id="L119">            double sum = 0.0;</span>
+            double result;
+        
+<span class="nc" id="L122">            Interpreter interpreter = getInterpreter(state, (GPIndividual) ind, threadnum);</span>
+<span class="nc" id="L123">            Program program = getProgram(state, (GPIndividual) ind);        </span>
+
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            for (int y=0;y&lt;trainingSetSize;y++)</span>
+                {
+<span class="nc bnc" id="L127" title="All 2 branches missed.">                if (y &gt; 0) // need to reset first</span>
+<span class="nc" id="L128">                    resetInterpreter(interpreter);</span>
+                
+                // load it up and run it
+<span class="nc" id="L131">                pushOntoFloatStack(interpreter, (float)(inputs[y]));</span>
+<span class="nc" id="L132">                executeProgram(program, interpreter, maxSteps);</span>
+
+                // It's possible to get NaN because cos(infinity) and
+                // sin(infinity) are undefined (hence cos(exp(3000)) zings ya!)
+                // So since NaN is NOT =,&lt;,&gt;,etc. any other number, including
+                // NaN, we're CAREFULLY wording our cutoff to include NaN.
+                // Interesting that this has never been reported before to
+                // my knowledge.
+
+<span class="nc" id="L141">                final double HIT_LEVEL = 0.01;</span>
+<span class="nc" id="L142">                final double PROBABLY_ZERO = 1E-6;  // The Psh interpreter seems less accurate, not sure why</span>
+<span class="nc" id="L143">                final double BIG_NUMBER = 1.0e15;  // the same as lilgp uses</span>
+
+<span class="nc" id="L145">                result = Math.abs(outputs[y] - topOfFloatStack(interpreter));  // will be 0 if float stack is empty</span>
+
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                if (! (result &lt; BIG_NUMBER ) )   // *NOT* (input.x &gt;= BIG_NUMBER)</span>
+<span class="nc" id="L148">                    result = BIG_NUMBER;</span>
+
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                if (isFloatStackEmpty(interpreter)) // uh oh, invalid value</span>
+<span class="nc" id="L151">                    result = BIG_NUMBER;</span>
+
+                // very slight math errors can creep in when evaluating
+                // two equivalent by differently-ordered functions, like
+                // x * (x*x*x + x*x)  vs. x*x*x*x + x*x
+
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                else if (result&lt;PROBABLY_ZERO)  // slightly off</span>
+<span class="nc" id="L158">                    result = 0.0;</span>
+                    
+<span class="nc bnc" id="L160" title="All 2 branches missed.">                if (result &lt;= HIT_LEVEL) hits++;  // whatever!</span>
+
+<span class="nc" id="L162">                sum += result;              </span>
+                }
+                
+            // the fitness better be KozaFitness!
+<span class="nc" id="L166">            KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc" id="L167">            f.setStandardizedFitness(state, sum);</span>
+<span class="nc" id="L168">            f.hits = hits;</span>
+<span class="nc" id="L169">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L171">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

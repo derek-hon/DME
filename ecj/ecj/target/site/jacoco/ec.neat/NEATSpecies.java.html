@@ -1,0 +1,996 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NEATSpecies.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.neat</a> &gt; <span class="el_source">NEATSpecies.java</span></div><h1>NEATSpecies.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.neat;
+
+import ec.vector.*;
+import ec.*;
+import ec.util.*;
+import java.util.*;
+
+/**
+ * NEATSpecies is a GeneVectorSpecies which implements NEAT algorithm. The class
+ * has several important methods. The breedNewPopulation(...) will first use the
+ * methods in this class to determined the expected offsprings for each of the
+ * subspecies, then call the reproduce of each subspecies to reproduce new
+ * individuals. After one individual is created, we call speciate(...) in this
+ * class to assign it to a subspecies, this could lead to creation of new
+ * subspecies.
+ * 
+ * &lt;p&gt;
+ * NEATSpecies must be used in combination with NEATBreeder, which will call it
+ * at appropriate times to reproduce new individuals for next generations. It
+ * must also be used in combination with NEATInitializer, which will use it to
+ * generate the initial population.
+ *
+ *
+ * 
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.weight-mut-power&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 2.5)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Mutation power of the link weights&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.disjoint-coeff&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 1.0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Coefficient for disjoint gene in compatibility computation
+ * &lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.excess-coeff&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 1.0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Coefficient for excess genes in compatibility computation&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mutdiff-coeff&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.4)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Coefficient for mutational difference genes in compatibility
+ * computation&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.compat-thresh&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 3.0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Compatible threshold to determine if two individual are
+ * compatible&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.age-significance&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 1.0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;How much does age matter?&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.survival-thresh&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.2)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Percent of ave fitness for survival&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mutate-only-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.25)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of a non-mating reproduction&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mutate-link-weight-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.9)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of doing link weight mutate&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mutate-toggle-enable-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of changing the enable status of gene&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mutate-gene-reenable-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of reenable a disabled gene&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mutate-add-node-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.03)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of doing add-node mutation&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mutate-add-link-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.05)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of doing add-link mutation&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.interspecies-mate-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.001)&lt;/font&gt;&lt;/td&gt;
+ r &lt;td valign=top&gt;Probability of doing interspecies crossover&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mate-multipoint-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.6)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of doing multipoint crossover&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mate-multipoint-avg-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.4)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of doing multipoint crossover with averaging two
+ * genes&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mate-singlepoint-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of doing single point crossover (not in used in
+ * this implementation, always set to 0)&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mate-only-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.2)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of mating without mutation&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.recur-only-prob&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Floating-point value (default is 0.2)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Probability of forcing selection of ONLY links that are
+ * naturally recurrent&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.dropoff-age&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Integer (default is 15)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Age where Species starts to be penalized&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.new-link-tries&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Integer (default is 20)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Number of tries mutateAddLink will attempt to find an open
+ * link&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.new-node-tries&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Integer (default is 20)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Number of tries mutateAddNode will attempt to build a valid node.
+ * &lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.add-node-max-genome-length&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Integer (default is 15)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;For genomes this size or larger, mutateAddNode will do a pure random split when adding the node.
+ * &lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.babies-stolen&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Integer (default is 0)&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;The number of babies to siphen off to the champions&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;node&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Classname, = ec.neat.NEATNode&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Class of node in a network&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;subspecies&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Classname, = ec.neat.NEATSubspecies&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Class of subspecies in the species&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;innovation&lt;/tt&gt;&lt;br&gt;
+ * &lt;font size=-1&gt;Classname, = ec.neat.NEATInnovation&lt;/font&gt;&lt;/td&gt;
+ * &lt;td valign=top&gt;Class of innovation in the species&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * 
+ * 
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ * neat.species
+ * 
+ * &lt;p&gt;
+ * &lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ * &lt;table&gt;
+ * &lt;tr&gt;
+ * &lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;species&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;species (the subpopulations' species)&lt;/td&gt;
+ * &lt;/tr&gt;
+ *
+ *
+ * 
+ * @author Ermo Wei and David Freelan
+ * 
+ */
+<span class="nc" id="L197">public class NEATSpecies extends GeneVectorSpecies</span>
+    {
+
+<span class="nc" id="L200">    public enum MutationType</span>
+        {
+<span class="nc" id="L202">        GAUSSIAN, COLDGAUSSIAN</span>
+        }
+
+    // parameters
+    public static final String P_SPECIES = &quot;species&quot;;
+    public static final String P_NODE = &quot;node&quot;;
+    public final static String P_NETWORK = &quot;network&quot;;
+    public static final String P_SUBSPECIES = &quot;subspecies&quot;;
+    public static final String P_INNOVATION = &quot;innovation&quot;;
+    public static final String P_WEIGHT_MUT_POWER = &quot;weight-mut-power&quot;;
+    public static final String P_DISJOINT_COEFF = &quot;disjoint-coeff&quot;;
+    public static final String P_EXCESS_COEFF = &quot;excess-coeff&quot;;
+    public static final String P_MUT_DIFF_COEFF = &quot;mutdiff-coeff&quot;;
+    public static final String P_COMPAT_THRESH = &quot;compat-thresh&quot;;
+    public static final String P_AGE_SIGNIFICANCE = &quot;age-significance&quot;;
+    public static final String P_SURVIVIAL_THRESH = &quot;survival-thresh&quot;;
+    public static final String P_MUTATE_ONLY_PROB = &quot;mutate-only-prob&quot;;
+    public static final String P_MUTATE_LINK_WEIGHT_PROB = &quot;mutate-link-weight-prob&quot;;
+    public static final String P_MUTATE_TOGGLE_ENABLE_PROB = &quot;mutate-toggle-enable-prob&quot;;
+    public static final String P_MUTATE_GENE_REENABLE_PROB = &quot;mutate-gene-reenable-prob&quot;;
+    public static final String P_MUTATE_ADD_NODE_PROB = &quot;mutate-add-node-prob&quot;;
+    public static final String P_MUTATE_ADD_LINK_PROB = &quot;mutate-add-link-prob&quot;;
+    public static final String P_INTERSPECIES_MATE_PROB = &quot;interspecies-mate-prob&quot;;
+    public static final String P_MATE_MULTIPOINT_PROB = &quot;mate-multipoint-prob&quot;;
+    public static final String P_MATE_MULTIPOINT_AVG_PROB = &quot;mate-multipoint-avg-prob&quot;;
+    public static final String P_MATE_SINGLE_POINT_PROB = &quot;mate-singlepoint-prob&quot;;
+    public static final String P_MATE_ONLY_PROB = &quot;mate-only-prob&quot;;
+    public static final String P_RECUR_ONLY_PROB = &quot;recur-only-prob&quot;;
+    public static final String P_DROPOFF_AGE = &quot;dropoff-age&quot;;
+    public static final String P_NEW_LINK_TRIES = &quot;new-link-tries&quot;;
+    public static final String P_NEW_NODE_TRIES = &quot;new-node-tries&quot;;
+    public static final String P_BABIES_STOLEN = &quot;babies-stolen&quot;;
+    public static final String P_MAX_NETWORK_DEPTH = &quot;max-network-depth&quot;;
+    public static final String P_ADD_NODE_MAX_GENOME_LENGTH = &quot;add-node-max-genome-length&quot;;
+        
+    /** The prototypical node for individuals in this species. */
+    public NEATNode nodePrototype;
+
+    /** The prototypical network. */
+    public NEATNetwork networkPrototype;
+
+    /** The prototypical subspecies for individuals in this species. */
+    public NEATSubspecies subspeciesPrototype;
+
+    /** The prototypical innovation for individuals in this species. */
+    public NEATInnovation innovationPrototype;
+
+    /** Current node id that is available. */
+    public int currNodeId;
+
+    /** Current innovation number that is available. */
+    private int currInnovNum;
+
+    /** Used for delta coding, stagnation detector. */
+    public double highestFitness;
+
+    /** Used for delta coding, If too high, leads to delta coding. */
+    public int highestLastChanged;
+
+
+    /** The Mutation power of the link's weights. */
+    public double weightMutationPower;
+
+    /** Coefficient for disjoint gene in compatibility computation. */
+    public double disjointCoeff;
+
+    /** Coefficient for excess genes in compatibility computation. */
+    public double excessCoeff;
+
+    /**
+     * Coefficient for mutational difference genes in compatibility computation.
+     */
+    public double mutDiffCoeff;
+
+    /** Compatible threshold to determine if two individual are compatible. */
+    public double compatThreshold;
+
+    /** How much does age matter? */
+    public double ageSignificance;
+
+    /** Percent of ave fitness for survival. */
+    public double survivalThreshold;
+
+    /** Probility of a non-mating reproduction. */
+    public double mutateOnlyProb;
+
+    /** Probability of doing link weight mutate. */
+    public double mutateLinkWeightsProb;
+
+    /** Probability of changing the enable status of gene. */
+    public double mutateToggleEnableProb;
+
+    /** Probability of reenable a disabled gene. */
+    public double mutateGeneReenableProb;
+
+    /** Probability of doing add-node mutation. */
+    public double mutateAddNodeProb;
+
+    /** Probability of doing add-link mutation. */
+    public double mutateAddLinkProb;
+
+    /** Probability of doing interspecies crossover. */
+    public double interspeciesMateRate;
+
+    /** Probability of doing multipoint crossover. */
+    public double mateMultipointProb;
+
+    /** Probability of doing multipoint crossover with averaging two genes. */
+    public double mateMultipointAvgProb;
+
+    /**
+     * Probability of doing single point crossover (not in used in this
+     * implementation, always set to 0).
+     */
+    public double mateSinglepointProb;
+
+    /** Probability of mating without mutation. */
+    public double mateOnlyProb;
+
+    /**
+     * Probability of forcing selection of ONLY links that are naturally
+     * recurrent.
+     */
+    public double recurOnlyProb;
+
+    /** Age where Species starts to be penalized. */
+    public int dropoffAge;
+
+    /** Number of tries mutateAddLink will attempt to find an open link. */
+    public int newLinkTries;
+
+    /** Number of tries mutateAddNode will attempt to build a new node. */
+    public int newNodeTries;
+
+    /** The number of babies to siphen off to the champions. */
+    public int babiesStolen;
+
+    /** how deep a node can be in the network, measured by number of parents */
+    public int maxNetworkDepth;
+    
+    /** Beyond this genome length, mutateAddNode does a pure random split rather than a bias. */
+    public int addNodeMaxGenomeLength;
+
+    public Parameter base;
+
+    /** A list of the all the subspecies. */
+    public ArrayList&lt;NEATSubspecies&gt; subspecies;
+
+    /** A Hashmap for easy tracking the innovation within species. */
+    public HashMap&lt;NEATInnovation, NEATInnovation&gt; innovations;
+
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L355">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L357">        nodePrototype = (NEATNode) (state.parameters.getInstanceForParameterEq(base.push(P_NODE), def.push(P_NODE),</span>
+                NEATNode.class));
+<span class="nc" id="L359">        nodePrototype.setup(state, base.push(P_NODE));</span>
+
+<span class="nc" id="L361">        subspeciesPrototype = (NEATSubspecies) (state.parameters.getInstanceForParameterEq(base.push(P_SUBSPECIES),</span>
+<span class="nc" id="L362">                def.push(P_SUBSPECIES), NEATSubspecies.class));</span>
+<span class="nc" id="L363">        subspeciesPrototype.setup(state, base.push(P_SUBSPECIES));</span>
+
+<span class="nc" id="L365">        innovationPrototype = (NEATInnovation) (state.parameters.getInstanceForParameterEq(base.push(P_INNOVATION),</span>
+<span class="nc" id="L366">                def.push(P_INNOVATION), NEATInnovation.class));</span>
+<span class="nc" id="L367">        subspeciesPrototype.setup(state, base.push(P_INNOVATION));</span>
+
+<span class="nc" id="L369">        networkPrototype = (NEATNetwork) (state.parameters.getInstanceForParameterEq(base.push(P_NETWORK),</span>
+<span class="nc" id="L370">                def.push(P_NETWORK), NEATNetwork.class));</span>
+<span class="nc" id="L371">        networkPrototype.setup(state, base.push(P_NETWORK));</span>
+
+        // make sure that super.setup is done AFTER we've loaded our gene
+        // prototype.
+<span class="nc" id="L375">        super.setup(state, base);</span>
+
+<span class="nc" id="L377">        subspecies = new ArrayList&lt;NEATSubspecies&gt;();</span>
+<span class="nc" id="L378">        innovations = new HashMap&lt;NEATInnovation, NEATInnovation&gt;();</span>
+<span class="nc" id="L379">        highestFitness = 0;</span>
+<span class="nc" id="L380">        highestLastChanged = 0;</span>
+
+
+
+        // Load parameters from the parameter file
+        // Load parameters from the parameter file
+<span class="nc" id="L386">        weightMutationPower = state.parameters.getDouble(base.push(P_WEIGHT_MUT_POWER), def.push(P_WEIGHT_MUT_POWER), 2.5);</span>
+<span class="nc" id="L387">        disjointCoeff = state.parameters.getDouble(base.push(P_DISJOINT_COEFF), def.push(P_DISJOINT_COEFF), 1.0);</span>
+<span class="nc" id="L388">        excessCoeff = state.parameters.getDouble(base.push(P_EXCESS_COEFF), def.push(P_EXCESS_COEFF), 1.0);</span>
+<span class="nc" id="L389">        mutDiffCoeff = state.parameters.getDouble(base.push(P_MUT_DIFF_COEFF), def.push(P_MUT_DIFF_COEFF), 0.4);</span>
+<span class="nc" id="L390">        compatThreshold = state.parameters.getDouble(base.push(P_COMPAT_THRESH), def.push(P_COMPAT_THRESH), 3.0);</span>
+<span class="nc" id="L391">        ageSignificance = state.parameters.getDouble(base.push(P_AGE_SIGNIFICANCE), def.push(P_AGE_SIGNIFICANCE), 1.0);</span>
+<span class="nc" id="L392">        survivalThreshold = state.parameters.getDouble(base.push(P_SURVIVIAL_THRESH), def.push(P_SURVIVIAL_THRESH));</span>
+<span class="nc" id="L393">        mutateOnlyProb = boundProbabilityParameter(state, base, P_MUTATE_ONLY_PROB, &quot;Mutate only probability&quot;);</span>
+<span class="nc" id="L394">        mutateLinkWeightsProb = boundProbabilityParameter(state, base, P_MUTATE_LINK_WEIGHT_PROB,&quot;Mutate Link Weight probability&quot;);</span>
+<span class="nc" id="L395">        mutateToggleEnableProb = boundProbabilityParameter(state, base, P_MUTATE_TOGGLE_ENABLE_PROB,&quot;Mutate Toggle Enable probability&quot;);</span>
+<span class="nc" id="L396">        mutateGeneReenableProb = boundProbabilityParameter(state, base, P_MUTATE_GENE_REENABLE_PROB, &quot;Mutate Gene Reenable&quot;);</span>
+<span class="nc" id="L397">        mutateAddNodeProb = boundProbabilityParameter(state, base, P_MUTATE_ADD_NODE_PROB,&quot;Mutate Add Node probability&quot;);</span>
+<span class="nc" id="L398">        mutateAddLinkProb = boundProbabilityParameter(state, base, P_MUTATE_ADD_LINK_PROB,&quot;Mutate Add Link probability&quot;);</span>
+<span class="nc" id="L399">        interspeciesMateRate = boundProbabilityParameter(state, base, P_INTERSPECIES_MATE_PROB,&quot;Interspecies Mate probability&quot;);</span>
+<span class="nc" id="L400">        mateMultipointProb = boundProbabilityParameter(state, base, P_MATE_MULTIPOINT_PROB,&quot;Mate Multipoint probability&quot;);</span>
+<span class="nc" id="L401">        mateMultipointAvgProb = boundProbabilityParameter(state, base, P_MATE_MULTIPOINT_AVG_PROB,&quot;Mate Multipoint Average probability&quot;);</span>
+<span class="nc" id="L402">        mateSinglepointProb = boundProbabilityParameter(state, base, P_MATE_SINGLE_POINT_PROB,&quot;Single Point probability&quot;);</span>
+<span class="nc" id="L403">        mateOnlyProb = boundProbabilityParameter(state, base, P_MATE_ONLY_PROB, &quot;Mate Only probability&quot;);</span>
+<span class="nc" id="L404">        recurOnlyProb = boundProbabilityParameter(state, base, P_RECUR_ONLY_PROB, &quot;Recurrent Only probability&quot;);</span>
+<span class="nc" id="L405">        dropoffAge = state.parameters.getInt(base.push(P_DROPOFF_AGE), def.push(P_DROPOFF_AGE), 0);</span>
+<span class="nc" id="L406">        newLinkTries = state.parameters.getInt(base.push(P_NEW_LINK_TRIES), def.push(P_NEW_LINK_TRIES), 1);</span>
+<span class="nc" id="L407">        newNodeTries = state.parameters.getInt(base.push(P_NEW_NODE_TRIES), def.push(P_NEW_NODE_TRIES), 1);</span>
+<span class="nc" id="L408">        babiesStolen = state.parameters.getInt(base.push(P_BABIES_STOLEN), def.push(P_BABIES_STOLEN), 0);</span>
+<span class="nc" id="L409">        maxNetworkDepth = state.parameters.getInt(base.push(P_MAX_NETWORK_DEPTH), base.push(P_MAX_NETWORK_DEPTH), 30);</span>
+<span class="nc" id="L410">        addNodeMaxGenomeLength = state.parameters.getInt(base.push(P_ADD_NODE_MAX_GENOME_LENGTH), base.push(P_ADD_NODE_MAX_GENOME_LENGTH), 15);</span>
+<span class="nc" id="L411">        }</span>
+
+    double boundProbabilityParameter(EvolutionState state, Parameter base, String param, String description)
+        {
+<span class="nc" id="L415">        Parameter def = defaultBase();</span>
+<span class="nc" id="L416">        double probability = state.parameters.getDoubleWithMax(base.push(param), def.push(param), 0.0, 1.0);</span>
+<span class="nc bnc" id="L417" title="All 2 branches missed.">        if (probability &lt; 0.0)</span>
+<span class="nc" id="L418">            state.output.fatal(description + &quot; is a probability, and must be a value between 0.0 and 1.0.&quot;);</span>
+<span class="nc" id="L419">        return probability;</span>
+        }
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L424">        return NEATDefaults.base().push(P_SPECIES);</span>
+        }
+
+
+<span class="nc" id="L428">    private Object innoLock = new Object[0];  // arrays are synchronizable, so make good locks</span>
+    public int nextInnovationNumber()
+        {
+<span class="nc" id="L431">        synchronized(innoLock) { return currInnovNum++; }</span>
+        }
+
+    public void setInnovationNumber(int num)
+        {
+<span class="nc" id="L436">        synchronized(innoLock) {currInnovNum = num;}</span>
+<span class="nc" id="L437">        }</span>
+
+    /** Assign the individual into a species, if not found, create a new one */
+    public void speciate(EvolutionState state, Individual ind)
+        {
+       
+<span class="nc" id="L443">        NEATIndividual neatInd = (NEATIndividual) ind;</span>
+        // For each individual, search for a subspecies it is compatible to
+<span class="nc bnc" id="L445" title="All 2 branches missed.">        if (subspecies.size() == 0) // not subspecies available, create the</span>
+            // first species
+            {
+<span class="nc" id="L448">            NEATSubspecies newSubspecies = (NEATSubspecies) subspeciesPrototype.emptyClone();</span>
+<span class="nc" id="L449">            newSubspecies.reset();</span>
+<span class="nc" id="L450">            subspecies.add(newSubspecies);</span>
+<span class="nc" id="L451">            newSubspecies.addNewGenIndividual(neatInd);</span>
+<span class="nc" id="L452">            }</span>
+        else
+            {
+<span class="nc" id="L455">            boolean found = false;</span>
+<span class="nc bnc" id="L456" title="All 2 branches missed.">            for (int i = 0; i &lt; subspecies.size(); ++i)</span>
+                {
+<span class="nc" id="L458">                NEATIndividual represent = (NEATIndividual) subspecies.get(i).newGenerationFirst();</span>
+<span class="nc bnc" id="L459" title="All 2 branches missed.">                if (represent == null)</span>
+<span class="nc" id="L460">                    represent = (NEATIndividual) subspecies.get(i).first();</span>
+
+                // found compatible subspecies, add this individual to it
+<span class="nc bnc" id="L463" title="All 2 branches missed.">                if (compatibility(neatInd, represent) &lt; compatThreshold)</span>
+                    {
+                    
+<span class="nc" id="L466">                    subspecies.get(i).addNewGenIndividual(neatInd);</span>
+<span class="nc" id="L467">                    found = true; // change flag</span>
+<span class="nc" id="L468">                    break; // search is over, quit loop</span>
+                    }
+                }
+            // if we didn't find a match, create a new subspecies
+<span class="nc bnc" id="L472" title="All 2 branches missed.">            if (!found)</span>
+                {
+<span class="nc" id="L474">                NEATSubspecies newSubspecies = (NEATSubspecies) subspeciesPrototype.emptyClone();</span>
+<span class="nc" id="L475">                newSubspecies.reset();</span>
+<span class="nc" id="L476">                subspecies.add(newSubspecies);</span>
+<span class="nc" id="L477">                newSubspecies.addNewGenIndividual(neatInd);</span>
+                }
+            }
+            
+
+<span class="nc" id="L482">        }</span>
+
+    /** Spawn a new individual with given individual as template. */
+    public NEATIndividual spawnWithTemplate(EvolutionState state, NEATSpecies species, int thread, NEATIndividual ind)
+        {
+        // we clone but do not reset the individual, since these individuals are
+        // made from template
+<span class="nc" id="L489">        NEATIndividual newInd = (NEATIndividual) ind.clone();</span>
+        // for first generation of population, we do not use the weight mutation
+        // power from the file
+<span class="nc" id="L492">        newInd.mutateLinkWeights(state, thread, species, 1.0, 1.0, MutationType.GAUSSIAN);</span>
+<span class="nc" id="L493">        newInd.setGeneration(state);</span>
+<span class="nc" id="L494">        newInd.createNetwork(); // we create the network after we have the</span>
+        // complete genome
+<span class="nc" id="L496">        return newInd;</span>
+        }
+
+    /**
+     * This function gives a measure of compatibility between two Genomes by
+     * computing a linear combination of 3 characterizing variables of their
+     * compatibilty. The 3 variables represent PERCENT DISJOINT GENES, PERCENT
+     * EXCESS GENES, MUTATIONAL DIFFERENCE WITHIN MATCHING GENES. So the formula
+     * for compatibility is:
+     * disjointCoeff*numDisjoint+excessCoeff*numExcess+mutdiffCoeff*numMatching.
+     */
+    public double compatibility(NEATIndividual a, NEATIndividual b)
+        {
+
+
+<span class="nc" id="L511">        int numExcess = 0;</span>
+<span class="nc" id="L512">        int numMatching = 0;</span>
+<span class="nc" id="L513">        int numDisjoint = 0;</span>
+<span class="nc" id="L514">        double mutTotalDiff = 0.0;</span>
+        // pointer for two genome
+<span class="nc" id="L516">        int i = 0, j = 0;</span>
+<span class="nc bnc" id="L517" title="All 4 branches missed.">        while (!(i == a.genome.length &amp;&amp; j == b.genome.length))</span>
+            {
+            // if genome a is already finished, move b's pointer
+<span class="nc bnc" id="L520" title="All 2 branches missed.">            if (i == a.genome.length)</span>
+                {
+<span class="nc" id="L522">                j++;</span>
+<span class="nc" id="L523">                numExcess++;</span>
+                }
+            // if genome b is already finished, move a's pointer
+<span class="nc bnc" id="L526" title="All 2 branches missed.">            else if (j == b.genome.length)</span>
+                {
+<span class="nc" id="L528">                i++;</span>
+<span class="nc" id="L529">                numExcess++;</span>
+                }
+            else
+                {
+<span class="nc" id="L533">                int aInno = ((NEATGene) a.genome[i]).innovationNumber;</span>
+<span class="nc" id="L534">                int bInno = ((NEATGene) b.genome[j]).innovationNumber;</span>
+<span class="nc bnc" id="L535" title="All 2 branches missed.">                if (aInno == bInno)</span>
+                    {
+<span class="nc" id="L537">                    numMatching++;</span>
+<span class="nc" id="L538">                    double mutDiff = Math</span>
+<span class="nc" id="L539">                        .abs(((NEATGene) a.genome[i]).mutationNumber - ((NEATGene) b.genome[j]).mutationNumber);</span>
+<span class="nc" id="L540">                    mutTotalDiff += mutDiff;</span>
+<span class="nc" id="L541">                    i++;</span>
+<span class="nc" id="L542">                    j++;</span>
+<span class="nc" id="L543">                    }</span>
+                // innovation number do not match, skip this one
+<span class="nc bnc" id="L545" title="All 2 branches missed.">                else if (aInno &lt; bInno)</span>
+                    {
+<span class="nc" id="L547">                    i++;</span>
+<span class="nc" id="L548">                    numDisjoint++;</span>
+                    }
+<span class="nc bnc" id="L550" title="All 2 branches missed.">                else if (bInno &lt; aInno)</span>
+                    {
+<span class="nc" id="L552">                    j++;</span>
+<span class="nc" id="L553">                    numDisjoint++;</span>
+                    }
+<span class="nc" id="L555">                }</span>
+            }
+
+        // Return the compatibility number using compatibility formula
+        // Note that mutTotalDiff/numMatching gives the AVERAGE
+        // difference between mutationNums for any two matching Genes
+        // in the Genome
+
+        // We do not normalize the terms in here due to the following reason
+
+        // If you decide to use the species compatibility coefficients and
+        // thresholds from my own .ne settings files (provided with my NEAT
+        // release), then do not normalize the terms in the compatibility
+        // function, because I did not do this with my .ne files. In other
+        // words, even though my papers suggest normalizing (dividing my number
+        // of genes), since I didn't do that the coefficients that I used will
+        // not work the same for you if you normalize. If you strongly desire to
+        // normalize, you will need to find your own appropriate coefficients
+        // and threshold.
+
+        // see the comments above on NEAT page
+        // https://www.cs.ucf.edu/~kstanley/neat.html
+
+        // Normalizing for genome size
+        // return (disjointCoeff*(numDisjoint/maxGenomeSize)+
+        // excessCoeff*(numExcess/maxGenomeSize)+
+        // mutDiffCoeff*(mutTotalDiff/numMatching));
+
+<span class="nc" id="L583">        double compatibility = disjointCoeff * (((double) numDisjoint) / 1.0);</span>
+<span class="nc" id="L584">        compatibility += excessCoeff * (((double) numExcess) / 1.0);</span>
+<span class="nc" id="L585">        compatibility += mutDiffCoeff * (mutTotalDiff / ((double) numMatching));</span>
+        
+        
+
+<span class="nc" id="L589">        return compatibility;</span>
+        }
+
+    /** Determine the offsprings for all the subspecies. */
+    public void countOffspring(EvolutionState state, int subpop)
+        {
+        // Go through the organisms and add up their adjusted fitnesses to
+        // compute the overall average
+<span class="nc" id="L597">        double total = 0.0;</span>
+<span class="nc" id="L598">        ArrayList&lt;Individual&gt; inds = state.population.subpops.get(subpop).individuals;</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">        for (int i = 0; i &lt; inds.size(); ++i)</span>
+            {
+<span class="nc" id="L601">            total += ((NEATIndividual) inds.get(i)).adjustedFitness;</span>
+
+            }
+
+<span class="nc" id="L605">        double overallAverage = total / inds.size();</span>
+
+        // Now compute expected number of offspring for each individual organism
+<span class="nc bnc" id="L608" title="All 2 branches missed.">        for (int i = 0; i &lt; inds.size(); ++i)</span>
+            {
+<span class="nc" id="L610">            ((NEATIndividual) inds.get(i)).expectedOffspring = ((NEATIndividual) inds.get(i)).adjustedFitness</span>
+                / overallAverage;
+
+
+            }
+
+        // Now add those offsprings up within each Subspecies to get the number
+        // of
+        // offspring per subspecies
+<span class="nc" id="L619">        double skim = 0.0;</span>
+<span class="nc" id="L620">        int totalExpected = 0;</span>
+<span class="nc bnc" id="L621" title="All 2 branches missed.">        for (int i = 0; i &lt; subspecies.size(); ++i)</span>
+            {
+<span class="nc" id="L623">            NEATSubspecies subs = subspecies.get(i);</span>
+<span class="nc" id="L624">            skim = subs.countOffspring(skim);</span>
+<span class="nc" id="L625">            totalExpected += subs.expectedOffspring;</span>
+            }
+
+       
+
+        // Need to make up for lost floating point precision in offspring
+        // assignment. If we lost precision, give an extra baby to the best
+        // subpecies
+<span class="nc bnc" id="L633" title="All 2 branches missed.">        if (totalExpected &lt; inds.size())</span>
+            {
+            // Find the subspecies expecting the most
+<span class="nc" id="L636">            int maxExpected = 0;</span>
+<span class="nc" id="L637">            int finalExpected = 0;</span>
+<span class="nc" id="L638">            NEATSubspecies best = null;</span>
+<span class="nc bnc" id="L639" title="All 2 branches missed.">            for (int i = 0; i &lt; subspecies.size(); ++i)</span>
+                {
+<span class="nc bnc" id="L641" title="All 2 branches missed.">                if (subspecies.get(i).expectedOffspring &gt;= maxExpected)</span>
+                    {
+<span class="nc" id="L643">                    maxExpected = subspecies.get(i).expectedOffspring;</span>
+<span class="nc" id="L644">                    best = subspecies.get(i);</span>
+                    }
+<span class="nc" id="L646">                finalExpected += subspecies.get(i).expectedOffspring;</span>
+                }
+
+            // Give the extra offspring to the best subspecies
+<span class="nc" id="L650">            best.expectedOffspring++;</span>
+<span class="nc" id="L651">            finalExpected++;</span>
+
+            // If we still aren't at total, there is a problem
+            // Note that this can happen if a stagnant subpecies
+            // dominates the population and then gets killed off by its age
+            // Then the whole population plummets in fitness
+            // If the average fitness is allowed to hit 0, then we no longer
+            // have an average we can use to assign offspring.
+<span class="nc bnc" id="L659" title="All 2 branches missed.">            if (finalExpected &lt; inds.size())</span>
+                {
+<span class="nc" id="L661">                state.output.warnOnce(&quot;Population has died&quot;);</span>
+<span class="nc bnc" id="L662" title="All 2 branches missed.">                for (int i = 0; i &lt; subspecies.size(); ++i)</span>
+                    {
+<span class="nc" id="L664">                    subspecies.get(i).expectedOffspring = 0;</span>
+                    }
+<span class="nc" id="L666">                best.expectedOffspring = inds.size();</span>
+                }
+            }
+<span class="nc" id="L669">        }</span>
+
+    /**
+     * Breed a new generation of population, this is done by first figure the
+     * expected offsprings for each subspecies, and then calls each subspecies
+     * to reproduce.
+     */
+    public void breedNewPopulation(EvolutionState state, int subpop, int thread)
+        {
+        // see epoch method in Population
+<span class="nc" id="L679">        ArrayList&lt;Individual&gt; inds = state.population.subpops.get(subpop).individuals;</span>
+
+<span class="nc" id="L681">        clearEvaluationFlag(inds);</span>
+
+        // clear the innovation information of last generation
+<span class="nc" id="L684">        innovations.clear();</span>
+
+        // we also ignore the code for competitive coevolution stagnation
+        // detection
+
+        // Use Species' ages to modify the objective fitness of organisms
+        // in other words, make it more fair for younger species
+        // so they have a chance to take hold
+        // Also penalize stagnant species
+        // Then adjust the fitness using the species size to &quot;share&quot; fitness
+        // within a species.
+        // Then, within each Species, mark for death
+        // those below survivalThresh * average
+<span class="nc bnc" id="L697" title="All 2 branches missed.">        for (int i = 0; i &lt; subspecies.size(); ++i)</span>
+            {
+<span class="nc" id="L699">            subspecies.get(i).adjustFitness(state, dropoffAge, ageSignificance);</span>
+<span class="nc" id="L700">            subspecies.get(i).sortIndividuals();</span>
+<span class="nc" id="L701">            subspecies.get(i).updateSubspeciesMaxFitness();</span>
+<span class="nc" id="L702">            subspecies.get(i).markReproducableIndividuals(survivalThreshold);</span>
+            }
+
+        // count the offspring for each subspecies
+<span class="nc" id="L706">        countOffspring(state, subpop);</span>
+
+        // sort the subspecies use extra list based on the max fitness
+        // these need to use original fitness, descending order
+<span class="nc" id="L710">        ArrayList&lt;NEATSubspecies&gt; sortedSubspecies = new ArrayList&lt;NEATSubspecies&gt;(subspecies);</span>
+<span class="nc" id="L711">        Collections.sort(sortedSubspecies, new Comparator&lt;NEATSubspecies&gt;()</span>
+<span class="nc" id="L712">                {</span>
+                @Override
+                public int compare(NEATSubspecies o1, NEATSubspecies o2)
+                    {
+<span class="nc" id="L716">                    NEATIndividual ind1 = (NEATIndividual) o1.individuals.get(0);</span>
+<span class="nc" id="L717">                    NEATIndividual ind2 = (NEATIndividual) o2.individuals.get(0);</span>
+
+<span class="nc bnc" id="L719" title="All 2 branches missed.">                    if (ind1.fitness.fitness() &lt; ind2.fitness.fitness())</span>
+<span class="nc" id="L720">                        return 1;</span>
+<span class="nc bnc" id="L721" title="All 2 branches missed.">                    if (ind1.fitness.fitness() &gt; ind2.fitness.fitness())</span>
+<span class="nc" id="L722">                        return -1;</span>
+<span class="nc" id="L723">                    return 0;</span>
+                    }
+            });
+
+        // Check for population-level stagnation code
+<span class="nc" id="L728">        populationStagnation(state, subpop, sortedSubspecies);</span>
+
+        // Check for stagnation if there is stagnation, perform delta-coding
+        // TODO: fix weird constant
+<span class="nc bnc" id="L732" title="All 2 branches missed.">        if (highestLastChanged &gt;= dropoffAge + 5)</span>
+            {
+<span class="nc" id="L734">            deltaCoding(state, subpop, sortedSubspecies);</span>
+            }
+        // STOLEN BABIES: The system can take expected offspring away from
+        // worse species and give them to superior species depending on
+        // the system parameter babies_stolen (when babies_stolen &gt; 0)
+<span class="nc bnc" id="L739" title="All 2 branches missed.">        else if (babiesStolen &gt; 0)</span>
+            {
+<span class="nc" id="L741">            stealBabies(state,thread , subpop, sortedSubspecies);</span>
+            }
+
+        // Kill off all Individual marked for death. The remainder
+        // will be allowed to reproduce.
+        // NOTE this result the size change of individuals in each subspecies
+        // however, it doesn't effect the individuals for the whole neat
+        // population
+<span class="nc bnc" id="L749" title="All 2 branches missed.">        for (int i = 0; i &lt; sortedSubspecies.size(); ++i)</span>
+            {
+<span class="nc" id="L751">            sortedSubspecies.get(i).removePoorFitnessIndividuals();</span>
+            }
+
+        // Reproduction
+        // Perform reproduction. Reproduction is done on a per-Species
+        // basis. (So this could be paralellized potentially.)
+        // we do this with sortedSubspecies instead of subspecies
+        // this is due to the fact that new subspecies could be created during
+        // the reproduction period
+        // thus, the sortedSubspecies are guarantee to contain all the old
+        // subspecies
+<span class="nc bnc" id="L762" title="All 2 branches missed.">        for (int i = 0; i &lt; sortedSubspecies.size(); ++i)</span>
+            {
+            // first for all current subspecies, clear their new generation
+            // individuals
+<span class="nc" id="L766">            NEATSubspecies subs = sortedSubspecies.get(i);</span>
+<span class="nc" id="L767">            subs.newGenIndividuals.clear();</span>
+            }
+
+<span class="nc bnc" id="L770" title="All 2 branches missed.">        for (int i = 0; i &lt; sortedSubspecies.size(); ++i)</span>
+            {
+<span class="nc" id="L772">            NEATSubspecies subs = sortedSubspecies.get(i);</span>
+<span class="nc" id="L773">            subs.reproduce(state, thread, subpop, sortedSubspecies);</span>
+            }
+
+        // Remove all empty subspecies and age ones that survive
+        // As this happens, create master individuals list for the new
+        // generation
+
+        // first age the old subspecies
+<span class="nc bnc" id="L781" title="All 2 branches missed.">        for (int i = 0; i &lt; sortedSubspecies.size(); ++i)</span>
+            {
+<span class="nc" id="L783">            NEATSubspecies subs = sortedSubspecies.get(i);</span>
+<span class="nc" id="L784">            subs.age++;</span>
+            }
+<span class="nc" id="L786">        ArrayList&lt;NEATSubspecies&gt; remainSubspecies = new ArrayList&lt;NEATSubspecies&gt;();</span>
+<span class="nc" id="L787">        ArrayList&lt;Individual&gt; newGenIndividuals = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc bnc" id="L788" title="All 2 branches missed.">        for (int i = 0; i &lt; subspecies.size(); ++i)</span>
+            {
+<span class="nc bnc" id="L790" title="All 2 branches missed.">            if (subspecies.get(i).hasNewGeneration())</span>
+                {
+                // add to the remaining subspecies
+<span class="nc" id="L793">                remainSubspecies.add(subspecies.get(i));</span>
+<span class="nc" id="L794">                subspecies.get(i).toNewGeneration();</span>
+                // add to the new generation population
+<span class="nc" id="L796">                newGenIndividuals.addAll(subspecies.get(i).individuals);</span>
+                }
+            }
+        // replace the old stuff
+<span class="nc" id="L800">        subspecies = remainSubspecies;</span>
+
+<span class="nc" id="L802">        state.population.subpops.get(subpop).individuals = newGenIndividuals;</span>
+<span class="nc" id="L803">        }</span>
+
+    /** Perform a delta coding. */
+    public void deltaCoding(EvolutionState state, int subpop, ArrayList&lt;NEATSubspecies&gt; sortedSubspecies)
+        {
+<span class="nc" id="L808">        highestLastChanged = 0;</span>
+
+<span class="nc" id="L810">        int popSize = state.population.subpops.get(subpop).initialSize;</span>
+<span class="nc" id="L811">        int halfPop = popSize / 2;</span>
+
+<span class="nc" id="L813">        NEATSubspecies bestFitnessSubspecies = sortedSubspecies.get(0);</span>
+        // the first individual of the first subspecies can have 1/2 pop size
+        // offsprings
+<span class="nc" id="L816">        ((NEATIndividual) bestFitnessSubspecies.first()).superChampionOffspring = halfPop;</span>
+        // the first subspecies can have 1/2 pop size offspring
+<span class="nc" id="L818">        bestFitnessSubspecies.expectedOffspring = halfPop;</span>
+<span class="nc" id="L819">        bestFitnessSubspecies.ageOfLastImprovement = bestFitnessSubspecies.age;</span>
+
+<span class="nc bnc" id="L821" title="All 2 branches missed.">        if (sortedSubspecies.size() &gt;= 2)</span>
+            {
+            // the second subspecies can have the other half pop size
+<span class="nc" id="L824">            ((NEATIndividual) sortedSubspecies.get(1).first()).superChampionOffspring = popSize - halfPop;</span>
+<span class="nc" id="L825">            sortedSubspecies.get(1).expectedOffspring = popSize - halfPop;</span>
+<span class="nc" id="L826">            sortedSubspecies.get(1).ageOfLastImprovement = sortedSubspecies.get(1).age;</span>
+            // the remainder subspecies has 0 offsprings
+<span class="nc bnc" id="L828" title="All 2 branches missed.">            for (int i = 2; i &lt; sortedSubspecies.size(); ++i)</span>
+                {
+<span class="nc" id="L830">                sortedSubspecies.get(i).expectedOffspring = 0;</span>
+                }
+            }
+        else
+            {
+<span class="nc" id="L835">            ((NEATIndividual) bestFitnessSubspecies.first()).superChampionOffspring += popSize - halfPop;</span>
+<span class="nc" id="L836">            bestFitnessSubspecies.expectedOffspring = popSize - halfPop;</span>
+            }
+<span class="nc" id="L838">        }</span>
+
+    /** Determine if the whole subpopulation get into stagnation. */
+    public void populationStagnation(EvolutionState state, int subpop, ArrayList&lt;NEATSubspecies&gt; sortedSubspecies)
+        {
+<span class="nc" id="L843">        NEATIndividual bestFitnessIndividual = (NEATIndividual) sortedSubspecies.get(0).individuals.get(0);</span>
+<span class="nc" id="L844">        bestFitnessIndividual.popChampion = true;</span>
+<span class="nc bnc" id="L845" title="All 2 branches missed.">        if (bestFitnessIndividual.fitness.fitness() &gt; highestFitness)</span>
+            {
+<span class="nc" id="L847">            highestFitness = bestFitnessIndividual.fitness.fitness();</span>
+<span class="nc" id="L848">            highestLastChanged = 0;</span>
+            //state.output.message(&quot;Population has reached a new RECORD FITNESS &quot; + highestFitness);
+            }
+        else
+            {
+<span class="nc" id="L853">            highestLastChanged++;</span>
+            //state.output.message(
+            //    highestLastChanged + &quot; generations since last population fitness record &quot; + highestFitness);
+            }
+<span class="nc" id="L857">        }</span>
+
+    /** Steal the babies from champion subspecies. */
+    public void stealBabies(EvolutionState state, int thread,int subpop, ArrayList&lt;NEATSubspecies&gt; sortedSubspecies)
+        {
+        // Take away a constant number of expected offspring from the worst few
+        // species
+<span class="nc" id="L864">        int babiesAlreadyStolen = 0;</span>
+
+<span class="nc bnc" id="L866" title="All 4 branches missed.">        for (int i = sortedSubspecies.size() - 1; i &gt;= 0 &amp;&amp; babiesAlreadyStolen &lt; babiesStolen; i--)</span>
+            {
+<span class="nc" id="L868">            NEATSubspecies subs = sortedSubspecies.get(i);</span>
+
+<span class="nc bnc" id="L870" title="All 4 branches missed.">            if (subs.age &gt; 5 &amp;&amp; subs.expectedOffspring &gt; 2)</span>
+                {
+                // This subspecies has enough to finish off the stolen pool
+<span class="nc" id="L873">                int babiesNeeded = babiesStolen - babiesAlreadyStolen;</span>
+<span class="nc bnc" id="L874" title="All 2 branches missed.">                if (subs.expectedOffspring - 1 &gt;= babiesNeeded)</span>
+                    {
+<span class="nc" id="L876">                    subs.expectedOffspring -= babiesNeeded;</span>
+<span class="nc" id="L877">                    babiesAlreadyStolen = babiesStolen;</span>
+                    }
+                // Not enough here to complete the pool of stolen, then leave
+                // one individual
+                // for that subspecies
+                else
+                    {
+<span class="nc" id="L884">                    babiesAlreadyStolen += subs.expectedOffspring - 1;</span>
+<span class="nc" id="L885">                    subs.expectedOffspring = 1;</span>
+                    }
+                }
+            }
+
+        // Mark the best champions of the top subspecies to be the super
+        // champions
+        // who will take on the extra offspring for cloning or mutant cloning
+        // Determine the exact number that will be given to the top three
+        // They get, in order, 1/5 1/5 and 1/10 of the already stolen babies
+<span class="nc" id="L895">        int[] quote = new int[3];</span>
+<span class="nc" id="L896">        quote[0] = quote[1] = babiesStolen / 5;</span>
+<span class="nc" id="L897">        quote[2] = babiesStolen / 10;</span>
+
+<span class="nc" id="L899">        boolean done = false;</span>
+<span class="nc" id="L900">        int quoteIndex = 0;</span>
+<span class="nc" id="L901">        Iterator&lt;NEATSubspecies&gt; iterator = sortedSubspecies.iterator();</span>
+
+<span class="nc bnc" id="L903" title="All 4 branches missed.">        while (!done &amp;&amp; iterator.hasNext())</span>
+            {
+<span class="nc" id="L905">            NEATSubspecies subs = iterator.next();</span>
+            // Don't give to dying species even if they are champions
+<span class="nc bnc" id="L907" title="All 2 branches missed.">            if (subs.timeSinceLastImproved() &lt;= dropoffAge)</span>
+                {
+<span class="nc bnc" id="L909" title="All 2 branches missed.">                if (quoteIndex &lt; quote.length)</span>
+                    {
+<span class="nc bnc" id="L911" title="All 2 branches missed.">                    if (babiesAlreadyStolen &gt; quote[quoteIndex])</span>
+                        {
+<span class="nc" id="L913">                        ((NEATIndividual) subs.first()).superChampionOffspring = quote[quoteIndex];</span>
+<span class="nc" id="L914">                        subs.expectedOffspring += quote[quoteIndex];</span>
+<span class="nc" id="L915">                        babiesAlreadyStolen -= quote[quoteIndex];</span>
+                        }
+<span class="nc" id="L917">                    quoteIndex++;</span>
+                    }
+<span class="nc bnc" id="L919" title="All 2 branches missed.">                else if (quoteIndex &gt;= quote.length)</span>
+                    {
+                    // Randomize a little which species get boosted by a super
+                    // champion
+<span class="nc bnc" id="L923" title="All 2 branches missed.">                    if (state.random[thread].nextBoolean(.9))</span>
+                        {
+<span class="nc bnc" id="L925" title="All 2 branches missed.">                        if (babiesAlreadyStolen &gt; 3)</span>
+                            {
+<span class="nc" id="L927">                            ((NEATIndividual) subs.first()).superChampionOffspring = 3;</span>
+<span class="nc" id="L928">                            subs.expectedOffspring += 3;</span>
+<span class="nc" id="L929">                            babiesAlreadyStolen -= 3;</span>
+                            }
+                        else
+                            {
+<span class="nc" id="L933">                            ((NEATIndividual) subs.first()).superChampionOffspring = babiesAlreadyStolen;</span>
+<span class="nc" id="L934">                            subs.expectedOffspring += babiesAlreadyStolen;</span>
+<span class="nc" id="L935">                            babiesAlreadyStolen = 0;</span>
+                            }
+                        }
+                    }
+                // assiged all the stolen babies
+<span class="nc bnc" id="L940" title="All 2 branches missed.">                if (babiesAlreadyStolen == 0)</span>
+<span class="nc" id="L941">                    done = true;</span>
+                }
+<span class="nc" id="L943">            }</span>
+
+        // If any stolen babies aren't taken, give them to species #1's champion
+<span class="nc bnc" id="L946" title="All 2 branches missed.">        if (babiesAlreadyStolen &gt; 0)</span>
+            {
+<span class="nc" id="L948">            state.output.message(&quot;Not all stolen babies assigned, giving to the best subspecies&quot;);</span>
+<span class="nc" id="L949">            NEATSubspecies subs = subspecies.get(0);</span>
+<span class="nc" id="L950">            ((NEATIndividual) subs.first()).superChampionOffspring += babiesAlreadyStolen;</span>
+<span class="nc" id="L951">            subs.expectedOffspring += babiesAlreadyStolen;</span>
+<span class="nc" id="L952">            babiesAlreadyStolen = 0;</span>
+            }
+
+<span class="nc" id="L955">        }</span>
+
+
+
+    /** Create a new individual with given nodes and genes */
+    public Individual newIndividual(EvolutionState state, int thread, ArrayList&lt;NEATNode&gt; nodes,
+        ArrayList&lt;Gene&gt; genes)
+        {
+<span class="nc" id="L963">        NEATIndividual newind = (NEATIndividual) (super.newIndividual(state, thread));</span>
+<span class="nc" id="L964">        newind.reset(nodes, genes);</span>
+<span class="nc" id="L965">        return newind;</span>
+        }
+
+    public boolean hasInnovation(NEATInnovation inno)
+        {
+<span class="nc" id="L970">        return innovations.containsKey(inno);</span>
+        }
+
+    public NEATInnovation getInnovation(NEATInnovation inno)
+        {
+<span class="nc" id="L975">        return innovations.get(inno);</span>
+        }
+
+    public void addInnovation(NEATInnovation inno)
+        {
+<span class="nc" id="L980">        innovations.put(inno, inno);</span>
+<span class="nc" id="L981">        }</span>
+
+    /**
+     * Clear the evaluation flag in each individual. This is important if a
+     * evaluation individual mutated.
+     */
+    public void clearEvaluationFlag(ArrayList&lt;Individual&gt; individuals)
+        {
+<span class="nc bnc" id="L989" title="All 2 branches missed.">        for (int i = 0; i &lt; individuals.size(); ++i)</span>
+            {
+<span class="nc" id="L991">            individuals.get(i).evaluated = false;</span>
+            }
+<span class="nc" id="L993">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

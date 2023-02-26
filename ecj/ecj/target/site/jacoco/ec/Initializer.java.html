@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Initializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">Initializer.java</span></div><h1>Initializer.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+
+/* 
+ * Initializer.java
+ * 
+ * Created: Tue Aug 10 21:07:42 1999
+ * By: Sean Luke
+ */
+
+/**
+ * The Initializer is a singleton object whose job is to initialize the
+ * population at the beginning of the run.  It does this by providing
+ * a population through the initialPopulation(...) method.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;pop&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or = ec.Population&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for a new population)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;pop&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;The base for a new population's set up parameters&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="fc" id="L39">public abstract class Initializer implements Singleton</span>
+    {
+    /** parameter for a new population */
+    public static final String P_POP = &quot;pop&quot;;
+
+    /** Creates and returns a new initial population for the evolutionary run.
+        This is commonly done by setting up a Population (by calling setupPopulation below)
+        then calling its populate() method.  This method
+        will likely only be called once in a run. */
+    public abstract Population initialPopulation(final EvolutionState state, int thread);
+        
+    /** Loads a Population from the parameter file, sets it up, and returns it. */
+    public abstract Population setupPopulation(final EvolutionState state, int thread); 
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

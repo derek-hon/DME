@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Checkpoint.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">Checkpoint.java</span></div><h1>Checkpoint.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+import java.util.zip.*;
+import ec.*;
+import java.io.*;
+
+/* 
+ * Checkpoint.java
+ * 
+ * Created: Tue Aug 10 22:39:19 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Checkpoints ec.EvolutionState objects out to checkpoint files, or 
+ * restores the same from checkpoint files.  Checkpoint take the following
+ * form:
+ *
+ * &lt;p&gt;&lt;i&gt;checkpointPrefix&lt;/i&gt;&lt;tt&gt;.&lt;/tt&gt;&lt;i&gt;generation&lt;/i&gt;&lt;tt&gt;.gz&lt;/tt&gt;
+ *
+ * &lt;p&gt;...where &lt;i&gt;checkpointPrefix&lt;/i&gt; is the checkpoing prefix given
+ * in ec.EvolutionState, and &lt;i&gt;generation&lt;/i&gt; is the current generation number
+ * also given in ec.EvolutionState.
+ * The &quot;.gz&quot; is added because the file is GZIPped to save space.
+ *
+ * &lt;p&gt;When writing a checkpoint file, if you have specified a checkpoint directory
+ * in ec.EvolutionState.checkpointDirectory, then this directory will be used to
+ * write the checkpoint files.  Otherwise they will be written in your working
+ * directory (where you ran the Java process).
+ *
+ * @author Sean Luke
+ * @version 1.1
+ */
+
+<span class="nc" id="L41">public class Checkpoint</span>
+    {
+
+    /** Writes the evolution state out to a file. */
+
+    public static void setCheckpoint(EvolutionState state)
+        {
+        try
+            {
+<span class="nc" id="L50">            File file = new File(&quot;&quot; + state.checkpointPrefix + &quot;.&quot; + state.generation + &quot;.gz&quot;);</span>
+            
+<span class="nc bnc" id="L52" title="All 2 branches missed.">            if (state.checkpointDirectory != null)</span>
+                {
+<span class="nc" id="L54">                file = new File(state.checkpointDirectory, </span>
+                    &quot;&quot; + state.checkpointPrefix + &quot;.&quot; + state.generation + &quot;.gz&quot;);
+                }
+<span class="nc" id="L57">            ObjectOutputStream s = </span>
+                new ObjectOutputStream(
+                    new GZIPOutputStream (
+                        new BufferedOutputStream(
+                            new FileOutputStream(file))));
+                
+<span class="nc" id="L63">            s.writeObject(state);</span>
+<span class="nc" id="L64">            s.close();</span>
+<span class="nc" id="L65">            state.output.message(&quot;Wrote out checkpoint file &quot; + </span>
+                state.checkpointPrefix + &quot;.&quot; + 
+                state.generation + &quot;.gz&quot;);
+            }
+<span class="nc" id="L69">        catch (IOException e)</span>
+            {
+<span class="nc" id="L71">            state.output.warning(&quot;Unable to create the checkpoint file &quot; + </span>
+                state.checkpointPrefix + &quot;.&quot; +
+                state.generation + &quot;.gz&quot; + 
+                &quot;because of an IOException:\n--EXCEPTION--\n&quot; +
+                e + 
+                &quot;\n--EXCEPTION-END--\n&quot;);
+<span class="nc" id="L77">            }</span>
+<span class="nc" id="L78">        }</span>
+
+
+    /** Returns an EvolutionState object read from a checkpoint file
+        whose filename is &lt;i&gt;checkpoint&lt;/i&gt; 
+        *
+        @exception java.lang.ClassNotFoundException thrown when the checkpoint file contains a class reference which doesn't exist in your class hierarchy.
+    **/
+    public static EvolutionState restoreFromCheckpoint(String checkpoint)
+        throws IOException, ClassNotFoundException, OptionalDataException
+    /* must throw something if error -- NEVER return null */
+        { 
+        // load from the file
+<span class="nc" id="L91">        ObjectInputStream s = </span>
+            new ObjectInputStream(
+                new GZIPInputStream (
+                    new BufferedInputStream (
+                        new FileInputStream (checkpoint))));
+
+<span class="nc" id="L97">        EvolutionState e = (EvolutionState) s.readObject();</span>
+<span class="nc" id="L98">        s.close();</span>
+
+        // restart from the checkpoint
+    
+<span class="nc" id="L102">        e.resetFromCheckpoint();</span>
+<span class="nc" id="L103">        return e; </span>
+        }
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

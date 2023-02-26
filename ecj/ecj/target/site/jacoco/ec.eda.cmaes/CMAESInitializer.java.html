@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CMAESInitializer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.cmaes</a> &gt; <span class="el_source">CMAESInitializer.java</span></div><h1>CMAESInitializer.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2015 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.eda.cmaes;
+import java.util.ArrayList;
+
+import ec.*;
+import ec.simple.*;
+/* 
+ * CMAESInitializer.java
+ * 
+ * Created: Wed Jul  8 12:35:31 EDT 2015
+ * By: Sam McKay and Sean Luke
+ */
+
+/**
+ * CMAESInitializer is a SimpleInitializer which ensures that the subpopulations are all set to the provided
+ * or computed lambda values.
+ *
+ * @author Sam McKay and Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L28">public class CMAESInitializer extends SimpleInitializer</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public Population setupPopulation(final EvolutionState state, int thread)
+        {
+<span class="nc" id="L34">        Population p = super.setupPopulation(state, thread);</span>
+        
+        // reset to lambda in size!
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        for(int i = 0; i &lt; p.subpops.size(); i++)</span>
+            {
+<span class="nc" id="L39">            Individual[] oldInds = (Individual[]) p.subpops.get(i).individuals.toArray(new Individual[0]);</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">            if (p.subpops.get(i).species instanceof CMAESSpecies)</span>
+                {
+<span class="nc" id="L42">                int lambda = (int)(((CMAESSpecies)p.subpops.get(i).species).lambda);</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">                if (lambda &lt; oldInds.length)  // need to reduce</span>
+                    {
+<span class="nc" id="L45">                    Individual[] newInds = new Individual[lambda];</span>
+<span class="nc" id="L46">                    System.arraycopy(oldInds, 0, newInds, 0, lambda);</span>
+<span class="nc" id="L47">                    oldInds = newInds;</span>
+<span class="nc" id="L48">                    }</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">                else if (lambda &gt; oldInds.length)  // need to increase</span>
+                    {
+<span class="nc" id="L51">                    Individual[] newInds = new Individual[lambda];</span>
+<span class="nc" id="L52">                    System.arraycopy(oldInds, 0, newInds, 0, oldInds.length);</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                    for(int j = oldInds.length; j &lt; lambda; j++)</span>
+<span class="nc" id="L54">                        newInds[j] =  p.subpops.get(i).species.newIndividual(state, thread);</span>
+<span class="nc" id="L55">                    oldInds = newInds;</span>
+                    }
+<span class="nc" id="L57">                }</span>
+<span class="nc" id="L58">            else state.output.fatal(&quot;Species of subpopulation &quot; + i + &quot; is not a CMAESSpecies.  It's a &quot; + p.subpops.get(i).species);</span>
+<span class="nc" id="L59">            p.subpops.get(i).individuals = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            for(int j = 0; j &lt; oldInds.length; j++)</span>
+<span class="nc" id="L61">                p.subpops.get(i).individuals.add(oldInds[j]);    // yuck, but 1.5 doesn't have Arrays.asList</span>
+            }
+                        
+<span class="nc" id="L64">        return p;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

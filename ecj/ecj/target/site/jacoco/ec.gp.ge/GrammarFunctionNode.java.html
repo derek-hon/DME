@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GrammarFunctionNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.ge</a> &gt; <span class="el_source">GrammarFunctionNode.java</span></div><h1>GrammarFunctionNode.java</h1><pre class="source lang-java linenums">package ec.gp.ge;
+import java.util.*;
+import ec.gp.*;
+
+/*
+ * GrammarFunctionNode.java
+ *
+ * Created: Sun Dec  5 11:33:43 EST 2010
+ * By: Houston Mooers and Sean Luke
+ *
+ */
+
+/**
+ * A GrammarNode representing a GPNode in the GE Grammar.  The head of the GrammarFunctionNode
+ * is the name of the GPNode in the grammar; and the children are various arguments to the node
+ * as defined by the grammar.  These are returned  by getArgument(...) and getNumArguments().
+ * The GrammarFunctionNode holds a prototypical GPNode from which clones can be made.
+ *
+ */
+
+public class GrammarFunctionNode extends GrammarNode
+    {
+    GPNode prototype;
+
+    /** Determines the GPNode from the function set by the name.  If there is more than
+        one such node (which shouldn't be the case) then only the first such node is
+        used.  Stores the prototype. */
+
+    public GrammarFunctionNode(GPFunctionSet gpfs, String name)
+        {
+<span class="nc" id="L31">        super(name);</span>
+<span class="nc" id="L32">        prototype = ((GPNode[]) (gpfs.nodesByName.get(name)))[0];</span>
+<span class="nc" id="L33">        }</span>
+
+    public GrammarFunctionNode(String name)
+        {
+<span class="nc" id="L37">        super(name);</span>
+<span class="nc" id="L38">        }</span>
+
+    /** Adds a given argument to the node. */
+    public void addArgument(GrammarNode arg)
+        {
+<span class="nc" id="L43">        children.add(arg);</span>
+<span class="nc" id="L44">        }</span>
+
+    /** Returns the number of arguments. */
+    public int getNumArguments()
+        {
+<span class="nc" id="L49">        return children.size();</span>
+        }
+
+    /** Returna given argument. */
+    public GrammarNode getArgument(int index)
+        {
+<span class="nc" id="L55">        return (GrammarNode)(children.get(index));</span>
+        }
+
+    /** Returns the prototype without cloning it first.  Be certain to clone before using. */
+    public GPNode getGPNodePrototype()
+        {
+<span class="nc" id="L61">        return prototype;</span>
+        }
+
+    /** A better toString() function -- khaled */
+    public String toString()
+        {
+<span class="nc" id="L67">        Iterator i = children.iterator();</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        String ret = &quot;(&quot; + head + (i.hasNext() ? &quot; &quot; : &quot;&quot;);</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        while(i.hasNext())</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            ret += ((GrammarNode)(i.next())).getHead() + (i.hasNext() ? &quot; &quot; : &quot;&quot;);</span>
+<span class="nc" id="L71">        return ret + &quot;)&quot;;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GeneDuplicationPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector.breed</a> &gt; <span class="el_source">GeneDuplicationPipeline.java</span></div><h1>GeneDuplicationPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2010 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.vector.breed;
+
+import ec.BreedingPipeline;
+import ec.EvolutionState;
+import ec.Individual;
+import ec.util.Parameter;
+import ec.vector.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/**
+ * &lt;p&gt;GeneDuplicationPipeline is designed to duplicate a sequence of genes from the chromosome and append
+ * them to the end of the chromosome.  The sequence of genes copied are randomly determined.  That is to
+ * say, a random begining index is selected and a random ending index is selected from the chromosome.  Then
+ * this area is copied (begining inclusive, ending exclusive) and appended to the end of the chromosome.
+ * Since randomness is a factor several checks are performed to make sure the begining and ending indicies are
+ * valid.  For example, since the ending index is exclusive, the ending index cannot equal the begining index (a
+ * new ending index would be randomly seleceted in this case).  Likewise the begining index cannot be larger than the
+ * ending index (they would be swapped in this case).&lt;/p&gt;
+ *
+ * &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ * ec.vector.breed.GeneDuplicationPipeline
+ *
+ * @author Sean Luke, Joseph Zelibor III, and Eric Kangas
+ * @version 1.0
+ */
+<span class="nc" id="L34">public class GeneDuplicationPipeline extends BreedingPipeline</span>
+    {
+    public static final String P_DUPLICATION = &quot;duplicate&quot;;
+    public static final int NUM_SOURCES = 1;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L41">        return VectorDefaults.base().push(P_DUPLICATION);</span>
+        }
+
+<span class="nc" id="L44">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public int produce(int min,
+        int max,
+        int subpopulation,
+        ArrayList&lt;Individual&gt; inds,
+        EvolutionState state,
+        int thread, HashMap&lt;String, Object&gt; misc)
+        {
+<span class="nc" id="L53">        int start = inds.size();</span>
+                
+        // grab individuals from our source and stick 'em right into inds.
+        // we'll modify them from there
+<span class="nc" id="L57">        int n = sources[0].produce(min,max,subpopulation,inds, state,thread, misc);</span>
+
+
+        // should we bother?
+<span class="nc bnc" id="L61" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+<span class="nc" id="L63">            return n;</span>
+            }
+
+        // now let's mutate 'em
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        for(int q=start; q &lt; n+start; q++)</span>
+            {
+            //duplicate from the genome between a random begin and end point,
+            //and put that at the end of the new genome.
+<span class="nc" id="L71">            VectorIndividual ind = (VectorIndividual)(inds.get(q));</span>
+            
+<span class="nc" id="L73">            int len = ind.genomeLength();</span>
+
+            //zero length individual, just return
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            if (len == 0)</span>
+                {
+<span class="nc" id="L78">                return n;</span>
+                }
+
+<span class="nc" id="L81">            int end = 0;</span>
+<span class="nc" id="L82">            int begin = state.random[thread].nextInt(len+1);</span>
+            do 
+                {
+<span class="nc" id="L85">                end = state.random[thread].nextInt(len+1);</span>
+                } 
+<span class="nc bnc" id="L87" title="All 2 branches missed.">            while (begin == end);  //because the end is exclusive, start cannot be</span>
+            //equal to end.
+            
+
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            if (end &lt; begin) </span>
+                {
+<span class="nc" id="L93">                int temp = end;  //swap if necessary</span>
+<span class="nc" id="L94">                end = begin;</span>
+<span class="nc" id="L95">                begin = temp;</span>
+                }
+
+            // copy the original into a new array.
+<span class="nc" id="L99">            Object[] original = new Object[2];</span>
+<span class="nc" id="L100">            ind.split(new int[] {0, len}, original);</span>
+                        
+            // copy the splice into a new array
+<span class="nc" id="L103">            Object[] splice = new Object[3];</span>
+<span class="nc" id="L104">            ind.split(new int[] {begin, end}, splice);</span>
+                        
+            // clone the genes in splice[1] (which we'll concatenate back in) in case we're using GeneVectorIndividual
+<span class="nc" id="L107">            ind.cloneGenes(splice[1]);</span>
+            
+            // appends the pieces together with the splice at the end.
+<span class="nc" id="L110">            ind.join(new Object[] {original[1], splice[1]});</span>
+            }
+<span class="nc" id="L112">        return n;  // number of individuals produced, 1 here.</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

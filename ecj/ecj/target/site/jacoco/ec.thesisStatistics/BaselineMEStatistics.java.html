@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BaselineMEStatistics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.thesisStatistics</a> &gt; <span class="el_source">BaselineMEStatistics.java</span></div><h1>BaselineMEStatistics.java</h1><pre class="source lang-java linenums">package ec.thesisStatistics;
+
+import java.io.File;
+import java.io.IOException;
+
+import ec.EvolutionState;
+import ec.Statistics;
+import ec.gp.koza.KozaFitness;
+import ec.distributedME.*;
+import ec.util.Parameter;
+import ec.distributedME.DistributedMEEvolutionState;
+import ec.distributedME.DistributedMEStatistics;
+
+<span class="nc" id="L14">public class BaselineMEStatistics extends DistributedMEStatistics {</span>
+    public static final String P_DO_DEPTH = &quot;do-depth&quot;;
+    public static final String P_STATISTICS_MODULUS = &quot;modulus&quot;;
+    public static final String P_STATISTICS_FILE = &quot;file&quot;;
+    public static final String P_COMPRESS = &quot;gzip&quot;;
+    public static final String P_DO_FINAL = &quot;do-final&quot;;
+    public static final String P_DO_DESCRIPTION = &quot;do-description&quot;;
+    public static final String P_SAVE_ALL = &quot;saveAll&quot;;
+    public static final String P_SAVE_FITTEST = &quot;save-fittest&quot;;
+    public static final String P_FITTEST = &quot;fittest-amount&quot;;
+    public static final String P_SAVE_PATH = &quot;save-path&quot;;
+    public static final String P_MAP_NAME = &quot;map-name&quot;;
+    public static final String P_DO_HEADER = &quot;do-header&quot;;
+    public static final String P_DO_TIME = &quot;do-time&quot;;
+    public static final String P_DELIMITER = &quot;delimiter&quot;;
+    public static final String P_DO_SIZE = &quot;do-size&quot;;
+    public static final String P_DO_EVALUATION = &quot;do-evaluation&quot;;
+    public static final String P_DO_MESSAGE = &quot;do-message&quot;;
+    public static final String P_DO_MEMORY = &quot;do-memory&quot;;
+
+    public boolean doSize;
+    public String savePath;
+    public String mapName;
+<span class="nc" id="L37">    public String delimiter = &quot; &quot;;</span>
+<span class="nc" id="L38">    public String bestKey = &quot;&quot;;</span>
+
+    public boolean doDepth;
+    public boolean doGraph;
+    public boolean doFinal;
+    public boolean doDescription;
+    public boolean saveAll;
+    public boolean saveFit;
+    public boolean doHeader;
+    public boolean doTime;
+    public boolean doEvaluation;
+    public boolean doMessage;
+    public boolean doMemory;
+
+    public int fitAmount;
+    public int modulus;
+<span class="nc" id="L54">    public int statisticslog = 0; // stdout by default</span>
+
+    long[] totalDepthSoFarTree;
+    long[] totalSizeSoFarTree;
+    long totalIndsSoFar;
+
+    public Elite[] bestOfRun;
+    public long totalAssessed;
+    public double totalFitness;
+
+    // timings
+    public long lastTime;
+    public long beginTime;
+
+    public long[] memoryPerGeneration;
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L72">        super.setup(state, base);</span>
+
+<span class="nc" id="L74">        File statisticsFile = state.parameters.getFile(base.push(P_STATISTICS_FILE), null);</span>
+
+<span class="nc" id="L76">        modulus = state.parameters.getIntWithDefault(base.push(P_STATISTICS_MODULUS), null, 1);</span>
+
+<span class="nc bnc" id="L78" title="All 2 branches missed.">        if (statisticsFile != null) {</span>
+            try {
+<span class="nc" id="L80">                statisticslog = state.output.addLog(statisticsFile,</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">                        !state.parameters.getBoolean(base.push(P_COMPRESS), null, false),</span>
+<span class="nc" id="L82">                        state.parameters.getBoolean(base.push(P_COMPRESS), null, false));</span>
+            } // try
+<span class="nc" id="L84">            catch (IOException i) {</span>
+<span class="nc" id="L85">                state.output</span>
+<span class="nc" id="L86">                        .fatal(&quot;An IOException occurred while trying to create the log &quot; + statisticsFile + &quot;:\n&quot; + i);</span>
+<span class="nc" id="L87">            } // catch</span>
+        } // if
+        else
+<span class="nc" id="L90">            state.output.warning(&quot;No statistics file specified, printing to stdout at end.&quot;,</span>
+<span class="nc" id="L91">                    base.push(P_STATISTICS_FILE));</span>
+
+        // state.output.message(base.push(P_DO_GRAPH).toString());
+
+<span class="nc" id="L95">        doSize = state.parameters.getBoolean(base.push(P_DO_SIZE), null, false);</span>
+<span class="nc" id="L96">        saveAll = state.parameters.getBoolean(base.push(P_SAVE_ALL), null, true);</span>
+<span class="nc" id="L97">        saveFit = state.parameters.getBoolean(base.push(P_SAVE_FITTEST), null, false);</span>
+<span class="nc" id="L98">        doDepth = state.parameters.getBoolean(base.push(P_DO_DEPTH), null, false);</span>
+        // doGraph = state.parameters.getBoolean(base.push(P_DO_GRAPH), null, false);
+<span class="nc" id="L100">        doFinal = state.parameters.getBoolean(base.push(P_DO_FINAL), null, true);</span>
+<span class="nc" id="L101">        doDescription = state.parameters.getBoolean(base.push(P_DO_DESCRIPTION), null, true);</span>
+<span class="nc" id="L102">        fitAmount = state.parameters.getInt(base.push(P_FITTEST), null, 1);</span>
+<span class="nc" id="L103">        savePath = state.parameters.getString(base.push(P_SAVE_PATH), null);</span>
+<span class="nc" id="L104">        mapName = state.parameters.getString(base.push(P_MAP_NAME), null);</span>
+<span class="nc" id="L105">        doHeader = state.parameters.getBoolean(base.push(P_DO_HEADER), null, true);</span>
+<span class="nc" id="L106">        doTime = state.parameters.getBoolean(base.push(P_DO_TIME), null, false);</span>
+<span class="nc" id="L107">        doEvaluation = state.parameters.getBoolean(base.push(P_DO_EVALUATION), null, true);</span>
+<span class="nc" id="L108">        doMessage = state.parameters.getBoolean(base.push(P_DO_MESSAGE), null, true);</span>
+<span class="nc" id="L109">        doMemory = state.parameters.getBoolean(base.push(P_DO_MEMORY), null, true);</span>
+
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if (doMemory)</span>
+<span class="nc" id="L112">            memoryPerGeneration = new long[(int) (state.numEvaluations / modulus)];</span>
+<span class="nc" id="L113">    } // setup</span>
+
+    @Override
+    public String getHeader() {
+<span class="nc" id="L117">        final StringBuilder sb = new StringBuilder(&quot;evaluation&quot;);</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        if (doTime)</span>
+<span class="nc" id="L119">            sb.append(delimiter).append(&quot;time&quot;);</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if (doSize) {</span>
+<span class="nc" id="L121">            sb.append(delimiter).append(&quot;meanSizeThisEval&quot;);</span>
+<span class="nc" id="L122">            sb.append(delimiter).append(&quot;meanSizeSoFar&quot;);</span>
+<span class="nc" id="L123">            sb.append(delimiter).append(&quot;sizeOfBestOfEval&quot;);</span>
+<span class="nc" id="L124">            sb.append(delimiter).append(&quot;sizeOfBestSoFar&quot;);</span>
+        }
+<span class="nc" id="L126">        sb.append(delimiter).append(&quot;meanFitness&quot;);</span>
+<span class="nc" id="L127">        sb.append(delimiter).append(&quot;bestOfEvalFitness&quot;);</span>
+<span class="nc" id="L128">        sb.append(delimiter).append(&quot;bestSoFarFitness&quot;);</span>
+<span class="nc" id="L129">        return sb.append(&quot;\n&quot;).toString();</span>
+    }
+
+    @Override
+    public void preInitializationStatistics(final EvolutionState state) {
+<span class="nc" id="L134">        super.preInitializationStatistics((EvolutionState) state);</span>
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        if (doHeader)</span>
+<span class="nc" id="L137">            state.output.print(getHeader(), statisticslog);</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">        boolean output = (state.evaluations % modulus == 0);</span>
+
+<span class="nc bnc" id="L140" title="All 4 branches missed.">        if (output &amp;&amp; doTime) {</span>
+<span class="nc" id="L141">            lastTime = System.currentTimeMillis();</span>
+<span class="nc" id="L142">            beginTime = System.currentTimeMillis();</span>
+        }
+<span class="nc" id="L144">    }</span>
+
+    @Override
+    public void postInitializationStatistics(final EvolutionState state) {
+<span class="nc" id="L148">        super.postInitializationStatistics(state);</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        boolean output = (state.evaluations % modulus == 0);</span>
+
+        // set up our best_of_run array -- can't do this in setup, because
+        // we don't know if the number of subpopulations has been determined yet
+<span class="nc" id="L153">        bestOfRun = new Elite[((DistributedMEEvolutionState) state).distributedMap.subMAPs.length];</span>
+
+        // print out our generation number
+<span class="nc bnc" id="L156" title="All 2 branches missed.">        if (output)</span>
+<span class="nc" id="L157">            state.output.print(&quot;0&quot;, statisticslog);</span>
+        // if (output &amp;&amp; doTime) {
+        //     // Runtime r = Runtime.getRuntime();
+        //     state.output.print(delimiter + (System.currentTimeMillis() - lastTime), statisticslog);
+        // }
+        // if (doMemory) {
+        //     Runtime r = Runtime.getRuntime();
+        //     long curU = r.totalMemory() - r.freeMemory();
+        //     memoryPerGeneration[0] = curU;
+        // }
+<span class="nc" id="L167">    }</span>
+
+    /** Logs the best individual of the generation. */
+<span class="nc" id="L170">    boolean warned = false;</span>
+
+    @Override
+    public void postEvaluationStatistics(final EvolutionState state) {
+        // super.postEvaluationStatistics(state);
+
+        // boolean output = (state.evaluations % modulus == 0);
+        // // state.output.message(state.evaluations + &quot; % &quot; + modulus + &quot; = &quot; +
+        // // (state.evaluations % modulus));
+        // if (output) {
+        //     state.output.message(&quot;Evaluations so far: &quot; + state.evaluations);
+        //     if (doMemory &amp;&amp; state.evaluations &gt; 0) {
+        //         Runtime r = Runtime.getRuntime();
+        //         long curU = r.totalMemory() - r.freeMemory();
+        //         memoryPerGeneration[(int) (state.evaluations / modulus) - 1] = curU;
+        //     }
+
+        //     // for now we just print the best fitness per subpopulation.
+        //     Elite[] best_i = new Elite[((DistributedMEEvolutionState) state).distributedMap.subMAPs.length]; // quiets
+        //                                                                                                      // compiler
+        //                                                                                                      // complaints
+        //     for (int x = 0; x &lt; ((DistributedMEEvolutionState) state).distributedMap.subMAPs.length; x++) {
+        //         best_i[x] = ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getArrayListCopy().get(0);
+        //         for (int y = 1; y &lt; ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getOccupants(); y++) {
+        //             if (best_i[x] == null
+        //                     || ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].
+        //                         getArrayListCopy().get(0).fitness
+        //                             .betterThan(best_i[x].fitness))
+        //                 best_i[x] = ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getArrayListCopy().get(y);
+
+        //             // now test to see if it's the new best_of_run
+        //             if (bestOfRun[x] == null || best_i[x].fitness.betterThan(bestOfRun[x].fitness))
+        //                 bestOfRun[x] = (Elite) (best_i[x].clone());
+        //         }
+        //     }
+
+        //     // print the best-of-generation individual
+        //     if (doEvaluation)
+        //         state.output.println(&quot;\nEvaluation: &quot; + state.evaluations, statisticslog);
+        //     for (int x = 0; x &lt; ((DistributedMEEvolutionState) state).distributedMap.subMAPs.length; x++) {
+        //         double totalFitness = 0.0;
+        //         for (Elite e : ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getArrayListCopy())
+        //             totalFitness += ((KozaFitness) e.fitness).standardizedFitness();
+
+        //         if (doEvaluation) {
+        //             state.output.println(&quot;Submap &quot; + x + &quot; best fitness: &quot; +
+        //                     ((KozaFitness) best_i[x].fitness).standardizedFitness(), statisticslog);
+        //             state.output.println(&quot;Submap &quot; + x + &quot; mean fitness: &quot; + (double) ((totalFitness)
+        //                     / (double) ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getOccupants()),
+        //                     statisticslog);
+        //         }
+
+        //         if (doMessage &amp;&amp; !silentPrint) {
+        //             state.output.message(&quot;Submap &quot; + x + &quot; best fitness: &quot; +
+        //                     ((KozaFitness) best_i[x].fitness).standardizedFitness());
+        //             state.output.message(&quot;Submap &quot; + x + &quot; mean fitness: &quot; + (double) ((totalFitness)
+        //                     / (double) ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getOccupants()));
+        //         }
+        //     }
+        // }
+<span class="nc" id="L230">    }</span>
+
+    /** Logs the best individual of the run. */
+    @Override
+    public void finalStatistics(final EvolutionState state, final int result) {
+        // super.finalStatistics(state, result);
+
+        // if (doMemory) {
+        //     state.output.println(&quot;\nMemory:&quot;, statisticslog);
+        //     for (long l : memoryPerGeneration)
+        //         state.output.print(l + &quot; &quot;, statisticslog);
+        // }
+
+<span class="nc" id="L243">        int total = 0, occupied = 0;</span>
+        // for (int x = 0; x &lt; ((DistributedMEEvolutionState) state).distributedMap.subMAPs.length; x++) {
+        //     total += ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getTotalSize();
+        //     occupied += ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getOccupants();
+        // }
+
+        // state.output.println(&quot;\nIndividuals being held within the MAP: &quot; + occupied, statisticslog);
+        // state.output.println(&quot;Total individuals possible in MAP: &quot; + total, statisticslog);
+        // state.output.println(&quot;Ratio of individuals in MAP: &quot; + (double) (occupied / total), statisticslog);
+
+        // // if (doTime) {
+        // //     state.output.println(&quot;\nTotal time:&quot; + delimiter + (System.currentTimeMillis() - beginTime), statisticslog);
+        // // }
+
+        // if (doFinal)
+        //     state.output.println(&quot;\nBest Individual of Run:&quot;, statisticslog);
+        // for (int x = 0; x &lt; ((DistributedMEEvolutionState) state).distributedMap.subMAPs.length; x++) {
+        //     if (doFinal)
+        //         state.output.println(&quot;Submap &quot; + x + &quot;:&quot;, statisticslog);
+        //     if (doFinal)
+        //         bestOfRun[x].printIndividualForHumans(state, statisticslog);
+        //     if (doMessage &amp;&amp; !silentPrint)
+        //         state.output.message(
+        //                 &quot;Submap &quot; + x + &quot; best fitness of run: &quot; + bestOfRun[x].fitness.fitnessToStringForHumans());
+            
+        //     for (Elite e : ((DistributedMEEvolutionState) state).distributedMap.subMAPs[x].getArrayListCopy()) {
+        //         state.output.println(&quot;Behaviour fitness&quot; + e.getKey() + &quot;: &quot; + e.getRunningFitness()/e.getReplacementCounter(), statisticslog);
+        //         state.output.println(&quot;Behaviour replacement&quot; + e.getKey() + &quot;: &quot; + e.getReplacementCounter(), statisticslog);
+        //     }
+        //     int avgBestTreeDepth = 0;
+        //     for (int i = 0 ; i &lt; bestOfRun[x].trees.length ; i ++) {
+        //         avgBestTreeDepth += bestOfRun[x].trees[i].child.depth();
+        //     }
+        //     avgBestTreeDepth /= bestOfRun[x].trees.length;
+        //     state.output.println(&quot;Submap &quot; + x + &quot; best average depth: &quot; + avgBestTreeDepth, statisticslog);
+
+        //     // finally describe the winner if there is a description
+        //     if (doFinal &amp;&amp; doDescription)
+        //         if (state.evaluator.p_problem instanceof MapElitesProblemForm)
+        //             ((MapElitesProblemForm) (state.evaluator.p_problem.clone())).describe(state, bestOfRun[x], x, 0,
+        //                     statisticslog);
+        // }
+<span class="nc" id="L285">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

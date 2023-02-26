@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Breeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">Breeder.java</span></div><h1>Breeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+
+/* 
+ * Breeder.java
+ * 
+ * Created: Tue Aug 10 21:00:11 1999
+ * By: Sean Luke
+ */
+
+/**
+ * A Breeder is a singleton object which is responsible for the breeding
+ * process during the course of an evolutionary run.  Only one Breeder
+ * is created in a run, and is stored in the EvolutionState object.
+ *
+ * &lt;p&gt;Breeders typically do their work by applying a Species' BreedingPipelines
+ * on subpopulations of that species to produce new individuals for those
+ * subpopulations.
+ *
+ * &lt;p&gt;Breeders may be multithreaded.  The number of threads they may spawn
+ * (excepting a parent &quot;gathering&quot; thread) is governed by the EvolutionState's
+ * breedthreads value.
+ *
+ * &lt;p&gt;Be careful about spawning threads -- this system has no few synchronized 
+ * methods for efficiency's sake, so you must either divvy up breeding in a
+ * thread-safe fashion and assume that all individuals
+ * in the current population are read-only (which you may assume for a generational
+ * breeder which needs to return a whole new population each generation), or
+ * otherwise you must obtain the appropriate locks on individuals in the population
+ * and other objects as necessary.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="fc" id="L42">public abstract class Breeder implements Singleton</span>
+    {
+    /** Breeds state.population, returning a new population.  In general,
+        state.population should not be modified. */
+
+    public abstract Population breedPopulation(final EvolutionState state) ;
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

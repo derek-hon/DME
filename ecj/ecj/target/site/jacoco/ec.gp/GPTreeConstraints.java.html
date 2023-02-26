@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPTreeConstraints.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPTreeConstraints.java</span></div><h1>GPTreeConstraints.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+import java.util.*;
+import java.util.Enumeration;
+
+/* 
+ * GPTreeConstraints.java
+ * 
+ * Created: Thu Oct  7 15:38:45 1999
+ * By: Sean Luke
+ */
+
+/**
+ * A GPTreeConstraints is a Clique which defines constraint information
+ * common to many different GPTree trees, namely the tree type,
+ * builder, and function set.  GPTreeConstraints have unique names
+ * by which they are identified.
+ *
+ * &lt;p&gt;In adding new things to GPTreeConstraints, you should ask yourself
+ * the following questions: first, is this something that takes up too
+ * much memory to store in GPTrees themseves?  second, is this something
+ * that needs to be accessed very rapidly, so cannot be implemented as
+ * a method call in a GPTree?  third, can this be shared among different
+ * GPTrees?
+ *
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of tree constraints)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;name&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(name of tree constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;init&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.gp.GPNodeBuilder&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(GP node builder for tree constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;returns&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(tree type for tree constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.n&lt;/i&gt;.&lt;tt&gt;fset&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;String&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(function set for tree constraint &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L64">public class GPTreeConstraints implements Clique</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final int SIZE_OF_BYTE = 256;
+    public final static String P_NAME = &quot;name&quot;;
+    public final static String P_SIZE = &quot;size&quot;;
+    public final static String P_INIT = &quot;init&quot;;
+    public static final String P_RETURNS = &quot;returns&quot;;
+    public static final String P_FUNCTIONSET = &quot;fset&quot;;
+
+    public String name;
+    
+    /** The byte value of the constraints -- we can only have 256 of them */
+    public byte constraintNumber;
+
+    /** The builder for the tree */
+    public GPNodeBuilder init;
+
+    /** The type of the root of the tree */
+    public GPType treetype;
+
+    /** The function set for nodes in the tree */
+    public GPFunctionSet functionset;
+    
+<span class="nc" id="L89">    public String toString() { return name; }</span>
+
+    /** This must be called &lt;i&gt;after&lt;/i&gt; the GPTypes and GPFunctionSets 
+        have been set up. */
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // What's my name?
+<span class="nc" id="L96">        name = state.parameters.getString(base.push(P_NAME),null);</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (name==null)</span>
+<span class="nc" id="L98">            state.output.fatal(&quot;No name was given for this function set.&quot;,</span>
+<span class="nc" id="L99">                base.push(P_NAME));</span>
+
+        // Register me
+<span class="nc" id="L102">        GPTreeConstraints old_constraints = </span>
+<span class="nc" id="L103">            (GPTreeConstraints)(((GPInitializer)state.initializer).treeConstraintRepository.put(name,this));</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        if (old_constraints != null)</span>
+<span class="nc" id="L105">            state.output.fatal(&quot;The GP tree constraint \&quot;&quot; + name + &quot;\&quot; has been defined multiple times.&quot;, base.push(P_NAME));</span>
+
+        // Load my initializing builder
+<span class="nc" id="L108">        init = (GPNodeBuilder)(state.parameters.getInstanceForParameter(base.push(P_INIT),null,GPNodeBuilder.class));</span>
+<span class="nc" id="L109">        init.setup(state,base.push(P_INIT));</span>
+
+        // Load my return type
+<span class="nc" id="L112">        String s = state.parameters.getString(base.push(P_RETURNS),null);</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        if (s==null)</span>
+<span class="nc" id="L114">            state.output.fatal(&quot;No return type given for the GPTreeConstraints &quot; + name, base.push(P_RETURNS));</span>
+<span class="nc" id="L115">        treetype = GPType.typeFor(s,state);</span>
+
+        // Load my function set
+
+<span class="nc" id="L119">        s = state.parameters.getString(base.push(P_FUNCTIONSET),null);</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if (s==null)</span>
+<span class="nc" id="L121">            state.output.fatal(&quot;No function set given for the GPTreeConstraints &quot; + name, base.push(P_RETURNS));</span>
+<span class="nc" id="L122">        functionset = GPFunctionSet.functionSetFor(s,state);</span>
+<span class="nc" id="L123">        state.output.exitIfErrors();  // otherwise checkFunctionSetValidity might crash below</span>
+
+        // Determine the validity of the function set
+        // the way we do that is by gathering all the types that
+        // are transitively used, starting with treetype, as in:
+<span class="nc" id="L128">        Hashtable typ = new Hashtable();</span>
+<span class="nc" id="L129">        checkFunctionSetValidity(state, typ, treetype);</span>
+        // next we make sure that for every one of these types,
+        // there's a terminal with that return type, and *maybe*
+        // a nonterminal
+<span class="nc" id="L133">        Enumeration e = typ.elements();</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        while (e.hasMoreElements())</span>
+            {
+<span class="nc" id="L136">            GPType t = (GPType)(e.nextElement());</span>
+<span class="nc" id="L137">            GPNode[] i = functionset.nodes[t.type];</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">            if (i.length==0) // yeesh</span>
+<span class="nc" id="L139">                state.output.error(&quot;In function set &quot; + functionset + &quot; for the GPTreeConstraints &quot; + this + &quot;, no nodes at all are given with the return type &quot; + t + &quot; which is required by other functions in the function set or by the tree's return type.  This almost certainly indicates a serious typing error.&quot;, base);</span>
+            else
+                {
+<span class="nc" id="L142">                i = functionset.terminals[t.type];</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">                if (i.length==0) // uh oh</span>
+<span class="nc" id="L144">                    state.output.warning(&quot;In function set &quot; + functionset + &quot; for the GPTreeConstraints &quot; + this + &quot;, no terminals are given with the return type &quot; + t + &quot; which is required by other functions in the function set or by the tree's return type.  Nearly all tree-builders in ECJ require the ability to add a terminal of any type for which there is a nonterminal, and at any time.  Without terminals, your code may not work.  One common indication that a tree-builder has failed due to this problem is if you get the MersenneTwister error 'n must be positive'.&quot;, base);</span>
+<span class="nc" id="L145">                i = functionset.nonterminals[t.type];</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">                if (i.length==0) // uh oh</span>
+<span class="nc" id="L147">                    state.output.warning(&quot;In function set &quot; + functionset + &quot; for the GPTreeConstraints &quot; + this + &quot;, no *nonterminals* are given with the return type &quot; + t + &quot; which is required by other functions in the function set or by the tree's return type.  This may or may not be a problem for you.&quot;, base);</span>
+                }
+<span class="nc" id="L149">            }</span>
+<span class="nc" id="L150">        state.output.exitIfErrors();</span>
+<span class="nc" id="L151">        }</span>
+
+    // When completed, done will hold all the types which are needed
+    // in the function set -- you can then check to make sure that
+    // they contain at least one terminal and (hopefully) at least
+    // one nonterminal.
+
+    private void checkFunctionSetValidity(final EvolutionState state,
+        final Hashtable done, 
+        final GPType type)
+        {
+        // put type in the hashtable -- it's being used
+<span class="nc" id="L163">        done.put(type,type);</span>
+        
+        // Grab the array in nodes
+<span class="nc" id="L166">        GPNode[] i = functionset.nodes[type.type];</span>
+
+        // For each argument type in a node in i, if it's not in done,
+        // then add it to done and call me on it
+<span class="nc" id="L170">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        for (int x=0; x&lt;i.length;x++)</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">            for (int y=0;y&lt;i[x].constraints(initializer).childtypes.length;y++)</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                if (done.get(i[x].constraints(initializer).childtypes[y])==null)</span>
+                    {
+<span class="nc" id="L175">                    checkFunctionSetValidity(</span>
+<span class="nc" id="L176">                        state, done, i[x].constraints(initializer).childtypes[y]);</span>
+                    }
+<span class="nc" id="L178">        }</span>
+
+
+
+    /** You must guarantee that after calling constraintsFor(...) one or
+        several times, you call state.output.exitIfErrors() once. */
+
+    public static GPTreeConstraints constraintsFor(final String constraintsName,
+        final EvolutionState state)
+        {
+<span class="nc" id="L188">        GPTreeConstraints myConstraints = (GPTreeConstraints)(((GPInitializer)state.initializer).treeConstraintRepository.get(constraintsName));</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        if (myConstraints==null)</span>
+<span class="nc" id="L190">            state.output.error(&quot;The GP tree constraint \&quot;&quot; + constraintsName + &quot;\&quot; could not be found.&quot;);</span>
+<span class="nc" id="L191">        return myConstraints;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

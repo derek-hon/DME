@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AntSystemUpdateRule.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co.ant</a> &gt; <span class="el_source">AntSystemUpdateRule.java</span></div><h1>AntSystemUpdateRule.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co.ant;
+
+import ec.EvolutionState;
+import ec.Individual;
+import ec.Subpopulation;
+import ec.co.Component;
+import ec.co.ConstructiveIndividual;
+import ec.co.ConstructiveProblemForm;
+import ec.util.Parameter;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * &lt;code&gt;ANT_CYCLE&lt;/code&gt;, &lt;code&gt;ANT_DENSITY&lt;/code&gt;, and &lt;code&gt;ANT_QUANTITY&lt;/code&gt; pheromone update rules, in the style
+ * of the Ant System algorithm.
+ *
+ * @author Eric O. Scott
+ */
+<span class="nc bnc" id="L26" title="All 2 branches missed.">public class AntSystemUpdateRule implements UpdateRule</span>
+{
+    public final static String P_DECAY_RATE = &quot;decay-rate&quot;;
+    public final static String P_DEPOSIT_RULE = &quot;deposit-rule&quot;;
+    public final static String P_Q = &quot;Q&quot;;
+    private double decayRate;
+<span class="nc" id="L32">    public enum DepositRule { ANT_CYCLE, ANT_DENSITY, ANT_QUANTITY };</span>
+    private DepositRule depositRule;
+    private double q;
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+<span class="nc bnc" id="L39" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L40" title="All 4 branches missed.">        assert(base != null);</span>
+<span class="nc" id="L41">        decayRate = state.parameters.getDouble(base.push(P_DECAY_RATE), null);</span>
+<span class="nc bnc" id="L42" title="All 8 branches missed.">        if (decayRate &lt; 0.0 || decayRate &gt;= 1.0 || Double.isInfinite(decayRate) || Double.isNaN(decayRate))</span>
+<span class="nc" id="L43">            state.output.fatal(String.format(&quot;%s: '%s' parameter is set to '%f,' but must be on the interval [0,1).&quot;, this.getClass().getSimpleName(), base.push(P_DECAY_RATE), decayRate));</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        q = state.parameters.exists(base.push(P_Q), null) ? state.parameters.getDouble(base.push(P_Q), null) : 1.0;</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (q &lt;= 0.0)</span>
+<span class="nc" id="L46">            state.output.fatal(String.format(&quot;%s: parameter '%s' has a value of %f, but must be positive.&quot;, this.getClass().getSimpleName(), base.push(P_Q), q));</span>
+<span class="nc" id="L47">        String depositString = state.parameters.getString(base.push(P_DEPOSIT_RULE), null);</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (depositString == null)</span>
+<span class="nc" id="L49">            state.output.fatal(String.format(&quot;%s: missing required parameter '%s'.&quot;, this.getClass().getSimpleName(), base.push(P_DEPOSIT_RULE)));</span>
+        try
+        {
+<span class="nc" id="L52">            depositString = depositString.replace('-', '_');</span>
+<span class="nc" id="L53">            depositRule = DepositRule.valueOf(depositString);</span>
+        }
+<span class="nc" id="L55">        catch (final NullPointerException e)</span>
+        {
+<span class="nc" id="L57">            state.output.fatal(String.format(&quot;%s: invalid value '%s' found for parameter '%s'.  Allowed values are %s.&quot;, this.getClass().getSimpleName(), depositString, base.push(P_DEPOSIT_RULE), Arrays.asList(DepositRule.values())));</span>
+        }
+<span class="nc" id="L59">        catch (final IllegalArgumentException e)</span>
+        {
+<span class="nc" id="L61">            state.output.fatal(String.format(&quot;%s: invalid value '%s' found for parameter '%s'.  Allowed values are %s.&quot;, this.getClass().getSimpleName(), depositString, base.push(P_DEPOSIT_RULE), Arrays.asList(DepositRule.values())));</span>
+<span class="nc" id="L62">        }</span>
+<span class="nc bnc" id="L63" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L64">    }</span>
+
+    public double getDecayRate()
+    {
+<span class="nc" id="L68">        return decayRate;</span>
+    }
+
+    public DepositRule getDepositRule()
+    {
+<span class="nc" id="L73">        return depositRule;</span>
+    }
+
+    public double getQ()
+    {
+<span class="nc" id="L78">        return q;</span>
+    }
+
+    @Override
+    public void updatePheromones(final EvolutionState state, final PheromoneTable pheromones, final List individuals)
+    {
+<span class="nc bnc" id="L84" title="All 4 branches missed.">        assert(pheromones != null);</span>
+<span class="nc bnc" id="L85" title="All 4 branches missed.">        assert(individuals != null);</span>
+<span class="nc bnc" id="L86" title="All 4 branches missed.">        assert(!individuals.isEmpty());</span>
+
+<span class="nc" id="L88">        decayPheromones(state, pheromones);</span>
+
+<span class="nc" id="L90">        final Map&lt;Component, Double&gt; contributions = new HashMap();</span>
+        // Loop through every individual and record its pheremone contributions (scores) for each edge
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        for (final Object o : individuals)</span>
+        {
+<span class="nc" id="L94">            final ConstructiveIndividual ind = (ConstructiveIndividual) o;</span>
+<span class="nc bnc" id="L95" title="All 4 branches missed.">            assert(ind.size() &gt; 0);</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">            for (final Object oo : ind)</span>
+            {
+<span class="nc bnc" id="L98" title="All 4 branches missed.">                assert(oo instanceof Component);</span>
+<span class="nc" id="L99">                final Component c = (Component) oo;</span>
+<span class="nc" id="L100">                final double cPheromone = pheromoneContribution(ind, c);</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">                if (contributions.containsKey(c))</span>
+<span class="nc" id="L102">                    contributions.put(c, contributions.get(c) + cPheromone);</span>
+                else
+<span class="nc" id="L104">                    contributions.put(c, cPheromone);</span>
+<span class="nc" id="L105">            }</span>
+<span class="nc" id="L106">        }</span>
+        // Apply the new pheromones
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        for (final Component c : contributions.keySet())</span>
+        {
+<span class="nc" id="L110">            final double oldPheromone = pheromones.get(state, c, 0); // Using thread 0 because we are in a single-threaded function</span>
+<span class="nc" id="L111">            final double newPheromone = oldPheromone + contributions.get(c);</span>
+<span class="nc" id="L112">            pheromones.set(c, newPheromone);</span>
+<span class="nc" id="L113">        }</span>
+<span class="nc bnc" id="L114" title="All 4 branches missed.">        assert(repOK());</span>
+<span class="nc" id="L115">    }</span>
+
+    private void decayPheromones(final EvolutionState state, final PheromoneTable pheromones)
+    {
+<span class="nc bnc" id="L119" title="All 4 branches missed.">        assert(state != null);</span>
+<span class="nc bnc" id="L120" title="All 4 branches missed.">        assert(pheromones != null);</span>
+<span class="nc" id="L121">        final List&lt;Component&gt; components = ((ConstructiveProblemForm)state.evaluator.p_problem).getAllComponents();</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        for (final Component c : components)</span>
+<span class="nc" id="L123">            pheromones.set(c, (1.0-decayRate)*pheromones.get(state, c, 0)); // Using thread 0 because we are in a single-threaded function</span>
+<span class="nc" id="L124">    }</span>
+
+    private double pheromoneContribution(final ConstructiveIndividual ind, final Component component)
+    {
+<span class="nc bnc" id="L128" title="All 4 branches missed.">        assert(ind != null);</span>
+<span class="nc bnc" id="L129" title="All 4 branches missed.">        assert(component != null);</span>
+<span class="nc" id="L130">        final double fitness = ind.fitness.fitness();</span>
+<span class="nc bnc" id="L131" title="All 4 branches missed.">        switch (depositRule)</span>
+        {
+            case ANT_CYCLE:
+<span class="nc bnc" id="L134" title="All 4 branches missed.">                assert(fitness &gt; 0);</span>
+<span class="nc" id="L135">                return q*fitness;</span>
+            case ANT_DENSITY:
+<span class="nc" id="L137">                return q;</span>
+            case ANT_QUANTITY:
+<span class="nc" id="L139">                return q*component.desirability();</span>
+            default:
+<span class="nc" id="L141">                throw new IllegalStateException(String.format(&quot;%s: no deposit rule logic implemented for %s.&quot;, this.getClass().getSimpleName(), depositRule));</span>
+        }
+    }
+
+    public final boolean repOK()
+    {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        return P_DECAY_RATE != null</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                &amp;&amp; !P_DECAY_RATE.isEmpty()</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">                &amp;&amp; !Double.isInfinite(decayRate)</span>
+<span class="nc bnc" id="L150" title="All 6 branches missed.">                &amp;&amp; !Double.isNaN(decayRate)</span>
+                &amp;&amp; decayRate &gt;= 0.0
+                &amp;&amp; decayRate &lt; 1.0;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

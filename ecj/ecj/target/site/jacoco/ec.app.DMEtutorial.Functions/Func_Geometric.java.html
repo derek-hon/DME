@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Func_Geometric.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.Functions</a> &gt; <span class="el_source">Func_Geometric.java</span></div><h1>Func_Geometric.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.Functions;
+
+import static ec.app.experiments.GeneralandFitness.CoordinateVariables.*;
+
+import java.awt.image.BufferedImage;
+import ec.*;
+import ec.gp.*;
+import ec.app.DMEtutorial.MultiData;
+import ec.app.DMEtutorial.TextureProblemForm;
+
+<span class="nc" id="L11">public abstract class Func_Geometric extends GPNode implements SimplifyableGPNode {</span>
+    @Override 
+<span class="nc" id="L13">	public boolean IsVolatile(){ return true; }</span>
+	@Override 
+	public GPNode  GetSimplifiedReplacement(EvolutionState state)
+	{ 
+<span class="nc" id="L17">		return SimplifyableGPNode.SimplifyableGPNodeImpl.GetSimplifiedReplacement(state, this); </span>
+	} 
+	
+<span class="nc" id="L20">	public static class ShiftPos extends Func_Geometric</span>
+	{
+<span class="nc" id="L22">		@Override public int expectedChildren() { return 3; }</span>
+<span class="nc" id="L23">		@Override public String toString() { return &quot;Shift&quot;; }</span>
+		@Override public void eval(
+			final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+		{
+<span class="nc" id="L33">			TextureProblemForm prob = ((TextureProblemForm)problem);</span>
+<span class="nc" id="L34">			MultiData rd = ((MultiData)(input));</span>
+			
+<span class="nc" id="L36">			children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L37">			double shiftX = rd.GetD();</span>
+<span class="nc" id="L38">			children[2].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L39">			double shiftY = rd.GetD();</span>
+			
+<span class="nc" id="L41">			double[] orig_pos = prob.Get_Current_Pos();</span>
+<span class="nc" id="L42">			double[] new_pos = new double[orig_pos.length];</span>
+<span class="nc" id="L43">			new_pos[X.ordinal()] = orig_pos[X.ordinal()] + shiftX;</span>
+<span class="nc" id="L44">			new_pos[Y.ordinal()] = orig_pos[Y.ordinal()] + shiftY;</span>
+			
+<span class="nc" id="L46">			prob.Set_Current_Pos(new_pos);</span>
+<span class="nc" id="L47">			children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L48">			prob.Set_Current_Pos(orig_pos);</span>
+<span class="nc" id="L49">		}</span>
+	}
+	
+<span class="nc" id="L52">	public static class Tile extends Func_Geometric</span>
+	{
+<span class="nc" id="L54">	    public String toString()         { return &quot;Tile&quot;; }</span>
+<span class="nc" id="L55">	    public int    expectedChildren() { return 3;      }</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {   
+<span class="nc" id="L65">	    	TextureProblemForm prob = ((TextureProblemForm)problem);</span>
+<span class="nc" id="L66">	        MultiData rd = ((MultiData)(input));</span>
+
+<span class="nc" id="L68">	        double[] orig_pos = prob.Get_Current_Pos();</span>
+<span class="nc" id="L69">			double[] new_pos = new double[orig_pos.length];</span>
+	        
+<span class="nc" id="L71">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L72">	        int tilesX = (int) Math.max(1,Math.ceil( rd.GetD() )); // get tile count</span>
+	        // [-1,1] extents of range has difference of 2.
+	        // Speed up the (tile's) traversal (in relation to the canvas) by the number of tiles
+<span class="nc" id="L75">	        new_pos[X.ordinal()] = (orig_pos[X.ordinal()]+1)/2;</span>
+<span class="nc" id="L76">	        new_pos[X.ordinal()] *= tilesX;</span>
+<span class="nc" id="L77">	        new_pos[X.ordinal()] -= (int)(new_pos[X.ordinal()]);</span>
+<span class="nc" id="L78">	        new_pos[X.ordinal()] = (new_pos[X.ordinal()]*2)-1;</span>
+	        
+<span class="nc" id="L80">	        children[2].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L81">	        int tilesY = (int) Math.max(1,Math.ceil( rd.GetD() ));</span>
+<span class="nc" id="L82">	        new_pos[Y.ordinal()] = (orig_pos[Y.ordinal()]+1)/2;</span>
+<span class="nc" id="L83">	        new_pos[Y.ordinal()] *= tilesY;</span>
+<span class="nc" id="L84">	        new_pos[Y.ordinal()] -= (int)(new_pos[Y.ordinal()]);</span>
+<span class="nc" id="L85">	        new_pos[Y.ordinal()] = (new_pos[Y.ordinal()]*2)-1;</span>
+			
+			
+<span class="nc" id="L88">			prob.Set_Current_Pos(new_pos);</span>
+<span class="nc" id="L89">			children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L90">			prob.Set_Current_Pos(orig_pos);</span>
+<span class="nc" id="L91">	    }</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

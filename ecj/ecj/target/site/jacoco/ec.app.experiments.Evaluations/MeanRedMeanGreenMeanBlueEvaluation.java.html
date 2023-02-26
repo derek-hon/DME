@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MeanRedMeanGreenMeanBlueEvaluation.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.Evaluations</a> &gt; <span class="el_source">MeanRedMeanGreenMeanBlueEvaluation.java</span></div><h1>MeanRedMeanGreenMeanBlueEvaluation.java</h1><pre class="source lang-java linenums">package ec.app.experiments.Evaluations;
+
+import ec.EvolutionState;
+import ec.distributedME.*;
+import ec.util.Parameter;
+import java.awt.image.BufferedImage;
+
+<span class="nc" id="L8">public class MeanRedMeanGreenMeanBlueEvaluation extends BehaviourEvaluation{</span>
+
+    int ImageSize;
+    int[] values;
+<span class="nc" id="L12">    BufferedImage img = null;</span>
+    EvaluationFunctions functions;
+
+    public void setup(int[] values) {
+<span class="nc" id="L16">        this.values = values;</span>
+<span class="nc" id="L17">    }</span>
+
+    @Override
+    public void setup(int[][] pixels) {
+<span class="nc" id="L21">        functions = new EvaluationFunctions();</span>
+<span class="nc" id="L22">    }</span>
+    
+    public void setup(BufferedImage img) {
+<span class="nc" id="L25">        this.img = img;</span>
+<span class="nc" id="L26">    }</span>
+
+    @Override
+    public double[] individualBehaviourCalculation(EvolutionState state, Elite ind) {
+<span class="nc" id="L30">        int[][] pixels = ind.getPixels();</span>
+<span class="nc" id="L31">        return new double[] { functions.averageRed(pixels), functions.averageGreen(pixels), functions.averageBlue(pixels) };</span>
+        // if (img == null) {
+        //     EvaluationFunctions functions = new EvaluationFunctions();
+        //     return new double[] { functions.averageRed(this.values), functions.averageGreen(this.values), functions.averageBlue(this.values) };
+        // }
+        // else {
+        //     EvaluationFunctions functions = new EvaluationFunctions(img);
+        //     return new double[] { functions.averageRed(), functions.averageGreen(), functions.averageBlue() };
+        // }
+    }
+
+    public double[] generateBehaviourForVanilla(EvolutionState state) {
+<span class="nc" id="L43">        double[] avgGB = new double[3];</span>
+<span class="nc" id="L44">        int blue = 0, green = 0, red = 0;</span>
+
+<span class="nc" id="L46">        Parameter p = new Parameter(&quot;imagesize&quot;);</span>
+<span class="nc" id="L47">        ImageSize = state.parameters.getInt(p, p, 0);</span>
+
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        for (int i = 0; i &lt; ImageSize; i++) {</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">            for (int j = 0; j &lt; ImageSize; j++) {</span>
+<span class="nc" id="L51">                red += (values[i * ImageSize + j] &gt;&gt; 16) &amp; 0xff;</span>
+<span class="nc" id="L52">                green += (values[i * ImageSize + j] &gt;&gt; 8) &amp; 0xff;</span>
+<span class="nc" id="L53">                blue += (values[i * ImageSize + j] &gt;&gt; 0) &amp; 0xff;</span>
+            }
+        }
+
+<span class="nc" id="L57">        avgGB[0] = red / (ImageSize * ImageSize);</span>
+<span class="nc" id="L58">        avgGB[1] = green / (ImageSize * ImageSize);</span>
+<span class="nc" id="L59">        avgGB[2] = blue / (ImageSize * ImageSize);</span>
+
+<span class="nc" id="L61">        return avgGB;</span>
+    }
+    
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

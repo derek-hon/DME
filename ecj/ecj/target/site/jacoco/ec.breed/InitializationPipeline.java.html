@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InitializationPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.breed</a> &gt; <span class="el_source">InitializationPipeline.java</span></div><h1>InitializationPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2013 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.breed;
+import ec.*;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * InitializationPipeline.java
+ * 
+ * Created: Thu Dec 12 11:49:22 EST 2013
+ * By: Sean Luke
+ */
+
+/**
+ * InitializationPipeline is a BreedingPipeline which simply generates a new
+ * random inidividual.  It has no sources at all.
+ *
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ ...the maximum requested by the parent.
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 0
+
+ &lt;/table&gt;
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ breed.init
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="fc" id="L40">public class InitializationPipeline extends BreedingPipeline</span>
+    {
+    public static final String P_INIT = &quot;init&quot;;
+    public static final int NUM_SOURCES = 0;
+    
+<span class="fc" id="L45">    public Parameter defaultBase() { return BreedDefaults.base().push(P_INIT); }</span>
+
+<span class="fc" id="L47">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L51">        super.setup(state,base);</span>
+<span class="fc" id="L52">        Parameter def = defaultBase();</span>
+
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        if (likelihood != 1.0)</span>
+<span class="nc" id="L55">            state.output.warning(&quot;InitializationPipeline given a likelihood other than 1.0.  This is nonsensical and will be ignored.&quot;,</span>
+<span class="nc" id="L56">                base.push(P_LIKELIHOOD),</span>
+<span class="nc" id="L57">                def.push(P_LIKELIHOOD));</span>
+<span class="fc" id="L58">        }</span>
+        
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+        {
+<span class="nc" id="L67">        Species s = state.population.subpops.get(subpopulation).species;</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        for(int q = 0; q &lt; max; q++)</span>
+            {
+<span class="nc" id="L70">            inds.add(s.newIndividual(state, thread));</span>
+            }
+<span class="nc" id="L72">        return max;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

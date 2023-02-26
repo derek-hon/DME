@@ -1,0 +1,512 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CrossoverPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.koza</a> &gt; <span class="el_source">CrossoverPipeline.java</span></div><h1>CrossoverPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.koza;
+import ec.*;
+import ec.util.*;
+import ec.gp.*;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+
+/* 
+ * CrossoverPipeline.java
+ * 
+ * Created: Mon Aug 30 19:15:21 1999
+ * By: Sean Luke
+ */
+
+
+/**
+ * CrossoverPipeline is a GPBreedingPipeline which performs a strongly-typed
+ * version of 
+ * Koza-style &quot;Subtree Crossover&quot;.  Two individuals are selected,
+ * then a single tree is chosen in each such that the two trees
+ * have the same GPTreeConstraints.  Then a random node is chosen
+ * in each tree such that each node's return type is type-compatible
+ * with the argument type of the slot in the parent which contains 
+ * the other node.
+ * If by swapping subtrees at these nodes the two trees will not
+ * violate maximum depth constraints, then the trees perform the
+ * swap, otherwise, they repeat the hunt for random nodes.
+ *
+ * &lt;p&gt;The pipeline tries at most &lt;i&gt;tries&lt;/i&gt; times to a pair
+ * of random nodes BOTH with valid swap constraints.  If it
+ * cannot find any such pairs after &lt;i&gt;tries&lt;/i&gt; times, it 
+ * uses the pair of its last attempt.  If either of the nodes in the pair
+ * is valid, that node gets substituted with the other node.  Otherwise
+ * an individual invalid node isn't changed at all (it's &quot;reproduced&quot;).
+ *
+ * &lt;p&gt;&lt;b&gt;Compatibility with constraints.&lt;/b&gt; 
+ * Since Koza-I/II only tries 1 time, and then follows this policy, this is
+ * compatible with Koza.  lil-gp either tries 1 time, or tries forever.
+ * Either way, this is compatible with lil-gp.  My hacked 
+ * &lt;a href=&quot;http://www.cs.umd.edu/users/seanl/gp/&quot;&gt;lil-gp kernel&lt;/a&gt;
+ * either tries 1 time, &lt;i&gt;n&lt;/i&gt; times, or forever.  This is compatible
+ * as well.
+ *
+ * &lt;p&gt;This pipeline typically produces up to 2 new individuals (the two newly-
+ * swapped individuals) per produce(...) call.  If the system only
+ * needs a single individual, the pipeline will throw one of the
+ * new individuals away.  The user can also have the pipeline always
+ * throw away the second new individual instead of adding it to the population.
+ * In this case, the pipeline will only typically 
+ * produce 1 new individual per produce(...) call.
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ 2 * minimum typical number of individuals produced by each source, unless tossSecondParent
+ is set, in which case it's simply the minimum typical number.
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 2
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tries&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of times to try finding valid pairs of nodes)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;maxdepth&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(maximum valid depth of a crossed-over subtree)&lt;/td&gt;&lt;/tr&gt;
+ 
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;maxsize&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(maximum valid size, in nodes, of a crossed-over subtree)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.0&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; int &amp;lt; (num trees in individuals), if exists&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(first tree for the crossover; if parameter doesn't exist, tree is picked at random)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.1&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;0 &amp;lt; int &amp;lt; (num trees in individuals), if exists&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(second tree for the crossover; if parameter doesn't exist, tree is picked at random.  This tree &lt;b&gt;must&lt;/b&gt; have the same GPTreeConstraints as &lt;tt&gt;tree.0&lt;/tt&gt;, if &lt;tt&gt;tree.0&lt;/tt&gt; is defined.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ns.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != GPNodeSelector,&lt;br&gt;
+ or String &lt;tt&gt;same&lt;tt&gt;&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(GPNodeSelector for parent &lt;i&gt;n&lt;/i&gt; (n is 0 or 1) If, for &lt;tt&gt;ns.1&lt;/tt&gt; the value is &lt;tt&gt;same&lt;/tt&gt;, then &lt;tt&gt;ns.1&lt;/tt&gt; a copy of whatever &lt;tt&gt;ns.0&lt;/tt&gt; is.  Note that the default version has no &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;toss&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;/td&gt;
+ &lt;td valign=top&gt;(after crossing over with the first new individual, should its second sibling individual be thrown away instead of adding it to the population?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.koza.xover
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ns.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;td&gt;nodeselect&lt;i&gt;n&lt;/i&gt; (&lt;i&gt;n&lt;/i&gt; is 0 or 1)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+public class CrossoverPipeline extends GPBreedingPipeline
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_NUM_TRIES = &quot;tries&quot;;
+    public static final String P_MAXDEPTH = &quot;maxdepth&quot;;
+    public static final String P_MAXSIZE = &quot;maxsize&quot;;
+    public static final String P_CROSSOVER = &quot;xover&quot;;
+    public static final String P_TOSS = &quot;toss&quot;;
+    public static final int INDS_PRODUCED = 2;
+    public static final int NUM_SOURCES = 2;
+    public static final int NO_SIZE_LIMIT = -1;
+    public static final String KEY_PARENTS = &quot;parents&quot;;
+
+    /** How the pipeline selects a node from individual 1 */
+    public GPNodeSelector nodeselect1;
+
+    /** How the pipeline selects a node from individual 2 */
+    public GPNodeSelector nodeselect2;
+
+    /** Is the first tree fixed?  If not, this is -1 */
+    public int tree1;
+
+    /** Is the second tree fixed?  If not, this is -1 */
+    public int tree2;
+
+    /** How many times the pipeline attempts to pick nodes until it gives up. */
+    public int numTries;
+
+    /** The deepest tree the pipeline is allowed to form.  Single terminal trees are depth 1. */
+    public int maxDepth;
+
+    /** The largest tree (measured as a nodecount) the pipeline is allowed to form. */
+    public int maxSize;
+
+    /** Should the pipeline discard the second parent after crossing over? */
+    public boolean tossSecondParent;
+
+    /** Temporary holding place for parents */
+    public ArrayList&lt;Individual&gt; parents;
+
+    public CrossoverPipeline()
+<span class="nc" id="L156">        {</span>
+<span class="nc" id="L157">        parents = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L158">        }</span>
+
+<span class="nc" id="L160">    public Parameter defaultBase() { return GPKozaDefaults.base().push(P_CROSSOVER); }</span>
+
+<span class="nc" id="L162">    public int numSources() { return NUM_SOURCES; }</span>
+
+    public Object clone()
+        {
+<span class="nc" id="L166">        CrossoverPipeline c = (CrossoverPipeline)(super.clone());</span>
+
+        // deep-cloned stuff
+<span class="nc" id="L169">        c.nodeselect1 = (GPNodeSelector)(nodeselect1.clone());</span>
+<span class="nc" id="L170">        c.nodeselect2 = (GPNodeSelector)(nodeselect2.clone());</span>
+<span class="nc" id="L171">        c.parents = new ArrayList&lt;Individual&gt;(parents);</span>
+
+<span class="nc" id="L173">        return c;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L178">        super.setup(state,base);</span>
+
+<span class="nc" id="L180">        Parameter def = defaultBase();</span>
+<span class="nc" id="L181">        Parameter p = base.push(P_NODESELECTOR).push(&quot;0&quot;);</span>
+<span class="nc" id="L182">        Parameter d = def.push(P_NODESELECTOR).push(&quot;0&quot;);</span>
+
+<span class="nc" id="L184">        nodeselect1 = (GPNodeSelector)</span>
+<span class="nc" id="L185">            (state.parameters.getInstanceForParameter(</span>
+                p,d, GPNodeSelector.class));
+<span class="nc" id="L187">        nodeselect1.setup(state,p);</span>
+
+<span class="nc" id="L189">        p = base.push(P_NODESELECTOR).push(&quot;1&quot;);</span>
+<span class="nc" id="L190">        d = def.push(P_NODESELECTOR).push(&quot;1&quot;);</span>
+
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        if (state.parameters.exists(p,d) &amp;&amp;</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">            state.parameters.getString(p,d).equals(V_SAME))</span>
+            // can't just copy it this time; the selectors
+            // use internal caches.  So we have to clone it no matter what
+<span class="nc" id="L196">            nodeselect2 = (GPNodeSelector)(nodeselect1.clone());</span>
+        else
+            {
+<span class="nc" id="L199">            nodeselect2 = (GPNodeSelector)</span>
+<span class="nc" id="L200">                (state.parameters.getInstanceForParameter(</span>
+                    p,d, GPNodeSelector.class));
+<span class="nc" id="L202">            nodeselect2.setup(state,p);</span>
+            }
+
+<span class="nc" id="L205">        numTries = state.parameters.getInt(base.push(P_NUM_TRIES),</span>
+<span class="nc" id="L206">            def.push(P_NUM_TRIES),1);</span>
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        if (numTries == 0)</span>
+<span class="nc" id="L208">            state.output.fatal(&quot;GPCrossover Pipeline has an invalid number of tries (it must be &gt;= 1).&quot;,base.push(P_NUM_TRIES),def.push(P_NUM_TRIES));</span>
+
+<span class="nc" id="L210">        maxDepth = state.parameters.getInt(base.push(P_MAXDEPTH),def.push(P_MAXDEPTH),1);</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">        if (maxDepth==0)</span>
+<span class="nc" id="L212">            state.output.fatal(&quot;GPCrossover Pipeline has an invalid maximum depth (it must be &gt;= 1).&quot;,base.push(P_MAXDEPTH),def.push(P_MAXDEPTH));</span>
+
+<span class="nc" id="L214">        maxSize = NO_SIZE_LIMIT;</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_MAXSIZE), def.push(P_MAXSIZE)))</span>
+            {
+<span class="nc" id="L217">            maxSize = state.parameters.getInt(base.push(P_MAXSIZE), def.push(P_MAXSIZE), 1);</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">            if (maxSize &lt; 1)</span>
+<span class="nc" id="L219">                state.output.fatal(&quot;Maximum tree size, if defined, must be &gt;= 1&quot;);</span>
+            }
+        
+<span class="nc" id="L222">        tree1 = TREE_UNFIXED;</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L224">                def.push(P_TREE).push(&quot;&quot;+0)))</span>
+            {
+<span class="nc" id="L226">            tree1 = state.parameters.getInt(base.push(P_TREE).push(&quot;&quot;+0),</span>
+<span class="nc" id="L227">                def.push(P_TREE).push(&quot;&quot;+0),0);</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">            if (tree1==-1)</span>
+<span class="nc" id="L229">                state.output.fatal(&quot;Tree fixed value, if defined, must be &gt;= 0&quot;);</span>
+            }
+
+<span class="nc" id="L232">        tree2 = TREE_UNFIXED;</span>
+<span class="nc bnc" id="L233" title="All 2 branches missed.">        if (state.parameters.exists(base.push(P_TREE).push(&quot;&quot;+1),</span>
+<span class="nc" id="L234">                def.push(P_TREE).push(&quot;&quot;+1)))</span>
+            {
+<span class="nc" id="L236">            tree2 = state.parameters.getInt(base.push(P_TREE).push(&quot;&quot;+1),</span>
+<span class="nc" id="L237">                def.push(P_TREE).push(&quot;&quot;+1),0);</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">            if (tree2==-1)</span>
+<span class="nc" id="L239">                state.output.fatal(&quot;Tree fixed value, if defined, must be &gt;= 0&quot;);</span>
+            }
+<span class="nc" id="L241">        tossSecondParent = state.parameters.getBoolean(base.push(P_TOSS),</span>
+<span class="nc" id="L242">            def.push(P_TOSS),false);</span>
+
+<span class="nc" id="L244">        }</span>
+
+    /** Returns 2 * minimum number of typical individuals produced by any sources, else
+        1* minimum number if tossSecondParent is true. */
+    public int typicalIndsProduced()
+        {
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        return (tossSecondParent? minChildProduction(): minChildProduction()*2);</span>
+        }
+
+    /** Returns true if inner1 can feasibly be swapped into inner2's position. */
+
+    public boolean verifyPoints(final GPInitializer initializer,
+        final GPNode inner1, final GPNode inner2)
+        {
+        // first check to see if inner1 is swap-compatible with inner2
+        // on a type basis
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        if (!inner1.swapCompatibleWith(initializer, inner2)) return false;</span>
+
+        // next check to see if inner1 can fit in inner2's spot
+<span class="nc bnc" id="L263" title="All 2 branches missed.">        if (inner1.depth()+inner2.atDepth() &gt; maxDepth) return false;</span>
+
+        // check for size
+        // NOTE: this is done twice, which is more costly than it should be.  But
+        // on the other hand it allows us to toss a child without testing both times
+        // and it's simpler to have it all here in the verifyPoints code.  
+<span class="nc bnc" id="L269" title="All 2 branches missed.">        if (maxSize != NO_SIZE_LIMIT)</span>
+            {
+            // first easy check
+<span class="nc" id="L272">            int inner1size = inner1.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc" id="L273">            int inner2size = inner2.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc bnc" id="L274" title="All 2 branches missed.">            if (inner1size &gt; inner2size)  // need to test further</span>
+                {
+                // let's keep on going for the more complex test
+<span class="nc" id="L277">                GPNode root2 = ((GPTree)(inner2.rootParent())).child;</span>
+<span class="nc" id="L278">                int root2size = root2.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc bnc" id="L279" title="All 2 branches missed.">                if (root2size - inner2size + inner1size &gt; maxSize)  // take root2, remove inner2 and swap in inner1.  Is it still small enough?</span>
+<span class="nc" id="L280">                    return false;</span>
+                }
+            }
+
+        // checks done!
+<span class="nc" id="L285">        return true;</span>
+        }
+
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+
+        {
+<span class="nc" id="L297">        int start = inds.size();</span>
+                
+        // how many individuals should we make?
+<span class="nc" id="L300">        int n = typicalIndsProduced();</span>
+<span class="nc bnc" id="L301" title="All 2 branches missed.">        if (n &lt; min) n = min;</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">        if (n &gt; max) n = max;</span>
+
+
+        // should we bother?
+<span class="nc bnc" id="L306" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+            // just load from source 0 and clone 'em
+<span class="nc" id="L309">            sources[0].produce(n,n,subpopulation,inds, state,thread,misc);</span>
+<span class="nc" id="L310">            return n;</span>
+            }
+
+<span class="nc" id="L313">        IntBag[] parentparents = null;</span>
+<span class="nc" id="L314">        IntBag[] preserveParents = null;</span>
+<span class="nc bnc" id="L315" title="All 4 branches missed.">        if (misc!=null&amp;&amp;misc.get(KEY_PARENTS) != null)</span>
+            {
+<span class="nc" id="L317">            preserveParents = (IntBag[])misc.get(KEY_PARENTS);</span>
+<span class="nc" id="L318">            parentparents = new IntBag[2];</span>
+<span class="nc" id="L319">            misc.put(KEY_PARENTS, parentparents);</span>
+            }
+
+<span class="nc" id="L322">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+        
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        for(int q=start;q&lt;n+start; /* no increment */)  // keep on going until we're filled up</span>
+            {
+<span class="nc" id="L326">            parents.clear();</span>
+            
+            // grab two individuals from our sources
+<span class="nc bnc" id="L329" title="All 2 branches missed.">            if (sources[0]==sources[1])  // grab from the same source</span>
+<span class="nc" id="L330">                sources[0].produce(2,2,subpopulation, parents, state,thread, misc);</span>
+            else // grab from different sources
+                {
+<span class="nc" id="L333">                sources[0].produce(1,1,subpopulation, parents, state,thread, misc);</span>
+<span class="nc" id="L334">                sources[1].produce(1,1,subpopulation, parents, state,thread, misc);</span>
+                }
+            
+            // at this point, parents[] contains our two selected individuals
+            
+            // are our tree values valid?
+<span class="nc bnc" id="L340" title="All 6 branches missed.">            if (tree1!=TREE_UNFIXED &amp;&amp; (tree1&lt;0 || tree1 &gt;= ((GPIndividual)(parents.get(0))).trees.length))</span>
+                // uh oh
+<span class="nc" id="L342">                state.output.fatal(&quot;GP Crossover Pipeline attempted to fix tree.0 to a value which was out of bounds of the array of the individual's trees.  Check the pipeline's fixed tree values -- they may be negative or greater than the number of trees in an individual&quot;); </span>
+<span class="nc bnc" id="L343" title="All 6 branches missed.">            if (tree2!=TREE_UNFIXED &amp;&amp; (tree2&lt;0 || tree2 &gt;= ((GPIndividual)(parents.get(1))).trees.length))</span>
+                // uh oh
+<span class="nc" id="L345">                state.output.fatal(&quot;GP Crossover Pipeline attempted to fix tree.1 to a value which was out of bounds of the array of the individual's trees.  Check the pipeline's fixed tree values -- they may be negative or greater than the number of trees in an individual&quot;); </span>
+
+<span class="nc" id="L347">            int t1=0; int t2=0;</span>
+<span class="nc bnc" id="L348" title="All 4 branches missed.">            if (tree1==TREE_UNFIXED || tree2==TREE_UNFIXED) </span>
+                {
+                do
+                    // pick random trees  -- their GPTreeConstraints must be the same
+                    {
+<span class="nc bnc" id="L353" title="All 2 branches missed.">                    if (tree1==TREE_UNFIXED) </span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">                        if (((GPIndividual)(parents.get(0))).trees.length &gt; 1)</span>
+<span class="nc" id="L355">                            t1 = state.random[thread].nextInt(((GPIndividual)(parents.get(0))).trees.length);</span>
+<span class="nc" id="L356">                        else t1 = 0;</span>
+<span class="nc" id="L357">                    else t1 = tree1;</span>
+
+<span class="nc bnc" id="L359" title="All 2 branches missed.">                    if (tree2==TREE_UNFIXED) </span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">                        if (((GPIndividual)(parents.get(1))).trees.length&gt;1)</span>
+<span class="nc" id="L361">                            t2 = state.random[thread].nextInt(((GPIndividual)(parents.get(1))).trees.length);</span>
+<span class="nc" id="L362">                        else t2 = 0;</span>
+<span class="nc" id="L363">                    else t2 = tree2;</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">                    } while (((GPIndividual)(parents.get(0))).trees[t1].constraints(initializer) != ((GPIndividual)(parents.get(1))).trees[t2].constraints(initializer));</span>
+                }
+            else
+                {
+<span class="nc" id="L368">                t1 = tree1;</span>
+<span class="nc" id="L369">                t2 = tree2;</span>
+                // make sure the constraints are okay
+<span class="nc" id="L371">                if (((GPIndividual)(parents.get(0))).trees[t1].constraints(initializer)</span>
+<span class="nc bnc" id="L372" title="All 2 branches missed.">                    != ((GPIndividual)(parents.get(1))).trees[t2].constraints(initializer)) // uh oh</span>
+<span class="nc" id="L373">                    state.output.fatal(&quot;GP Crossover Pipeline's two tree choices are both specified by the user -- but their GPTreeConstraints are not the same&quot;);</span>
+                }
+
+
+
+            // validity results...
+<span class="nc" id="L379">            boolean res1 = false;</span>
+<span class="nc" id="L380">            boolean res2 = false;</span>
+            
+            
+            // prepare the nodeselectors
+<span class="nc" id="L384">            nodeselect1.reset();</span>
+<span class="nc" id="L385">            nodeselect2.reset();</span>
+            
+            
+            // pick some nodes
+            
+<span class="nc" id="L390">            GPNode p1=null;</span>
+<span class="nc" id="L391">            GPNode p2=null;</span>
+            
+<span class="nc bnc" id="L393" title="All 2 branches missed.">            for(int x=0;x&lt;numTries;x++)</span>
+                {
+                // pick a node in individual 1
+<span class="nc" id="L396">                p1 = nodeselect1.pickNode(state,subpopulation,thread,((GPIndividual)(parents.get(0))),((GPIndividual)(parents.get(0))).trees[t1]);</span>
+                
+                // pick a node in individual 2
+<span class="nc" id="L399">                p2 = nodeselect2.pickNode(state,subpopulation,thread,((GPIndividual)(parents.get(1))),((GPIndividual)(parents.get(1))).trees[t2]);</span>
+                
+                // check for depth and swap-compatibility limits
+<span class="nc" id="L402">                res1 = verifyPoints(initializer,p2,p1);  // p2 can fill p1's spot -- order is important!</span>
+<span class="nc bnc" id="L403" title="All 4 branches missed.">                if (n-(q-start)&lt;2 || tossSecondParent) res2 = true;</span>
+<span class="nc" id="L404">                else res2 = verifyPoints(initializer,p1,p2);  // p1 can fill p2's spot -- order is important!</span>
+                
+                // did we get something that had both nodes verified?
+                // we reject if EITHER of them is invalid.  This is what lil-gp does.
+                // Koza only has numTries set to 1, so it's compatible as well.
+<span class="nc bnc" id="L409" title="All 4 branches missed.">                if (res1 &amp;&amp; res2) break;</span>
+                }
+
+            // at this point, res1 AND res2 are valid, OR either res1
+            // OR res2 is valid and we ran out of tries, OR neither is
+            // valid and we ran out of tries.  So now we will transfer
+            // to a tree which has res1 or res2 valid, otherwise it'll
+            // just get replicated.  This is compatible with both Koza
+            // and lil-gp.
+            
+
+            // at this point I could check to see if my sources were breeding
+            // pipelines -- but I'm too lazy to write that code (it's a little
+            // complicated) to just swap one individual over or both over,
+            // -- it might still entail some copying.  Perhaps in the future.
+            // It would make things faster perhaps, not requiring all that
+            // cloning.
+
+            
+            
+            // Create some new individuals based on the old ones -- since
+            // GPTree doesn't deep-clone, this should be just fine.  Perhaps we
+            // should change this to proto off of the main species prototype, but
+            // we have to then copy so much stuff over; it's not worth it.
+                    
+<span class="nc" id="L434">            GPIndividual j1 = (GPIndividual)(((GPIndividual)(parents.get(0))).lightClone());</span>
+<span class="nc" id="L435">            GPIndividual j2 = null;</span>
+<span class="nc bnc" id="L436" title="All 4 branches missed.">            if (n-(q-start)&gt;=2 &amp;&amp; !tossSecondParent) j2 = (GPIndividual)(((GPIndividual)(parents.get(1))).lightClone());</span>
+            
+            // Fill in various tree information that didn't get filled in there
+<span class="nc" id="L439">            j1.trees = new GPTree[((GPIndividual)(parents.get(0))).trees.length];</span>
+<span class="nc bnc" id="L440" title="All 4 branches missed.">            if (n-(q-start)&gt;=2 &amp;&amp; !tossSecondParent) j2.trees = new GPTree[((GPIndividual)(parents.get(1))).trees.length];</span>
+            
+            // at this point, p1 or p2, or both, may be null.
+            // If not, swap one in.  Else just copy the parent.
+            
+<span class="nc bnc" id="L445" title="All 2 branches missed.">            for(int x=0;x&lt;j1.trees.length;x++)</span>
+                {
+<span class="nc bnc" id="L447" title="All 4 branches missed.">                if (x==t1 &amp;&amp; res1)  // we've got a tree with a kicking cross position!</span>
+                    { 
+<span class="nc" id="L449">                    j1.trees[x] = (GPTree)(((GPIndividual)(parents.get(0))).trees[x].lightClone());</span>
+<span class="nc" id="L450">                    j1.trees[x].owner = j1;</span>
+<span class="nc" id="L451">                    j1.trees[x].child = ((GPIndividual)(parents.get(0))).trees[x].child.cloneReplacing(p2,p1);</span>
+<span class="nc" id="L452">                    j1.trees[x].child.parent = j1.trees[x];</span>
+<span class="nc" id="L453">                    j1.trees[x].child.argposition = 0;</span>
+<span class="nc" id="L454">                    j1.evaluated = false; </span>
+                    }  // it's changed
+                else 
+                    {
+<span class="nc" id="L458">                    j1.trees[x] = (GPTree)(((GPIndividual)(parents.get(0))).trees[x].lightClone());</span>
+<span class="nc" id="L459">                    j1.trees[x].owner = j1;</span>
+<span class="nc" id="L460">                    j1.trees[x].child = (GPNode)(((GPIndividual)(parents.get(0))).trees[x].child.clone());</span>
+<span class="nc" id="L461">                    j1.trees[x].child.parent = j1.trees[x];</span>
+<span class="nc" id="L462">                    j1.trees[x].child.argposition = 0;</span>
+                    }
+                }
+            
+<span class="nc bnc" id="L466" title="All 4 branches missed.">            if (n-(q-start)&gt;=2 &amp;&amp; !tossSecondParent) </span>
+<span class="nc bnc" id="L467" title="All 2 branches missed.">                for(int x=0;x&lt;j2.trees.length;x++)</span>
+                    {
+<span class="nc bnc" id="L469" title="All 4 branches missed.">                    if (x==t2 &amp;&amp; res2)  // we've got a tree with a kicking cross position!</span>
+                        { 
+<span class="nc" id="L471">                        j2.trees[x] = (GPTree)(((GPIndividual)(parents.get(1))).trees[x].lightClone());</span>
+<span class="nc" id="L472">                        j2.trees[x].owner = j2;</span>
+<span class="nc" id="L473">                        j2.trees[x].child = ((GPIndividual)(parents.get(1))).trees[x].child.cloneReplacing(p1,p2);</span>
+<span class="nc" id="L474">                        j2.trees[x].child.parent = j2.trees[x];</span>
+<span class="nc" id="L475">                        j2.trees[x].child.argposition = 0;</span>
+<span class="nc" id="L476">                        j2.evaluated = false; </span>
+                        } // it's changed
+                    else 
+                        {
+<span class="nc" id="L480">                        j2.trees[x] = (GPTree)(((GPIndividual)(parents.get(1))).trees[x].lightClone());</span>
+<span class="nc" id="L481">                        j2.trees[x].owner = j2;</span>
+<span class="nc" id="L482">                        j2.trees[x].child = (GPNode)(((GPIndividual)(parents.get(1))).trees[x].child.clone());</span>
+<span class="nc" id="L483">                        j2.trees[x].child.parent = j2.trees[x];</span>
+<span class="nc" id="L484">                        j2.trees[x].child.argposition = 0;</span>
+                        }
+                    }
+            
+            // add the individuals to the population
+            //inds.set(q, j1);
+<span class="nc" id="L490">            inds.add(j1);</span>
+<span class="nc bnc" id="L491" title="All 2 branches missed.">            if (preserveParents != null)</span>
+                {
+<span class="nc" id="L493">                parentparents[0].addAll(parentparents[1]);</span>
+<span class="nc" id="L494">                preserveParents[q] = parentparents[0];</span>
+                }
+<span class="nc" id="L496">            q++;</span>
+<span class="nc bnc" id="L497" title="All 4 branches missed.">            if (q&lt;n+start &amp;&amp; !tossSecondParent)</span>
+                {
+                //inds.set(q, j2);
+<span class="nc" id="L500">                inds.add(j2);</span>
+<span class="nc bnc" id="L501" title="All 2 branches missed.">                if (preserveParents != null)</span>
+                    {
+<span class="nc" id="L503">                    parentparents[0].addAll(parentparents[1]);</span>
+<span class="nc" id="L504">                    preserveParents[q] = parentparents[0];</span>
+                    }
+<span class="nc" id="L506">                q++;</span>
+                }
+<span class="nc" id="L508">            }</span>
+<span class="nc" id="L509">        return n;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

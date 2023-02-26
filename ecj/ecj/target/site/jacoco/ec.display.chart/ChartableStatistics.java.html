@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ChartableStatistics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.display.chart</a> &gt; <span class="el_source">ChartableStatistics.java</span></div><h1>ChartableStatistics.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+/*
+ * Created on Apr 16, 2005 12:25:57 PM
+ * 
+ * By: spaus
+ */
+package ec.display.chart;
+
+import org.jfree.chart.JFreeChart;
+
+import ec.EvolutionState;
+import ec.Statistics;
+import ec.util.Parameter;
+
+/**
+ * @author spaus
+ */
+<span class="nc" id="L24">public abstract class ChartableStatistics</span>
+    extends Statistics
+    {
+    
+    public static final String P_TITLE = &quot;title&quot;;
+    public static final String P_XAXIS = &quot;x-axis-label&quot;;
+    public static final String P_YAXIS = &quot;y-axis-label&quot;;
+    
+    public String title;
+    public String xlabel;
+    public String ylabel;
+    
+    public void setup(EvolutionState state, Parameter base)
+        {
+<span class="nc" id="L38">        super.setup(state, base);</span>
+        
+<span class="nc" id="L40">        title = state.parameters.getStringWithDefault(base.push(P_TITLE),null,&quot;Title&quot;);</span>
+<span class="nc" id="L41">        xlabel = state.parameters.getStringWithDefault(base.push(P_XAXIS),null,&quot;x&quot;);</span>
+<span class="nc" id="L42">        ylabel = state.parameters.getStringWithDefault(base.push(P_YAXIS),null,&quot;y&quot;);</span>
+<span class="nc" id="L43">        }</span>
+    
+    public abstract JFreeChart makeChart();
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

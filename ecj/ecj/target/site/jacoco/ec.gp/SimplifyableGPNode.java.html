@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SimplifyableGPNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">SimplifyableGPNode.java</span></div><h1>SimplifyableGPNode.java</h1><pre class="source lang-java linenums">package ec.gp;
+
+import ec.EvolutionState;
+import ec.Problem;
+
+public interface SimplifyableGPNode extends GPNodeParent
+{
+	// Is the value of this node based on anything other than it's children?
+	// ie. for texture generation: position? node depth?
+	public boolean IsVolatile();
+	// If not, then we might be able to simplify it.
+	public GPNode  GetSimplifiedReplacement(EvolutionState state);
+	
+<span class="nc" id="L14">	public static class SimplifyableGPNodeImpl</span>
+	{
+		public static GPIndividual GetSimplifiedReplacement(EvolutionState state, GPIndividual indv)
+		{
+<span class="nc" id="L18">			GPIndividual ind = (GPIndividual)indv.clone();</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">			for(int i = 0; i &lt; ind.trees.length; i++)</span>
+<span class="nc" id="L20">				ind.trees[i].child = GetSimplifiedReplacement(state, ind.trees[i].child);</span>
+<span class="nc" id="L21">			return ind;</span>
+		}
+		public static GPNode GetSimplifiedReplacement(EvolutionState state, GPNode t)
+		{
+<span class="nc bnc" id="L25" title="All 2 branches missed.">			if(t==null) return null;</span>
+<span class="nc" id="L26">			GPNode root = (GPNode)t.clone();</span>
+			
+<span class="nc" id="L28">			boolean NonVolatile = true;</span>
+<span class="nc bnc" id="L29" title="All 4 branches missed.">			if( (!(root instanceof SimplifyableGPNode)) || ((SimplifyableGPNode)root).IsVolatile() )</span>
+<span class="nc" id="L30">				NonVolatile = false; // can't be certain, or explicitly volatile</span>
+			
+<span class="nc bnc" id="L32" title="All 2 branches missed.">			for(int i = 0; i &lt; root.children.length; i++)</span>
+			{
+<span class="nc" id="L34">				GPNode child = root.children[i];</span>
+<span class="nc" id="L35">				root.children[i] = GetSimplifiedReplacement(state, child);</span>
+<span class="nc bnc" id="L36" title="All 4 branches missed.">				if( (!(child instanceof SimplifyableGPNode)) || ((SimplifyableGPNode)child).IsVolatile() )</span>
+<span class="nc" id="L37">					NonVolatile = false; // can't be certain, or explicitly volatile</span>
+			}
+			
+<span class="nc bnc" id="L40" title="All 2 branches missed.">			if(NonVolatile)</span>
+			{
+				try{
+<span class="nc" id="L43">					GPProblem prob = (GPProblem) state.evaluator.p_problem;</span>
+<span class="nc" id="L44">					GPData input = (GPData) prob.input.clone();</span>
+<span class="nc" id="L45">					root.eval(state, 0, input, null, null, null);</span>
+<span class="nc" id="L46">					root = new FixedValue(input);</span>
+<span class="nc" id="L47">				} catch(Exception ex) {}</span>
+			}
+			
+<span class="nc" id="L50">			return root;</span>
+		}
+	}
+	
+	@SuppressWarnings(&quot;serial&quot;)
+	public static class FixedValue extends GPNode implements SimplifyableGPNode
+	{
+		public GPData Value;
+		
+<span class="nc" id="L59">		public FixedValue(){}</span>
+<span class="nc" id="L60">		public FixedValue(GPData val){ Value = val; }</span>
+		
+		@Override
+<span class="nc" id="L63">		public String toString() { return &quot;[&quot; + Value.toString() + &quot;]&quot;; }</span>
+		@Override
+		public void eval(EvolutionState state, int thread, GPData input, ADFStack stack, GPIndividual individual, Problem problem) 
+		{
+<span class="nc" id="L67">			Value.copyTo(input);</span>
+<span class="nc" id="L68">		}</span>
+		@Override
+<span class="nc" id="L70">		public boolean IsVolatile() { return false; }</span>
+		// Can it be any more simple? No. It can be none more simple.
+		@Override
+<span class="nc" id="L73">		public GPNode GetSimplifiedReplacement(EvolutionState state) { return this; }</span>
+		
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RoyalTree.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.royaltree</a> &gt; <span class="el_source">RoyalTree.java</span></div><h1>RoyalTree.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2012 by James McDermott
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.royaltree;
+import ec.app.royaltree.func.*;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+import java.io.*;
+import javax.imageio.stream.*;
+
+/*
+ * RoyalTree.java
+ *
+ */
+
+/**
+ * RoyalTree implements Punch's RoyalTree problem. See the README.txt.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.app.royaltree.RoyalTreeData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the RoyalTree problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author James McDermott
+ * @version 1.0
+ */
+
+public class RoyalTree extends GPProblem implements SimpleProblemForm
+    {
+
+    public void evaluate(final EvolutionState state,
+        final Individual ind,
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+            // trees[0].child is the root
+<span class="nc" id="L54">            double score = fitness(((GPIndividual) ind).trees[0].child, state);</span>
+
+<span class="nc" id="L56">            SimpleFitness f = ((SimpleFitness) ind.fitness);</span>
+<span class="nc" id="L57">            f.setFitness(state, score, false);</span>
+<span class="nc" id="L58">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L60">        }</span>
+
+    double fitness(GPNode node, EvolutionState state)
+        {
+<span class="nc" id="L64">        double completeBonus = 2.0, partialBonus = 1.0,</span>
+<span class="nc" id="L65">            fullBonus = 2.0, penalty = 1.0 / 3;</span>
+        
+<span class="nc" id="L67">        char node_fn = ((RoyalTreeNode) node).value();</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (node_fn == 'X')</span>
+            {
+<span class="nc" id="L70">            return 1.0;</span>
+            }
+
+<span class="nc" id="L73">        double retval = 0.0;</span>
+<span class="nc" id="L74">        boolean nodeIsPerfect = true;</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        for (int i = 0; i &lt; node.children.length; i++)</span>
+            {
+<span class="nc" id="L77">            GPNode child = node.children[i];</span>
+<span class="nc" id="L78">            char child_fn = ((RoyalTreeNode) child).value();</span>
+            
+<span class="nc bnc" id="L80" title="All 2 branches missed.">            if (isPerfect(node_fn, child, state))</span>
+                {
+<span class="nc" id="L82">                retval += fullBonus * fitness(child, state);</span>
+                }
+<span class="nc bnc" id="L84" title="All 2 branches missed.">            else if (isSuccessor(node_fn, child_fn, state))</span>
+                {
+<span class="nc" id="L86">                retval += partialBonus * fitness(child, state);</span>
+<span class="nc" id="L87">                nodeIsPerfect = false;</span>
+                }
+            else
+                {
+<span class="nc" id="L91">                retval += penalty * fitness(child, state);</span>
+<span class="nc" id="L92">                nodeIsPerfect = false;</span>
+                }
+            }
+        
+        // Only if every child is a perfect subtree of the appropriate
+        // type does this node get completeBonus.
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (nodeIsPerfect)</span>
+            {
+<span class="nc" id="L100">            retval *= completeBonus;</span>
+            }
+<span class="nc" id="L102">        return retval;</span>
+        }
+
+
+    // doesn't need to be cloned
+<span class="nc" id="L107">    char[] successors = new char[256];  // we assume we only have letters, and 0 means &quot;no sucessor&quot;</span>
+    public RoyalTree()
+<span class="nc" id="L109">        {            </span>
+<span class="nc" id="L110">        String SUCCESSORS = &quot;XABCDEFGHIJ&quot;;</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        for(int i = 0; i &lt; SUCCESSORS.length() - 1 ; i++)</span>
+<span class="nc" id="L112">            successors[SUCCESSORS.charAt(i)] = SUCCESSORS.charAt(i+1);</span>
+<span class="nc" id="L113">        }</span>
+
+    /**
+     * @param p parent
+     * @param q child
+     * @return whether q is the correct &quot;successor&quot;, eg p = B and q = A
+     */
+    boolean isSuccessor(char p, char q, EvolutionState state)
+        {
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        return successors[p] == q;</span>
+        }
+
+    /**
+     * Calculate whether the tree rooted at n is a perfect subtree
+     * of the appropriate type given the current parent.
+     * @param parent
+     * @param n root of the sub-tree to be tested.
+     * @return whether it is a perfect subtree of the right type.
+     */
+    boolean isPerfect(char parent, GPNode node, EvolutionState state)
+        {
+<span class="nc" id="L134">        char node_fn = ((RoyalTreeNode) node).value();</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        if (!isSuccessor(parent, node_fn, state))</span>
+            {
+<span class="nc" id="L137">            return false;</span>
+            }
+<span class="nc bnc" id="L139" title="All 2 branches missed.">        for (int i = 0; i &lt; node.children.length; i++)</span>
+            {
+<span class="nc" id="L141">            GPNode child = node.children[i];</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">            if (!isPerfect(node_fn, child, state))</span>
+                {
+<span class="nc" id="L144">                return false;</span>
+                }
+            }
+<span class="nc" id="L147">        return true;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

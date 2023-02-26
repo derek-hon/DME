@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TwoBox.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.twobox</a> &gt; <span class="el_source">TwoBox.java</span></div><h1>TwoBox.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.twobox;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+
+/* 
+ * TwoBox.java
+ * 
+ * Created: Mon Nov  1 15:46:19 1999
+ * By: Sean Luke
+ */
+
+/**
+ * TwoBox implements the TwoBox problem, with or without ADFs,
+ * as discussed in Koza-II.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.app.twobox.TwoBoxData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the TwoBox problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the size of the training set)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;range&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the range of dimensional values in the training set -- they'll be integers 1...range inclusive)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L49">public class TwoBox extends GPProblem implements SimpleProblemForm</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_SIZE = &quot;size&quot;;
+    public static final String P_RANGE= &quot;range&quot;;
+
+    public int currentIndex;
+    public int trainingSetSize;
+    public int range;
+    
+    // these are read-only during evaluation-time, so
+    // they can be just light-cloned and not deep cloned.
+    // cool, huh?
+    
+    public double inputsl0[];
+    public double inputsw0[];
+    public double inputsh0[];
+    public double inputsl1[];
+    public double inputsw1[];
+    public double inputsh1[];
+    public double outputs[];
+
+    public final double func(final double l0, final double w0, 
+        final double h0, final double l1, 
+        final double w1, final double h1)
+<span class="nc" id="L75">        { return l0*w0*h0-l1*w1*h1; }</span>
+
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L81">        super.setup(state,base);</span>
+
+        // verify our input is the right class (or subclasses from it)
+<span class="nc bnc" id="L84" title="All 2 branches missed.">        if (!(input instanceof TwoBoxData))</span>
+<span class="nc" id="L85">            state.output.fatal(&quot;GPData class must subclass from &quot; + TwoBoxData.class,</span>
+<span class="nc" id="L86">                base.push(P_DATA), null);</span>
+
+<span class="nc" id="L88">        trainingSetSize = state.parameters.getInt(base.push(P_SIZE),null,1);</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        if (trainingSetSize&lt;1) state.output.fatal(&quot;Training Set Size must be an integer greater than 0&quot;); </span>
+
+<span class="nc" id="L91">        range = state.parameters.getInt(base.push(P_RANGE),null,1);</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (trainingSetSize&lt;1) state.output.fatal(&quot;Range must be an integer greater than 0&quot;); </span>
+
+        // Compute our inputs so they
+        // can be copied with clone later
+        
+<span class="nc" id="L97">        inputsl0 = new double[trainingSetSize];</span>
+<span class="nc" id="L98">        inputsw0 = new double[trainingSetSize];</span>
+<span class="nc" id="L99">        inputsh0 = new double[trainingSetSize];</span>
+<span class="nc" id="L100">        inputsl1 = new double[trainingSetSize];</span>
+<span class="nc" id="L101">        inputsw1 = new double[trainingSetSize];</span>
+<span class="nc" id="L102">        inputsh1 = new double[trainingSetSize];</span>
+<span class="nc" id="L103">        outputs = new double[trainingSetSize];</span>
+        
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        for(int x=0;x&lt;trainingSetSize;x++)</span>
+            {
+<span class="nc" id="L107">            inputsl0[x] = state.random[0].nextInt(range)+1;</span>
+<span class="nc" id="L108">            inputsw0[x] = state.random[0].nextInt(range)+1;</span>
+<span class="nc" id="L109">            inputsh0[x] = state.random[0].nextInt(range)+1;</span>
+<span class="nc" id="L110">            inputsl1[x] = state.random[0].nextInt(range)+1;</span>
+<span class="nc" id="L111">            inputsw1[x] = state.random[0].nextInt(range)+1;</span>
+<span class="nc" id="L112">            inputsh1[x] = state.random[0].nextInt(range)+1;</span>
+<span class="nc" id="L113">            outputs[x] = func(inputsl0[x],inputsw0[x],inputsh0[x],</span>
+                inputsl1[x],inputsw1[x],inputsh1[x]);
+<span class="nc" id="L115">            state.output.println(&quot;{&quot; + inputsl0[x]+ &quot;,&quot; + inputsw0[x]+ &quot;,&quot; +</span>
+                inputsh0[x]+ &quot;,&quot; + inputsl1[x]+ &quot;,&quot; +
+                inputsw1[x]+ &quot;,&quot; + inputsh1[x]+ &quot;,&quot; +
+                outputs[x] + &quot;},&quot;,0);
+            }
+<span class="nc" id="L120">        }</span>
+
+
+    public void evaluate(final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+<span class="nc" id="L130">            TwoBoxData input = (TwoBoxData)(this.input);</span>
+
+<span class="nc" id="L132">            int hits = 0;</span>
+<span class="nc" id="L133">            double sum = 0.0;</span>
+            double result;
+<span class="nc bnc" id="L135" title="All 2 branches missed.">            for (int y=0;y&lt;trainingSetSize;y++)</span>
+                {
+<span class="nc" id="L137">                currentIndex = y;</span>
+<span class="nc" id="L138">                ((GPIndividual)ind).trees[0].child.eval(</span>
+                    state,threadnum,input,stack,((GPIndividual)ind),this);
+
+<span class="nc" id="L141">                final double HIT_LEVEL = 0.01;</span>
+<span class="nc" id="L142">                final double PROBABLY_ZERO = 1.11E-15;</span>
+<span class="nc" id="L143">                final double BIG_NUMBER = 1.0e15;  // the same as lilgp uses</span>
+                    
+<span class="nc" id="L145">                result = Math.abs(outputs[y] - input.x);</span>
+
+                // very slight math errors can creep in when evaluating
+                // two equivalent by differently-ordered functions, like
+                // x * (x*x*x + x*x)  vs. x*x*x*x + x*x
+
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                if (result&lt;PROBABLY_ZERO)  // slightly off</span>
+<span class="nc" id="L152">                    result = 0.0;</span>
+
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                if (result &gt; BIG_NUMBER)</span>
+<span class="nc" id="L155">                    result = BIG_NUMBER;                    </span>
+
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                if (result &lt;= HIT_LEVEL) hits++;  // whatever!</span>
+
+<span class="nc" id="L159">                sum += result;              </span>
+                }
+                
+            // the fitness better be KozaFitness!
+<span class="nc" id="L163">            KozaFitness f = ((KozaFitness)ind.fitness);</span>
+<span class="nc" id="L164">            f.setStandardizedFitness(state, sum);</span>
+<span class="nc" id="L165">            f.hits = hits;</span>
+<span class="nc" id="L166">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L168">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

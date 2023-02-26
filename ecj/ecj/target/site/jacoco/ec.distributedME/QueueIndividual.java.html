@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>QueueIndividual.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">QueueIndividual.java</span></div><h1>QueueIndividual.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+/*
+  A simple class which contains both an Individual and the Queue it's located in.
+  Used by SteadyState and by various assistant functions in the distributed evaluator
+  to provide individuals to SteadyState
+*/
+
+package ec.distributedME;
+// import ec.gp.*;
+
+/**
+ * QueueIndividual
+ * @see ec.steadystate.QueueIndividual
+ * 
+ * Created: 25 January, 2022
+ * @author Derek Hon
+ * @version 1.0
+ */
+public class QueueIndividual implements java.io.Serializable
+{
+    public Elite ind;
+    public int submap;
+    public  QueueIndividual(Elite i, int submap)
+<span class="nc" id="L29">    {</span>
+<span class="nc" id="L30">        this.ind = i;</span>
+<span class="nc" id="L31">        this.submap = submap;</span>
+<span class="nc" id="L32">    }</span>
+};
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

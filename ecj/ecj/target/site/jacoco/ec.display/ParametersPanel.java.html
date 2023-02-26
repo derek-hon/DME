@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ParametersPanel.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.display</a> &gt; <span class="el_source">ParametersPanel.java</span></div><h1>ParametersPanel.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Paus
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.display;
+
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.*;
+import javax.swing.*;
+import javax.swing.event.*;
+import javax.swing.table.*;
+import javax.swing.tree.*;
+import ec.util.*;
+
+/*
+ * Created on Apr 4, 2005 8:54:38 PM
+ * 
+ * By: spaus
+ */
+
+/**
+ * @author spaus
+ */
+public class ParametersPanel
+    extends JPanel
+    {
+    
+    private final Console console;
+    
+<span class="nc" id="L35">    private JScrollPane parameterTreeScrollPane = null;</span>
+<span class="nc" id="L36">    private JTree parameterTree = null;</span>
+    
+<span class="nc" id="L38">    private JScrollPane parameterTableScrollPane = null;</span>
+<span class="nc" id="L39">    private JTable parameterTable = null;</span>
+<span class="nc" id="L40">    private JSplitPane jSplitPane = null;</span>
+    
+
+    
+    /**
+     * This method initializes jScrollPane      
+     *  
+     * @return javax.swing.JScrollPane  
+     */    
+    private JScrollPane getParameterTreeScrollPane()
+        {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (parameterTreeScrollPane == null)</span>
+            {
+<span class="nc" id="L53">            parameterTreeScrollPane = new JScrollPane();</span>
+<span class="nc" id="L54">            parameterTreeScrollPane.setViewportView(getParameterTree());</span>
+<span class="nc" id="L55">            parameterTreeScrollPane.setPreferredSize(new java.awt.Dimension(150,363));</span>
+            }
+<span class="nc" id="L57">        return parameterTreeScrollPane;</span>
+        }
+    /**
+     * This method initializes jTree    
+     *  
+     * @return javax.swing.JTree        
+     */    
+    private JTree getParameterTree()
+        {
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (parameterTree == null)</span>
+            {
+<span class="nc" id="L68">            DefaultMutableTreeNode root = new DefaultMutableTreeNode();</span>
+<span class="nc" id="L69">            DefaultTreeModel model = new DefaultTreeModel(root);</span>
+<span class="nc" id="L70">            parameterTree = new JTree(model);</span>
+<span class="nc" id="L71">            parameterTree.setRootVisible(false);</span>
+<span class="nc" id="L72">            parameterTree.setShowsRootHandles(false);</span>
+<span class="nc" id="L73">            parameterTree.addTreeSelectionListener(new javax.swing.event.TreeSelectionListener()</span>
+<span class="nc" id="L74">                { </span>
+                public void valueChanged(javax.swing.event.TreeSelectionEvent e)
+                    {
+<span class="nc" id="L77">                    DefaultTableModel tableModel = (DefaultTableModel)parameterTable.getModel();</span>
+<span class="nc" id="L78">                    int rows = tableModel.getRowCount();</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">                    for (int row = rows-1; row &gt;= 0; --row)</span>
+                        {
+<span class="nc" id="L81">                        tableModel.removeRow(row);</span>
+                        }
+
+<span class="nc" id="L84">                    TreePath path = e.getPath();</span>
+<span class="nc" id="L85">                    Object[] oPath = path.getPath();</span>
+<span class="nc" id="L86">                    StringBuilder sBuff = new StringBuilder();</span>
+                    // Ignore the root node.
+<span class="nc bnc" id="L88" title="All 2 branches missed.">                    for (int i = 1; i &lt; oPath.length; ++i)</span>
+                        {
+<span class="nc" id="L90">                        sBuff.append(oPath[i]);</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                        if (i &lt; oPath.length-1)</span>
+                            {
+<span class="nc" id="L93">                            sBuff.append('.');</span>
+                            }
+                        }
+
+<span class="nc" id="L97">                    String[] newRow =</span>
+                        {&quot;&quot;, &quot;&quot;, &quot;&quot;};
+<span class="nc" id="L99">                    DefaultMutableTreeNode selected = (DefaultMutableTreeNode)oPath[oPath.length-1];</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">                    if (!selected.equals(oPath[0]))</span>
+                        {
+<span class="nc" id="L102">                        newRow[0] = sBuff.toString();</span>
+<span class="nc" id="L103">                        Parameter param = new Parameter(newRow[0]);</span>
+<span class="nc" id="L104">                        newRow[1] = console.parameters.getString(param,null);</span>
+<span class="nc" id="L105">                        ParameterDatabase p = console.parameters.getLocation(param);</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                        if (p == null) newRow[2] = &quot;&quot;;</span>
+<span class="nc" id="L107">                        else newRow[2] = p.getLabel();</span>
+                        
+<span class="nc bnc" id="L109" title="All 2 branches missed.">                        if (newRow[1] != null)</span>
+                            {
+<span class="nc" id="L111">                            tableModel.addRow(newRow);</span>
+                            }
+                        }
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">                    if (!newRow[0].equals(&quot;&quot;))</span>
+                        {
+<span class="nc" id="L117">                        newRow[0] = newRow[0]+&quot;.&quot;;</span>
+                        }
+                    
+<span class="nc bnc" id="L120" title="All 2 branches missed.">                    if(!selected.isLeaf())</span>
+                        {
+<span class="nc" id="L122">                        int children = selected.getChildCount();</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">                        for (int ch = 0; ch &lt; children; ++ch)</span>
+                            {
+<span class="nc" id="L125">                            TreeNode child = selected.getChildAt(ch);</span>
+<span class="nc" id="L126">                            String childRow[] = new String[3];</span>
+<span class="nc" id="L127">                            childRow[0] = newRow[0]+child;</span>
+<span class="nc" id="L128">                            Parameter param = new Parameter(childRow[0]);</span>
+<span class="nc" id="L129">                            childRow[1] = console.parameters.getString(param,null);</span>
+<span class="nc" id="L130">                            ParameterDatabase p = console.parameters.getLocation(param);</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">                            if (p == null) childRow[2] = &quot;&quot;;</span>
+<span class="nc" id="L132">                            else childRow[2] = p.getLabel();</span>
+                                                        
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                            if (childRow[1] != null)</span>
+                                {
+<span class="nc" id="L136">                                tableModel.addRow(childRow);</span>
+                                }
+                            }
+                        }
+<span class="nc" id="L140">                    }</span>
+                });
+            }
+<span class="nc" id="L143">        return parameterTree;</span>
+        }
+    /**
+     * This method initializes jScrollPane1     
+     *  
+     * @return javax.swing.JScrollPane  
+     */    
+    private JScrollPane getParameterTableScrollPane()
+        {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (parameterTableScrollPane == null)</span>
+            {
+<span class="nc" id="L154">            parameterTableScrollPane = new JScrollPane();</span>
+<span class="nc" id="L155">            parameterTableScrollPane.setViewportView(getParameterTable());</span>
+            }
+<span class="nc" id="L157">        return parameterTableScrollPane;</span>
+        }
+    /**
+     * This method initializes jTable   
+     *  
+     * @return javax.swing.JTable       
+     */    
+    private JTable getParameterTable()
+        {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (parameterTable == null)</span>
+            {
+<span class="nc" id="L168">            String[] cn =</span>
+                {&quot;Parameter&quot;, &quot;Value&quot;, &quot;Source&quot;};
+<span class="nc" id="L170">            DefaultTableModel model = new DefaultTableModel(cn,0);</span>
+<span class="nc" id="L171">            model.addTableModelListener(new TableModelListener()</span>
+<span class="nc" id="L172">                {</span>
+                public void tableChanged(TableModelEvent evt)
+                    {
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                    if (evt.getColumn() == 1 &amp;&amp; </span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                        evt.getType() == TableModelEvent.UPDATE)</span>
+                        {
+
+<span class="nc" id="L179">                        int row = evt.getFirstRow();</span>
+<span class="nc" id="L180">                        DefaultTableModel model = (DefaultTableModel)evt.getSource();</span>
+<span class="nc" id="L181">                        String key = (String)model.getValueAt(row,0);</span>
+<span class="nc" id="L182">                        String value = (String)model.getValueAt(row,1);</span>
+<span class="nc" id="L183">                        Parameter parameter = new Parameter(key);</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">                        if (!console.parameters.getString(parameter,null).equals(value))</span>
+                            {
+<span class="nc" id="L186">                            System.out.println(&quot;setting parameter &quot;+parameter+&quot; to &quot;+value);</span>
+<span class="nc" id="L187">                            console.parameters.set(parameter, value);</span>
+                            }
+                        }
+<span class="nc" id="L190">                    }</span>
+                });
+            
+<span class="nc" id="L193">            parameterTable = new JTable(model);</span>
+<span class="nc" id="L194">            parameterTable.setSelectionMode(DefaultListSelectionModel.SINGLE_SELECTION);</span>
+<span class="nc" id="L195">            parameterTable.setAutoResizeMode(javax.swing.JTable.AUTO_RESIZE_OFF);</span>
+<span class="nc" id="L196">            parameterTable.getColumnModel().getColumn(0).setPreferredWidth(150);</span>
+<span class="nc" id="L197">            parameterTable.getColumnModel().getColumn(1).setPreferredWidth(150);</span>
+<span class="nc" id="L198">            parameterTable.getColumnModel().getColumn(2).setPreferredWidth(450);</span>
+
+<span class="nc" id="L200">            final JComboBox valueEditor = new JComboBox();</span>
+            //            valueEditor.setEditable(true);
+<span class="nc" id="L202">            parameterTable.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(valueEditor));</span>
+<span class="nc" id="L203">            valueEditor.addFocusListener(new FocusAdapter()</span>
+<span class="nc" id="L204">                {</span>
+                public void focusGained(FocusEvent evt)
+                    {
+<span class="nc" id="L207">                    int row = parameterTable.getSelectedRow();</span>
+<span class="nc" id="L208">                    String pName = (String)parameterTable.getValueAt(row,0);</span>
+<span class="nc" id="L209">                    Set values = console.parameters.getShadowedValues(new Parameter(pName));</span>
+<span class="nc" id="L210">                    DefaultComboBoxModel model = new DefaultComboBoxModel(values.toArray());</span>
+<span class="nc" id="L211">                    valueEditor.setModel(model);</span>
+<span class="nc" id="L212">                    }</span>
+                });
+            }
+        
+<span class="nc" id="L216">        return parameterTable;</span>
+        }
+    /**
+     * This method initializes jSplitPane   
+     *      
+     * @return javax.swing.JSplitPane       
+     */    
+    private JSplitPane getJSplitPane()
+        {
+<span class="nc bnc" id="L225" title="All 2 branches missed.">        if (jSplitPane == null)</span>
+            {
+<span class="nc" id="L227">            jSplitPane = new JSplitPane();</span>
+<span class="nc" id="L228">            jSplitPane.setLeftComponent(getParameterTreeScrollPane());</span>
+<span class="nc" id="L229">            jSplitPane.setRightComponent(getParameterTableScrollPane());</span>
+<span class="nc" id="L230">            jSplitPane.setDividerSize(5);</span>
+<span class="nc" id="L231">            jSplitPane.setDividerLocation(200);</span>
+            }
+<span class="nc" id="L233">        return jSplitPane;</span>
+        }
+    
+    /**
+     * This is the default constructor
+     */
+    public ParametersPanel(Console console)
+        {
+<span class="nc" id="L241">        super();</span>
+<span class="nc" id="L242">        initialize();</span>
+<span class="nc" id="L243">        this.console = console;</span>
+<span class="nc" id="L244">        }</span>
+    /**
+     * This method initializes this
+     * 
+     * @return void
+     */
+    private void initialize()
+        {
+<span class="nc" id="L252">        this.setLayout(new BorderLayout());</span>
+<span class="nc" id="L253">        this.setSize(645, 321);</span>
+<span class="nc" id="L254">        this.add(getJSplitPane(), java.awt.BorderLayout.CENTER);</span>
+<span class="nc" id="L255">        }</span>
+    
+    void loadParameters()
+        {
+<span class="nc" id="L259">        parameterTree.setModel(console.parameters.buildTreeModel());</span>
+<span class="nc" id="L260">        parameterTree.setRootVisible(true);</span>
+<span class="nc" id="L261">        }</span>
+    
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

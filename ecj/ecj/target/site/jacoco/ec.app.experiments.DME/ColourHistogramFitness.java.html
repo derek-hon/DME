@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ColourHistogramFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.DME</a> &gt; <span class="el_source">ColourHistogramFitness.java</span></div><h1>ColourHistogramFitness.java</h1><pre class="source lang-java linenums">package ec.app.experiments.DME;
+
+import ec.util.Parameter;
+import java.awt.image.BufferedImage;
+// import java.io.File;
+import java.io.IOException;
+// import java.nio.file.Path;
+// import java.nio.file.Paths;
+
+import ec.gp.koza.*;
+import ec.distributedME.*;
+import ec.EvolutionState;
+// import ec.app.proceduralTexture.ColorHistogram;
+import ec.app.experiments.GeneralandFitness.ColorHistogram;
+
+import java.util.ArrayList;
+
+/**
+ * ColourHistogramFitness.java Created: 05/05/2020 By: Derek Hon
+ **/
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L23">public class ColourHistogramFitness extends ImageLoad {</span>
+
+    // public BufferedImage TargetImage_ColourScheme = null;
+    // public DirectMatch TargetMatch = null;
+    // ImageRender render;
+    ColorHistogram target;
+    // int Size;
+    // public static final String P_SAVE_PATH = &quot;save-path&quot;;
+    // public String savePath;
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L35">        super.setup(state, base);</span>
+
+        // Load targets from existing image
+
+        // int[] targetData = new int[TargetImage.getHeight() * TargetImage.getWidth()];
+
+        // for (int i = 0; i &lt; TargetImage.getHeight() * TargetImage.getWidth(); i++)
+        //     targetData[i] = Integer.MAX_VALUE;
+
+        // for (int i = 0; i &lt; TargetImage.getHeight(); i++) {
+        //     for (int j = 0; j &lt; TargetImage.getWidth(); j++) {
+        //         targetData[i * TargetImage.getWidth() + j] = TargetImage.getRGB(j, i);
+        //     }
+        // }
+
+        // if (targetData[0] == Integer.MAX_VALUE)
+        //     state.output.fatal(&quot;Problem &quot; + this.getClass() + &quot; requires a target image.&quot;);
+        
+<span class="nc" id="L53">        target = new ColorHistogram(TargetImage);</span>
+        // render = new ImageRender();
+
+        // Parameter p = new Parameter(&quot;map&quot;);
+        // Size = state.parameters.getInt(p.push(&quot;imagesize&quot;), p.push(&quot;imagesize&quot;), 0);
+
+        // state.output.message(&quot;Problem &quot; + this.getClass() + &quot; initialized.&quot;);
+
+        // saveAll = state.parameters.getBoolean(base.push(P_SAVE_ALL), null, true);
+        // savePath = state.parameters.getString(base.push(P_SAVE_PATH), null);
+<span class="nc" id="L63">    }</span>
+
+    @Override
+    public void evaluate(EvolutionState state, Elite ind, int submap, int threadnum) {
+<span class="nc" id="L67">        super.evaluate(state, ind, submap, threadnum);</span>
+
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if (!ind.evaluated) {</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            if (!(ind instanceof Elite))</span>
+<span class="nc" id="L71">                state.output.fatal(&quot;&quot; + this.getClass() + &quot; expects individuals of type Elite&quot;);</span>
+
+            // if (ind.render == null)
+            // state.output.fatal(&quot;Direct match null&quot;);
+
+            // Compute Colour distance
+            // int[] vals = render.RenderColour(state, ind, 0, Size);
+            // DirectMatch colourDirect = new DirectMatch(colours);
+<span class="nc" id="L79">            BufferedImage sol = new BufferedImage(TargetImage.getWidth(), TargetImage.getHeight(), BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L80">            sol.setRGB(0, 0, TargetImage.getWidth(), TargetImage.getHeight(), colours, 0, TargetImage.getWidth());</span>
+<span class="nc" id="L81">            ColorHistogram solution = new ColorHistogram(sol);</span>
+<span class="nc" id="L82">            double dist = target.colorDS(solution);</span>
+            // double[] colourDistInfo = TargetMatch.colourDirectMatch(colourDirect);
+            // double[] colourDistInfo = TargetMatch.blueMatch(colourDirect);
+
+            // state.output.fatal(colourDistInfo[0] + &quot; &quot; + colourDistInfo[1]);
+
+<span class="nc" id="L88">            KozaFitness f = ((KozaFitness) ind.fitness);</span>
+<span class="nc" id="L89">            f.setStandardizedFitness(state, dist);</span>
+            // f.hits = (int) colourDistInfo[1];
+<span class="nc" id="L91">            ind.evaluated = true;</span>
+        } // if
+<span class="nc" id="L93">    } // evaluate</span>
+
+    @Override
+    public void describe(final EvolutionState state, final Elite ind, final int submap, final int threadnum, final int log) {
+<span class="nc" id="L97">        super.describe(state, ind, submap, threadnum, log);</span>
+<span class="nc" id="L98">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

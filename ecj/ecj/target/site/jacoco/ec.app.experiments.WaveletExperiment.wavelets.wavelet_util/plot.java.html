@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>plot.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets.wavelet_util</a> &gt; <span class="el_source">plot.java</span></div><h1>plot.java</h1><pre class="source lang-java linenums">
+package ec.app.experiments.WaveletExperiment.wavelets.wavelet_util;
+
+import java.io.*;
+
+<span class="nc" id="L6">public abstract class plot {</span>
+
+  abstract String class_name();
+
+  public PrintWriter OpenFile( String path ) {
+<span class="nc" id="L11">    PrintWriter prStr = null;</span>
+
+    try {
+<span class="nc" id="L14">      FileOutputStream outStr = new FileOutputStream( path );</span>
+<span class="nc" id="L15">      prStr = new PrintWriter( outStr );</span>
+    }
+<span class="nc" id="L17">    catch (Exception e) {</span>
+<span class="nc" id="L18">	System.out.println( class_name() + &quot;: file name = &quot; + path + &quot;, &quot; +</span>
+<span class="nc" id="L19">			   e.getMessage() );</span>
+<span class="nc" id="L20">    }</span>
+
+<span class="nc" id="L22">    return prStr;</span>
+  } // OpenFile
+
+} // plot
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

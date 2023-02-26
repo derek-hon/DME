@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Species.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">Species.java</span></div><h1>Species.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+import ec.util.*;
+import java.io.*;
+import java.util.*;
+
+/* 
+ * Species.java
+ * 
+ * Created: Tue Aug 10 20:31:50 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Species is a prototype which defines the features for a set of individuals
+ * in the population.  Typically, individuals may breed if they belong to the
+ * same species (but it's not a hard-and-fast rule).  Each Subpopulation has
+ * one Species object which defines the species for individuals in that
+ * Subpopulation.
+ *
+ * &lt;p&gt;Species are generally responsible for creating individuals, through
+ * their newIndividual(...) method.  This method usually clones its prototypical
+ * individual and makes some additional modifications to the clone, then returns it.
+ * Note that the prototypical individual does &lt;b&gt;not need to be a complete individual&lt;/b&gt; --
+ * for example, GPSpecies holds a GPIndividual which doesn't have any trees (the tree
+ * roots are null).
+ *
+ * &lt;p&gt;Species also holds a prototypical breeding pipeline meant to breed
+ * this individual.  To breed individuals of this species, clone the pipeline
+ * and use the clone.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ind&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.Individual&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical individual for the species)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;fitness&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.Fitness&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical fitness for the species)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;numpipes&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(total number of breeding pipelines for the species)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;pipe&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.BreedingSource&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical Breeding Source)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ind&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;i_prototype (the prototypical individual)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;pipe&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;pipe_prototype (breeding source prototype)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;fitness&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;f_prototype (the prototypical fitness)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="fc" id="L78">public abstract class Species implements Prototype</span>
+    {
+    public static final String P_INDIVIDUAL = &quot;ind&quot;;
+    public static final String P_PIPE = &quot;pipe&quot;;
+    public static final String P_FITNESS = &quot;fitness&quot;;
+
+    /** The prototypical individual for this species. */
+    public Individual i_prototype;
+    
+    /** The prototypical breeding pipeline for this species. */
+    public BreedingSource pipe_prototype;
+
+    /** The prototypical fitness for individuals of this species. */
+    public Fitness f_prototype;    
+    
+    public Object clone()
+        {
+        try
+            {
+<span class="nc" id="L97">            Species myobj = (Species) (super.clone());</span>
+<span class="nc" id="L98">            myobj.i_prototype = (Individual) i_prototype.clone();</span>
+<span class="nc" id="L99">            myobj.f_prototype = (Fitness) f_prototype.clone();</span>
+<span class="nc" id="L100">            myobj.pipe_prototype = (BreedingSource) pipe_prototype.clone();</span>
+<span class="nc" id="L101">            return myobj;</span>
+            }
+<span class="nc" id="L103">        catch (CloneNotSupportedException e)</span>
+<span class="nc" id="L104">            { throw new InternalError(); } // never happens</span>
+        } 
+        
+    /** Called whenever the Breeder calls produce(...) on a BreedingPipeline, in order to pass
+        a new &quot;misc&quot; object.  Customize this as you see fit: the default just builds an empty hashmap. */
+    public HashMap&lt;String, Object&gt; buildMisc(EvolutionState state, int subpopIndex, int thread)
+        {
+<span class="fc" id="L111">        return new HashMap&lt;String,Object&gt;();</span>
+        }
+   
+    /** Provides a brand-new individual to fill in a population.  The default form
+        simply calls clone(), creates a fitness, sets evaluated to false, and sets
+        the species.  If you need to make a more custom genotype (as is the case
+        for GPSpecies, which requires a light rather than deep clone), 
+        you will need to override this method as you see fit.
+    */
+    
+    public Individual newIndividual(final EvolutionState state, int thread)
+        {
+<span class="fc" id="L123">        Individual newind = (Individual)(i_prototype.clone());</span>
+
+        // Set the fitness
+<span class="fc" id="L126">        newind.fitness = (Fitness)(f_prototype.clone());</span>
+<span class="fc" id="L127">        newind.evaluated = false;</span>
+
+        // Set the species to me
+<span class="fc" id="L130">        newind.species = this;</span>
+
+        // ...and we're ready!
+<span class="fc" id="L133">        return newind;</span>
+        }
+    
+    /**
+       Provides an individual read from a stream, including
+       the fitness; the individual will
+       appear as it was written by printIndividual(...).  Doesn't 
+       close the stream.  Sets evaluated to false and sets the species.
+       If you need to make a more custom mechanism (as is the case
+       for GPSpecies, which requires a light rather than deep clone), 
+       you will need to override this method as you see fit.
+    */
+
+    public Individual newIndividual(final EvolutionState state,
+        final LineNumberReader reader)
+        throws IOException
+        {
+<span class="nc" id="L150">        Individual newind = (Individual)(i_prototype.clone());</span>
+        
+        // Set the fitness
+<span class="nc" id="L153">        newind.fitness = (Fitness)(f_prototype.clone());</span>
+<span class="nc" id="L154">        newind.evaluated = false; // for sanity's sake, though it's a useless line</span>
+
+        // load that sucker
+<span class="nc" id="L157">        newind.readIndividual(state,reader);</span>
+
+        // Set the species to me
+<span class="nc" id="L160">        newind.species = this;</span>
+
+        // and we're ready!
+<span class="nc" id="L163">        return newind;  </span>
+        }
+
+    /**
+       Provides an individual read from a DataInput source, including
+       the fitness.  Doesn't 
+       close the DataInput.  Sets evaluated to false and sets the species.
+       If you need to make a more custom mechanism (as is the case
+       for GPSpecies, which requires a light rather than deep clone), 
+       you will need to override this method as you see fit.
+    */
+
+    public Individual newIndividual(final EvolutionState state,
+        final DataInput dataInput)
+        throws IOException
+        {
+<span class="nc" id="L179">        Individual newind = (Individual)(i_prototype.clone());</span>
+        
+        // Set the fitness
+<span class="nc" id="L182">        newind.fitness = (Fitness)(f_prototype.clone());</span>
+<span class="nc" id="L183">        newind.evaluated = false; // for sanity's sake, though it's a useless line</span>
+
+        // Set the species to me
+<span class="nc" id="L186">        newind.species = this;</span>
+
+        // load that sucker
+<span class="nc" id="L189">        newind.readIndividual(state,dataInput);</span>
+
+        // and we're ready!
+<span class="nc" id="L192">        return newind;  </span>
+        }
+        
+        
+    /** The default version of setup(...) loads requested pipelines and calls setup(...) on them and normalizes their probabilities.  
+        If your individual prototype might need to know special things about the species (like parameters stored in it),
+        then when you override this setup method, you'll need to set those parameters BEFORE you call super.setup(...),
+        because the setup(...) code in Species sets up the prototype.
+        @see Prototype#setup(EvolutionState,Parameter)
+    */
+ 
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L205">        Parameter def = defaultBase();</span>
+
+        // load the breeding pipeline
+<span class="fc" id="L208">        pipe_prototype = (BreedingSource)(state.parameters.getInstanceForParameter(base.push(P_PIPE),def.push(P_PIPE),BreedingSource.class));</span>
+<span class="fc" id="L209">        pipe_prototype.setup(state,base.push(P_PIPE));</span>
+
+        // I promised over in BreedingSource.java that this method would get called.
+<span class="fc" id="L212">        state.output.exitIfErrors();</span>
+
+        // load our individual prototype
+<span class="fc" id="L215">        i_prototype = (Individual)(state.parameters.getInstanceForParameter(base.push(P_INDIVIDUAL), def.push(P_INDIVIDUAL), Individual. class));</span>
+        // set the species to me before setting up the individual, so they know who I am
+<span class="fc" id="L217">        i_prototype.species = this;</span>
+<span class="fc" id="L218">        i_prototype.setup(state,base.push(P_INDIVIDUAL));</span>
+        
+        // load our fitness
+<span class="fc" id="L221">        f_prototype = (Fitness) state.parameters.getInstanceForParameter( base.push(P_FITNESS),def.push(P_FITNESS), Fitness.class);</span>
+<span class="fc" id="L222">        f_prototype.setup(state,base.push(P_FITNESS));</span>
+<span class="fc" id="L223">        }</span>
+
+    /** A hook for code that is run on every individual as soon as it is evaluated.  This method does nothing unless it
+     * is override by a subclass.
+     *
+     * For example, an implementation of Ant Colony System might use this to apply a
+     * local pheromone update.
+     *
+     * @see ec.simple.SimpleEvaluator
+     */
+    public void updateIndividual(final EvolutionState state, final Individual ind)
+        {
+            // Do nothing by default
+<span class="fc" id="L236">        }</span>
+
+    /**
+     * A hook for code that is run on the entire subpopulation as soon as it has been evaluated.
+     *
+     * For example, an implementation of Ant System might use this to apply a global
+     * pheromone update. You can see how this method is used by having a look at SimpleEvaluator.
+     */
+    public void updateSubpopulation(final EvolutionState state, final Subpopulation subpop)
+        {
+            // Do nothing by default
+<span class="fc" id="L247">        }</span>
+    }
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

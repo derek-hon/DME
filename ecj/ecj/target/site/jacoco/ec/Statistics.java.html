@@ -1,0 +1,250 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Statistics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">Statistics.java</span></div><h1>Statistics.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+import ec.steadystate.*;
+import ec.util.*;
+
+/* 
+ * Statistics.java
+ * 
+ * Created: Tue Aug 10 21:10:48 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Statistics and its subclasses are Cliques which generate statistics
+ * during the run.  Statistics are arranged in a tree hierarchy -- 
+ * The root statistics object may have &quot;children&quot;, and when the root is
+ * called, it calls its children with the same message.  You can override
+ * this behavior however you see fit.
+  
+ * &lt;p&gt;There are lots of places where statistics might be nice to print out.
+ * These places are implemented as hooks in the Statistics object which you
+ * can override if you like; otherwise they call the default behavior.  If
+ * you plan on allowing your Statistics subclass to contain children, you
+ * should remember to call the appropriate super.foo() if you 
+ * override any foo() method.
+ *
+ * &lt;p&gt;While there are lots of hooks, various EvolutionState objects only
+ * implement a subset of them.   You'll need to look at the EvolutionState
+ * code to see which ones are implemented to make sure that your statistics
+ * hooks are called appropriately!
+ *
+ * &lt;p&gt;Statistics objects should set up their statistics logs etc. during 
+ * &lt;tt&gt;setup(...)&lt;/tt&gt;.  Remember to make the log restartable in
+ * case of restarting from a checkpoint.
+ *
+ * &lt;p&gt;&lt;b&gt;Steady-State Statistics&lt;/b&gt;.  For convenience, Statistics contains
+ * default implementations of the SteadyStateStatisticsForm methods but
+ * does not implement SteadyStateStatisticsForm.  This mostly is intended
+ * to keep SteadyStateStatistcsForm implementations from having to call
+ * functions on all their children: instead they can just call foo.super();
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-children&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of child statistics objects)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;child&lt;/tt&gt;.&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or equals ec.Statistics&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class of child statistics object number &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ 
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;child&lt;/tt&gt;.&lt;i&gt;n&lt;/i&gt;&lt;/td&gt;
+ &lt;td&gt;species (child statistics object number &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ 
+
+
+ * @author Sean Luke
+ * @version 2.0 
+ */
+
+<span class="fc" id="L71">public class Statistics implements Singleton</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_NUMCHILDREN = &quot;num-children&quot;;
+    public static final String P_CHILD = &quot;child&quot;; 
+    public static final String P_SILENT = &quot;silent&quot;;
+    public static final String P_MUZZLE = &quot;muzzle&quot;;  // deprecated
+    public static final String P_SILENT_PRINT = &quot;silent.print&quot;;
+    public static final String P_SILENT_FILE = &quot;silent.file&quot;;
+    public Statistics[] children;
+    public boolean silentFile;
+    public boolean silentPrint;
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L87">        int t = state.parameters.getIntWithDefault(base.push(P_NUMCHILDREN),null,0);</span>
+<span class="pc bpc" id="L88" title="1 of 2 branches missed.">        if (t &lt; 0) </span>
+<span class="nc" id="L89">            state.output.fatal(&quot;A Statistics object cannot have negative number of children&quot;,</span>
+<span class="nc" id="L90">                base.push(P_NUMCHILDREN));</span>
+        
+<span class="fc" id="L92">        silentFile = silentPrint = state.parameters.getBoolean(base.push(P_SILENT), null, false);</span>
+        // yes, we're stating them a second time.  It's correct logic.
+<span class="fc" id="L94">        silentFile = state.parameters.getBoolean(base.push(P_SILENT_FILE), null, silentFile);</span>
+<span class="fc" id="L95">        silentPrint = state.parameters.getBoolean(base.push(P_SILENT_PRINT), null, silentPrint);</span>
+        
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">        if (state.parameters.exists(base.push(P_MUZZLE), null))</span>
+<span class="nc" id="L98">            state.output.warning(&quot;&quot; + base.push(P_MUZZLE) + &quot; has been deprecated.  We suggest you use &quot; + </span>
+<span class="nc" id="L99">                base.push(P_SILENT) + &quot; or similar newer options.&quot;);</span>
+<span class="pc bpc" id="L100" title="2 of 4 branches missed.">        silentFile = silentFile || state.parameters.getBoolean(base.push(P_MUZZLE), null, false);</span>
+
+        // load the trees
+<span class="fc" id="L103">        children = new Statistics[t];</span>
+
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">        for (int x=0;x&lt;t;x++)</span>
+            {
+<span class="nc" id="L107">            Parameter p = base.push(P_CHILD).push(&quot;&quot;+x);</span>
+<span class="nc" id="L108">            children[x] = (Statistics)(state.parameters.getInstanceForParameterEq(p,null,Statistics.class));</span>
+<span class="nc" id="L109">            ((Statistics)children[x]).setup(state,p);</span>
+            }
+<span class="fc" id="L111">        }</span>
+    
+    /** Called immediately before population initialization occurs. */
+    public void preInitializationStatistics(final EvolutionState state) 
+        { 
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L117">            children[x].preInitializationStatistics(state);</span>
+<span class="fc" id="L118">        }</span>
+        
+    /** GENERATIONAL: Called immediately after population initialization occurs. */
+    public void postInitializationStatistics(final EvolutionState state) 
+        {
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L124">            children[x].postInitializationStatistics(state);</span>
+<span class="fc" id="L125">        }</span>
+
+    /** Called immediately before checkpointing occurs. */
+    public void preCheckpointStatistics(final EvolutionState state) 
+        {
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L131">            children[x].preCheckpointStatistics(state);</span>
+<span class="nc" id="L132">        }</span>
+
+    /** Called immediately after checkpointing occurs. */
+    public void postCheckpointStatistics(final EvolutionState state)
+        {
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L138">            children[x].postCheckpointStatistics(state);</span>
+<span class="nc" id="L139">        }</span>
+
+    /** GENERATIONAL: Called immediately before evaluation occurs. */
+    public void preEvaluationStatistics(final EvolutionState state)
+        {
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L145">            children[x].preEvaluationStatistics(state);</span>
+<span class="fc" id="L146">        }</span>
+
+    /** GENERATIONAL: Called immediately after evaluation occurs. */
+    public void postEvaluationStatistics(final EvolutionState state)
+        {
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L152">            children[x].postEvaluationStatistics(state);</span>
+<span class="fc" id="L153">        }</span>
+
+    /** Called immediately before the pre-breeding exchange occurs. */
+    public void prePreBreedingExchangeStatistics(final EvolutionState state)
+        {
+<span class="pc bpc" id="L158" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L159">            children[x].prePreBreedingExchangeStatistics(state);</span>
+<span class="fc" id="L160">        }</span>
+        
+    /** Called immediately after the pre-breeding exchange occurs. */
+    public void postPreBreedingExchangeStatistics(final EvolutionState state)
+        {
+<span class="pc bpc" id="L165" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L166">            children[x].postPreBreedingExchangeStatistics(state);</span>
+<span class="fc" id="L167">        }</span>
+
+    /** GENERATIONAL: Called immediately before breeding occurs. */
+    public void preBreedingStatistics(final EvolutionState state)
+        {
+<span class="pc bpc" id="L172" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L173">            children[x].preBreedingStatistics(state);</span>
+<span class="fc" id="L174">        }</span>
+
+    /** GENERATIONAL: Called immediately after breeding occurs. */
+    public void postBreedingStatistics(final EvolutionState state)
+        {
+<span class="pc bpc" id="L179" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L180">            children[x].postBreedingStatistics(state);</span>
+<span class="fc" id="L181">        }</span>
+
+    /** Called immediately before the post-breeding exchange occurs. */
+    public void prePostBreedingExchangeStatistics(final EvolutionState state)
+        {
+<span class="pc bpc" id="L186" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L187">            children[x].prePostBreedingExchangeStatistics(state);</span>
+<span class="fc" id="L188">        }</span>
+
+    /** Called immediately after the post-breeding exchange occurs. */
+    public void postPostBreedingExchangeStatistics(final EvolutionState state)
+        {
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L194">            children[x].postPostBreedingExchangeStatistics(state);</span>
+<span class="fc" id="L195">        }</span>
+
+    /** Called immediately after the run has completed.  &lt;i&gt;result&lt;/i&gt;
+        is either &lt;tt&gt;state.R_FAILURE&lt;/tt&gt;, indicating that an ideal individual
+        was not found, or &lt;tt&gt;state.R_SUCCESS&lt;/tt&gt;, indicating that an ideal
+        individual &lt;i&gt;was&lt;/i&gt; found. */
+    public void finalStatistics(final EvolutionState state, final int result)
+        {
+<span class="nc bnc" id="L203" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc" id="L204">            children[x].finalStatistics(state, result);</span>
+<span class="nc" id="L205">        }</span>
+    
+    /** STEADY-STATE: called when we created an empty initial Population. */
+    public void enteringInitialPopulationStatistics(final SteadyStateEvolutionState state)
+        {
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">            if (children[x] instanceof SteadyStateStatisticsForm)</span>
+<span class="nc" id="L212">                ((SteadyStateStatisticsForm)children[x]).enteringInitialPopulationStatistics(state);</span>
+<span class="nc" id="L213">        }</span>
+        
+    /** STEADY-STATE: called when a given Subpopulation is entering the Steady-State. */
+    public void enteringSteadyStateStatistics(int subpop, final SteadyStateEvolutionState state)
+        {
+<span class="nc bnc" id="L218" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">            if (children[x] instanceof SteadyStateStatisticsForm)</span>
+<span class="nc" id="L220">                ((SteadyStateStatisticsForm)children[x]).enteringSteadyStateStatistics(subpop, state);</span>
+<span class="nc" id="L221">        }</span>
+        
+    /** STEADY-STATE: called each time new individuals are bred during the steady-state
+        process. */
+    public void individualsBredStatistics(SteadyStateEvolutionState state, Individual[] individuals)
+        {
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">            if (children[x] instanceof SteadyStateStatisticsForm)</span>
+<span class="nc" id="L229">                ((SteadyStateStatisticsForm)children[x]).individualsBredStatistics(state, individuals);</span>
+<span class="nc" id="L230">        }</span>
+    
+    /** STEADY-STATE: called each time new individuals are evaluated during the steady-state
+        process.  You can look up the individuals in state.newIndividuals[] */
+    public void individualsEvaluatedStatistics(SteadyStateEvolutionState state, Individual[] newIndividuals, 
+        Individual[] oldIndividuals, int[] subpopulations, int[] indices)
+        {
+<span class="nc bnc" id="L237" title="All 2 branches missed.">        for(int x=0;x&lt;children.length;x++)</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">            if (children[x] instanceof SteadyStateStatisticsForm)</span>
+<span class="nc" id="L239">                ((SteadyStateStatisticsForm)children[x]).individualsEvaluatedStatistics(state, newIndividuals, oldIndividuals, subpopulations, indices);</span>
+<span class="nc" id="L240">        }</span>
+        
+    /** STEADY-STATE: called each time the generation count increments */ 
+    public void generationBoundaryStatistics(final EvolutionState state) 
+        {
+<span class="nc bnc" id="L245" title="All 2 branches missed.">        for (int x=0; x &lt; children.length; x++) </span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">            if (children[x] instanceof SteadyStateStatisticsForm) </span>
+<span class="nc" id="L247">                ((SteadyStateStatisticsForm)children[x]).generationBoundaryStatistics(state); </span>
+<span class="nc" id="L248">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

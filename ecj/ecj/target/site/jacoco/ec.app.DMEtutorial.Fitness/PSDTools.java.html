@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PSDTools.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial.Fitness</a> &gt; <span class="el_source">PSDTools.java</span></div><h1>PSDTools.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial.Fitness;
+
+<span class="nc" id="L3">public class PSDTools </span>
+{	
+	
+	static 
+	{ 
+<span class="nc" id="L8">		System.loadLibrary(&quot;PSDTools_JNI&quot;);</span>
+<span class="nc" id="L9">		initialize();</span>
+<span class="nc" id="L10">	}</span>
+	
+	public static final int SideLength = 64;
+	
+	
+	// DON'T FORGET THE PSDTools_initialize() !
+	// We might not have huge mounds of static data to initialize, but it sets
+	// up the PSDToolsTLS struct with stack information. 
+	public static native void initialize();
+	
+	
+	// Dummy methods for timing tests
+	public static native double f_PSD_Dummy0();
+	public static native double f_PSD_Dummy1(
+				double[][] img
+			);
+	public static native double f_PSD_Dummy2(
+				double[][] img
+			);
+	public static native double f_PSD_Dummy3(
+				double[][][] img_3channel
+			);
+	
+	
+	// Regressions
+	public static native double f_PSD_Slope(
+				double[][] img
+			);
+	public static native double[] f_PSD_LinearRegression(
+				double[][] img
+			);
+	
+	// Namesake Methods
+	public static native void f_ImageFFT(
+				double[][] img,
+				double[][] amplitude,
+				double[][] offset
+			);
+	public static native void f_ImageFFTPowerPhase(
+				double[][] img,
+				double[][] power,
+				double[][] phase
+			);
+	public static native double[][] f_ImageFFTPower(
+				double[][] img
+			);
+	public static native double[] f_RadialAverageSpectra( 
+				double[][] imgFT 
+			);
+	
+	// General Processing and Charting
+	public static native double f_PSD_Processing(
+				double[][] img,
+				double[]   imgPS,
+				double[][] imgFT,
+				double[][] imgWD
+			);
+	public static native void f_PSD_Processing_FTOnly(
+				double[][] img,
+				double[][] imgFT
+			);
+	public static native void f_PSD_Processing_PSOnly(
+				double[][] img,
+				double[]   imgPS
+			);
+	public static native int f_PlotSpectra_GetChartInfo(
+				double[]   imgPS,
+				double[]   plotRange,
+				double[]   plotScale,
+				double[]   regression, 
+				double[][] scaledPoints
+			);
+	
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

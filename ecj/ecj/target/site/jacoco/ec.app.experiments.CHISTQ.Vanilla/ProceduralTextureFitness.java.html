@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProceduralTextureFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.CHISTQ.Vanilla</a> &gt; <span class="el_source">ProceduralTextureFitness.java</span></div><h1>ProceduralTextureFitness.java</h1><pre class="source lang-java linenums">package ec.app.experiments.CHISTQ.Vanilla;
+
+import ec.util.Parameter;
+import java.awt.image.BufferedImage;
+// import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import ec.Individual;
+
+import ec.gp.koza.*;
+import ec.distributedME.*;
+import ec.EvolutionState;
+import ec.app.experiments.Vanilla.ImageLoad;
+import ec.app.experiments.GeneralandFitness.PSDExtensions;
+import ec.app.experiments.GeneralandFitness.TextureIndividual;
+import ec.app.experiments.GeneralandFitness.ColorHistogram;
+import ec.app.experiments.GeneralandFitness.jssim.*;
+import ec.app.experiments.WaveletExperiment.wavelets.*;
+import ec.app.experiments.WaveletExperiment.wavelets.Haar.ImageQueryData;
+
+/**
+ * ProceduralTextureFitness.java Created: 05/05/2020 By: Derek Hon
+ **/
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L26">public class ProceduralTextureFitness extends ImageLoad {</span>
+
+    double[] TargetSample;
+<span class="nc" id="L29">    int width = 0, height = 0;</span>
+    // SSIM TargetSSIM = null;
+<span class="nc" id="L31">    SsimCalculator TargetSSIMCalculator = null;</span>
+<span class="nc" id="L32">    ColorHistogram histTarget = null;</span>
+<span class="nc" id="L33">    ImageQueryData TargetData = null;</span>
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L37">        super.setup(state, base);</span>
+
+        // Load targets from existing image
+
+<span class="nc" id="L41">        width = TargetImage.getWidth();</span>
+<span class="nc" id="L42">        height = TargetImage.getHeight();</span>
+<span class="nc" id="L43">        int rgb = 0;</span>
+<span class="nc" id="L44">        histTarget = new ColorHistogram(TargetImage);</span>
+<span class="nc" id="L45">        Haar Target = new Haar(state, TargetImage);</span>
+<span class="nc" id="L46">        TargetData = Target.getHaarData();</span>
+        
+        // TargetSample = new double[width * height];
+
+        // this.TargetSSIM = new SSIM(state, targetFile, TargetImage);
+        try {
+<span class="nc" id="L52">            TargetSSIMCalculator = new SsimCalculator(TargetImage);</span>
+<span class="nc" id="L53">        } catch (SsimException | IOException e) {</span>
+<span class="nc" id="L54">            state.output.fatal(e.toString());</span>
+<span class="nc" id="L55">        }</span>
+<span class="nc" id="L56">    }</span>
+
+    @Override
+    public void evaluate(EvolutionState state, Individual ind, int submap, int threadnum) {
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        if (!ind.evaluated) {</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">            if (!(ind instanceof Individual))</span>
+<span class="nc" id="L62">                state.output.fatal(&quot;&quot; + this.getClass() + &quot; expects individuals of type Elite.&quot;);</span>
+
+            // int[] luminance = new int[width * height];
+<span class="nc" id="L65">            super.evaluate(state, ind, submap, threadnum);</span>
+<span class="nc" id="L66">            double fitness = 0.0;</span>
+<span class="nc" id="L67">            TextureIndividual textInd = (TextureIndividual) ind;</span>
+<span class="nc" id="L68">            int[][] pixels = textInd.pixels;</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            if (submap == 0) {</span>
+<span class="nc" id="L70">                ColorHistogram solutionHist = new ColorHistogram(pixels, 1);</span>
+<span class="nc" id="L71">                fitness = histTarget.colorDS(solutionHist);</span>
+<span class="nc" id="L72">            }</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">            else if (submap == 1) {</span>
+                try {
+<span class="nc" id="L75">                    fitness = TargetSSIMCalculator.comparePixel(pixels);</span>
+<span class="nc" id="L76">                } catch (SsimException | IOException e) {</span>
+<span class="nc" id="L77">                    state.output.fatal(e.toString());</span>
+<span class="nc" id="L78">                }</span>
+            }
+            else {
+<span class="nc" id="L81">                Haar solution = new Haar(state, pixels);</span>
+<span class="nc" id="L82">                ImageQueryData solutionHaar = solution.getHaarData();</span>
+<span class="nc" id="L83">                fitness = TargetData.compareTo(solutionHaar);</span>
+            }
+            // this.TargetSSIM.calculateSSIM(img)
+            // this.TargetSSIM.calculateWindows(PSDExtensions.ImageToDouble2D(img, null));
+            // fitness = this.TargetSSIM.calculateSSIM(img);
+            
+<span class="nc" id="L89">            KozaFitness f = ((KozaFitness) ind.fitness);</span>
+<span class="nc" id="L90">            f.setStandardizedFitness(state, fitness);</span>
+            
+<span class="nc" id="L92">            ind.evaluated = true;</span>
+        } // if
+<span class="nc" id="L94">    } // evaluate</span>
+
+    @Override
+    public void describe(final EvolutionState state, final Individual ind, final int submap, final int threadnum, final int log) {
+<span class="nc" id="L98">        super.describe(state, ind, submap, threadnum, log);</span>
+<span class="nc" id="L99">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

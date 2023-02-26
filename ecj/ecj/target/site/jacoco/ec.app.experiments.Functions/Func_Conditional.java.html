@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Func_Conditional.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.Functions</a> &gt; <span class="el_source">Func_Conditional.java</span></div><h1>Func_Conditional.java</h1><pre class="source lang-java linenums">package ec.app.experiments.Functions;
+
+import ec.*;
+import ec.gp.*;
+import ec.app.experiments.GeneralandFitness.MultiData;
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L8">public abstract class Func_Conditional extends GPNode implements SimplifyableGPNode</span>
+{
+	
+	@Override 
+<span class="nc" id="L12">	public boolean IsVolatile(){ return false; }</span>
+	@Override 
+	public GPNode  GetSimplifiedReplacement(EvolutionState state)
+	{ 
+<span class="nc" id="L16">		return SimplifyableGPNode.SimplifyableGPNodeImpl.GetSimplifiedReplacement(state, this); </span>
+	}
+	
+	// -- double input, double output -----------------------------------------
+
+	// If C1 Greater-Than C2
+<span class="nc" id="L22">	public static class IfGT extends Func_Conditional</span>
+	{
+<span class="nc" id="L24">	    public String toString()         { return &quot;IfGT&quot;; }	    </span>
+<span class="nc" id="L25">	    public int    expectedChildren() { return 4; }	</span>
+	    public void eval(
+	    	final EvolutionState state,
+	        final int            thread,
+	        final GPData         input,
+	        final ADFStack       stack,
+	        final GPIndividual   individual,
+	        final Problem        problem
+	    )
+	    {
+	        double c1, c2, val;
+<span class="nc" id="L36">	        MultiData rd = ((MultiData)(input));</span>
+	
+<span class="nc" id="L38">	        children[0].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L39">	        c1 = rd.GetD();</span>
+<span class="nc" id="L40">	        children[1].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L41">			c2 = rd.GetD();</span>
+			
+<span class="nc bnc" id="L43" title="All 2 branches missed.">			children[ (c1&gt;c2)? 2 : 3 ].eval(state,thread,input,stack,individual,problem);</span>
+<span class="nc" id="L44">			val = rd.GetD();</span>
+			
+<span class="nc" id="L46">	        rd.SetTo(  val  );</span>
+<span class="nc" id="L47">	    }	    </span>
+	}
+}
+	
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

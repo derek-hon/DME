@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ERC.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">ERC.java</span></div><h1>ERC.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+/* 
+ * ERC.java
+ * 
+ * Created: Mon Oct 25 18:22:15 1999
+ * By: Sean Luke
+ */
+
+/**
+ * ERC is an abstract GPNode which implements Ephemeral Random Constants,
+ * as described in Koza I.  An ERC is a node which, when first instantiated,
+ * gets set to some random constant value which it always returns from
+ * then on, even after being crossed over into other individuals.
+ * In order to implement an ERC, you need to override several methods below.
+ *
+ * &lt;h2&gt;Impementing an ERC&lt;/h2&gt;
+ *
+ * A basic no-frills ERC needs to have the following things:
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;The data holding the ERC (perhaps a float or a couple of floats)
+ * &lt;li&gt;An implementation of the &lt;b&gt;eval&lt;/b&gt; method which returns the appropriate
+ *     data when the node is evaluated.
+ * &lt;li&gt;Possibly an implementation of the &lt;b&gt;clone&lt;/b&gt; method to copy that data
+ *     properly.  If your ERC data is just a simple or immutable type
+ *     (like an int or a string), you don't need write a clone() method;
+ *     the default one works fine.  But if your data is an array or other
+ *     mutable object, you'll need to override the clone() method to copy
+ *     the array.  
+ *
+ * &lt;li&gt;An implementation of the &lt;b&gt;resetNode&lt;/b&gt; method to randomize the
+ *     data once cloned from the prototype.  This essentially &quot;initializes&quot;
+ *     your ERC.
+ *
+ * &lt;li&gt;An implementation of the &lt;b&gt;encode&lt;/b&gt; method which presents the
+ *     ERC as a String.  If you don't plan on writing individuals out to
+ *     files in a fashion that enables them to be read back in again later,
+ *     but only care to print out individuals for statistics purposes, 
+ *     you can implement this to just
+ *     write &lt;tt&gt;&quot;&quot; + &lt;i&gt;value&lt;/i&gt;&lt;/tt&gt;, where &lt;i&gt;value&lt;/i&gt; is your data.
+ *
+ * &lt;li&gt;An implementation of the &lt;b&gt;nodeEquals&lt;/b&gt; method to return true if
+ *     the other node is also an ERC of the same type, and it has the
+ *     same ERC data as yourself.
+ *
+ *
+ * &lt;/ul&gt;
+ * 
+ * A more advanced ERC will need some of the following gizmos:
+ * 
+ * &lt;ul&gt;
+ *
+ * &lt;li&gt;If you have ERCs of different class types (for example, a vector ERC
+ *      and a floating-point scalar ERC), you will wish to distinguish them
+ *      when they're printed to files.  To do this,  override the &lt;b&gt;name&lt;/b&gt; 
+ *      method to return different strings for each of them (perhaps &quot;vec&quot; versus &quot;&quot;).
+ *
+ * &lt;li&gt;If you want to write your ERCs to files such that they can be read
+ *      back in again, you'll need to override the &lt;b&gt;encode&lt;/b&gt; method
+ *      to write using the &lt;tt&gt;ec.util.Code&lt;/tt&gt; class.  Further, you'll need to
+ *      override the &lt;b&gt;decode&lt;/b&gt; method to read in the individual using the
+ *      &lt;tt&gt;ec.util.Code&lt;/tt&gt; and &lt;tt&gt;ec.util.DecodeReturn&lt;/tt&gt; classes.  The
+ *      default version -- which is wrong -- returns &lt;tt&gt;false&lt;/tt&gt;.
+ *      When you do this, you'll probably also want to override the &lt;b&gt;toStringForHumans()&lt;/b&gt;
+ *      method to return a simple string form of the ERC: perhaps just a number
+ *      or a vector like &quot;&lt;7.24, 9.23&gt;&quot;.  This is because by default &lt;b&gt;toStringForHumans()&lt;/b&gt;
+ *      calls &lt;b&gt;toString()&lt;/b&gt;, which in turn calls &lt;b&gt;encode&lt;/b&gt;, which you have
+ *      just overidden to be more computer-ish.
+ *
+ * &lt;li&gt;ERCs can be mutated using a custom mutator pipeline, for example the
+ *     &lt;b&gt;ec.gp.breed.MutateERCPipeline&lt;/b&gt;.  If you expect to mutate your ERCs,
+ *     you may wish to override the &lt;b&gt;mutateERC&lt;/b&gt; method to do something
+ *     more subtle than its default setting (which just randomizes the
+ *     ERC again, by calling resetNode).
+ * 
+ * &lt;li&gt;The default &lt;b&gt;nodeHashCode&lt;/b&gt; implementation is poor and slow (it
+ *     creates a string using encode() and then hashes the sting).  You might
+ *     create a better (and probably simpler) hash code function.
+ *
+ * &lt;li&gt;If you're going to use facilities such as the Island Model or the distributed
+ *     evaluator, you'll need to implement the &lt;b&gt;writeNode&lt;/b&gt; and &lt;b&gt;readNode&lt;/b&gt;
+ *     methods to read/write the node to DataInput/DataOutput.  The default implementations
+ *     just throw errors.
+ *
+ * &lt;li&gt;If you need to set up your ERC class from the parameter file, do so in the &lt;b&gt;setup&lt;/b&gt; method.
+ *
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt; See the &lt;b&gt;ec.app.regression.func.RegERC&lt;/b&gt; class for an example of a simple but &quot;fuly-implemented&quot;
+ * ERC.  A slightly more complicated example can be found in &lt;b&gt;ec.app.lawnmower.func.LawnERC&lt;/b&gt;.
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L107">public abstract class ERC extends GPNode</span>
+    {
+    /** Returns the lowercase &quot;name&quot; of this ERC function class, some
+        simple, short name which distinguishes this class from other ERC
+        function classes you're using.  If you have more than one ERC function,
+        you need to distinguish them here.  By default the value is &quot;ERC&quot;,
+        which works fine for a single ERC function in the function set.
+        Whatever the name is, it should
+        generally only have letters, numbers, or hyphens or underscores in it.
+        No whitespace or other characters. */
+<span class="nc" id="L117">    public String name() { return &quot;ERC&quot;; }</span>
+
+    /** Usually ERCs don't have children, and this default implementation makes certain of it. 
+        But if you want to override this, you're welcome to. */
+<span class="nc" id="L121">    public int expectedChildren() { return 0; }</span>
+
+    /** Remember to override this to randomize your ERC after it has been cloned.  The prototype will not ever receive this method call. */
+    public abstract void resetNode(final EvolutionState state, int thread);
+
+    /** Implement this to do ERC-to-ERC comparisons. */
+    public abstract boolean nodeEquals(final GPNode node);
+
+    /** Implement this to hash ERCs, along with other nodes, in such a way that two
+        &quot;equal&quot; ERCs will usually hash to the same value. The default value, which 
+        may not be very good, is a combination of the class hash code and the hash
+        code of the string returned by encode().  You might make a better hash value. */
+<span class="nc" id="L133">    public int nodeHashCode() { return super.nodeHashCode() ^ encode().hashCode(); }</span>
+
+    /** You might want to override this to return a special human-readable version of the erc value; otherwise this defaults to toString();  This should be something that resembles a LISP atom.  If a simple number or other object won't suffice, you might use something that begins with  name() + [ + ... + ] */
+    public String toStringForHumans() 
+<span class="nc" id="L137">        { return toString(); }</span>
+
+    /** This defaults to simply name() + &quot;[&quot; + encode() + &quot;]&quot;.   You probably shouldn't deviate from this. */
+    public String toString() 
+<span class="nc" id="L141">        { return name() + &quot;[&quot; + encode() + &quot;]&quot;; }</span>
+
+    /** Encodes data from the ERC, using ec.util.Code.  */
+    public abstract String encode();
+
+    /** Decodes data into the ERC from dret.  Return true if you sucessfully
+        decoded, false if you didn't.  Don't increment dret.pos's value beyond
+        exactly what was needed to decode your ERC.  If you fail to decode,
+        you should make sure that the position and data in the dret are exactly
+        as they were originally. */
+    public boolean decode(final DecodeReturn dret)
+        {
+<span class="nc" id="L153">        return false;</span>
+        }
+
+    /** Mutates the node's &quot;value&quot;.  This is called by mutating operators
+        which specifically &lt;i&gt;mutate&lt;/i&gt; the &quot;value&quot; of ERCs, as opposed to 
+        replacing them with whole new ERCs. The default form of this function
+        simply calls resetNode(state,thread), but you might want to modify
+        this to do a specialized form of mutation, applying gaussian
+        noise for example. */
+
+    public void mutateERC(final EvolutionState state, final int thread)
+        {
+<span class="nc" id="L165">        resetNode(state,thread);</span>
+<span class="nc" id="L166">        }</span>
+
+    /** To successfully write to a DataOutput, you must override this to write your specific ERC data out.  The
+        default implementation issues a fatal error. */
+    public void writeNode(final EvolutionState state, final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L172">        state.output.fatal(&quot;writeNode(EvolutionState,DataInput) not implemented in &quot; + getClass().getName());</span>
+<span class="nc" id="L173">        }</span>
+
+    /** To successfully read from a DataOutput, you must override this to read your specific ERC data in.  The
+        default implementation issues a fatal error. */
+    public void readNode(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L179">        state.output.fatal(&quot;readNode(EvolutionState,DataInput) not implemented in &quot; + getClass().getName());</span>
+<span class="nc" id="L180">        }</span>
+
+    public GPNode readNode(final DecodeReturn dret) 
+        {
+<span class="nc" id="L184">        int len = dret.data.length();</span>
+<span class="nc" id="L185">        int originalPos = dret.pos;</span>
+        
+        // get my name
+<span class="nc" id="L188">        String str2 = name() + &quot;[&quot;;</span>
+<span class="nc" id="L189">        int len2 = str2.length();</span>
+
+<span class="nc bnc" id="L191" title="All 2 branches missed.">        if (dret.pos + len2 &gt;= len)  // uh oh, not enough space</span>
+<span class="nc" id="L192">            return null;</span>
+
+        // check it out
+<span class="nc bnc" id="L195" title="All 2 branches missed.">        for(int x=0; x &lt; len2 ; x++)</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">            if (dret.data.charAt(dret.pos + x) != str2.charAt(x))</span>
+<span class="nc" id="L197">                return null;</span>
+
+        // looks good!  try to load this sucker.
+<span class="nc" id="L200">        dret.pos += len2;</span>
+<span class="nc" id="L201">        ERC node = (ERC) lightClone();</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        if (!node.decode(dret)) </span>
+<span class="nc" id="L203">            { dret.pos = originalPos; return null; }  // couldn't decode it</span>
+
+        // the next item should be a &quot;]&quot;
+        
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        if (dret.pos &gt;= len)</span>
+<span class="nc" id="L208">            { dret.pos = originalPos; return null; }</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        if (dret.data.charAt(dret.pos) != ']') </span>
+<span class="nc" id="L210">            { dret.pos = originalPos; return null; }</span>
+        
+        // Check to make sure that the ERC's all there is
+<span class="nc bnc" id="L213" title="All 2 branches missed.">        if (dret.data.length() &gt; dret.pos+1)</span>
+            {
+<span class="nc" id="L215">            char c = dret.data.charAt(dret.pos+1);</span>
+<span class="nc bnc" id="L216" title="All 6 branches missed.">            if (!Character.isWhitespace(c) &amp;&amp;</span>
+                c != ')' &amp;&amp; c != '(') // uh oh
+<span class="nc" id="L218">                { dret.pos = originalPos; return null; }</span>
+            }   
+
+<span class="nc" id="L221">        dret.pos++;</span>
+
+<span class="nc" id="L223">        return node;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

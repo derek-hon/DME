@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConstructiveIndividual.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.co</a> &gt; <span class="el_source">ConstructiveIndividual.java</span></div><h1>ConstructiveIndividual.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2018 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+package ec.co;
+
+import ec.EvolutionState;
+import ec.Individual;
+import ec.co.ant.AntSpecies;
+import ec.util.Misc;
+import ec.util.Parameter;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Represents an &lt;code&gt;Individual&lt;/code&gt; that can be incrementally constructed from a number of smaller components.
+ *
+ * This type is used by ECJ's combinatorial optimization to represent and construct solutions to problems like
+ * TSP or Knapsack, where partial solutions are usually built one component at a time.
+ *
+ * @author Eric O. Scott
+ */
+<span class="pc bpc" id="L31" title="1 of 2 branches missed.">public class ConstructiveIndividual&lt;T extends Component&gt; extends Individual implements Iterable&lt;T&gt;</span>
+{
+    
+    public static final String P_DEFAULTBASE = &quot;constr-ind&quot;;
+<span class="fc" id="L35">    private List&lt;T&gt; components = new ArrayList&lt;T&gt;();</span>
+    /** A set representation of the components, to allow for quick &quot;contains()&quot; checking */
+<span class="fc" id="L37">    private Set&lt;T&gt; componentsSet = new HashSet&lt;T&gt;();</span>
+    
+    public T get(final int i)
+        {
+<span class="fc" id="L41">        return components.get(i);</span>
+        }
+    
+    @Override
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L47">        return new Parameter(P_DEFAULTBASE);</span>
+        }
+
+    @Override
+    public Object clone()
+        {
+<span class="fc" id="L53">        ConstructiveIndividual myobj = (ConstructiveIndividual) (super.clone());</span>
+
+<span class="fc" id="L55">        myobj.components = new ArrayList&lt;T&gt;(components);</span>
+<span class="fc" id="L56">        myobj.componentsSet = new HashSet&lt;T&gt;(componentsSet);</span>
+        
+<span class="pc bpc" id="L58" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L59">        return myobj;</span>
+        } 
+    
+    public List&lt;T&gt; getComponents()
+        {
+<span class="pc bpc" id="L64" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L65">        return new ArrayList&lt;T&gt;(components); // Defensive copy</span>
+        }
+    
+    public void setComponents(final EvolutionState state, final Collection&lt;T&gt; newComponents)
+        {
+<span class="pc bpc" id="L70" title="2 of 4 branches missed.">        assert(newComponents != null);</span>
+<span class="fc" id="L71">        components = new ArrayList&lt;T&gt;(newComponents.size());</span>
+<span class="fc" id="L72">        componentsSet = new HashSet&lt;T&gt;();</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        for (final T c : newComponents)</span>
+<span class="fc" id="L74">            add(state, c);</span>
+<span class="pc bpc" id="L75" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L76">        }</span>
+    
+    public void add(final EvolutionState state, final T component)
+    {
+<span class="pc bpc" id="L80" title="2 of 4 branches missed.">        assert(component != null);</span>
+<span class="fc" id="L81">        components.add(component);</span>
+<span class="fc" id="L82">        componentsSet.add(component);</span>
+<span class="pc bpc" id="L83" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L84">        }</span>
+    
+    public boolean contains(final T component)
+        {
+<span class="fc" id="L88">        return componentsSet.contains(component);</span>
+        }
+
+    @Override
+    public Iterator&lt;T&gt; iterator()
+        {
+<span class="fc" id="L94">        return components.iterator();</span>
+        }
+    
+    public boolean isEmpty()
+        {
+<span class="fc" id="L99">        return this.components.isEmpty();</span>
+        }
+    
+    @Override
+    public long size()
+        {
+<span class="pc bpc" id="L105" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L106">        return components.size();</span>
+        }
+
+    @Override
+    public boolean equals(final Object ind)
+        {
+<span class="pc bpc" id="L112" title="1 of 2 branches missed.">        if (ind == this)</span>
+<span class="nc" id="L113">            return true;</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">        if (!(ind instanceof ConstructiveIndividual))</span>
+<span class="nc" id="L115">            return false;</span>
+<span class="fc" id="L116">        final ConstructiveIndividual ref = (ConstructiveIndividual)ind;</span>
+<span class="fc" id="L117">        return components.equals(ref.components);</span>
+        }
+
+    @Override
+    public int hashCode()
+        {
+<span class="fc" id="L123">        int hash = 5;</span>
+<span class="pc bpc" id="L124" title="1 of 2 branches missed.">        hash = 41 * hash + (this.components != null ? this.components.hashCode() : 0);</span>
+<span class="fc" id="L125">        return hash;</span>
+        }
+    
+    @Override
+    public String toString()
+        {
+<span class="nc" id="L131">        return components.toString();</span>
+        }
+    
+    @Override
+    public void writeGenotype(final EvolutionState state, final DataOutput dataOutput) throws IOException
+        {
+<span class="fc" id="L137">        dataOutput.writeInt(components.size());</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">        for (final Component c : components)</span>
+<span class="fc" id="L139">            c.writeComponent(state, dataOutput);</span>
+<span class="pc bpc" id="L140" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L141">        }</span>
+    
+    @Override
+    public void readGenotype(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+        // Obliterate our current contents
+<span class="fc" id="L147">        components = new ArrayList&lt;T&gt;();</span>
+<span class="fc" id="L148">        componentsSet = new HashSet&lt;T&gt;();</span>
+        
+        // Read in the new contents
+<span class="fc" id="L151">        final int numComponents = dataInput.readInt();</span>
+<span class="fc" id="L152">        final ConstructiveProblemForm problem = (ConstructiveProblemForm) state.evaluator.p_problem;</span>
+<span class="fc" id="L153">        final Component p_component = problem.getArbitraryComponent(state, 0);</span>
+        
+<span class="fc bfc" id="L155" title="All 2 branches covered.">        for (int i = 0; i &lt; numComponents; i++)</span>
+<span class="fc" id="L156">            add(state, (T) p_component.readComponent(state, dataInput));</span>
+        
+<span class="pc bpc" id="L158" title="2 of 4 branches missed.">        assert(repOK());</span>
+<span class="fc" id="L159">        }</span>
+    
+    public boolean repOK()
+        {
+<span class="pc bpc" id="L163" title="1 of 2 branches missed.">        return P_DEFAULTBASE != null</span>
+<span class="pc bpc" id="L164" title="2 of 4 branches missed.">                &amp;&amp; !P_DEFAULTBASE.isEmpty()</span>
+                &amp;&amp; components != null
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">                &amp;&amp; !Misc.containsNulls(components)</span>
+<span class="pc bpc" id="L167" title="1 of 2 branches missed.">                &amp;&amp; componentsSet.size() == new HashSet&lt;T&gt;(components).size()</span>
+<span class="pc bpc" id="L168" title="1 of 2 branches missed.">                &amp;&amp; componentsSet.equals(new HashSet&lt;T&gt;(components));</span>
+        }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

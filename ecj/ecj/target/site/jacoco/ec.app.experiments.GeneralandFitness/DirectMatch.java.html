@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DirectMatch.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.GeneralandFitness</a> &gt; <span class="el_source">DirectMatch.java</span></div><h1>DirectMatch.java</h1><pre class="source lang-java linenums">package ec.app.experiments.GeneralandFitness;
+
+import java.awt.Color;
+import java.awt.image.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.lang.InterruptedException;
+
+import ec.EvolutionState;
+import ec.util.ThreadPool;
+/**
+ * Direct match
+ * 
+ * @author Derek Hon
+ */
+
+public class DirectMatch {
+<span class="nc" id="L18">    public double[][] lumData = null;</span>
+<span class="nc" id="L19">    public BufferedImage img = null;</span>
+<span class="nc" id="L20">    public double ZERO = 0.00001;</span>
+<span class="nc" id="L21">    public double[] luminance = null;</span>
+<span class="nc" id="L22">    private ThreadPool pool = new ThreadPool();</span>
+    // public ThreadPool.Worker[] workerThreads = null;
+
+<span class="nc" id="L25">    public DirectMatch(BufferedImage img) {</span>
+<span class="nc" id="L26">        this.img = img;</span>
+<span class="nc" id="L27">        this.lumData = PSDExtensions.ImageToDouble2D(img, null);</span>
+<span class="nc" id="L28">    }</span>
+
+<span class="nc" id="L30">    public DirectMatch(EvolutionState state, int[][] pixels) {</span>
+<span class="nc" id="L31">        this.lumData = new double[pixels.length][pixels.length];</span>
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        for (int x = 0 ; x &lt; pixels.length ; x ++) {</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">            for (int y = 0 ; y &lt; pixels.length ; y ++) {</span>
+<span class="nc" id="L34">                int rgb = pixels[x][y];</span>
+<span class="nc" id="L35">                int red = (rgb &amp; 0xFF0000) &gt;&gt; 16;</span>
+<span class="nc" id="L36">                int green = (rgb &amp; 0x00FF00) &gt;&gt; 8;</span>
+<span class="nc" id="L37">                int blue = (rgb &amp; 0x0000FF);</span>
+
+<span class="nc" id="L39">                this.lumData[x][y] = (1.0 * (red + green + blue))/3.0;</span>
+            }
+        }
+<span class="nc" id="L42">    }</span>
+
+<span class="nc" id="L44">    public DirectMatch(EvolutionState state, BufferedImage img, int threads, DirectThread[] fit) {</span>
+<span class="nc" id="L45">        int start = 0;</span>
+<span class="nc" id="L46">        int width = img.getWidth();</span>
+<span class="nc" id="L47">        int height = img.getHeight();</span>
+<span class="nc" id="L48">        int inc = height / threads;</span>
+
+<span class="nc" id="L50">        this.luminance = new double[width * height];</span>
+        
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (threads &gt; 1) {</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">            for (int i = 0 ; i &lt; (threads) ; i ++) {</span>
+<span class="nc" id="L54">                fit[i] = new DirectThread(start, start + inc, img);</span>
+<span class="nc" id="L55">                start += inc;</span>
+<span class="nc" id="L56">                fit[i].start();</span>
+            }
+        }
+
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        for (int i = 0 ; i &lt; threads ; i ++)</span>
+            try {
+<span class="nc" id="L62">                fit[i].join();   </span>
+<span class="nc" id="L63">            } catch(InterruptedException e) {</span>
+<span class="nc" id="L64">                state.output.fatal(&quot;Direct Match Interrupted Exception: &quot; + e);</span>
+<span class="nc" id="L65">            }</span>
+<span class="nc" id="L66">    }</span>
+
+<span class="nc" id="L68">    public DirectMatch(EvolutionState state, BufferedImage img) {</span>
+<span class="nc" id="L69">        int width = img.getWidth();</span>
+<span class="nc" id="L70">        int height = img.getHeight();</span>
+
+<span class="nc" id="L72">        this.lumData = new double[width][height];</span>
+
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">            for (int y = 0 ; y &lt; height ; y ++) {</span>
+<span class="nc" id="L76">                int rgb = img.getRGB(x, y);</span>
+<span class="nc" id="L77">                int red = (rgb &amp; 0xFF0000) &gt;&gt; 16;</span>
+<span class="nc" id="L78">                int green = (rgb &amp; 0x00FF00) &gt;&gt; 8;</span>
+<span class="nc" id="L79">                int blue = (rgb &amp; 0x0000FF);</span>
+
+<span class="nc" id="L81">                this.lumData[x][y] = (1.0 * (red + green + blue))/3.0;</span>
+            }
+        }
+<span class="nc" id="L84">    }</span>
+
+<span class="nc" id="L86">    public DirectMatch(EvolutionState state, BufferedImage img, int threads, ThreadPool.Worker[] workerThreads) {</span>
+<span class="nc" id="L87">        int start = 0;</span>
+<span class="nc" id="L88">        int width = img.getWidth();</span>
+<span class="nc" id="L89">        int height = img.getHeight();</span>
+<span class="nc" id="L90">        int inc = height / threads;</span>
+
+<span class="nc" id="L92">        this.luminance = new double[width * height];</span>
+        // for (int i = 0 ; i &lt; this.luminance.length ; i ++)
+        //     this.luminance[i] = -1;
+
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        for (int i = 0 ; i &lt; threads ; i ++) {</span>
+<span class="nc" id="L97">            DirectThread run = new DirectThread();</span>
+<span class="nc" id="L98">            run.yStart = start;</span>
+<span class="nc" id="L99">            run.yEnd = start + inc;</span>
+<span class="nc" id="L100">            run.img = img;</span>
+<span class="nc" id="L101">            start += inc;</span>
+<span class="nc" id="L102">            workerThreads[i] = pool.start(run, &quot;DirectMatch Thread &quot; + i);</span>
+        }
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        for (int i = 0 ; i &lt; threads ; i ++) {</span>
+<span class="nc" id="L105">            pool.join(workerThreads[i]);</span>
+        }
+        // pool.joinAll();
+<span class="nc" id="L108">        pool.killPooled();</span>
+<span class="nc" id="L109">    }</span>
+
+<span class="nc" id="L111">    public DirectMatch(EvolutionState state, int[] rgb, int threads, int width, int height, ThreadPool.Worker[] workerThreads) {</span>
+<span class="nc" id="L112">        this.luminance = new double[width * height];</span>
+
+<span class="nc" id="L114">        int start = 0;</span>
+<span class="nc" id="L115">        int inc = height / threads;</span>
+        
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        for (int i = 0 ; i &lt; threads ; i ++) {</span>
+<span class="nc" id="L118">            DirectThread run = new DirectThread();</span>
+<span class="nc" id="L119">            run.rgb = rgb;</span>
+<span class="nc" id="L120">            run.yStart = start;</span>
+<span class="nc" id="L121">            run.yEnd = start + inc;</span>
+<span class="nc" id="L122">            run.width = width;</span>
+<span class="nc" id="L123">            run.height = height;</span>
+<span class="nc" id="L124">            start += inc;</span>
+<span class="nc" id="L125">            workerThreads[i] = pool.start(run, &quot;DirectMatch Thread &quot; + i);</span>
+        }
+
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        for (int i = 0 ; i &lt; threads ; i ++) {</span>
+<span class="nc" id="L129">            pool.join(workerThreads[i]);</span>
+        }
+<span class="nc" id="L131">        pool.killPooled();</span>
+        // pool.joinAll();
+<span class="nc" id="L133">    }</span>
+
+<span class="nc" id="L135">    public DirectMatch(EvolutionState state, int[] rgb, int threads, int width, int height, DirectThread[] fit) {</span>
+<span class="nc" id="L136">        this.luminance = new double[width * height];</span>
+
+<span class="nc" id="L138">        int start = 0;</span>
+<span class="nc" id="L139">        int inc = height / threads;</span>
+        
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if (threads &gt; 1) {</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">            for (int i = 0 ; i &lt; (threads) ; i ++) {</span>
+<span class="nc" id="L143">                fit[i] = new DirectThread(start, start + inc, rgb, width, height);</span>
+<span class="nc" id="L144">                start += inc;</span>
+<span class="nc" id="L145">                fit[i].start();</span>
+            }
+        }
+
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        for (int i = 0 ; i &lt; threads ; i ++)</span>
+            try {
+<span class="nc" id="L151">                fit[i].join();   </span>
+<span class="nc" id="L152">            } catch(InterruptedException e) {</span>
+<span class="nc" id="L153">                state.output.fatal(&quot;Direct Match Interrupted Exception: &quot; + e);</span>
+<span class="nc" id="L154">            }</span>
+<span class="nc" id="L155">    }</span>
+
+    public double luminanceDistance(DirectMatch match) {
+<span class="nc" id="L158">        double total = 0.0;</span>
+        
+<span class="nc bnc" id="L160" title="All 2 branches missed.">        for (int x = 0 ; x &lt; this.lumData.length ; x ++) {</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">            for (int y = 0 ; y &lt; this.lumData.length ; y ++)</span>
+<span class="nc" id="L162">                total += Math.abs(this.lumData[x][y] - match.lumData[x][y]);</span>
+        }
+
+        // for (int i = 0 ; i &lt; this.luminance.length ; i ++)
+        //     total += Math.abs(this.luminance[i] - match.luminance[i]);
+<span class="nc" id="L167">        return total;</span>
+    }
+
+    public double[] luminosityDistance(DirectMatch match) {
+<span class="nc" id="L171">        double total = 0.0;</span>
+<span class="nc" id="L172">        double hits = 0.0;</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        for (int y = 0 ; y &lt; this.img.getHeight() ; y ++) {</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">            for (int x = 0 ; x &lt; this.img.getWidth() ; x ++) {</span>
+<span class="nc" id="L175">                double value = Math.abs(this.lumData[x][y] - match.lumData[x][y]);</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">                if (value &lt;= ZERO) {</span>
+<span class="nc" id="L177">                    hits += 1;</span>
+                }
+                else
+<span class="nc" id="L180">                    total += value;</span>
+            }
+        }
+<span class="nc" id="L183">        return new double[] {total, hits};</span>
+    }
+
+<span class="nc" id="L186">    public DirectMatch(int[] data, int width, int height) {</span>
+<span class="nc" id="L187">        this.lumData = new double[width][height];</span>
+<span class="nc" id="L188">        int rgb = 0;</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        for (int y = 0 ; y &lt; height ; y ++) {</span>
+<span class="nc bnc" id="L190" title="All 2 branches missed.">            for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc" id="L191">                rgb = data[y * width + x];</span>
+<span class="nc" id="L192">                this.lumData[x][y] = ((rgb &amp; 0xFF0000) &gt;&gt; 16 + (rgb &amp; 0x00FF00) &gt;&gt; 8 + (rgb &amp; 0x0000FF))/3.0;</span>
+            }
+        }
+<span class="nc" id="L195">    }</span>
+
+<span class="nc" id="L197">    public int[] data = null;</span>
+    // public BufferedImage img = null;
+<span class="nc" id="L199">    public double pixels = 0.0;</span>
+<span class="nc" id="L200">    public double[] luminosityData = null;</span>
+<span class="nc" id="L201">    public int[] lightLuminosityData = null;</span>
+<span class="nc" id="L202">    public int[] lightData = null;</span>
+    // double ZERO = 0.00001;
+
+    /**
+     * Constructor which takes in an image as source and stores all pixel rgb
+     * values.
+     * 
+     * @param img Source image
+     */
+<span class="nc" id="L211">    public DirectMatch(BufferedImage img, boolean light) {</span>
+        // this.img = img;
+<span class="nc" id="L213">        this.pixels = img.getHeight() * img.getWidth();</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        if (!light) {</span>
+<span class="nc" id="L215">            this.data = new int[img.getHeight() * img.getWidth()];</span>
+
+<span class="nc bnc" id="L217" title="All 2 branches missed.">            for (int i = 0; i &lt; img.getHeight(); i++) {</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                for (int j = 0; j &lt; img.getWidth(); j++)</span>
+<span class="nc" id="L219">                    this.data[i * img.getWidth() + j] = img.getRGB(j, i);</span>
+            } // for
+        }
+        else {
+<span class="nc" id="L223">            this.lightData = new int[(int) (this.pixels/2)];</span>
+<span class="nc" id="L224">            int counter = 0;</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">            for (int x = 0 ; x &lt; img.getWidth() ; x ++) {</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">                for (int y = 0 ; y &lt; img.getHeight() ; y +=2) {</span>
+<span class="nc" id="L227">                    lightData[counter] = img.getRGB(x, y);</span>
+<span class="nc" id="L228">                    counter ++;</span>
+                }
+            }
+        }
+<span class="nc" id="L232">    } // DirectMatch</span>
+
+<span class="nc" id="L234">    public DirectMatch(int[] pixelValues, boolean light) {</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">        if (!light)</span>
+<span class="nc" id="L236">            this.data = pixelValues.clone();</span>
+        else {
+<span class="nc" id="L238">            int counter = 0;</span>
+<span class="nc" id="L239">            this.lightData = new int[pixelValues.length/2];</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">            for (int i = 0 ; i &lt; pixelValues.length ; i += 2) {</span>
+<span class="nc" id="L241">                lightData[counter] = pixelValues[i];</span>
+<span class="nc" id="L242">                counter ++;</span>
+            }
+        }
+<span class="nc" id="L245">    }</span>
+
+    public void calculateLuminosity() {
+<span class="nc" id="L248">        this.luminosityData = new double[data.length];</span>
+        
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        for (int i = 0 ; i &lt; luminosityData.length ; i ++) {</span>
+<span class="nc" id="L251">            int red = (data[i] &amp; 0xFF0000) &gt;&gt; 16;</span>
+<span class="nc" id="L252">            int green = (data[i] &amp; 0x00FF00) &gt;&gt; 8;</span>
+<span class="nc" id="L253">            int blue = (data[i] &amp; 0x0000FF);</span>
+            // int max = Math.max(red, Math.max(green, blue));
+            // int min = Math.min(red, Math.min(green, blue));
+            // luminosityData[i] = (max + min)/2.0;
+<span class="nc" id="L257">            luminosityData[i] = (red + green + blue)/3.0;</span>
+            // luminosityData[i] = (0.299 * red + 0.587 * green + 0.114 * blue);
+        }
+<span class="nc" id="L260">    }</span>
+
+    public void calculateLightLuminosity() {
+<span class="nc" id="L263">        this.lightLuminosityData = new int[lightData.length];</span>
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        for (int i = 0; i &lt; lightLuminosityData.length; i++) {</span>
+<span class="nc" id="L265">            lightLuminosityData[i] = (int) ((((lightData[i] &gt;&gt; 16) &amp; 0xff) + ((lightData[i] &gt;&gt; 8) &amp; 0xff) + (lightData[i] &amp; 0xff)) / 3);</span>
+            // lightLuminosityData[i] = (int)(0.299 * ((lightData[i] &gt;&gt; 16) &amp; 0xff) + 0.587 * ((lightData[i] &gt;&gt; 8) &amp; 0xff) + 0.114 * ((lightData[i] &gt;&gt; 0) &amp; 0xff));
+        }
+<span class="nc" id="L268">    }</span>
+
+    private double blueDistance(DirectMatch match, int i) {
+<span class="nc" id="L271">        Color colourOne = new Color(match.data[i]), colourTwo = new Color(this.data[i]);</span>
+
+<span class="nc" id="L273">        int blueDistance = colourTwo.getBlue() - colourOne.getBlue();</span>
+
+<span class="nc" id="L275">        return Math.sqrt(Math.pow(blueDistance, 2));</span>
+    }
+
+    public double[] luminosityMatch(DirectMatch match) {
+<span class="nc" id="L279">        double total = 0.0, temp = 0.0, hits = 0.0;</span>
+
+<span class="nc bnc" id="L281" title="All 2 branches missed.">        for (int i = 0 ; i &lt; this.pixels ; i ++) {</span>
+            // total += luminosityDistance(match, i);
+<span class="nc" id="L283">            temp = Math.abs(this.luminosityData[i] - match.luminosityData[i]);</span>
+<span class="nc bnc" id="L284" title="All 2 branches missed.">            total += (temp &lt;= ZERO) ? 0.0 : temp;</span>
+<span class="nc bnc" id="L285" title="All 2 branches missed.">            hits = (temp &lt;= ZERO) ? hits ++ : hits;</span>
+        }
+<span class="nc" id="L287">        return new double[] {total, hits};</span>
+    }
+
+    public double lightLuminosityDirectMatch(DirectMatch match) {
+<span class="nc" id="L291">        double total = 0.0, temp = 0.0;</span>
+
+<span class="nc bnc" id="L293" title="All 2 branches missed.">        for (int i = 0 ; i &lt; lightLuminosityData.length ; i += 2) {</span>
+<span class="nc" id="L294">            temp = Math.abs(this.lightLuminosityData[i] - match.lightLuminosityData[i]);</span>
+<span class="nc bnc" id="L295" title="All 2 branches missed.">            total += (temp &lt;= ZERO) ? 0.0 : temp;</span>
+        }
+
+<span class="nc" id="L298">        return total;</span>
+    }
+
+    public double luminosityDirectMatch(DirectMatch match) {
+<span class="nc" id="L302">        double total = 0.0;</span>
+
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        for (int i = 0 ; i &lt; luminosityData.length ; i ++) {</span>
+<span class="nc" id="L305">            total += Math.abs(luminosityData[i] - match.luminosityData[i]);</span>
+        }
+
+<span class="nc" id="L308">        return total;</span>
+    }
+
+    public double[] blueMatch(DirectMatch match) {
+<span class="nc" id="L312">        double total = 0.0, hits = 0.0;</span>
+
+<span class="nc bnc" id="L314" title="All 2 branches missed.">        for (int i = 0; i &lt; this.pixels; i++) {</span>
+<span class="nc" id="L315">            double val = blueDistance(match, i);</span>
+<span class="nc" id="L316">            total += val;</span>
+<span class="nc bnc" id="L317" title="All 2 branches missed.">            if (val == 0)</span>
+<span class="nc" id="L318">                hits++;</span>
+        }
+<span class="nc" id="L320">        return new double[] { total, hits };</span>
+    }
+
+    public class DirectThread extends Thread {
+        public int[]         rgb;
+        public int           yStart, yEnd, width, height;
+<span class="nc" id="L326">        public BufferedImage img = null;</span>
+
+<span class="nc" id="L328">        public DirectThread() {</span>
+
+<span class="nc" id="L330">        }</span>
+
+<span class="nc" id="L332">        public DirectThread(int yStart, int yEnd, BufferedImage img) {</span>
+<span class="nc" id="L333">            this.yStart = yStart;</span>
+<span class="nc" id="L334">            this.yEnd = yEnd;</span>
+<span class="nc" id="L335">            this.img = img;</span>
+<span class="nc" id="L336">        }</span>
+
+<span class="nc" id="L338">        public DirectThread(int yStart, int yEnd, int[] data, int width, int height) {</span>
+<span class="nc" id="L339">            this.rgb = data;</span>
+<span class="nc" id="L340">            this.yStart = yStart;</span>
+<span class="nc" id="L341">            this.yEnd = yEnd;</span>
+<span class="nc" id="L342">            this.width = width;</span>
+<span class="nc" id="L343">            this.height = height;</span>
+<span class="nc" id="L344">        }</span>
+
+        @Override
+        public void run() {
+            // System.out.println(&quot;Thread: &quot; + Thread.currentThread().getId() + &quot;Image: &quot; + (this.img == null) + &quot; ystart: &quot; + this.yStart + &quot; yEnd: &quot; + this.yEnd);
+<span class="nc bnc" id="L349" title="All 2 branches missed.">            if (this.img == null) {</span>
+<span class="nc" id="L350">                rgbToLuminance(rgb, yStart, yEnd, width, height);</span>
+            } else {
+<span class="nc" id="L352">                imageToLuminance(img, yStart, yEnd);</span>
+            }
+<span class="nc" id="L354">        }</span>
+    }
+
+    public void imageToLuminance(BufferedImage img, int yStart, int yEnd) {
+        // double[] values = new double[img.getWidth() * (yEnd - yStart)];
+<span class="nc bnc" id="L359" title="All 2 branches missed.">        for (int x = 0 ; x &lt; img.getWidth() ; x ++) {</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">            for (int y = yStart ; y &lt; yEnd ; y ++) {</span>
+<span class="nc" id="L361">                int px = img.getRGB(x,y);</span>
+<span class="nc" id="L362">                int px_r = (px &amp; 0xFF0000) &gt;&gt; 16;</span>
+<span class="nc" id="L363">                int px_g = (px &amp; 0x00FF00) &gt;&gt; 8;</span>
+<span class="nc" id="L364">                int px_b = (px &amp; 0x0000FF);</span>
+<span class="nc" id="L365">                this.luminance[x * img.getHeight() + y] = ( px_r + px_g + px_b ) / 3.0;</span>
+                // values[x * (yEnd-yStart) + (y-yStart)] = ( px_r + px_g + px_b ) / 3.0;
+            }
+        }
+        // System.out.println(Arrays.toString(values));
+<span class="nc" id="L370">    }</span>
+
+    public void rgbToLuminance(int[] data, int yStart, int yEnd, int width, int height) {
+<span class="nc bnc" id="L373" title="All 2 branches missed.">        for (int x = 0 ; x &lt; width ; x ++) {</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">            for (int y = yStart ; y &lt; yEnd ; y ++) {</span>
+<span class="nc" id="L375">                int px = data[x * height + y];</span>
+<span class="nc" id="L376">                int px_r = (px &amp; 0xFF0000) &gt;&gt; 16;</span>
+<span class="nc" id="L377">                int px_g = (px &amp; 0x00FF00) &gt;&gt; 8;</span>
+<span class="nc" id="L378">                int px_b = (px &amp; 0x0000FF);</span>
+<span class="nc" id="L379">                this.luminance[x * height + y] = ( px_r + px_g + px_b ) / 3.0;</span>
+            }
+        }
+<span class="nc" id="L382">    }</span>
+
+    // Should probably reformat and use to test direct match but oh well
+    // public static void main( String[] args )
+    // {
+    // int w = 128;
+    // int h = 128;
+    //
+    // BufferedImage i1 = new BufferedImage(w,h, BufferedImage.TYPE_INT_RGB);
+    // BufferedImage i2 = new BufferedImage(w,h, BufferedImage.TYPE_INT_RGB);
+    // for(int y = 0; y &lt; h; y++)
+    // for(int x = 0; x &lt; w; x++)
+    // {
+    // i1.setRGB(x, y, 0x00000000);
+    // i2.setRGB(x, y, 0xFFFFFFFF);
+    // }
+    //
+    // ColorHistogram h1 = new ColorHistogram(i1);
+    // ColorHistogram h2 = new ColorHistogram(i2);
+    // double d0 = h1.colorDS(h1);
+    // double d1 = h1.colorDS(h2);
+    //
+    // System.out.println(&quot;Min Hist Distance: &quot; + String.valueOf(d0));
+    // System.out.println(&quot;Max Hist Distance: &quot; + String.valueOf(d1));
+    // }
+
+};
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

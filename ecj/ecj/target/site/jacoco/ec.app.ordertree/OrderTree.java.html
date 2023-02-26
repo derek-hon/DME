@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderTree.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.ordertree</a> &gt; <span class="el_source">OrderTree.java</span></div><h1>OrderTree.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2012 by James McDermott
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.ordertree;
+import ec.app.ordertree.func.*;
+import ec.util.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+import java.io.*;
+import javax.imageio.stream.*;
+
+/*
+ * OrderTree.java
+ *
+ */
+
+/**
+ * OrderTree implements the OrderTree problem of Hoang et al. See the
+ * README.txt.  Note that although this is a tunable problem, tuning
+ * is achieved by setting the function and terminal sets. No need for
+ * a size parameter.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.app.ordertree.OrderTreeData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the OrderTree problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;contribution-type&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Integer specifying the amount of nonlinearity in fitness contributions&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;0: add unit; 1: add node value; 2: add node value squared; 3: add 3^node value&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author James McDermott
+ * @version 1.0
+ */
+
+<span class="nc" id="L51">public class OrderTree extends GPProblem implements SimpleProblemForm</span>
+    {
+
+    double fitness;
+    static final String P_CONTRIBUTION_TYPE = &quot;contribution-type&quot;;
+    final static int CONTRIBUTION_UNIT = 0;
+    final static int CONTRIBUTION_VALUE = 1;
+    final static int CONTRIBUTION_SQUARE = 2;
+    final static int CONTRIBUTION_EXPONENTIAL = 3;
+    
+    int fitnessContributionType;
+    
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L67">        super.setup(state,base);</span>
+
+<span class="nc" id="L69">        fitnessContributionType = state.parameters.getInt(base.push(P_CONTRIBUTION_TYPE),null,1);</span>
+<span class="nc bnc" id="L70" title="All 4 branches missed.">        if (fitnessContributionType &lt; CONTRIBUTION_UNIT || fitnessContributionType &gt; CONTRIBUTION_EXPONENTIAL) state.output.fatal(&quot;Fitness Contribution Type must be an integer greater than 0 and less th an 4&quot;, base.push(P_CONTRIBUTION_TYPE)); </span>
+
+<span class="nc" id="L72">        state.output.exitIfErrors();</span>
+<span class="nc" id="L73">        }</span>
+
+    public void evaluate(final EvolutionState state,
+        final Individual ind,
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+            // trees[0].child is the root
+<span class="nc" id="L83">            fitness = 0.0;</span>
+<span class="nc" id="L84">            nodeCal(((GPIndividual) ind).trees[0].child, state);</span>
+
+<span class="nc" id="L86">            SimpleFitness f = ((SimpleFitness) ind.fitness);</span>
+<span class="nc" id="L87">            f.setFitness(state, fitness, false);</span>
+<span class="nc" id="L88">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L90">        }</span>
+
+    double fitnessContribution(double value, EvolutionState state)
+        {
+<span class="nc bnc" id="L94" title="All 5 branches missed.">        switch (fitnessContributionType)</span>
+            {
+<span class="nc" id="L96">            case CONTRIBUTION_UNIT: return 1.0;</span>
+<span class="nc" id="L97">            case CONTRIBUTION_VALUE: return value;</span>
+<span class="nc" id="L98">            case CONTRIBUTION_SQUARE: return value * value;</span>
+<span class="nc" id="L99">            case CONTRIBUTION_EXPONENTIAL: return Math.pow(3.0, value);</span>
+<span class="nc" id="L100">            default: state.output.fatal(&quot;Unexpected fitness contribution type.&quot;);</span>
+<span class="nc" id="L101">                return -1.0;</span>
+            }
+        }
+    
+    void nodeCal(GPNode p, EvolutionState state)
+        {
+<span class="nc" id="L107">        int pval = ((OrderTreeNode) p).value();</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        for (int i = 0; i &lt; p.children.length; i++)</span>
+            {
+<span class="nc" id="L110">            GPNode c = p.children[i];</span>
+<span class="nc" id="L111">            int cval = ((OrderTreeNode) c).value();</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">            if (pval &lt; cval)</span>
+                {
+                // direct fitness contribution
+<span class="nc" id="L115">                fitness += fitnessContribution(cval, state);</span>
+<span class="nc" id="L116">                nodeCal(c, state);</span>
+                }
+<span class="nc bnc" id="L118" title="All 2 branches missed.">            else if (pval == cval)</span>
+                {
+                // neutral-left-walk
+<span class="nc" id="L121">                boolean found = false;</span>
+<span class="nc bnc" id="L122" title="All 6 branches missed.">                while (c.children.length &gt; 0 &amp;&amp; cval == pval &amp;&amp; !found)</span>
+                    {
+<span class="nc" id="L124">                    c = c.children[0];</span>
+<span class="nc" id="L125">                    cval = ((OrderTreeNode) c).value();</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">                    if (pval &lt; cval)</span>
+                        {
+<span class="nc" id="L128">                        found = true;</span>
+                        }
+                    }
+<span class="nc bnc" id="L131" title="All 2 branches missed.">                if (found)</span>
+                    {
+<span class="nc" id="L133">                    fitness += fitnessContribution(cval, state);</span>
+<span class="nc" id="L134">                    nodeCal(c, state);</span>
+                    }
+                }
+            }
+<span class="nc" id="L138">        return;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

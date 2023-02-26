@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Gene.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector</a> &gt; <span class="el_source">Gene.java</span></div><h1>Gene.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.vector;
+
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+
+/*
+ * Gene.java
+ * Created: Thu Mar 22 13:13:20 EST 2001
+ * Revised to Gene.java from VectorGene.java:  Wed Oct 31 23:42:38 EDT 2012
+ */
+
+/**
+ * Gene is an abstract superclass of objects which may be used in
+ * the genome array of GeneVectorIndividuals.
+ *
+
+ * &lt;p&gt;In addition to serialization for checkpointing, Genes may read and write themselves to streams in three ways.
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;writeGene(...,DataOutput)/readGene(...,DataInput)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This method
+ * transmits or receives a Gene in binary.  It is the most efficient approach to sending
+ * Genes over networks, etc.  The default versions of writeGene/readGene throw errors.
+ * You don't need to implement them if you don't plan on using read/writeGene.
+ *
+ * &lt;li&gt;&lt;b&gt;printGene(...,PrintWriter)/readGene(...,LineNumberReader)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach transmits or receives a Gene in text encoded such that the Gene is largely readable
+ * by humans but can be read back in 100% by ECJ as well.  To do this, these methods will typically encode numbers
+ * using the &lt;tt&gt;ec.util.Code&lt;/tt&gt; class.  These methods are mostly used to write out populations to
+ * files for inspection, slight modification, then reading back in later on.  &lt;b&gt;readGene&lt;/b&gt;
+ * reads in a line, then calls &lt;b&gt;readGeneFromString&lt;/b&gt; on that line.
+ * You are responsible for implementing readGeneFromString: the Code class is there to help you.
+ * The default version throws an error if called.
+ * &lt;b&gt;printGene&lt;/b&gt; calls &lt;b&gt;printGeneToString&lt;b&gt;
+ * and printlns the resultant string. You are responsible for implementing the printGeneToString method in such
+ * a way that readGeneFromString can read back in the Gene println'd with printGeneToString.  The default form
+ * of printGeneToString() simply calls &lt;b&gt;toString()&lt;/b&gt; 
+ * by default.  You might override &lt;b&gt;printGeneToString()&lt;/b&gt; to provide better information.   You are not required to implement these methods, but without
+ * them you will not be able to write Genes to files in a simultaneously computer- and human-readable fashion.
+ *
+ * &lt;li&gt;&lt;b&gt;printGeneForHumans(...,PrintWriter)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach prints a Gene in a fashion intended for human consumption only.
+ * &lt;b&gt;printGeneForHumans&lt;/b&gt; calls &lt;b&gt;printGeneToStringForHumans()&lt;b&gt; 
+ * and printlns the resultant string.  The default form of this method just returns the value of
+ * &lt;b&gt;toString()&lt;/b&gt;. You may wish to override this to provide more information instead. 
+ * You should handle one of these methods properly
+ * to ensure Genes can be printed by ECJ.
+ * &lt;/ul&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ vector.gene
+
+ * @author Sean Luke
+ * @version 2.0
+ */
+ 
+<span class="nc" id="L65">public abstract class Gene implements Prototype</span>
+    {
+    public static final String P_GENE = &quot;gene&quot;;
+
+    /** @deprecated */
+    private static final String P_VECTOR_GENE = &quot;vect-gene&quot;;
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+        // nothing by default
+<span class="nc" id="L75">        }</span>
+        
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L79">        return VectorDefaults.base().push(P_GENE);</span>
+        }
+    
+    public Object clone()
+        {
+<span class="nc" id="L84">        try { return super.clone(); }</span>
+<span class="nc" id="L85">        catch (CloneNotSupportedException e) </span>
+<span class="nc" id="L86">            { throw new InternalError(); } // never happens</span>
+        }
+        
+
+
+    /** Generates a hash code for this gene -- the rule for this is that the hash code
+        must be the same for two genes that are equal to each other genetically. */
+    public abstract int hashCode();
+    
+    /** Unlike the standard form for Java, this function should return true if this
+        gene is &quot;genetically identical&quot; to the other gene. */
+    public abstract boolean equals( final Object other );
+
+    /**
+       The reset method randomly reinitializes the gene.
+    */
+    public abstract void reset(final EvolutionState state, final int thread);
+
+    /**
+       Mutate the gene.  The default form just resets the gene.
+    */
+    public void mutate(final EvolutionState state, final int thread)
+        {
+<span class="nc" id="L109">        reset(state,thread);</span>
+<span class="nc" id="L110">        }</span>
+
+    /**
+       Nice printing.  The default form simply calls printGeneToStringForHumans and prints the result, 
+       but you might want to override this.
+    */
+    public void printGeneForHumans( final EvolutionState state, final int verbosity, final int log )
+<span class="nc" id="L117">        {  state.output.println(printGeneToStringForHumans(),log); }</span>
+
+    /** Prints the gene to a string in a human-readable fashion.  The default simply calls toString(). */
+    public String printGeneToStringForHumans()
+<span class="nc" id="L121">        { return toString(); }</span>
+
+    /** Prints the gene to a string in a fashion readable by readGeneFromString and parseable by readGene(state, reader).
+        Override this.  The default form returns toString(). */
+    public String printGeneToString()
+<span class="nc" id="L126">        { return toString(); }</span>
+
+    /** Reads a gene from a string, which may contain a final '\n'.
+        Override this method.  The default form generates an error.
+    */
+    public void readGeneFromString(final String string, final EvolutionState state)
+<span class="nc" id="L132">        { state.output.error(&quot;readGeneFromString(string,state) unimplemented in &quot; + this.getClass()); }</span>
+
+    /**
+       Prints the gene in a way that can be read by readGene().  The default form simply
+       calls printGeneToString().   Override this gene to do custom writing to the log,
+       or just override printGeneToString(...), which is probably easier to do.
+    */
+    public void printGene( final EvolutionState state, final int verbosity, final int log )
+<span class="nc" id="L140">        { state.output.println(printGeneToString(),log); }</span>
+
+    /**
+       Prints the gene in a way that can be read by readGene().  The default form simply
+       calls printGeneToString(state).   Override this gene to do custom writing,
+       or just override printGeneToString(...), which is probably easier to do.
+    */
+    public void printGene( final EvolutionState state, final PrintWriter writer )
+<span class="nc" id="L148">        { writer.println(printGeneToString()); }</span>
+
+    /**
+       Reads a gene printed by printGene(...).  The default form simply reads a line into
+       a string, and then calls readGeneFromString() on that line.  Override this gene to do
+       custom reading, or just override readGeneFromString(...), which is probably easier to do.
+    */
+    public void readGene(final EvolutionState state,
+        final LineNumberReader reader)
+        throws IOException
+<span class="nc" id="L158">        { readGeneFromString(reader.readLine(),state); }</span>
+
+    /** Override this if you need to write rules out to a binary stream */
+    public void writeGene(final EvolutionState state,
+        final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L164">        state.output.fatal(&quot;writeGene(EvolutionState, DataOutput) not implemented in &quot; + this.getClass());</span>
+<span class="nc" id="L165">        }</span>
+
+    /** Override this if you need to read rules in from a binary stream */
+    public void readGene(final EvolutionState state,
+        final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L171">        state.output.fatal(&quot;readGene(EvolutionState, DataInput) not implemented in &quot; + this.getClass());</span>
+<span class="nc" id="L172">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

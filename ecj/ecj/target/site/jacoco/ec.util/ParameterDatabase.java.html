@@ -1,0 +1,3533 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ParameterDatabase.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">ParameterDatabase.java</span></div><h1>ParameterDatabase.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  With modifications by Ananya Dhawan
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+
+import java.io.*;
+import java.util.*;
+import javax.swing.tree.*;
+import java.net.*;
+
+/* 
+ * ParameterDatabase.java
+ * Created: Sat Aug  7 12:09:19 1999
+ */
+
+/**
+ * 
+ * &lt;p&gt;
+ * This extension of the Properties class allows you to set, get, and delete
+ * Parameters in a hierarchical tree-like database. The database consists of a
+ * list of Parameters, plus an array of &quot;parent databases&quot; which it falls back
+ * on when it can't find the Parameter you're looking for. Parents may also have
+ * arrays of parents, and so on..
+ * 
+ * &lt;p&gt;
+ * The parameters are loaded from a Java property-list file, which is basically
+ * a collection of parameter=value pairs, one per line. Empty lines and lines
+ * beginning with # are ignored. These parameters and their values are
+ * &lt;b&gt;case-sensitive &lt;/b&gt;, and whitespace is trimmed I believe.
+ * 
+ * &lt;p&gt;
+ * An optional set of parameters, &quot;parent. &lt;i&gt;n &lt;/i&gt;&quot;, where &lt;i&gt;n &lt;/i&gt; are
+ * consecutive integers starting at 0, define the filenames of the database's
+ * parents.
+ * 
+ * &lt;p&gt;
+ * An optional set of parameters, &quot;print-params&quot;, specifies whether or not
+ * parameters should be printed as they are used (through one of the get(...)
+ * methods). If print-params is unset, or set to false or FALSE, nothing is
+ * printed. If set to non-false, then the parameters are printed prepended with a &quot;P:&quot;
+ * when their values are requested,  &quot;E:&quot; when their existence is tested.  Prior to the
+ * &quot;P:&quot; or &quot;E:&quot; you may see a &quot;!&quot; (meaning that the parameter isn't in the database),
+ * or a &quot;&amp;lt;&quot; (meaning that the parameter was a default parameter which was never
+ * looked up because the primary parameter contained the value).
+ * 
+ * &lt;p&gt;
+ * &lt;p&gt;
+ * When you create a ParameterDatabase using new ParameterDatabase(), it is
+ * created thus:
+ * 
+ * &lt;p&gt;
+ * &lt;table border=0 cellpadding=0 cellspacing=0&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;DATABASE:&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;database&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;FROM:&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(empty)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * 
+ * 
+ * &lt;p&gt;
+ * When you create a ParameterDatabase using new ParameterDatabase( &lt;i&gt;file
+ * &lt;/i&gt;), it is created by loading the database file, and its parent file tree,
+ * thus:
+ * 
+ * &lt;p&gt;
+ * &lt;table border=0 cellpadding=0 cellspacing=0&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;DATABASE:&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;database&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent0&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent0&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent0&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;FROM:&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(empty)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(file)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(parent.0)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(parent.0)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent1&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(parent.1)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent1&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(parent.1)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * 
+ * 
+ * &lt;p&gt;
+ * When you create a ParameterDatabase using new ParameterDatabase( &lt;i&gt;file,argv
+ * &lt;/i&gt;), the preferred way, it is created thus:
+ * 
+ * 
+ * &lt;p&gt;
+ * &lt;table border=0 cellpadding=0 cellspacing=0&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;DATABASE:&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;database&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent0&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent0&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent0&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent0&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;FROM:&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(empty)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;(argv)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(file)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(parent.0)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(parent.0)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent1&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(parent.1)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;parent1&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;+-&amp;gt;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;|&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;(parent.1)&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;tr&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;....&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;td&gt;&lt;tt&gt;&amp;nbsp;&lt;/tt&gt;&lt;/td&gt;
+ * &lt;/tr&gt;
+ * &lt;/table&gt;
+ * 
+ * 
+ * &lt;p&gt;
+ * ...that is, the actual top database is empty, and stores parameters added
+ * programmatically; its parent is a database formed from arguments passed in on
+ * the command line; &lt;i&gt;its &lt;/i&gt; parent is the parameter database which actually
+ * loads from foo. This allows you to programmatically add parameters which
+ * override those in foo, then delete them, thus bringing foo's parameters back
+ * in view.
+ * 
+ * &lt;p&gt;
+ * Once a parameter database is loaded, you query it with the &lt;tt&gt;get&lt;/tt&gt;
+ * methods. The database, then its parents, are searched until a match is found
+ * for your parameter. The search rules are thus: (1) the root database is
+ * searched first. (2) If a database being searched doesn't contain the data, it
+ * searches its parents recursively, starting with parent 0, then moving up,
+ * until all searches are exhausted or something was found. (3) No database is
+ * searched twice.
+ *
+ * &lt;p&gt;The various &lt;tt&gt;get&lt;/tt&gt; methods all take two parameters.  The first
+ * parameter is fetched and retrieved first.  If that fails, the second one
+ * (known as the &lt;i&gt;default parameter&lt;/i&gt;) is fetched and retrieved.  You
+ * can pass in &lt;tt&gt;null&lt;/tt&gt; for the default parameter if you don't have one.
+ *
+ * &lt;p&gt;You can test a parameter for existence with the &lt;tt&gt;exists&lt;/tt&gt; methods.
+ * 
+ * &lt;p&gt;
+ * You can set a parameter (in the topmost database &lt;i&gt;only &lt;/i&gt; with the
+ * &lt;tt&gt;set&lt;/tt&gt; command. The &lt;tt&gt;remove&lt;/tt&gt; command removes a parameter
+ * from the topmost database only. The &lt;tt&gt;removeDeeply&lt;/tt&gt; command removes
+ * that parameter from every database.
+ * 
+ * &lt;p&gt;
+ * The values stored in a parameter database must not contain &quot;#&quot;, &quot;=&quot;,
+ * non-ascii values, or whitespace.
+ *
+ * &lt;p&gt;The get... methods can also handle special &lt;i&gt;macro parameters&lt;/i&gt;.
+ * Macro parameter names will end in &lt;b&gt;default&lt;/b&gt; or &lt;b&gt;alias&lt;/b&gt;, which
+ * means you &lt;i&gt;cannot have any parameter names which end with these two words.&lt;/i&gt;
+ * The idea behind a macro parameter is that it can substitute one substring for another
+ * among your parameter names, making your parameters potentially much simpler.
+ * Macros work along period boundaries.  
+ *
+ * &lt;p&gt;The &lt;b&gt;alias&lt;/b&gt; parameter macro works as follows.  A parameter entry of the form:
+ *
+ * &lt;p&gt;&lt;tt&gt;hello.there.alias = foo&lt;/tt&gt;
+ *
+ * &lt;p&gt;Means that parameters which &lt;i&gt;start with&lt;/i&gt; &lt;tt&gt;hello.there&lt;/tt&gt; should have
+ * the &lt;tt&gt;hello.there&lt;/tt&gt; portion replace with &lt;tt&gt;foo&lt;/tt&gt;.  Thus
+ *
+ * &lt;p&gt;&lt;tt&gt;hello.there.mom.how.are.you&lt;/tt&gt;
+ *
+ * &lt;p&gt;... becomes ...
+ * 
+ * &lt;p&gt;&lt;tt&gt;foo.mom.how.are.you&lt;/tt&gt;
+ * 
+ * &lt;p&gt; and
+ *
+ * &lt;p&gt;&lt;tt&gt;hello.there&lt;/tt&gt;
+ *
+ * &lt;p&gt;... becomes ...
+ * 
+ * &lt;p&gt;&lt;tt&gt;foo&lt;/tt&gt;
+ *
+ * &lt;p&gt; but &lt;tt&gt;hello.thereyo&lt;/tt&gt; is unchanged, and &lt;tt&gt;yohello.there.how.are.you&lt;/tt&gt; is unchanged.
+ *
+ * &lt;p&gt;Furthermore if you already have a parameter entered for a given name, it takes precedence 
+ * over a macro, and more specific macros take precedence over more general ones.  Thus
+ * imagine you have  &lt;tt&gt;a.b.alias = quux&lt;/tt&gt;.  Now when you query &lt;tt&gt;a.b.c.d&lt;/tt&gt; this
+ * will get converted to &lt;tt&gt;quux.c.d&lt;/tt&gt; and that parameter will get looked up instead.
+ * If you also had &lt;tt&gt;a.b.c.alias = bar&lt;/tt&gt;, when when you query &lt;tt&gt;a.b.c.d&lt;/tt&gt;, this takes
+ * precedence, so now it'll get converted to &lt;tt&gt;bar.d&lt;/tt&gt; and that'll get looked up.
+ * Finally, if you had &lt;tt&gt;a.b.c.d = foo&lt;/tt&gt;, when querying &lt;tt&gt;a.b.c.d&lt;/tt&gt; will simply result 
+ * in &lt;tt&gt;foo&lt;/tt&gt;.
+ * 
+ * Additionally there is the &lt;b&gt;default&lt;/b&gt; macro.  This works just like the &lt;b&gt;alias&lt;/b&gt; macro
+ * except that it allows anything to be in the last parameter position prior to the default.
+ * That is:
+ *
+ * &lt;p&gt;&lt;tt&gt;hello.there.default = foo&lt;/tt&gt;
+ *
+ * &lt;p&gt;Means that parameters which &lt;i&gt;start with&lt;/i&gt; &lt;tt&gt;hello.*&lt;/tt&gt; , where &quot;*&quot; can be
+ * any single parameter element, will have that portion replaced with &lt;tt&gt;foo&lt;/tt&gt;.  Thus
+ *
+ * &lt;p&gt;&lt;tt&gt;hello.there.mom.how.are.you&lt;/tt&gt;
+ *
+ * &lt;p&gt;... becomes ...
+ * 
+ * &lt;p&gt;&lt;tt&gt;foo.mom.how.are.you&lt;/tt&gt;
+ * 
+ * &lt;p&gt; and
+ *
+ * &lt;p&gt;&lt;tt&gt;hello.yo.whatever&lt;/tt&gt;
+ *
+ * &lt;p&gt;... becomes ...
+ * 
+ * &lt;p&gt;&lt;tt&gt;foo.whatever&lt;/tt&gt;
+ *
+ * &lt;p&gt; and
+ *
+ * &lt;p&gt;&lt;tt&gt;hello.blah&lt;/tt&gt;
+ *
+ * &lt;p&gt;... becomes ...
+ * 
+ * &lt;p&gt;&lt;tt&gt;foo&lt;/tt&gt;
+ *
+ * This second macro is particularly useful for replacing groups of parameters which differ
+ * based on some number. 
+ * 
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+public class ParameterDatabase implements Serializable 
+    {
+    public static final String C_HERE = &quot;$&quot;;
+    public static final String C_CLASS = &quot;@&quot;;
+    public static final String V_ALIAS = &quot;alias&quot;;
+    public static final String V_DEFAULT = &quot;default&quot;;
+    public static final String UNKNOWN_VALUE = &quot;&quot;;
+    public static final String PRINT_PARAMS = &quot;print-params&quot;;
+    public static final int PS_UNKNOWN = -1;
+    public static final int PS_NONE = 0;
+    public static final int PS_PRINT_PARAMS = 1;
+<span class="fc" id="L445">    public int printState = PS_UNKNOWN;</span>
+    
+    // A descriptive name of the parameter database
+    String label;
+
+    // the parents of this database
+    Vector parents;
+    
+    // If the database was loaded via a file, this holds the directory of the database
+    File directory;
+    
+    // a checkbox (unchecked by uncheck()) for not hitting the same database twice in a graph search
+    boolean checked;
+
+    // List of parameters which were requested and ones which furthermore were fulfilled
+    Hashtable gotten;
+    Hashtable accessed;
+
+    // If the database was loaded via getResource(), this holds the class and relative path
+    // used in that load
+    Class relativeClass;
+    String relativePath;
+
+    Properties properties;
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a full Class name, and the class must be a descendent of but not
+     * equal to &lt;i&gt;mustCastTosuperclass &lt;/i&gt;. Loads the class and returns an
+     * instance (constructed with the default constructor), or throws a
+     * ParamClassLoadException if there is no such Class. If the parameter is
+     * not found, the defaultParameter is used. The parameter chosen is marked
+     * &quot;used&quot;.
+     */
+    public Object getInstanceForParameter(Parameter parameter, Parameter defaultParameter, Class mustCastTosuperclass) throws ParamClassLoadException 
+        {
+<span class="fc" id="L481">        printGotten(parameter, defaultParameter, false);</span>
+        Parameter p;
+<span class="fc bfc" id="L483" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L484">            p = parameter;</span>
+<span class="pc bpc" id="L485" title="1 of 2 branches missed.">        else if (_exists(defaultParameter))</span>
+<span class="fc" id="L486">            p = defaultParameter;</span>
+        else
+<span class="nc" id="L488">            throw new ParamClassLoadException(</span>
+                &quot;No class name provided.\nPARAMETER: &quot;
+                + parameter
+<span class="nc bnc" id="L491" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L492">                    + defaultParameter));</span>
+        try 
+            {
+<span class="fc" id="L495">            Class c = Class.forName(getParam(p), true, Thread.currentThread().getContextClassLoader());</span>
+<span class="pc bpc" id="L496" title="1 of 2 branches missed.">            if (!mustCastTosuperclass.isAssignableFrom(c))</span>
+<span class="nc" id="L497">                throw new ParamClassLoadException(&quot;The class &quot;</span>
+<span class="nc" id="L498">                    + c.getName()</span>
+                    + &quot;\ndoes not cast into the superclass &quot;
+<span class="nc" id="L500">                    + mustCastTosuperclass.getName()</span>
+                    + &quot;\nPARAMETER: &quot;
+                    + parameter
+<span class="nc bnc" id="L503" title="All 2 branches missed.">                    + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L504">                        + defaultParameter));</span>
+<span class="pc bpc" id="L505" title="1 of 2 branches missed.">            if (mustCastTosuperclass == c)</span>
+<span class="nc" id="L506">                throw new ParamClassLoadException(&quot;The class &quot;</span>
+<span class="nc" id="L507">                    + c.getName()</span>
+                    + &quot;\nmust not be the same as the required superclass &quot;
+<span class="nc" id="L509">                    + mustCastTosuperclass.getName()</span>
+                    + &quot;\nPARAMETER: &quot;
+                    + parameter
+<span class="nc bnc" id="L512" title="All 2 branches missed.">                    + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L513">                        + defaultParameter));</span>
+<span class="fc" id="L514">            return c.newInstance();</span>
+            } 
+<span class="nc" id="L516">        catch (ClassNotFoundException e) </span>
+            {
+<span class="nc" id="L518">            throw new ParamClassLoadException(&quot;Class not found: &quot;</span>
+<span class="nc" id="L519">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+<span class="nc bnc" id="L522" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L523">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot; + e);</span>
+            } 
+<span class="nc" id="L525">        catch (IllegalArgumentException e) </span>
+            {
+<span class="nc" id="L527">            throw new ParamClassLoadException(&quot;Could not load class: &quot;</span>
+<span class="nc" id="L528">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+<span class="nc bnc" id="L531" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L532">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot; + e);</span>
+            } 
+<span class="nc" id="L534">        catch (InstantiationException e) </span>
+            {
+<span class="nc" id="L536">            throw new ParamClassLoadException(</span>
+                &quot;The requested class is an interface or an abstract class: &quot;
+<span class="nc" id="L538">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+<span class="nc bnc" id="L541" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L542">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot;</span>
+                + e);
+            } 
+<span class="nc" id="L545">        catch (IllegalAccessException e) </span>
+            {
+<span class="nc" id="L547">            throw new ParamClassLoadException(</span>
+                &quot;The requested class cannot be initialized with the default initializer: &quot;
+<span class="nc" id="L549">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+<span class="nc bnc" id="L552" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L553">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot;</span>
+                + e);
+            }
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a full Class name, and the class must be a descendent, or equal
+     * to, &lt;i&gt;mustCastTosuperclass &lt;/i&gt;. Loads the class and returns an instance
+     * (constructed with the default constructor), or throws a
+     * ParamClassLoadException if there is no such Class. The parameter chosen
+     * is marked &quot;used&quot;.
+     */
+    public Object getInstanceForParameterEq(Parameter parameter,
+        Parameter defaultParameter, Class mustCastTosuperclass)
+        throws ParamClassLoadException 
+        {
+<span class="fc" id="L570">        printGotten(parameter, defaultParameter, false);</span>
+        Parameter p;
+<span class="pc bpc" id="L572" title="1 of 2 branches missed.">        if (_exists(parameter))</span>
+<span class="fc" id="L573">            p = parameter;</span>
+<span class="nc bnc" id="L574" title="All 2 branches missed.">        else if (_exists(defaultParameter))</span>
+<span class="nc" id="L575">            p = defaultParameter;</span>
+        else
+<span class="nc" id="L577">            throw new ParamClassLoadException(</span>
+                &quot;No class name provided.\nPARAMETER: &quot;
+                + parameter
+                + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L581" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L582">                    + defaultParameter));</span>
+        try
+            {
+<span class="fc" id="L585">            Class c = Class.forName(getParam(p), true, Thread.currentThread().getContextClassLoader());</span>
+<span class="pc bpc" id="L586" title="1 of 2 branches missed.">            if (!mustCastTosuperclass.isAssignableFrom(c))</span>
+<span class="nc" id="L587">                throw new ParamClassLoadException(&quot;The class &quot;</span>
+<span class="nc" id="L588">                    + c.getName()</span>
+                    + &quot;\ndoes not cast into the superclass &quot;
+<span class="nc" id="L590">                    + mustCastTosuperclass.getName()</span>
+                    + &quot;\nPARAMETER: &quot;
+                    + parameter
+                    + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L594" title="All 2 branches missed.">                    + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L595">                        + defaultParameter));</span>
+<span class="fc" id="L596">            return c.newInstance();</span>
+            } 
+<span class="nc" id="L598">        catch (ClassNotFoundException e) </span>
+            {
+<span class="nc" id="L600">            throw new ParamClassLoadException(&quot;Class not found: &quot;</span>
+<span class="nc" id="L601">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+                + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L605" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L606">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot; + e);</span>
+            } 
+<span class="nc" id="L608">        catch (IllegalArgumentException e) </span>
+            {
+<span class="nc" id="L610">            throw new ParamClassLoadException(&quot;Could not load class: &quot;</span>
+<span class="nc" id="L611">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+                + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L615" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L616">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot; + e);</span>
+            } 
+<span class="nc" id="L618">        catch (InstantiationException e) </span>
+            {
+<span class="nc" id="L620">            throw new ParamClassLoadException(</span>
+                &quot;The requested class is an interface or an abstract class: &quot;
+<span class="nc" id="L622">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+                + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L626" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L627">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot;</span>
+                + e);
+            } 
+<span class="nc" id="L630">        catch (IllegalAccessException e) </span>
+            {
+<span class="nc" id="L632">            throw new ParamClassLoadException(</span>
+                &quot;The requested class cannot be initialized with the default initializer: &quot;
+<span class="nc" id="L634">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+                + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L638" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L639">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot;</span>
+                + e);
+            }
+        }
+
+    /**
+     * Searches down through databases to find a given parameter. The value
+     * associated with this parameter must be a full Class name, and the class
+     * must be a descendent of but not equal to &lt;i&gt;mustCastTosuperclass &lt;/i&gt;.
+     * Loads and returns the associated Class, or throws a
+     * ParamClassLoadException if there is no such Class. If the parameter is
+     * not found, the defaultParameter is used. The parameter chosen is marked
+     * &quot;used&quot;.
+     */
+    public Class getClassForParameter(Parameter parameter,
+        Parameter defaultParameter, Class mustCastTosuperclass)
+        throws ParamClassLoadException 
+        {
+<span class="nc" id="L657">        printGotten(parameter, defaultParameter, false);</span>
+        Parameter p;
+<span class="nc bnc" id="L659" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L660">            p = parameter;</span>
+<span class="nc bnc" id="L661" title="All 2 branches missed.">        else if (_exists(defaultParameter))</span>
+<span class="nc" id="L662">            p = defaultParameter;</span>
+        else
+<span class="nc" id="L664">            throw new ParamClassLoadException(</span>
+                &quot;No class name provided.\nPARAMETER: &quot;
+                + parameter
+                + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L668" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L669">                    + defaultParameter));</span>
+        try
+            {
+<span class="nc" id="L672">            Class c = Class.forName(getParam(p), true, Thread.currentThread().getContextClassLoader());</span>
+<span class="nc bnc" id="L673" title="All 2 branches missed.">            if (!mustCastTosuperclass.isAssignableFrom(c))</span>
+<span class="nc" id="L674">                throw new ParamClassLoadException(&quot;The class &quot;</span>
+<span class="nc" id="L675">                    + c.getName()</span>
+                    + &quot;\ndoes not cast into the superclass &quot;
+<span class="nc" id="L677">                    + mustCastTosuperclass.getName()</span>
+                    + &quot;\nPARAMETER: &quot;
+                    + parameter
+                    + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L681" title="All 2 branches missed.">                    + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L682">                        + defaultParameter));</span>
+<span class="nc" id="L683">            return c;</span>
+            } 
+<span class="nc" id="L685">        catch (ClassNotFoundException e) </span>
+            {
+<span class="nc" id="L687">            throw new ParamClassLoadException(&quot;Class not found: &quot;</span>
+<span class="nc" id="L688">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+                + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L692" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L693">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot; + e);</span>
+            } 
+<span class="nc" id="L695">        catch (IllegalArgumentException e) </span>
+            {
+<span class="nc" id="L697">            throw new ParamClassLoadException(&quot;Could not load class: &quot;</span>
+<span class="nc" id="L698">                + getParam(p)</span>
+                + &quot;\nPARAMETER: &quot;
+                + parameter
+                + &quot;\n     ALSO: &quot;
+<span class="nc bnc" id="L702" title="All 2 branches missed.">                + (defaultParameter == null ? &quot;&quot; : &quot;\n     ALSO: &quot;</span>
+<span class="nc" id="L703">                    + defaultParameter) + &quot;\nEXCEPTION: \n\n&quot; + e);</span>
+            }
+        }
+
+    /**
+     * Searches down through databases to find a given parameter; If the
+     * parameter does not exist, defaultValue is returned. If the parameter
+     * exists, and it is set to &quot;false&quot; (case insensitive), false is returned.
+     * Else true is returned. The parameter chosen is marked &quot;used&quot; if it
+     * exists.
+     */
+    public boolean getBoolean(Parameter parameter,
+        Parameter defaultParameter, boolean defaultValue) 
+        {
+<span class="fc" id="L717">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L718" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L719">            return getBoolean(parameter, defaultValue);</span>
+        else
+<span class="fc" id="L721">            return getBoolean(defaultParameter, defaultValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter; If the
+     * parameter does not exist, defaultValue is returned. If the parameter
+     * exists, and it is set to &quot;false&quot; (case insensitive), false is returned.
+     * Else true is returned. The parameter chosen is marked &quot;used&quot; if it
+     * exists.
+     */
+    boolean getBoolean(Parameter parameter, boolean defaultValue) 
+        {
+<span class="fc bfc" id="L733" title="All 2 branches covered.">        if (!_exists(parameter))</span>
+<span class="fc" id="L734">            return defaultValue;</span>
+<span class="fc bfc" id="L735" title="All 2 branches covered.">        return (!getParam(parameter).equalsIgnoreCase(&quot;false&quot;));</span>
+        }
+
+    /**
+     * Parses an integer from a string, either in decimal or (if starting with
+     * an x) in hex
+     */
+    // we assume that the string has been trimmed already
+    int parseInt(String string)
+        throws NumberFormatException 
+        {
+        char c;
+<span class="pc bpc" id="L747" title="2 of 4 branches missed.">        if (string != null &amp;&amp; string.length() &gt; 0</span>
+<span class="pc bpc" id="L748" title="2 of 4 branches missed.">            &amp;&amp; ((string.charAt(0) == (c = 'x')) || c == 'X')) </span>
+            {
+            // it's a hex int, load it as hex
+<span class="nc" id="L751">            return Integer.parseInt(string.substring(1), 16);</span>
+            } 
+        else
+            {
+            try
+                {
+                // it's decimal
+<span class="fc" id="L758">                return Integer.parseInt(string);</span>
+                }
+<span class="nc" id="L760">            catch (NumberFormatException e)</span>
+                {
+                // maybe it's a double ending in .0, which should be okay
+                try 
+                    {
+<span class="nc" id="L765">                    double d = Double.parseDouble(string);</span>
+<span class="nc bnc" id="L766" title="All 2 branches missed.">                    if (d == (int) d) return (int) d;  // looking fine</span>
+<span class="nc" id="L767">                    else throw e;</span>
+                    }
+<span class="nc" id="L769">                catch (NumberFormatException e2)</span>
+                    {
+<span class="nc" id="L771">                    throw e;</span>
+                    }
+                }
+            }
+        }
+
+    /**
+     * Parses a long from a string, either in decimal or (if starting with an x)
+     * in hex
+     */
+    // we assume that the string has been trimmed already
+    /*protected*/ long parseLong(String string)
+        throws NumberFormatException 
+        {
+        char c;
+<span class="pc bpc" id="L786" title="2 of 4 branches missed.">        if (string != null &amp;&amp; string.length() &gt; 0</span>
+<span class="pc bpc" id="L787" title="2 of 4 branches missed.">            &amp;&amp; ((string.charAt(0) == (c = 'x')) || c == 'X')) </span>
+            {
+            // it's a hex int, load it as hex
+<span class="nc" id="L790">            return Long.parseLong(string.substring(1), 16);</span>
+            } 
+        else
+            { 
+            try
+                {
+                // it's decimal
+<span class="fc" id="L797">                return Long.parseLong(string);</span>
+                }
+<span class="nc" id="L799">            catch (NumberFormatException e)</span>
+                {
+                // maybe it's a double ending in .0, which should be okay
+                try 
+                    {
+<span class="nc" id="L804">                    double d = Double.parseDouble(string);</span>
+<span class="nc bnc" id="L805" title="All 2 branches missed.">                    if (d == (long) d) return (long) d;  // looking fine</span>
+<span class="nc" id="L806">                    else throw e;</span>
+                    }
+<span class="nc" id="L808">                catch (NumberFormatException e2)</span>
+                    {
+<span class="nc" id="L810">                    throw e;</span>
+                    }
+                }
+            }
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be an integer. It returns the value, else throws a
+     * NumberFormatException exception if there is an error in parsing the
+     * parameter. The parameter chosen is marked &quot;used&quot; if it exists. Integers
+     * may be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    /*protected*/ int getInt(Parameter parameter)
+        throws NumberFormatException 
+        {
+<span class="pc bpc" id="L826" title="1 of 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="fc" id="L830">                return parseInt(getParam(parameter));</span>
+                } 
+<span class="nc" id="L832">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L834">                throw new NumberFormatException(&quot;Bad integer (&quot;</span>
+<span class="nc" id="L835">                    + getParam(parameter) + &quot; ) for parameter &quot; + parameter);</span>
+                }
+            } 
+        else
+<span class="nc" id="L839">            throw new NumberFormatException(</span>
+                &quot;Integer does not exist for parameter &quot; + parameter);
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be an integer. It returns the value, else throws a
+     * NumberFormatException exception if there is an error in parsing the
+     * parameter. The parameter chosen is marked &quot;used&quot; if it exists. Integers
+     * may be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    public int getInt(Parameter parameter, Parameter defaultParameter)
+        throws NumberFormatException 
+        {
+<span class="fc" id="L853">        printGotten(parameter, defaultParameter, false);</span>
+<span class="pc bpc" id="L854" title="1 of 2 branches missed.">        if (_exists(parameter))</span>
+<span class="fc" id="L855">            return getInt(parameter);</span>
+<span class="nc bnc" id="L856" title="All 2 branches missed.">        else if (_exists(defaultParameter))</span>
+<span class="nc" id="L857">            return getInt(defaultParameter);</span>
+        else
+<span class="nc" id="L859">            throw new NumberFormatException(</span>
+                &quot;Integer does not exist for either parameter &quot; + parameter
+                + &quot;\nor\n&quot; + defaultParameter);
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be an integer &gt;= minValue. It returns the value, or minValue-1 if
+     * the value is out of range or if there is an error in parsing the
+     * parameter. The parameter chosen is marked &quot;used&quot; if it exists. Integers
+     * may be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    public int getInt(Parameter parameter, Parameter defaultParameter,
+        int minValue) 
+        {
+<span class="fc" id="L874">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L875" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L876">            return getInt(parameter, minValue);</span>
+        else
+<span class="fc" id="L878">            return getInt(defaultParameter, minValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be an integer &gt;= minValue. It returns the value, or minValue-1 if
+     * the value is out of range or if there is an error in parsing the
+     * parameter. The parameter chosen is marked &quot;used&quot; if it exists. Integers
+     * may be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    public /*protected*/ int getInt(Parameter parameter, int minValue) 
+        {
+<span class="fc bfc" id="L890" title="All 2 branches covered.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="fc" id="L894">                int i = parseInt(getParam(parameter));</span>
+<span class="fc bfc" id="L895" title="All 2 branches covered.">                if (i &lt; minValue)</span>
+<span class="fc" id="L896">                    return minValue - 1;</span>
+<span class="fc" id="L897">                return i;</span>
+                } 
+<span class="nc" id="L899">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L901">                return minValue - 1;</span>
+                }
+            } 
+        else
+<span class="fc" id="L905">            return minValue - 1;</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, which must be
+     * an integer. If there is an error in parsing the parameter, then default
+     * is returned. The parameter chosen is marked &quot;used&quot; if it exists. Integers
+     * may be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    public int getIntWithDefault(Parameter parameter,
+        Parameter defaultParameter, int defaultValue) 
+        {
+<span class="fc" id="L917">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L918" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L919">            return getIntWithDefault(parameter, defaultValue);</span>
+        else
+<span class="fc" id="L921">            return getIntWithDefault(defaultParameter, defaultValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, which must be
+     * an integer. If there is an error in parsing the parameter, then default
+     * is returned. The parameter chosen is marked &quot;used&quot; if it exists. Integers
+     * may be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    int getIntWithDefault(Parameter parameter, int defaultValue) 
+        {
+<span class="fc bfc" id="L932" title="All 2 branches covered.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="fc" id="L936">                return parseInt(getParam(parameter));</span>
+                } 
+<span class="nc" id="L938">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L940">                return defaultValue;</span>
+                }
+            } 
+        else
+<span class="fc" id="L944">            return defaultValue;</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be an integer &gt;= minValue and &lt;= maxValue. It returns the value, or
+     * minValue-1 if the value is out of range or if there is an error in
+     * parsing the parameter. The parameter chosen is marked &quot;used&quot; if it
+     * exists. Integers may be in decimal or (if preceded with an X or x) in
+     * hexadecimal.
+     */
+    public int getIntWithMax(Parameter parameter,
+        Parameter defaultParameter, int minValue, int maxValue) 
+        {
+<span class="nc" id="L958">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L959" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L960">            return getIntWithMax(parameter, minValue, maxValue);</span>
+        else
+<span class="nc" id="L962">            return getIntWithMax(defaultParameter, minValue, maxValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be an integer &gt;= minValue and &lt;= maxValue. It returns the value, or
+     * minValue-1 if the value is out of range or if there is an error in
+     * parsing the parameter. The parameter chosen is marked &quot;used&quot; if it
+     * exists. Integers may be in decimal or (if preceded with an X or x) in
+     * hexadecimal.
+     */
+    int getIntWithMax(Parameter parameter, int minValue, int maxValue) 
+        {
+<span class="nc bnc" id="L975" title="All 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="nc" id="L979">                int i = parseInt(getParam(parameter));</span>
+<span class="nc bnc" id="L980" title="All 2 branches missed.">                if (i &lt; minValue)</span>
+<span class="nc" id="L981">                    return minValue - 1;</span>
+<span class="nc bnc" id="L982" title="All 2 branches missed.">                if (i &gt; maxValue)</span>
+<span class="nc" id="L983">                    return minValue - 1;</span>
+<span class="nc" id="L984">                return i;</span>
+                } 
+<span class="nc" id="L986">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L988">                return minValue - 1;</span>
+                }
+            } 
+        else
+<span class="nc" id="L992">            return minValue - 1;</span>
+        }
+
+
+    float getFloat(Parameter parameter) throws NumberFormatException
+        {
+<span class="nc bnc" id="L998" title="All 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+                // For JDK 1.2 and later, this is more efficient...
+                // float i = Float.parseFloat(getParam(parameter));
+                // ...but we can't use it and still be compatible with JDK 1.1
+<span class="nc" id="L1005">                return Float.valueOf(getParam(parameter)).floatValue(); // what stupidity...</span>
+                } 
+<span class="nc" id="L1007">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1009">                throw new NumberFormatException(&quot;Bad float (&quot;</span>
+<span class="nc" id="L1010">                    + getParam(parameter) + &quot; ) for parameter &quot; + parameter);</span>
+                }
+            } 
+        else
+<span class="nc" id="L1014">            throw new NumberFormatException(</span>
+                &quot;Float does not exist for parameter &quot; + parameter);
+        }
+
+    /*
+     * Searches down through databases to find a given parameter, whose value
+     * must be a float. It returns the value, else throws a
+     * NumberFormatException exception if there is an error in parsing the
+     * parameter. The parameter chosen is marked &quot;used&quot; if it exists.
+     */
+    public float getFloat(Parameter parameter, Parameter defaultParameter)
+        throws NumberFormatException 
+        {
+<span class="nc" id="L1027">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L1028" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L1029">            return getFloat(parameter);</span>
+<span class="nc bnc" id="L1030" title="All 2 branches missed.">        else if (_exists(defaultParameter))</span>
+<span class="nc" id="L1031">            return getFloat(defaultParameter);</span>
+        else
+<span class="nc" id="L1033">            throw new NumberFormatException(</span>
+                &quot;Float does not exist for either parameter &quot; + parameter
+                + &quot;\nor\n&quot; + defaultParameter);
+        }
+        
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a float &gt;= minValue. If not, this method returns minvalue-1, else
+     * it returns the parameter value. The parameter chosen is marked &quot;used&quot; if
+     * it exists.
+     */
+
+    public float getFloat(Parameter parameter,
+        Parameter defaultParameter, double minValue) 
+        {
+<span class="nc" id="L1049">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L1050" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L1051">            return getFloat(parameter, minValue);</span>
+        else
+<span class="nc" id="L1053">            return getFloat(defaultParameter, minValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a float &gt;= minValue. If not, this method returns minvalue-1, else
+     * it returns the parameter value. The parameter chosen is marked &quot;used&quot; if
+     * it exists.
+     */
+
+    float getFloat(Parameter parameter, double minValue) 
+        {
+<span class="nc bnc" id="L1065" title="All 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="nc" id="L1069">                float i = Float.valueOf(getParam(parameter)).floatValue(); // what stupidity...</span>
+
+                // For JDK 1.2 and later, this is more efficient...
+                // float i = Float.parseFloat(getParam(parameter));
+                // ...but we can't use it and still be compatible with JDK 1.1
+
+<span class="nc bnc" id="L1075" title="All 2 branches missed.">                if (i &lt; minValue)</span>
+<span class="nc" id="L1076">                    return (float) (minValue - 1);</span>
+<span class="nc" id="L1077">                return i;</span>
+                } 
+<span class="nc" id="L1079">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1081">                return (float) (minValue - 1);</span>
+                }
+            } 
+        else
+<span class="nc" id="L1085">            return (float) (minValue - 1);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, which must be
+     * a float. If there is an error in parsing the parameter, then default is
+     * returned. The parameter chosen is marked &quot;used&quot; if it exists.
+     */
+    public float getFloatWithDefault(Parameter parameter,
+        Parameter defaultParameter, double defaultValue) 
+        {
+<span class="nc" id="L1096">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L1097" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L1098">            return getFloatWithDefault(parameter, defaultValue);</span>
+        else
+<span class="nc" id="L1100">            return getFloatWithDefault(defaultParameter, defaultValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, which must be
+     * a float. If there is an error in parsing the parameter, then default is
+     * returned. The parameter chosen is marked &quot;used&quot; if it exists.
+     */
+    float getFloatWithDefault(Parameter parameter, double defaultValue) 
+        {
+<span class="nc bnc" id="L1110" title="All 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+                // For JDK 1.2 and later, this is more efficient...
+                // return Float.parseFloat(getParam(parameter));
+                // ...but we can't use it and still be compatible with JDK 1.1
+<span class="nc" id="L1117">                return Float.valueOf(getParam(parameter)).floatValue(); // what stupidity...</span>
+                } 
+<span class="nc" id="L1119">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1121">                return (float) (defaultValue);</span>
+                }
+            } 
+        else
+<span class="nc" id="L1125">            return (float) (defaultValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a float &gt;= minValue and &lt;= maxValue. If not, this method returns
+     * minvalue-1, else it returns the parameter value. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public float getFloatWithMax(Parameter parameter,
+        Parameter defaultParameter, double minValue, double maxValue) 
+        {
+<span class="nc" id="L1138">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L1139" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L1140">            return getFloat(parameter, minValue, maxValue);</span>
+        else
+<span class="nc" id="L1142">            return getFloat(defaultParameter, minValue, maxValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a float &gt;= minValue and &lt;= maxValue. If not, this method returns
+     * minvalue-1, else it returns the parameter value. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     *
+     * @deprecated Use getFloatWithMax instead
+     */
+
+    public float getFloat(Parameter parameter,
+        Parameter defaultParameter, double minValue, double maxValue) 
+        {
+<span class="nc" id="L1157">        return getFloatWithMax(parameter, defaultParameter, minValue, maxValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a float &gt;= minValue and &lt;= maxValue. If not, this method returns
+     * minvalue-1, else it returns the parameter value. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    float getFloat(Parameter parameter, double minValue, double maxValue) 
+        {
+<span class="nc bnc" id="L1169" title="All 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="nc" id="L1173">                float i = Float.valueOf(getParam(parameter)).floatValue(); // what stupidity...</span>
+
+                // For JDK 1.2 and later, this is more efficient...
+                // float i = Float.parseFloat(getParam(parameter));
+                // ...but we can't use it and still be compatible with JDK 1.1
+
+<span class="nc bnc" id="L1179" title="All 2 branches missed.">                if (i &lt; minValue)</span>
+<span class="nc" id="L1180">                    return (float) (minValue - 1);</span>
+<span class="nc bnc" id="L1181" title="All 2 branches missed.">                if (i &gt; maxValue)</span>
+<span class="nc" id="L1182">                    return (float) (minValue - 1);</span>
+<span class="nc" id="L1183">                return i;</span>
+                } 
+<span class="nc" id="L1185">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1187">                return (float) (minValue - 1);</span>
+                }
+            } 
+        else
+<span class="nc" id="L1191">            return (float) (minValue - 1);</span>
+        }
+
+    double getDouble(Parameter parameter) throws NumberFormatException
+        {
+<span class="pc bpc" id="L1196" title="1 of 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+                // For JDK 1.2 and later, this is more efficient...
+                // double i = Double.parseDouble(getParam(parameter));
+                // ...but we can't use it and still be compatible with JDK 1.1
+<span class="fc" id="L1203">                return Double.valueOf(getParam(parameter)).doubleValue(); // what stupidity...</span>
+                } 
+<span class="nc" id="L1205">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1207">                throw new NumberFormatException(&quot;Bad double (&quot;</span>
+<span class="nc" id="L1208">                    + getParam(parameter) + &quot; ) for parameter &quot; + parameter);</span>
+                }
+            } 
+        else
+<span class="nc" id="L1212">            throw new NumberFormatException(</span>
+                &quot;Double does not exist for parameter &quot; + parameter);
+        }
+
+    /*
+     * Searches down through databases to find a given parameter, whose value
+     * must be an double. It returns the value, else throws a
+     * NumberFormatException exception if there is an error in parsing the
+     * parameter. The parameter chosen is marked &quot;used&quot; if it exists. 
+     */
+    public double getDouble(Parameter parameter, Parameter defaultParameter)
+        throws NumberFormatException 
+        {
+<span class="fc" id="L1225">        printGotten(parameter, defaultParameter, false);</span>
+<span class="pc bpc" id="L1226" title="1 of 2 branches missed.">        if (_exists(parameter))</span>
+<span class="fc" id="L1227">            return getDouble(parameter);</span>
+<span class="nc bnc" id="L1228" title="All 2 branches missed.">        else if (_exists(defaultParameter))</span>
+<span class="nc" id="L1229">            return getDouble(defaultParameter);</span>
+        else
+<span class="nc" id="L1231">            throw new NumberFormatException(</span>
+                &quot;Double does not exist for either parameter &quot; + parameter
+                + &quot;\nor\n&quot; + defaultParameter);
+        }
+        
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a double &gt;= minValue. If not, this method returns minvalue-1,
+     * else it returns the parameter value. The parameter chosen is marked
+     * &quot;used&quot; if it exists.
+     */
+
+    public double getDouble(Parameter parameter,
+        Parameter defaultParameter, double minValue) 
+        {
+<span class="fc" id="L1247">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1248" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1249">            return getDouble(parameter, minValue);</span>
+        else
+<span class="fc" id="L1251">            return getDouble(defaultParameter, minValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a double &gt;= minValue. If not, this method returns minvalue-1,
+     * else it returns the parameter value. The parameter chosen is marked
+     * &quot;used&quot; if it exists.
+     */
+
+    double getDouble(Parameter parameter, double minValue) 
+        {
+<span class="pc bpc" id="L1263" title="1 of 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="fc" id="L1267">                double i = Double.valueOf(getParam(parameter)).doubleValue(); // what stupidity...</span>
+
+                // For JDK 1.2 and later, this is more efficient...
+                // double i = Double.parseDouble(getParam(parameter));
+                // ...but we can't use it and still be compatible with JDK 1.1
+
+<span class="pc bpc" id="L1273" title="1 of 2 branches missed.">                if (i &lt; minValue)</span>
+<span class="nc" id="L1274">                    return (double) (minValue - 1);</span>
+<span class="fc" id="L1275">                return i;</span>
+                } 
+<span class="nc" id="L1277">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1279">                return (double) (minValue - 1);</span>
+                }
+            } 
+        else
+<span class="nc" id="L1283">            return (double) (minValue - 1);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a double &gt;= minValue and &lt;= maxValue. If not, this method returns
+     * minvalue-1, else it returns the parameter value. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public double getDoubleWithMax(Parameter parameter,
+        Parameter defaultParameter, double minValue, double maxValue) 
+        {
+<span class="fc" id="L1296">        printGotten(parameter, defaultParameter, false);</span>
+<span class="pc bpc" id="L1297" title="1 of 2 branches missed.">        if (_exists(parameter))</span>
+<span class="fc" id="L1298">            return getDouble(parameter, minValue, maxValue);</span>
+        else
+<span class="nc" id="L1300">            return getDouble(defaultParameter, minValue, maxValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a double &gt;= minValue and &lt;= maxValue. If not, this method returns
+     * minvalue-1, else it returns the parameter value. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     *
+     * @deprecated use getDoubleWithMax instead
+     */
+
+    public double getDouble(Parameter parameter,
+        Parameter defaultParameter, double minValue, double maxValue) 
+        {
+<span class="nc" id="L1315">        return getDoubleWithMax(parameter, defaultParameter, minValue, maxValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a double &gt;= minValue and &lt;= maxValue. If not, this method returns
+     * minvalue-1, else it returns the parameter value. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    double getDouble(Parameter parameter, double minValue, double maxValue) 
+        {
+<span class="pc bpc" id="L1327" title="1 of 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="fc" id="L1331">                double i = Double.valueOf(getParam(parameter)).doubleValue(); // what stupidity...</span>
+
+                // For JDK 1.2 and later, this is more efficient...
+                // double i = Double.parseDouble(getParam(parameter));
+                // ...but we can't use it and still be compatible with JDK 1.1
+
+<span class="pc bpc" id="L1337" title="1 of 2 branches missed.">                if (i &lt; minValue)</span>
+<span class="nc" id="L1338">                    return (double) (minValue - 1);</span>
+<span class="pc bpc" id="L1339" title="1 of 2 branches missed.">                if (i &gt; maxValue)</span>
+<span class="nc" id="L1340">                    return (double) (minValue - 1);</span>
+<span class="fc" id="L1341">                return i;</span>
+                } 
+<span class="nc" id="L1343">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1345">                return (double) (minValue - 1);</span>
+                }
+            } 
+        else
+<span class="nc" id="L1349">            return (double) (minValue - 1);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, which must be
+     * a float. If there is an error in parsing the parameter, then default is
+     * returned. The parameter chosen is marked &quot;used&quot; if it exists.
+     */
+    public double getDoubleWithDefault(Parameter parameter,
+        Parameter defaultParameter, double defaultValue) 
+        {
+<span class="fc" id="L1360">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1361" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1362">            return getDoubleWithDefault(parameter, defaultValue);</span>
+        else
+<span class="fc" id="L1364">            return getDoubleWithDefault(defaultParameter, defaultValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, which must be
+     * a float. If there is an error in parsing the parameter, then default is
+     * returned. The parameter chosen is marked &quot;used&quot; if it exists.
+     */
+    double getDoubleWithDefault(Parameter parameter, double defaultValue) 
+        {
+<span class="fc bfc" id="L1374" title="All 2 branches covered.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+                // For JDK 1.2 and later, this is more efficient...
+                // return Double.parseDouble(getParam(parameter));
+                // ...but we can't use it and still be compatible with JDK 1.1
+<span class="fc" id="L1381">                return Double.valueOf(getParam(parameter)).doubleValue(); // what stupidity...</span>
+                } 
+<span class="nc" id="L1383">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1385">                return defaultValue;</span>
+                }
+            } 
+        else
+<span class="fc" id="L1389">            return defaultValue;</span>
+        }
+
+
+	double[] extendBag(double[] bag)
+		{
+<span class="nc" id="L1395">		double[] newbag = new double[bag.length * 2 + 1];</span>
+<span class="nc" id="L1396">		System.arraycopy(bag, 0, newbag, 0, bag.length);</span>
+<span class="nc" id="L1397">		return newbag;</span>
+		}
+		
+	double[] collapseBag(double[] bag, int size)
+		{
+<span class="fc" id="L1402">		double[] newbag = new double[size];</span>
+<span class="fc" id="L1403">		System.arraycopy(bag, 0, newbag, 0, size);</span>
+<span class="fc" id="L1404">		return newbag;</span>
+		}
+
+    static final int ARRAY_NO_EXPECTED_LENGTH = (-1);
+    double[] getDoublesWithMax(Parameter parameter, double minValue, double maxValue, int expectedLength)
+        {
+<span class="fc bfc" id="L1410" title="All 2 branches covered.">        if (_exists(parameter)) </span>
+            {
+<span class="fc" id="L1412">            double[] bag = new double[256];</span>
+<span class="fc" id="L1413">            int bagSize = 0;</span>
+            
+<span class="fc" id="L1415">            Scanner scanner = new Scanner(getParam(parameter));</span>
+<span class="fc bfc" id="L1416" title="All 2 branches covered.">            while(scanner.hasNextDouble())</span>
+                {
+<span class="fc bfc" id="L1418" title="All 4 branches covered.">                if (expectedLength != ARRAY_NO_EXPECTED_LENGTH &amp;&amp; bagSize &gt;= expectedLength)</span>
+<span class="fc" id="L1419">                    return null;  // too big</span>
+                                
+<span class="fc" id="L1421">                double val = scanner.nextDouble();</span>
+<span class="pc bpc" id="L1422" title="1 of 6 branches missed.">                if (val != val || val &gt; maxValue || val &lt; minValue)</span>
+<span class="fc" id="L1423">                    return null;</span>
+                else
+                    {
+<span class="pc bpc" id="L1426" title="1 of 2 branches missed.">                    if (bagSize == bag.length) bag = extendBag(bag);</span>
+<span class="fc" id="L1427">                	bag[bagSize] = val;</span>
+<span class="fc" id="L1428">                	bagSize++; </span>
+                	}
+<span class="fc" id="L1430">                }</span>
+<span class="fc bfc" id="L1431" title="All 2 branches covered.">            if (scanner.hasNext())</span>
+<span class="fc" id="L1432">                return null;  // too long, or garbage afterwards</span>
+<span class="fc bfc" id="L1433" title="All 4 branches covered.">            if (expectedLength != ARRAY_NO_EXPECTED_LENGTH &amp;&amp; bagSize != expectedLength)</span>
+<span class="fc" id="L1434">                return null;</span>
+<span class="pc bpc" id="L1435" title="1 of 2 branches missed.">            if (bagSize == 0)</span>
+<span class="nc" id="L1436">                return null;            // 0 lengths not permitted</span>
+<span class="fc" id="L1437">            return collapseBag(bag, bagSize);</span>
+            } 
+        else
+            {
+<span class="fc" id="L1441">            return null;</span>
+            }
+        }
+
+    double[] getDoublesWithMax(Parameter parameter, double minValue, double maxValue)
+        {
+<span class="fc" id="L1447">        return getDoublesWithMax(parameter, minValue, maxValue, ARRAY_NO_EXPECTED_LENGTH);</span>
+        }
+        
+    double[] getDoubles(Parameter parameter, double minValue, int expectedLength)
+        {
+<span class="fc" id="L1452">        return getDoublesWithMax(parameter, minValue, Double.POSITIVE_INFINITY, expectedLength);</span>
+        }
+
+    double[] getDoubles(Parameter parameter, double minValue)
+        {
+<span class="fc" id="L1457">        return getDoublesWithMax(parameter, minValue, Double.POSITIVE_INFINITY, ARRAY_NO_EXPECTED_LENGTH);</span>
+        }
+
+    double[] getDoublesUnconstrained(Parameter parameter, int expectedLength)
+        {
+<span class="fc" id="L1462">        return getDoublesWithMax(parameter, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, expectedLength);</span>
+        }
+
+    double[] getDoublesUnconstrained(Parameter parameter)
+        {
+<span class="fc" id="L1467">        return getDoublesWithMax(parameter, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY, ARRAY_NO_EXPECTED_LENGTH);</span>
+        }
+
+
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of doubles, each of which is &gt;= minValue and &lt;= maxValue,
+     * and which must be exactly expectedLength (&gt; 0) long.  If the parameter does not exist,
+     * or any of its doubles are out of bounds, or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the doubles in question.  The doubles may not
+     * be NaN. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public double[] getDoublesWithMax(Parameter parameter, Parameter defaultParameter, double minValue, double maxValue, int expectedLength)
+        {
+<span class="fc" id="L1485">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1486" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1487">            return getDoublesWithMax(parameter, minValue, maxValue, expectedLength);</span>
+        else
+<span class="fc" id="L1489">            return getDoublesWithMax(defaultParameter, minValue, maxValue, expectedLength);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of doubles, each of which is &gt;= minValue and &lt;= maxValue,
+     * and which must be at least 1 number long.  If the parameter does not exist,
+     * or any of its doubles are out of bounds, or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the doubles in question.  The doubles may not
+     * be NaN. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public double[] getDoublesWithMax(Parameter parameter, Parameter defaultParameter, double minValue, double maxValue)
+        {
+<span class="nc" id="L1505">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L1506" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L1507">            return getDoublesWithMax(parameter, minValue, maxValue);</span>
+        else
+<span class="nc" id="L1509">            return getDoublesWithMax(defaultParameter, minValue, maxValue);</span>
+        }
+        
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of doubles, each of which is &gt;= minValue,
+     * and which must be exactly expectedLength (&gt; 0) long.  If the parameter does not exist,
+     * or any of its doubles are out of bounds, or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the doubles in question.  The doubles may not
+     * be NaN. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public double[] getDoubles(Parameter parameter, Parameter defaultParameter, double minValue, int expectedLength)
+        {
+<span class="fc" id="L1525">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1526" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1527">            return getDoubles(parameter, minValue, expectedLength);</span>
+        else
+<span class="fc" id="L1529">            return getDoubles(defaultParameter, minValue, expectedLength);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of doubles, each of which is &gt;= minValue,
+     * and which must be at least 1 number long.  If the parameter does not exist,
+     * or any of its doubles are out of bounds, or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the doubles in question.  The doubles may not
+     * be NaN. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public double[] getDoubles(Parameter parameter, Parameter defaultParameter, double minValue)
+        {
+<span class="fc" id="L1545">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1546" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1547">            return getDoubles(parameter, minValue);</span>
+        else
+<span class="fc" id="L1549">            return getDoubles(defaultParameter, minValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of doubles,
+     * and which must be exactly expectedLength (&gt; 0) long.  If the parameter does not exist,
+     * or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the doubles in question.  The doubles may not
+     * be NaN. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public double[] getDoublesUnconstrained(Parameter parameter, Parameter defaultParameter, int expectedLength)
+        {
+<span class="fc" id="L1565">        printGotten(parameter, defaultParameter, false);</span>
+<span class="pc bpc" id="L1566" title="1 of 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L1567">            return getDoublesUnconstrained(parameter, expectedLength);</span>
+        else
+<span class="fc" id="L1569">            return getDoublesUnconstrained(defaultParameter, expectedLength);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of doubles,
+     * and which must be at least 1 number long.  If the parameter does not exist,
+     * or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the doubles in question.  The doubles may not
+     * be NaN. The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public double[] getDoublesUnconstrained(Parameter parameter, Parameter defaultParameter)
+        {
+<span class="fc" id="L1585">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1586" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1587">            return getDoublesUnconstrained(parameter);</span>
+        else
+<span class="fc" id="L1589">            return getDoublesUnconstrained(defaultParameter);</span>
+        }
+
+
+
+
+
+
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of ints, each of which is &gt;= minValue and &lt;= maxValue,
+     * and which must be exactly expectedLength (&gt; 0) long.  If the parameter does not exist,
+     * or any of its ints are out of bounds, or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the ints in question.  
+     * The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public int[] getIntsWithMax(Parameter parameter, Parameter defaultParameter, int minValue, int maxValue, int expectedLength)
+        {
+<span class="nc" id="L1611">        double[] val = getDoublesWithMax(parameter, defaultParameter, minValue, maxValue, expectedLength);</span>
+<span class="nc bnc" id="L1612" title="All 2 branches missed.">        if (val == null) return null;</span>
+<span class="nc" id="L1613">        int[] ret = new int[val.length];</span>
+<span class="nc bnc" id="L1614" title="All 2 branches missed.">        for(int i = 0; i &lt; val.length; i++)</span>
+        	{
+<span class="nc" id="L1616">        	ret[i] = (int)val[i];</span>
+<span class="nc bnc" id="L1617" title="All 2 branches missed.">        	if (ret[i] != val[i]) // uh oh, a double with a decimal place, or infinity or NaN</span>
+<span class="nc" id="L1618">        		return null;</span>
+        	}
+<span class="nc" id="L1620">        return ret;</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of ints, each of which is &gt;= minValue and &lt;= maxValue,
+     * and which must be at least 1 number long.  If the parameter does not exist,
+     * or any of its ints are out of bounds, or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the ints in question.  
+     * The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public int[] getIntsWithMax(Parameter parameter, Parameter defaultParameter, int minValue, int maxValue)
+        {
+<span class="nc" id="L1636">        return getIntsWithMax(parameter, defaultParameter, minValue, maxValue, ARRAY_NO_EXPECTED_LENGTH);</span>
+        }
+        
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of ints, each of which is &gt;= minValue,
+     * and which must be exactly expectedLength (&gt; 0) long.  If the parameter does not exist,
+     * or any of its ints are out of bounds, or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the ints in question.  
+     * The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public int[] getInts(Parameter parameter, Parameter defaultParameter, int minValue, int expectedLength)
+        {
+<span class="nc" id="L1652">        return getIntsWithMax(parameter, defaultParameter, minValue, Integer.MAX_VALUE, expectedLength);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of ints, each of which is &gt;= minValue,
+     * and which must be at least 1 number long.  If the parameter does not exist,
+     * or any of its ints are out of bounds, or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the ints in question.  
+     * The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public int[] getInts(Parameter parameter, Parameter defaultParameter, int minValue)
+        {
+<span class="nc" id="L1668">        return getInts(parameter, defaultParameter, minValue, ARRAY_NO_EXPECTED_LENGTH);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of ints,
+     * and which must be exactly expectedLength (&gt; 0) long.  If the parameter does not exist,
+     * or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the ints in question.  
+     * The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public int[] getIntsUnconstrained(Parameter parameter, Parameter defaultParameter, int expectedLength)
+        {
+<span class="nc" id="L1684">        return getIntsWithMax(parameter, defaultParameter, Integer.MIN_VALUE, Integer.MAX_VALUE, expectedLength);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a space- or tab-delimited list of ints,
+     * and which must be at least 1 number long.  If the parameter does not exist,
+     * or the list is not long enough or is  
+     * too long or has garbage at the end of it, then this method returns null.
+     * Otherwise the method returns the ints in question.  
+     * The parameter chosen is
+     * marked &quot;used&quot; if it exists.
+     */
+
+    public int[] getIntsUnconstrained(Parameter parameter, Parameter defaultParameter)
+        {
+<span class="nc" id="L1700">        return getIntsUnconstrained(parameter, defaultParameter, ARRAY_NO_EXPECTED_LENGTH);</span>
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a long. It returns the value, else throws a NumberFormatException
+     * exception if there is an error in parsing the parameter. The parameter
+     * chosen is marked &quot;used&quot; if it exists. Longs may be in decimal or (if
+     * preceded with an X or x) in hexadecimal.
+     */
+    /*protected*/ long getLong(Parameter parameter)
+        throws NumberFormatException 
+        {
+<span class="nc bnc" id="L1729" title="All 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="nc" id="L1733">                return parseLong(getParam(parameter));</span>
+                } 
+<span class="nc" id="L1735">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1737">                throw new NumberFormatException(&quot;Bad long (&quot; + getParam(parameter)</span>
+                    + &quot; ) for parameter &quot; + parameter);
+                }
+            } 
+        else
+<span class="nc" id="L1742">            throw new NumberFormatException(</span>
+                &quot;Long does not exist for parameter &quot; + parameter);
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a long. It returns the value, else throws a NumberFormatException
+     * exception if there is an error in parsing the parameter. The parameter
+     * chosen is marked &quot;used&quot; if it exists. Longs may be in decimal or (if
+     * preceded with an X or x) in hexadecimal.
+     */
+    public long getLong(Parameter parameter, Parameter defaultParameter)
+        throws NumberFormatException 
+        {
+<span class="nc" id="L1756">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L1757" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L1758">            return getLong(parameter);</span>
+<span class="nc bnc" id="L1759" title="All 2 branches missed.">        else if (_exists(defaultParameter))</span>
+<span class="nc" id="L1760">            return getLong(defaultParameter);</span>
+        else
+<span class="nc" id="L1762">            throw new NumberFormatException(</span>
+                &quot;Long does not exist for either parameter &quot; + parameter
+                + &quot;\nor\n&quot; + defaultParameter);
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a long &gt;= minValue. If not, this method returns errValue, else it
+     * returns the parameter value. The parameter chosen is marked &quot;used&quot; if it
+     * exists. Longs may be in decimal or (if preceded with an X or x) in
+     * hexadecimal.
+     */
+
+    public long getLong(Parameter parameter, Parameter defaultParameter,
+        long minValue) 
+        {
+<span class="fc" id="L1778">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1779" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1780">            return getLong(parameter, minValue);</span>
+        else
+<span class="fc" id="L1782">            return getLong(defaultParameter, minValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a long &gt;= minValue. If not, this method returns errValue, else it
+     * returns the parameter value. The parameter chosen is marked &quot;used&quot; if it
+     * exists. Longs may be in decimal or (if preceded with an X or x) in
+     * hexadecimal.
+     */
+    long getLong(Parameter parameter, long minValue) 
+        {
+<span class="fc bfc" id="L1794" title="All 2 branches covered.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="fc" id="L1798">                long i = parseLong(getParam(parameter));</span>
+<span class="pc bpc" id="L1799" title="1 of 2 branches missed.">                if (i &lt; minValue)</span>
+<span class="nc" id="L1800">                    return minValue - 1;</span>
+<span class="fc" id="L1801">                return i;</span>
+                } 
+<span class="nc" id="L1803">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1805">                return minValue - 1;</span>
+                }
+            } 
+        else
+<span class="fc" id="L1809">            return (minValue - 1);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, which must be
+     * a long. If there is an error in parsing the parameter, then default is
+     * returned. The parameter chosen is marked &quot;used&quot; if it exists. Longs may
+     * be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    public long getLongWithDefault(Parameter parameter,
+        Parameter defaultParameter, long defaultValue) 
+        {
+<span class="fc" id="L1821">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1822" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1823">            return getLongWithDefault(parameter, defaultValue);</span>
+        else
+<span class="fc" id="L1825">            return getLongWithDefault(defaultParameter, defaultValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, which must be
+     * a long. If there is an error in parsing the parameter, then default is
+     * returned. The parameter chosen is marked &quot;used&quot; if it exists. Longs may
+     * be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    long getLongWithDefault(Parameter parameter, long defaultValue) 
+        {
+<span class="fc bfc" id="L1836" title="All 2 branches covered.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="fc" id="L1840">                return parseLong(getParam(parameter));</span>
+                } 
+<span class="nc" id="L1842">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1844">                return defaultValue;</span>
+                }
+            } 
+        else
+<span class="fc" id="L1848">            return defaultValue;</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter, whose value
+     * must be a long &gt;= minValue and = &lt; maxValue. If not, this method returns
+     * errValue, else it returns the parameter value. The parameter chosen is
+     * marked &quot;used&quot; if it exists. Longs may be in decimal or (if preceded with
+     * an X or x) in hexadecimal.
+     */
+    public long getLongWithMax(Parameter parameter,
+        Parameter defaultParameter, long minValue, long maxValue) 
+        {
+<span class="nc" id="L1861">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L1862" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L1863">            return getLong(parameter, minValue, maxValue);</span>
+        else
+<span class="nc" id="L1865">            return getLong(defaultParameter, minValue, maxValue);</span>
+        }
+
+    /**
+     * Use getLongWithMax(...) instead. Searches down through databases to find
+     * a given parameter, whose value must be a long &gt;= minValue and = &lt;
+     * maxValue. If not, this method returns errValue, else it returns the
+     * parameter value. The parameter chosen is marked &quot;used&quot; if it exists.
+     * Longs may be in decimal or (if preceded with an X or x) in hexadecimal.
+     */
+    long getLongWithMax(Parameter parameter, long minValue, long maxValue) 
+        {
+<span class="nc bnc" id="L1877" title="All 2 branches missed.">        if (_exists(parameter)) </span>
+            {
+            try
+                {
+<span class="nc" id="L1881">                long i = parseLong(getParam(parameter));</span>
+<span class="nc bnc" id="L1882" title="All 2 branches missed.">                if (i &lt; minValue)</span>
+<span class="nc" id="L1883">                    return minValue - 1;</span>
+<span class="nc bnc" id="L1884" title="All 2 branches missed.">                if (i &gt; maxValue)</span>
+<span class="nc" id="L1885">                    return minValue - 1;</span>
+<span class="nc" id="L1886">                return i;</span>
+                } 
+<span class="nc" id="L1888">            catch (NumberFormatException e) </span>
+                {
+<span class="nc" id="L1890">                return minValue - 1;</span>
+                }
+            } 
+        else
+<span class="nc" id="L1894">            return (minValue - 1);</span>
+        }
+
+    /**
+     * Use getLongWithMax(...) instead. Searches down through databases to find
+     * a given parameter, whose value must be a long &gt;= minValue and = &lt;
+     * maxValue. If not, this method returns errValue, else it returns the
+     * parameter value. The parameter chosen is marked &quot;used&quot; if it exists.
+     * Longs may be in decimal or (if preceded with an X or x) in hexadecimal.
+     * 
+     * @deprecated
+     */
+    public long getLong(Parameter parameter, Parameter defaultParameter,
+        long minValue, long maxValue) 
+        {
+<span class="nc" id="L1909">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc" id="L1910">        return getLongWithMax(parameter, defaultParameter, minValue, maxValue);</span>
+        }
+
+    /**
+     * Use getLongWithMax(...) instead. Searches down through databases to find
+     * a given parameter, whose value must be a long &gt;= minValue and = &lt;
+     * maxValue. If not, this method returns errValue, else it returns the
+     * parameter value. The parameter chosen is marked &quot;used&quot; if it exists.
+     * 
+     * @deprecated
+     */
+    long getLong(Parameter parameter, long minValue, long maxValue) 
+        {
+<span class="nc" id="L1923">        return getLongWithMax(parameter, minValue, maxValue);</span>
+        }
+
+    /**
+     * Searches down through the databases to find a given parameter, whose
+     * value must be an absolute or relative path name. If it is absolute, a
+     * File is made based on the path name. If it is relative, a file is made by
+     * resolving the path name with respect to the directory in which the file
+     * was which defined this ParameterDatabase in the ParameterDatabase
+     * hierarchy. If the parameter is not found, this returns null. The File is
+     * not checked for validity. The parameter chosen is marked &quot;used&quot; if it
+     * exists.
+     */
+
+    public File getFile(Parameter parameter, Parameter defaultParameter) 
+        {
+<span class="fc" id="L1939">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L1940" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L1941">            return getFile(parameter);</span>
+        else
+<span class="fc" id="L1943">            return getFile(defaultParameter);</span>
+        }
+
+    /**
+     * Searches down through the databases to find a given parameter, whose
+     * value must be an absolute or relative path name. If the parameter begins
+     * with a &quot;$&quot;, a file is made based on the relative path name and returned
+     * directly. Otherwise, if it is absolute, a File is made based on the path
+     * name, or if it is relative, a file is made by resolving the path name
+     * with respect to the directory in which the file was which defined this
+     * ParameterDatabase in the ParameterDatabase hierarchy. If the parameter is
+     * not found, this returns null. The File is not checked for validity. The
+     * parameter chosen is marked &quot;used&quot; if it exists.
+     */
+
+    File getFile(Parameter parameter) 
+        {
+<span class="fc bfc" id="L1960" title="All 2 branches covered.">        if (_exists(parameter)) </span>
+            {
+<span class="fc" id="L1962">            String p = getParam(parameter);</span>
+<span class="pc bpc" id="L1963" title="1 of 2 branches missed.">            if (p == null)</span>
+<span class="nc" id="L1964">                return null;</span>
+<span class="fc bfc" id="L1965" title="All 2 branches covered.">            if (p.startsWith(C_HERE))</span>
+<span class="fc" id="L1966">                return new File(p.substring(C_HERE.length()));</span>
+<span class="pc bpc" id="L1967" title="1 of 2 branches missed.">            else if (p.startsWith(C_CLASS))</span>
+<span class="nc" id="L1968">                return null;  // can't start with that.</span>
+            else 
+                {
+<span class="fc" id="L1971">                File f = new File(p);</span>
+<span class="fc bfc" id="L1972" title="All 2 branches covered.">                if (f.isAbsolute())</span>
+<span class="fc" id="L1973">                    return f;</span>
+                else
+<span class="fc" id="L1975">                    return new File(directoryFor(parameter), p);</span>
+                }
+            } 
+        else
+<span class="fc" id="L1979">            return null;</span>
+        }
+
+    /**
+     * Searches down through the databases to find a given parameter, whose
+     * value must be an absolute or relative path name. If it is absolute, a
+     * file is made based on the path name, and an InputStream is opened on 
+     * the file and returned.  If the path name begins with &quot;$&quot;, then an
+     * InputStream is opened on a file relative to the directory where the
+     * system was started.  Otherwise if the path name is relative, an InputStream is made by
+     * resolving the path name with respect to the directory in which the file
+     * was which defined this ParameterDatabase in the ParameterDatabase
+     * hierarchy, be it in the file system or in a jar file.  If the parameter is not found, 
+     * this returns null.  If no such file exists, null is also returned.
+     * The parameter chosen is marked &quot;used&quot; if it exists.
+     */
+
+    public InputStream getResource(Parameter parameter, Parameter defaultParameter)
+        {
+<span class="nc" id="L1998">        printGotten(parameter, defaultParameter, false);</span>
+<span class="nc bnc" id="L1999" title="All 2 branches missed.">        if (_exists(parameter))</span>
+<span class="nc" id="L2000">            return getResource(parameter);</span>
+        else
+<span class="nc" id="L2002">            return getResource(defaultParameter);</span>
+        }
+
+    int indexOfFirstWhitespace(String s)
+        {
+<span class="nc" id="L2007">        int len = s.length();</span>
+<span class="nc bnc" id="L2008" title="All 2 branches missed.">        for(int i =0; i &lt; len; i++)</span>
+<span class="nc bnc" id="L2009" title="All 2 branches missed.">            if (Character.isWhitespace(s.charAt(i)))</span>
+<span class="nc" id="L2010">                return i;</span>
+<span class="nc" id="L2011">        return -1;</span>
+        }
+
+    InputStream getResource(Parameter parameter) 
+        {
+        try
+            {
+<span class="nc bnc" id="L2018" title="All 2 branches missed.">            if (_exists(parameter)) </span>
+                {
+<span class="nc" id="L2020">                String p = getParam(parameter);</span>
+<span class="nc bnc" id="L2021" title="All 2 branches missed.">                if (p == null)</span>
+<span class="nc" id="L2022">                    return null;</span>
+<span class="nc bnc" id="L2023" title="All 2 branches missed.">                if (p.startsWith(C_HERE))</span>
+<span class="nc" id="L2024">                    return new FileInputStream(getFile(parameter));</span>
+<span class="nc bnc" id="L2025" title="All 2 branches missed.">                else if (p.startsWith(C_CLASS))</span>
+                    {
+<span class="nc" id="L2027">                    int i = indexOfFirstWhitespace(p);</span>
+<span class="nc bnc" id="L2028" title="All 2 branches missed.">                    if (i == -1)</span>
+<span class="nc" id="L2029">                        return null;</span>
+<span class="nc" id="L2030">                    String classname = p.substring(C_CLASS.length(),i);</span>
+<span class="nc" id="L2031">                    String filename = p.substring(i).trim();</span>
+<span class="nc" id="L2032">                    return Class.forName(classname, true, Thread.currentThread().getContextClassLoader()).getResourceAsStream(filename);</span>
+                    }
+                else 
+                    {
+<span class="nc" id="L2036">                    File f = new File(p);</span>
+<span class="nc bnc" id="L2037" title="All 2 branches missed.">                    if (f.isAbsolute())</span>
+<span class="nc" id="L2038">                        return new FileInputStream(f);</span>
+<span class="nc" id="L2039">                    Class c = getLocation(parameter.param).relativeClass;</span>
+<span class="nc" id="L2040">                    String rp = getLocation(parameter.param).relativePath;</span>
+<span class="nc bnc" id="L2041" title="All 2 branches missed.">                    if (c != null)</span>
+                        {
+<span class="nc" id="L2043">                        return c.getResourceAsStream(new File(new File(rp).getParent(), p).getPath());</span>
+                        }
+                    else
+<span class="nc" id="L2046">                        return new FileInputStream(new File(directoryFor(parameter), p));</span>
+                    }
+                } 
+            else
+<span class="nc" id="L2050">                return null;</span>
+            }
+<span class="nc" id="L2052">        catch (FileNotFoundException ex1) </span>
+<span class="nc" id="L2053">            { return null; }</span>
+<span class="nc" id="L2054">        catch (ClassNotFoundException ex2) </span>
+<span class="nc" id="L2055">            { return null; } </span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter. Returns the
+     * parameter's value (trimmed) or null if not found or if the trimmed result
+     * is empty. The parameter chosen is marked &quot;used&quot; if it exists.
+     */
+
+    public synchronized String getString(Parameter parameter,
+        Parameter defaultParameter) 
+        {
+<span class="fc" id="L2067">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L2068" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L2069">            return getString(parameter);</span>
+        else
+<span class="fc" id="L2071">            return getString(defaultParameter);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter. Returns the
+     * parameter's value (trimmed) or null if not found or if the trimmed result
+     * is empty. The parameter chosen is marked &quot;used&quot; if it exists.
+     */
+
+    /*protected*/ synchronized String getString(Parameter parameter) 
+        {
+<span class="fc bfc" id="L2082" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L2083">            return getParam(parameter);</span>
+        else
+<span class="fc" id="L2085">            return null;</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter. Returns the
+     * parameter's value trimmed of whitespace, or defaultValue.trim() if the
+     * result is not found or the trimmed result is empty.
+     */
+    public String getStringWithDefault(Parameter parameter,
+        Parameter defaultParameter, String defaultValue) 
+        {
+<span class="fc" id="L2096">        printGotten(parameter, defaultParameter, false);</span>
+<span class="fc bfc" id="L2097" title="All 2 branches covered.">        if (_exists(parameter))</span>
+<span class="fc" id="L2098">            return getStringWithDefault(parameter, defaultValue);</span>
+        else
+<span class="fc" id="L2100">            return getStringWithDefault(defaultParameter, defaultValue);</span>
+        }
+
+    /**
+     * Searches down through databases to find a given parameter. Returns the
+     * parameter's value trimmed of whitespace, or defaultValue.trim() if the
+     * result is not found or the trimmed result is empty.
+     */
+    /*protected*/ String getStringWithDefault(Parameter parameter,
+        String defaultValue) 
+        {
+<span class="fc bfc" id="L2111" title="All 2 branches covered.">        if (_exists(parameter)) </span>
+            {
+<span class="fc" id="L2113">            String result = getParam(parameter);</span>
+<span class="pc bpc" id="L2114" title="1 of 2 branches missed.">            if (result == null) </span>
+                {
+<span class="nc bnc" id="L2116" title="All 2 branches missed.">                if (defaultValue == null)</span>
+<span class="nc" id="L2117">                    return null;</span>
+                else
+<span class="nc" id="L2119">                    result = defaultValue.trim();</span>
+                } 
+            else 
+                {
+<span class="fc" id="L2123">                result = result.trim();</span>
+<span class="pc bpc" id="L2124" title="1 of 2 branches missed.">                if (result.length() == 0) </span>
+                    {
+<span class="nc bnc" id="L2126" title="All 2 branches missed.">                    if (defaultValue == null)</span>
+<span class="nc" id="L2127">                        return null;</span>
+                    else
+<span class="nc" id="L2129">                        result = defaultValue.trim();</span>
+                    }
+                }
+<span class="fc" id="L2132">            return result;</span>
+            } 
+        else 
+            {
+<span class="fc bfc" id="L2136" title="All 2 branches covered.">            if (defaultValue == null)</span>
+<span class="fc" id="L2137">                return null;</span>
+            else
+<span class="fc" id="L2139">                return defaultValue.trim();</span>
+            }
+        }
+
+    /** Clears the checked flag */
+    /*protected*/ synchronized void uncheck() 
+        {
+<span class="fc bfc" id="L2146" title="All 2 branches covered.">        if (!checked)</span>
+<span class="fc" id="L2147">            return; // we already unchecked this path -- this is dangerous if</span>
+                    // parents are used without children
+<span class="fc" id="L2149">        checked = false;</span>
+<span class="fc" id="L2150">        int size = parents.size();</span>
+<span class="fc bfc" id="L2151" title="All 2 branches covered.">        for (int x = 0; x &lt; size; x++)</span>
+<span class="fc" id="L2152">            ((ParameterDatabase) (parents.elementAt(x))).uncheck();</span>
+<span class="fc" id="L2153">        }</span>
+    
+    /**
+     * Sets a parameter in the topmost database to a given value, trimmed of
+     * whitespace.
+     */
+    public synchronized void set(Parameter parameter, String value) 
+        {
+<span class="fc" id="L2161">        String tmp = value.trim();</span>
+<span class="fc" id="L2162">        properties.put(parameter.param, tmp);</span>
+<span class="fc" id="L2163">        }</span>
+
+    /**
+     * Prints out all the parameters marked as used, plus their values. If a
+     * parameter was listed as &quot;used&quot; but not's actually in the database, the
+     * value printed is UNKNOWN_VALUE (set to &quot;?????&quot;)
+     */
+
+    public synchronized void listGotten(PrintWriter p) 
+        {
+<span class="nc" id="L2173">        Vector vec = new Vector();</span>
+<span class="nc" id="L2174">        Enumeration e = gotten.keys();</span>
+<span class="nc bnc" id="L2175" title="All 2 branches missed.">        while (e.hasMoreElements())</span>
+<span class="nc" id="L2176">            vec.addElement(e.nextElement());</span>
+
+        // sort the keys
+<span class="nc" id="L2179">        Object[] array = new Object[vec.size()];</span>
+<span class="nc" id="L2180">        java.util.Collections.sort(vec);</span>
+<span class="nc" id="L2181">        vec.copyInto(array);</span>
+
+        // Uncheck and print each item
+<span class="nc bnc" id="L2184" title="All 2 branches missed.">        for (int x = 0; x &lt; array.length; x++) </span>
+            {
+<span class="nc" id="L2186">            String s = (String) (array[x]);</span>
+<span class="nc" id="L2187">            String v = null;</span>
+<span class="nc bnc" id="L2188" title="All 2 branches missed.">            if (s != null) </span>
+                {
+<span class="nc" id="L2190">                v = (String) (_getParam(s));</span>
+<span class="nc" id="L2191">                uncheck();</span>
+                }
+<span class="nc bnc" id="L2193" title="All 2 branches missed.">            if (v == null)</span>
+<span class="nc" id="L2194">                v = UNKNOWN_VALUE;</span>
+<span class="nc" id="L2195">            p.println(s + &quot; = &quot; + v);</span>
+            }
+<span class="nc" id="L2197">        p.flush();</span>
+<span class="nc" id="L2198">        }</span>
+
+    /** Prints out all the parameters NOT marked as used, plus their values. */
+
+    public synchronized void listNotGotten(PrintWriter p) 
+        {
+<span class="nc" id="L2204">        Vector vec = new Vector();</span>
+
+<span class="nc" id="L2206">        Hashtable all = new Hashtable();</span>
+<span class="nc" id="L2207">        _list(null, false, null, all); // grab all the nonshadowed keys</span>
+<span class="nc" id="L2208">        Enumeration e = gotten.keys();</span>
+<span class="nc bnc" id="L2209" title="All 2 branches missed.">        while (e.hasMoreElements())</span>
+<span class="nc" id="L2210">            all.remove(e.nextElement());</span>
+<span class="nc" id="L2211">        e = all.keys();</span>
+<span class="nc bnc" id="L2212" title="All 2 branches missed.">        while (e.hasMoreElements())</span>
+<span class="nc" id="L2213">            vec.addElement(e.nextElement());</span>
+
+        // sort the keys
+<span class="nc" id="L2216">        Object[] array = new Object[vec.size()];</span>
+<span class="nc" id="L2217">        vec.copyInto(array);</span>
+
+<span class="nc" id="L2219">        java.util.Collections.sort(vec);</span>
+
+        // Uncheck and print each item
+<span class="nc bnc" id="L2222" title="All 2 branches missed.">        for (int x = 0; x &lt; array.length; x++) </span>
+            {
+<span class="nc" id="L2224">            String s = (String) (array[x]);</span>
+<span class="nc" id="L2225">            String v = null;</span>
+<span class="nc bnc" id="L2226" title="All 2 branches missed.">            if (s != null) </span>
+                {
+<span class="nc" id="L2228">                v = (String) (_getParam(s));</span>
+<span class="nc" id="L2229">                uncheck();</span>
+                }
+<span class="nc bnc" id="L2231" title="All 2 branches missed.">            if (v == null)</span>
+<span class="nc" id="L2232">                v = UNKNOWN_VALUE;</span>
+<span class="nc" id="L2233">            p.println(s + &quot; = &quot; + v);</span>
+            }
+<span class="nc" id="L2235">        p.flush();</span>
+<span class="nc" id="L2236">        }</span>
+
+    /** Prints out all the parameters NOT marked as used, plus their values. */
+
+    public synchronized void listNotAccessed(PrintWriter p) 
+        {
+<span class="nc" id="L2242">        Vector vec = new Vector();</span>
+
+<span class="nc" id="L2244">        Hashtable all = new Hashtable();</span>
+<span class="nc" id="L2245">        _list(null, false, null, all); // grab all the nonshadowed keys</span>
+<span class="nc" id="L2246">        Enumeration e = accessed.keys();</span>
+<span class="nc bnc" id="L2247" title="All 2 branches missed.">        while (e.hasMoreElements())</span>
+<span class="nc" id="L2248">            all.remove(e.nextElement());</span>
+<span class="nc" id="L2249">        e = all.keys();</span>
+<span class="nc bnc" id="L2250" title="All 2 branches missed.">        while (e.hasMoreElements())</span>
+<span class="nc" id="L2251">            vec.addElement(e.nextElement());</span>
+
+        // sort the keys
+<span class="nc" id="L2254">        Object[] array = new Object[vec.size()];</span>
+<span class="nc" id="L2255">        vec.copyInto(array);</span>
+
+<span class="nc" id="L2257">        java.util.Collections.sort(vec);</span>
+
+        // Uncheck and print each item
+<span class="nc bnc" id="L2260" title="All 2 branches missed.">        for (int x = 0; x &lt; array.length; x++) </span>
+            {
+<span class="nc" id="L2262">            String s = (String) (array[x]);</span>
+<span class="nc" id="L2263">            String v = null;</span>
+<span class="nc bnc" id="L2264" title="All 2 branches missed.">            if (s != null) </span>
+                {
+<span class="nc" id="L2266">                v = (String) (_getParam(s));</span>
+<span class="nc" id="L2267">                uncheck();</span>
+                }
+<span class="nc bnc" id="L2269" title="All 2 branches missed.">            if (v == null)</span>
+<span class="nc" id="L2270">                v = UNKNOWN_VALUE;</span>
+<span class="nc" id="L2271">            p.println(s + &quot; = &quot; + v);</span>
+            }
+<span class="nc" id="L2273">        p.flush();</span>
+<span class="nc" id="L2274">        }</span>
+
+    /**
+     * Prints out all the parameters marked as accessed (&quot;gotten&quot; by some
+     * getFoo(...) method), plus their values. If this method ever prints
+     * UNKNOWN_VALUE (&quot;?????&quot;), that's a bug.
+     */
+
+    public synchronized void listAccessed(PrintWriter p) 
+        {
+<span class="nc" id="L2284">        Vector vec = new Vector();</span>
+<span class="nc" id="L2285">        Enumeration e = accessed.keys();</span>
+<span class="nc bnc" id="L2286" title="All 2 branches missed.">        while (e.hasMoreElements())</span>
+<span class="nc" id="L2287">            vec.addElement(e.nextElement());</span>
+
+        // sort the keys
+<span class="nc" id="L2290">        Object[] array = new Object[vec.size()];</span>
+<span class="nc" id="L2291">        vec.copyInto(array);</span>
+
+<span class="nc" id="L2293">        java.util.Collections.sort(vec);</span>
+
+        // Uncheck and print each item
+<span class="nc bnc" id="L2296" title="All 2 branches missed.">        for (int x = 0; x &lt; array.length; x++) </span>
+            {
+<span class="nc" id="L2298">            String s = (String) (array[x]);</span>
+<span class="nc" id="L2299">            String v = null;</span>
+<span class="nc bnc" id="L2300" title="All 2 branches missed.">            if (s != null) </span>
+                {
+<span class="nc" id="L2302">                v = (String) (_getParam(s));</span>
+<span class="nc" id="L2303">                uncheck();</span>
+                }
+<span class="nc bnc" id="L2305" title="All 2 branches missed.">            if (v == null)</span>
+<span class="nc" id="L2306">                v = UNKNOWN_VALUE;</span>
+<span class="nc" id="L2307">            p.println(s + &quot; = &quot; + v);</span>
+            }
+<span class="nc" id="L2309">        p.flush();</span>
+<span class="nc" id="L2310">        }</span>
+
+    /** Returns true if parameter exist in the database
+        @deprecated use exists(Parameter, null) 
+    */
+    public synchronized boolean exists(Parameter parameter) 
+        {
+<span class="fc" id="L2317">        printGotten(parameter, null, true);</span>
+<span class="fc" id="L2318">        return _exists(parameter);</span>
+        }
+
+
+    /*protected*/ synchronized boolean _exists(Parameter parameter) 
+        {
+<span class="fc bfc" id="L2324" title="All 2 branches covered.">        if (parameter == null) return false;</span>
+<span class="fc" id="L2325">        String result = _getParam(parameter.param);</span>
+<span class="fc" id="L2326">        uncheck();</span>
+        
+<span class="fc" id="L2328">        accessed.put(parameter.param, Boolean.TRUE);</span>
+<span class="fc bfc" id="L2329" title="All 2 branches covered.">        return (result != null);</span>
+        }
+
+    /**
+     * Returns true if either parameter or defaultParameter exists in the
+     * database
+     */
+    public synchronized boolean exists(Parameter parameter,
+        Parameter defaultParameter) 
+        {
+<span class="fc" id="L2339">        printGotten(parameter, defaultParameter, true);</span>
+<span class="fc bfc" id="L2340" title="All 2 branches covered.">        if (exists(parameter))</span>
+<span class="fc" id="L2341">            return true;</span>
+<span class="pc bpc" id="L2342" title="1 of 2 branches missed.">        if (exists(defaultParameter))</span>
+<span class="nc" id="L2343">            return true;</span>
+<span class="fc" id="L2344">        return false;</span>
+        }
+
+
+    /*
+      P: Successfully retrieved parameter
+      !P: Unsuccessfully retrieved parameter
+      &lt;P: Would have retrieved parameter
+      E: Successfully tested for existence of parameter
+      !E: Unsuccessfully tested for existence of parameter
+      &lt;E: Would have tested for exidstence of parameter
+    */
+
+    /*protected*/ void printGotten(Parameter parameter, Parameter defaultParameter, boolean exists)
+        {
+<span class="fc bfc" id="L2359" title="All 2 branches covered.">        if (printState == PS_UNKNOWN)</span>
+            {
+<span class="fc" id="L2361">            Parameter p = new Parameter(PRINT_PARAMS);</span>
+<span class="fc" id="L2362">            String jp = getParam(p);</span>
+<span class="pc bpc" id="L2363" title="3 of 4 branches missed.">            if (jp == null || jp.equalsIgnoreCase(&quot;false&quot;))</span>
+<span class="fc" id="L2364">                printState = PS_NONE;</span>
+            else
+<span class="nc" id="L2366">                printState = PS_PRINT_PARAMS;</span>
+<span class="fc" id="L2367">            uncheck();</span>
+<span class="fc" id="L2368">            printGotten(p,null,false);</span>
+            }
+
+<span class="pc bpc" id="L2371" title="1 of 2 branches missed.">        if (printState == PS_PRINT_PARAMS)</span>
+            {
+<span class="nc" id="L2373">            String p = &quot;P: &quot;;</span>
+<span class="nc bnc" id="L2374" title="All 2 branches missed.">            if (exists) p = &quot;E: &quot;;</span>
+            
+<span class="nc bnc" id="L2376" title="All 4 branches missed.">            if (parameter==null &amp;&amp; defaultParameter == null) </span>
+<span class="nc" id="L2377">                return;</span>
+                
+<span class="nc bnc" id="L2379" title="All 2 branches missed.">            else if (parameter == null)</span>
+                {
+<span class="nc" id="L2381">                String result = _getParam(defaultParameter.param);</span>
+<span class="nc" id="L2382">                uncheck();</span>
+<span class="nc bnc" id="L2383" title="All 2 branches missed.">                if (result == null)</span>
+                    // null parameter, didn't find defaultParameter
+<span class="nc" id="L2385">                    System.err.println(&quot;\t!&quot; + p +defaultParameter.param);</span>
+                else 
+                    // null parameter, found defaultParameter
+<span class="nc" id="L2388">                    System.err.println(&quot;\t &quot; + p +defaultParameter.param + &quot; = &quot; + result);</span>
+<span class="nc" id="L2389">                }</span>
+            
+<span class="nc bnc" id="L2391" title="All 2 branches missed.">            else if (defaultParameter == null)</span>
+                {
+<span class="nc" id="L2393">                String result = _getParam(parameter.param);</span>
+<span class="nc" id="L2394">                uncheck();</span>
+<span class="nc bnc" id="L2395" title="All 2 branches missed.">                if (result == null)</span>
+                    // null defaultParameter, didn't find parameter
+<span class="nc" id="L2397">                    System.err.println(&quot;\t!&quot; + p +parameter.param);</span>
+                else 
+                    // null defaultParameter, found parameter
+<span class="nc" id="L2400">                    System.err.println(&quot;\t &quot; + p +parameter.param+ &quot; = &quot; + result);</span>
+<span class="nc" id="L2401">                }</span>
+            
+            else
+                {
+<span class="nc" id="L2405">                String result = _getParam(parameter.param);</span>
+<span class="nc" id="L2406">                uncheck();</span>
+<span class="nc bnc" id="L2407" title="All 2 branches missed.">                if (result == null)</span>
+                    {
+                    // didn't find parameter
+<span class="nc" id="L2410">                    System.err.println(&quot;\t!&quot; + p +parameter.param);</span>
+<span class="nc" id="L2411">                    result = _getParam(defaultParameter.param);</span>
+<span class="nc" id="L2412">                    uncheck();</span>
+<span class="nc bnc" id="L2413" title="All 2 branches missed.">                    if (result == null)</span>
+                        // didn't find defaultParameter
+<span class="nc" id="L2415">                        System.err.println(&quot;\t!&quot; + p +defaultParameter.param);</span>
+                    else 
+                        // found defaultParameter
+<span class="nc" id="L2418">                        System.err.println(&quot;\t &quot; + p +defaultParameter.param+ &quot; = &quot; + result);</span>
+                    }
+                else 
+                    {
+                    // found parameter
+<span class="nc" id="L2423">                    System.err.println(&quot;\t &quot; + p +parameter.param+ &quot; = &quot; + result);</span>
+<span class="nc" id="L2424">                    System.err.println(&quot;\t&lt;&quot; + p +defaultParameter.param);</span>
+                    }
+                }
+            }
+<span class="fc" id="L2428">        }</span>
+
+    /*protected*/ synchronized String getParam(Parameter parameter) 
+        {
+<span class="fc" id="L2432">        String result = _getParam(parameter.param);</span>
+<span class="fc" id="L2433">        uncheck();</span>
+
+        // set hashtable appropriately
+<span class="fc" id="L2436">        accessed.put(parameter.param, Boolean.TRUE);</span>
+<span class="fc" id="L2437">        gotten.put(parameter.param, Boolean.TRUE);</span>
+<span class="fc" id="L2438">        return result;</span>
+        }
+    
+    /** Private helper function */
+    synchronized String _getRecursive(String parameter) 
+        {
+<span class="pc bpc" id="L2444" title="1 of 2 branches missed.">        if (parameter == null)</span>
+            {
+<span class="nc" id="L2446">            return null;</span>
+            }
+<span class="pc bpc" id="L2448" title="1 of 2 branches missed.">        if (checked)</span>
+<span class="nc" id="L2449">            return null; // we already searched this path</span>
+<span class="fc" id="L2450">        checked = true;</span>
+<span class="fc" id="L2451">        String result = properties.getProperty(parameter);</span>
+<span class="fc bfc" id="L2452" title="All 2 branches covered.">        if (result == null) </span>
+            {
+<span class="fc" id="L2454">            int size = parents.size();</span>
+<span class="fc bfc" id="L2455" title="All 2 branches covered.">            for (int x = 0; x &lt; size; x++) </span>
+                {
+<span class="fc" id="L2457">                result = ((ParameterDatabase) (parents.elementAt(x)))._getRecursive(parameter);</span>
+<span class="fc bfc" id="L2458" title="All 2 branches covered.">                if (result != null)</span>
+                    {
+<span class="fc" id="L2460">                    return result;</span>
+                    }
+                }
+<span class="fc" id="L2463">            } </span>
+        else  // preprocess
+            {
+<span class="fc" id="L2466">            result = result.trim();</span>
+<span class="fc bfc" id="L2467" title="All 2 branches covered.">            if (result.length() == 0)</span>
+<span class="fc" id="L2468">                result = null;</span>
+            }
+<span class="fc" id="L2470">        return result;</span>
+        }
+
+
+    synchronized String _getParam(String parameter)
+        {
+        try
+            {
+<span class="fc" id="L2478">            HashSet set = new HashSet();</span>
+<span class="fc" id="L2479">            return _getInner(parameter, set);</span>
+            }
+<span class="nc" id="L2481">        catch (RuntimeException ex)</span>
+            {
+<span class="nc" id="L2483">            System.err.println(&quot;Parameter Database Error: &quot; + ex.getMessage());</span>
+<span class="nc" id="L2484">            return null;</span>
+            }
+        }
+    
+/*
+
+show();
+import ec.util.*;
+p = new ParameterDatabase(new File(&quot;ec/util/test.params&quot;));
+String g(String s) { return p.getString(new Parameter(s), null); }
+p.list(new PrintWriter(System.out));
+g(&quot;a.b.c.d.e&quot;);
+
+*/
+
+
+	int countDelimiters(String parameter)
+		{
+<span class="pc bpc" id="L2502" title="1 of 2 branches missed.">		if (parameter == null) return 0;</span>
+<span class="fc" id="L2503">		int count = 0;</span>
+<span class="fc bfc" id="L2504" title="All 2 branches covered.">		for(int i = 0; i &lt; parameter.length(); i++)</span>
+			{
+<span class="fc bfc" id="L2506" title="All 2 branches covered.">			if (parameter.charAt(i) == '.')</span>
+<span class="fc" id="L2507">				count++;</span>
+			}
+<span class="fc" id="L2509">		return count;</span>
+		}
+
+    /** Private helper function */
+    synchronized String _getInner(String parameter, HashSet set) 
+        {
+<span class="pc bpc" id="L2515" title="1 of 2 branches missed.">        if (parameter == null) </span>
+            {
+<span class="nc" id="L2517">            return null;</span>
+            }
+
+<span class="fc bfc" id="L2520" title="All 2 branches covered.">        if (set.contains(parameter))</span>
+        	{
+<span class="fc" id="L2522">        	return null;</span>
+        	}
+<span class="fc" id="L2524">        set.add(parameter);</span>
+        
+<span class="fc" id="L2526">        String result = _getRecursive(parameter);		// try concrete parameter</span>
+<span class="fc" id="L2527">	    uncheck();</span>
+<span class="fc bfc" id="L2528" title="All 2 branches covered.">        if (result != null)</span>
+        	{
+<span class="fc" id="L2530">        	return result;</span>
+        	}
+<span class="pc bpc" id="L2532" title="1 of 4 branches missed.">        else if (parameter.endsWith(&quot;.alias&quot;) || parameter.endsWith(&quot;.default&quot;) )  // don't allow macros inside macro definitions</span>
+        	{
+<span class="fc" id="L2534">        	return null;</span>
+        	}
+<span class="fc bfc" id="L2536" title="All 2 branches covered.">        else if (parameter.startsWith(&quot;parent.&quot;))</span>
+        	{
+<span class="fc" id="L2538">        	return null;</span>
+        	}
+<span class="fc bfc" id="L2540" title="All 2 branches covered.">        else if (parameter.equals(PRINT_PARAMS))</span>
+        	{
+<span class="fc" id="L2542">        	return null;</span>
+        	}
+        else
+            {
+<span class="fc" id="L2546">			int count = countDelimiters(parameter);				// this could be improved</span>
+
+            // try top-level alias
+<span class="fc" id="L2549">            String replace = _getInner(parameter + &quot;.&quot; + V_ALIAS, set);</span>
+<span class="fc" id="L2550">	    	uncheck();</span>
+<span class="pc bpc" id="L2551" title="1 of 4 branches missed.">			if (replace != null &amp;&amp; countDelimiters(replace) &gt; count)	// we don't allow macros to grow</span>
+				{
+<span class="nc" id="L2553">				replace = null;</span>
+				}
+
+<span class="fc bfc" id="L2556" title="All 2 branches covered.">            if (replace != null)</span>
+            	{
+<span class="fc" id="L2558">            	result = _getInner(replace, set);</span>
+<span class="fc" id="L2559">	        	uncheck();</span>
+<span class="pc bpc" id="L2560" title="1 of 2 branches missed.">            	if (result != null)</span>
+            		{
+<span class="fc" id="L2562">            		return result;</span>
+            		}
+            	}
+
+<span class="fc" id="L2566">            String extra = &quot;&quot;;</span>
+            while(true)
+            	{
+<span class="fc" id="L2569">		        int lastDelim = parameter.lastIndexOf(Parameter.delimiter);</span>
+<span class="pc bpc" id="L2570" title="1 of 4 branches missed.">				if (lastDelim &lt;= 0 || lastDelim == parameter.length() - 1)  // fail if there is no dot, or if there is a dot at the beginning, or end</span>
+					{
+<span class="fc" id="L2572">					return null;</span>
+					}
+				else
+					{
+<span class="fc" id="L2576">					String head = parameter.substring(0, lastDelim);</span>
+<span class="fc" id="L2577">					String tail = parameter.substring(lastDelim + 1);</span>
+					
+					
+					// try default
+<span class="fc" id="L2581">					replace = _getRecursive(head + &quot;.&quot; + V_DEFAULT);		// we don't allow macros inside macro rules</span>
+<span class="fc" id="L2582">	        		uncheck();</span>
+<span class="pc bpc" id="L2583" title="1 of 4 branches missed.">					if (replace != null &amp;&amp; countDelimiters(replace) &gt; count) // we don't allow macros to grow</span>
+						{
+<span class="nc" id="L2585">						replace = null;</span>
+						}
+
+<span class="fc bfc" id="L2588" title="All 2 branches covered.">					if (replace != null)</span>
+						{
+<span class="fc" id="L2590">						result = _getInner(replace + extra, set);</span>
+<span class="fc" id="L2591">	    				uncheck();</span>
+<span class="pc bpc" id="L2592" title="1 of 2 branches missed.">						if (result != null)</span>
+<span class="fc" id="L2593">							return result;</span>
+						}
+
+					// try alias
+<span class="fc" id="L2597">					replace = _getRecursive(head + &quot;.&quot; + V_ALIAS);		// we don't allow macros inside macro rules</span>
+<span class="fc" id="L2598">	        		uncheck();</span>
+<span class="pc bpc" id="L2599" title="1 of 4 branches missed.">					if (replace != null &amp;&amp; countDelimiters(replace) &gt; count)	// we don't allow macros to grow</span>
+						{
+<span class="nc" id="L2601">						replace = null;</span>
+						}
+
+<span class="fc bfc" id="L2604" title="All 2 branches covered.">					if (replace != null)</span>
+						{
+<span class="fc" id="L2606">						result = _getInner(replace + &quot;.&quot; + tail + extra, set);</span>
+<span class="fc" id="L2607">	    				uncheck();</span>
+<span class="fc bfc" id="L2608" title="All 2 branches covered.">						if (result != null)</span>
+<span class="fc" id="L2609">							return result;</span>
+						}
+					
+<span class="fc" id="L2612">					extra = &quot;.&quot; + tail + extra;</span>
+<span class="fc" id="L2613">					parameter = head;</span>
+<span class="fc" id="L2614">					count--;  // one less delimiter!</span>
+					}
+<span class="fc" id="L2616">				}</span>
+			}
+		}
+
+
+    public ParameterDatabase getLocation(Parameter parameter)
+        {
+<span class="nc" id="L2623">        return getLocation(parameter.param);</span>
+        }
+        
+    public synchronized ParameterDatabase getLocation(String parameter) 
+        {
+<span class="nc" id="L2628">        ParameterDatabase loc = _getLocation(parameter);</span>
+<span class="nc" id="L2629">        uncheck();</span>
+<span class="nc" id="L2630">        return loc;</span>
+        }
+
+    /** Private helper function */
+    synchronized ParameterDatabase _getLocation(String parameter) 
+        {
+<span class="nc bnc" id="L2636" title="All 2 branches missed.">        if (parameter == null)</span>
+<span class="nc" id="L2637">            return null;</span>
+<span class="nc bnc" id="L2638" title="All 2 branches missed.">        if (checked)</span>
+<span class="nc" id="L2639">            return null; // we already searched this path</span>
+<span class="nc" id="L2640">        checked = true;</span>
+<span class="nc" id="L2641">        String result = properties.getProperty(parameter);</span>
+<span class="nc bnc" id="L2642" title="All 2 branches missed.">        if (result == null) </span>
+            {
+<span class="nc" id="L2644">            int size = parents.size();</span>
+<span class="nc" id="L2645">            ParameterDatabase loc = null;</span>
+<span class="nc bnc" id="L2646" title="All 2 branches missed.">            for (int x = 0; x &lt; size; x++) </span>
+                {
+<span class="nc" id="L2648">                loc = ((ParameterDatabase) (parents.elementAt(x)))._getLocation(parameter);</span>
+<span class="nc bnc" id="L2649" title="All 2 branches missed.">                if (loc != null)</span>
+                    {
+<span class="nc" id="L2651">                    return loc;</span>
+                    }
+                }
+<span class="nc" id="L2654">            return null;</span>
+            } 
+<span class="nc" id="L2656">        else return this;</span>
+        }
+
+
+    /*protected*/ synchronized Set _getShadowedValues(Parameter parameter, Set vals) 
+        {
+<span class="nc bnc" id="L2662" title="All 2 branches missed.">        if (parameter == null) </span>
+            {
+<span class="nc" id="L2664">            return vals;</span>
+            }
+        
+<span class="nc bnc" id="L2667" title="All 2 branches missed.">        if (checked) </span>
+            {
+<span class="nc" id="L2669">            return vals;</span>
+            }
+        
+<span class="nc" id="L2672">        checked = true;</span>
+<span class="nc" id="L2673">        String result = properties.getProperty(parameter.param);</span>
+<span class="nc bnc" id="L2674" title="All 2 branches missed.">        if (result != null) </span>
+            {
+<span class="nc" id="L2676">            result = result.trim();</span>
+<span class="nc bnc" id="L2677" title="All 2 branches missed.">            if (result.length() != 0)</span>
+<span class="nc" id="L2678">                vals.add(result);</span>
+            }
+        
+<span class="nc" id="L2681">        int size = parents.size();</span>
+<span class="nc bnc" id="L2682" title="All 2 branches missed.">        for (int i = 0; i &lt; size; ++i) </span>
+            {
+<span class="nc" id="L2684">            ((ParameterDatabase)parents.elementAt(i))._getShadowedValues(parameter,vals);</span>
+            }
+
+<span class="nc" id="L2687">        return vals;</span>
+        }
+
+    public Set getShadowedValues(Parameter parameter) 
+        {
+<span class="nc" id="L2692">        Set vals = new HashSet();</span>
+<span class="nc" id="L2693">        vals = _getShadowedValues(parameter, vals);</span>
+<span class="nc" id="L2694">        uncheck();</span>
+<span class="nc" id="L2695">        return vals;</span>
+        }
+    
+    /**
+     * Searches down through databases to find the directory for the database
+     * which holds a given parameter. Returns the directory name or null if not
+     * found.
+     */
+
+    File directoryFor(Parameter parameter) 
+        {
+<span class="fc" id="L2706">        File result = _directoryFor(parameter);</span>
+<span class="fc" id="L2707">        uncheck();</span>
+<span class="fc" id="L2708">        return result;</span>
+        }
+    
+    /** Private helper function */
+    synchronized File _directoryFor(Parameter parameter) 
+        {
+<span class="pc bpc" id="L2714" title="1 of 2 branches missed.">        if (checked)</span>
+<span class="nc" id="L2715">            return null; // we already searched this path</span>
+<span class="fc" id="L2716">        checked = true;</span>
+<span class="fc" id="L2717">        File result = null;</span>
+<span class="fc" id="L2718">        String p = properties.getProperty(parameter.param);</span>
+<span class="pc bpc" id="L2719" title="1 of 2 branches missed.">        if (p == null) </span>
+            {
+<span class="nc" id="L2721">            int size = parents.size();</span>
+<span class="nc bnc" id="L2722" title="All 2 branches missed.">            for (int x = 0; x &lt; size; x++) </span>
+                {
+<span class="nc" id="L2724">                result = ((ParameterDatabase) (parents.elementAt(x)))._directoryFor(parameter);</span>
+<span class="nc bnc" id="L2725" title="All 2 branches missed.">                if (result != null)</span>
+<span class="nc" id="L2726">                    return result;</span>
+                }
+<span class="nc" id="L2728">            return result;</span>
+            } 
+        else
+<span class="fc" id="L2731">            return directory;</span>
+        }
+    
+    /** Returns a String describing the location of the ParameterDatabase holding
+        this parameter, or &quot;&quot; if there is none. */
+    public String getLabel()
+        {
+<span class="nc" id="L2738">        return label; </span>
+        }
+        
+    /*
+     * Searches down through databases to find the parameter file 
+     * which holds a given parameter. Returns the filename or null if not
+     * found.
+     *
+     * @deprecated You probably want to use getLocation
+     */
+    /*
+      public File fileFor(Parameter parameter) 
+      {
+      File result = _fileFor(parameter);
+      uncheck();
+      return result;
+      }
+      synchronized File _fileFor(Parameter parameter) 
+      {
+      if (checked)
+      return null;
+        
+      checked = true;
+      File result = null;
+      String p = getProperty(parameter.param);
+      if (p==null) 
+      {
+      int size = parents.size();
+      for(int i = 0; i &lt; size; ++i) 
+      {
+      result = ((ParameterDatabase)parents.elementAt(i))._fileFor(parameter);
+      if (result != null)
+      return result;
+      }
+      return result;
+      }
+      else
+      return new File(directory,filename);
+      }
+    */
+
+    /** Removes a parameter from the topmost database. */
+    public synchronized void remove(Parameter parameter) 
+        {
+<span class="pc bpc" id="L2782" title="1 of 2 branches missed.">        if (parameter.param.equals(PRINT_PARAMS)) printState = PS_UNKNOWN;</span>
+<span class="fc" id="L2783">        properties.remove(parameter.param);</span>
+<span class="fc" id="L2784">        }</span>
+
+    /*
+      Removes a parameter from the database and all its parent databases. 
+      @deprecated  You shouldn't modify parent databases
+    */
+    public synchronized void removeDeeply(Parameter parameter) 
+        {
+<span class="nc" id="L2792">        _removeDeeply(parameter);</span>
+<span class="nc" id="L2793">        uncheck();</span>
+<span class="nc" id="L2794">        }</span>
+
+    /** Private helper function */
+    synchronized void _removeDeeply(Parameter parameter) 
+        {
+<span class="nc bnc" id="L2799" title="All 2 branches missed.">        if (checked)</span>
+<span class="nc" id="L2800">            return; // already removed from this path</span>
+<span class="nc" id="L2801">        checked = true;</span>
+<span class="nc" id="L2802">        remove(parameter);</span>
+<span class="nc" id="L2803">        int size = parents.size();</span>
+<span class="nc bnc" id="L2804" title="All 2 branches missed.">        for (int x = 0; x &lt; size; x++)</span>
+<span class="nc" id="L2805">            ((ParameterDatabase) (parents.elementAt(x)))</span>
+<span class="nc" id="L2806">                .removeDeeply(parameter);</span>
+<span class="nc" id="L2807">        }</span>
+    
+    public void prependParent(ParameterDatabase database)
+        {
+<span class="fc" id="L2811">        parents.insertElementAt(database, 0);</span>
+<span class="fc" id="L2812">        }</span>
+
+    public void addParent(ParameterDatabase database)
+        {
+<span class="fc" id="L2816">        parents.addElement(database);</span>
+<span class="fc" id="L2817">        }</span>
+
+    /** Creates an empty parameter database. */
+    public ParameterDatabase() 
+<span class="fc" id="L2821">        {</span>
+<span class="fc" id="L2822">        properties = new Properties();</span>
+<span class="fc" id="L2823">        accessed = new Hashtable();</span>
+<span class="fc" id="L2824">        gotten = new Hashtable();</span>
+<span class="fc" id="L2825">        directory = new File(new File(&quot;&quot;).getAbsolutePath()); // uses the user</span>
+                                                              // path
+        //filename = &quot;&quot;;
+<span class="fc" id="L2828">        label = &quot;Basic Database&quot;;</span>
+<span class="fc" id="L2829">        parents = new Vector();</span>
+<span class="fc" id="L2830">        checked = false; // unnecessary</span>
+<span class="fc" id="L2831">        }</span>
+    
+    /** Creates a new parameter database from the given Dictionary.  
+        Both the keys and values will be run through toString() before adding to the dataase.   
+        Keys are parameters.  Values are the values of the parameters.  
+        Beware that a ParameterDatabase is itself a Dictionary; but if you pass one in here you 
+        will only get the lowest-level elements.  If parent.n are defined, parents will 
+        be attempted to be loaded -- that's the reason for the FileNotFoundException and IOException.  */
+    public ParameterDatabase(java.util.Dictionary map) throws FileNotFoundException, IOException 
+        {
+<span class="nc" id="L2841">        this();</span>
+<span class="nc" id="L2842">        label = &quot;Dictionary: &quot; + System.identityHashCode(map);</span>
+<span class="nc" id="L2843">        java.util.Enumeration keys = map.keys();</span>
+<span class="nc bnc" id="L2844" title="All 2 branches missed.">        while(keys.hasMoreElements())</span>
+            {
+<span class="nc" id="L2846">            Object obj = keys.nextElement();</span>
+<span class="nc" id="L2847">            set(new Parameter(&quot;&quot;+obj),&quot;&quot;+map.get(obj));</span>
+<span class="nc" id="L2848">            }</span>
+
+        // load parents
+<span class="nc" id="L2851">        for (int x = 0;; x++) </span>
+            {
+<span class="nc" id="L2853">            String s = properties.getProperty(&quot;parent.&quot; + x);</span>
+<span class="nc bnc" id="L2854" title="All 2 branches missed.">            if (s == null)</span>
+<span class="nc" id="L2855">                return; // we're done</span>
+
+<span class="nc bnc" id="L2857" title="All 2 branches missed.">            if (new File(s).isAbsolute()) // it's an absolute file definition</span>
+<span class="nc" id="L2858">                parents.addElement(new ParameterDatabase(new File(s)));</span>
+<span class="nc" id="L2859">            else throw new FileNotFoundException(&quot;Attempt to load a relative file, but there's no parent file: &quot; + s);</span>
+            }
+        }
+
+    
+    //// The following four functions are used to modify the paths inside URLs representing
+    //// the internals of Jar files.  This is because getResource and getResourceAsStream are
+    //// broken with regard to resources in Jar files where the internal path has 
+    //// ../ or ./ in it -- they return null rather than  just normalizing the path.  This 
+    //// *isn't* the case for file: URLs, which is irritatingly inconsistent.  So we have to
+    //// modify Jar file URLs specially.  To do this we need to (1) build a default URL for 
+    //// a class, which is hard because for some reason resource URLs in Java can't be
+    //// pointing to directories, or even to nonexistent files, but have to point to real
+    //// files, grrrr, (2) know if a URL is a jar file URL, (3) takes a default Jar file
+    //// URL, plus a relative path, and figures out what the internal path should be if
+    //// revised using the relative path, and finally (4) takes a default Jar file
+    //// URL, plus a relative path, and builds a new URL using the revised internal path.
+    /// Hence the four functions.
+    
+    // Builds a default resource URL for a given class.  For this URL we use the class file
+    // itself.  For example, if the class Foo were stored as /ec/util/Foo.class inside the
+    // Jar file ecj.jar, we might build a URL of the form
+    // jar:file:ecj.jar!/ec/util/Foo.class
+    // This might break for unusual class file names (like Foo$12.class)
+    static URL defaultResourceURL(Class cls) 
+<span class="nc" id="L2884">        { return cls.getResource(cls.getSimpleName() + &quot;.class&quot;); }</span>
+    
+    // Returns whether or not a URL refers to something inside a Jar file.  We do this by
+    // just checking if the protocol is 'jar'.
+    static boolean isJarFile(URL url) 
+<span class="nc" id="L2889">        { return url.getProtocol().equalsIgnoreCase(&quot;jar&quot;); }</span>
+
+    // Given a URL referring to something in a Jar file, removes the final filename from
+    // the end of the existing internal path inside the Jar file, then revises the
+    // path to point to the provided path relative to that path.  Returns the resultant
+    // path.  For example, if the URL was jar:file:/private/tmp/ecj.jar!/ec/app/ant/Ant.class
+    // and the relative path was ../../gp/koza.params then the function would return
+    // /ec/gp/koza.params
+    static String concatenatedJarPath(URL original, String path)
+        {
+        // A Jar URL looks like this:  jar:URLtoJarFile!/path/to/resource/in/jar
+        // For example: jar:file:/private/tmp/ecj.jar!/ec/app/ant/Ant.class
+
+        // Given another path to tack on, say ../../gp/koza.params
+        // The goal is to return the string  &quot;/ec/gp/koza.params&quot;
+
+        // 1. Identify the path start and extract the path
+        // /ec/app/ant/Ant.class
+<span class="nc" id="L2907">        String url = original.toString();</span>
+        int i;
+<span class="nc bnc" id="L2909" title="All 2 branches missed.">        for(i = url.length() - 2; i &gt;= 0; i--)</span>
+<span class="nc bnc" id="L2910" title="All 2 branches missed.">            if (url.charAt(i) == '!' &amp;&amp;</span>
+<span class="nc bnc" id="L2911" title="All 2 branches missed.">                url.charAt(i+1) == '/')  // PROBABLY it</span>
+                {
+<span class="nc" id="L2913">                break;</span>
+                }
+
+<span class="nc bnc" id="L2916" title="All 2 branches missed.">        if (i &lt; 0) // uh oh</span>
+<span class="nc" id="L2917">            return null;</span>
+
+<span class="nc" id="L2919">        String originalPath = url.substring(i+1);  // don't include the !</span>
+
+<span class="nc bnc" id="L2921" title="All 2 branches missed.">        if (path.startsWith(&quot;/&quot;))  // it's absolute</span>
+            {
+            // 2. If the replacement path is absolute, just use that.
+<span class="nc" id="L2924">            originalPath = path;  // just replace it</span>
+            }
+        else
+            {
+            // 3. Else remove the file
+            // /ec/app/ant/
+            int j;
+<span class="nc bnc" id="L2931" title="All 2 branches missed.">            for(j = originalPath.length() - 1; j &gt;= 0; j--)</span>
+<span class="nc bnc" id="L2932" title="All 2 branches missed.">                if (originalPath.charAt(j) == '/')  // PROBABLY is it</span>
+                    {
+<span class="nc" id="L2934">                    break;</span>
+                    }
+<span class="nc bnc" id="L2936" title="All 2 branches missed.">            if (j &lt; 0) // uh oh</span>
+<span class="nc" id="L2937">                return null;</span>
+
+<span class="nc" id="L2939">            originalPath = originalPath.substring(0, j+1);  // include the slash</span>
+
+            // 4. Tack on the replacement path
+            // /ec/app/ant/../../gp/koza.params
+<span class="nc" id="L2943">            originalPath += path;</span>
+            }
+
+        // 5. Simplify
+        // /ec/gp/koza.params
+<span class="nc" id="L2948">        return simplifyPath(originalPath);</span>
+        }
+
+
+    // Given a URL referring to something in a Jar file, removes the final filename from
+    // the end of the existing internal path inside the Jar file, then revises the
+    // path to point to the provided path relative to that path.  Returns the resultant
+    // URL.  For example, if the URL was jar:file:/private/tmp/ecj.jar!/ec/app/ant/Ant.class
+    // and the relative path was ../../gp/koza.params then the function would return
+    // the URL jar:file:/private/tmp/ecj.jar!/ec/gp/koza.params
+
+    static URL concatenatedJarResource(URL original, String path)
+        {
+        // A Jar URL looks like this:  jar:URLtoJarFile!/path/to/resource/in/jar
+        // For example: jar:file:/private/tmp/ecj.jar!/ec/app/ant/Ant.class
+
+        // Given another path to tack on, say ../../gp/koza.params
+        // We need to edit this as follows:
+
+        // 0. Identify the path start and extract the path
+        // /ec/app/ant/Ant.class
+<span class="nc" id="L2969">        String url = original.toString();</span>
+        int i;
+<span class="nc bnc" id="L2971" title="All 2 branches missed.">        for(i = url.length() - 2; i &gt;= 0; i--)</span>
+<span class="nc bnc" id="L2972" title="All 2 branches missed.">            if (url.charAt(i) == '!' &amp;&amp;</span>
+<span class="nc bnc" id="L2973" title="All 2 branches missed.">                url.charAt(i+1) == '/')  // PROBABLY it</span>
+                {
+<span class="nc" id="L2975">                break;</span>
+                }
+
+<span class="nc bnc" id="L2978" title="All 2 branches missed.">        if (i &lt; 0) // uh oh</span>
+<span class="nc" id="L2979">            return null;</span>
+
+        // see concatenatedJarPath for further procedures...
+<span class="nc" id="L2982">        String revisedPath = concatenatedJarPath(original, path);</span>
+
+        // 6. Put back in URL
+        // jar:file:/private/tmp/ecj.jar!/ec/gp/koza.params
+        try
+            {
+<span class="nc" id="L2988">            return new URL(url.substring(0, i + 1) + revisedPath);</span>
+            }
+<span class="nc" id="L2990">        catch (MalformedURLException e)</span>
+            {
+<span class="nc" id="L2992">            return null;</span>
+            }
+        }
+        
+
+
+    // Eliminates .. and . from a relative path without converting it
+    // according to the file system. For example,
+    // &quot;hello/there/../how/./are/you/yo/../../hey&quot; becomes
+    // &quot;hello/how/are/hey&quot;.  This is useful for cleaning up path names for
+    // URLs.
+    static String simplifyPath(String pathname)
+        {
+<span class="nc" id="L3005">        File path = new File(pathname);</span>
+<span class="nc" id="L3006">        ArrayList a = new ArrayList();</span>
+<span class="nc bnc" id="L3007" title="All 4 branches missed.">        while(path != null &amp;&amp; path.getName() != null)</span>
+            {
+<span class="nc" id="L3009">            String n = path.getName();</span>
+<span class="nc" id="L3010">            a.add(n);</span>
+<span class="nc" id="L3011">            path = path.getParentFile();</span>
+<span class="nc" id="L3012">            }</span>
+        
+<span class="nc" id="L3014">        ArrayList b = new ArrayList();</span>
+<span class="nc bnc" id="L3015" title="All 2 branches missed.">        for(int i = a.size() - 1; i &gt;= 0; i--)</span>
+            {
+<span class="nc" id="L3017">            String n = (String)(a.get(i));</span>
+<span class="nc bnc" id="L3018" title="All 2 branches missed.">            if (n.equals(&quot;.&quot;)) </span>
+                { } // do nothing
+<span class="nc bnc" id="L3020" title="All 2 branches missed.">            else if (n.equals(&quot;..&quot;) &amp;&amp;</span>
+<span class="nc bnc" id="L3021" title="All 4 branches missed.">                b.size() != 0 &amp;&amp; !b.get(0).equals(&quot;..&quot;))</span>
+<span class="nc" id="L3022">                b.remove(b.size() - 1);  </span>
+<span class="nc" id="L3023">            else b.add(n);</span>
+            }
+        
+<span class="nc bnc" id="L3026" title="All 2 branches missed.">        if (b.size() == 0) return &quot;&quot;;</span>
+        
+<span class="nc" id="L3028">        path = new File((String)(b.get(0)));</span>
+<span class="nc bnc" id="L3029" title="All 2 branches missed.">        for(int i = 1; i &lt; b.size(); i++)</span>
+            {
+<span class="nc" id="L3031">            path = new File(path, (String)(b.get(i)));</span>
+            }
+
+
+        // Convert to &quot;\&quot; for windows
+        String returnPath;
+<span class="nc bnc" id="L3037" title="All 2 branches missed.">        if(File.separatorChar != '/')</span>
+<span class="nc" id="L3038">            returnPath = path.getPath().replace(File.separatorChar, '/');</span>
+        else 
+<span class="nc" id="L3040">            returnPath = path.getPath();</span>
+<span class="nc" id="L3041">        return returnPath;</span>
+        }
+
+
+
+
+    /**
+     * Creates a new parameter database from a given database file and argv
+     * list. The top-level database is completely empty, pointing to a second
+     * database which contains the parameter entries stored in args, which
+     * points to a tree of databases constructed using
+     * ParameterDatabase(filename).
+     */
+
+    public ParameterDatabase(String pathNameRelativeToClassFile, Class cls, String[] args) throws FileNotFoundException, IOException 
+        {
+<span class="nc" id="L3057">        this();</span>
+<span class="nc" id="L3058">        label = &quot;&quot; + cls + &quot; : &quot; + pathNameRelativeToClassFile;</span>
+
+<span class="nc" id="L3060">        ParameterDatabase files = new ParameterDatabase(pathNameRelativeToClassFile, cls);</span>
+
+        // Create the Parameter Database for the arguments
+<span class="nc" id="L3063">        ParameterDatabase a = new ParameterDatabase();</span>
+<span class="nc" id="L3064">        a.relativeClass = cls;</span>
+<span class="nc" id="L3065">        a.relativePath = files.relativePath;</span>
+
+<span class="nc" id="L3067">        a.parents.addElement(files);</span>
+<span class="nc" id="L3068">        boolean hasArgs = false;</span>
+<span class="nc bnc" id="L3069" title="All 2 branches missed.">        for (int x = 0; x &lt; args.length - 1; x++) </span>
+            {
+<span class="nc bnc" id="L3071" title="All 2 branches missed.">            if (args[x].equals(&quot;-p&quot;))</span>
+                {
+<span class="nc" id="L3073">                String s = args[x+1].trim();</span>
+<span class="nc bnc" id="L3074" title="All 2 branches missed.">                if (s.length() == 0) continue;  // failure</span>
+<span class="nc" id="L3075">                int eq = s.indexOf('=');  // look for the '='</span>
+<span class="nc bnc" id="L3076" title="All 2 branches missed.">                if (eq &lt;= 0) continue; // '=' isn't there, or it's the first char: failure                      </span>
+<span class="nc" id="L3077">                set(new Parameter(s.substring(0,eq)), s.substring(eq+1));  // add the parameter</span>
+<span class="nc bnc" id="L3078" title="All 2 branches missed.">                if (!hasArgs)</span>
+                    {
+<span class="nc" id="L3080">                    label = label + &quot;    Args:  &quot;;</span>
+<span class="nc" id="L3081">                    hasArgs = true;</span>
+                    }
+<span class="nc" id="L3083">                label = label + s + &quot;  &quot;;</span>
+                }
+            }
+
+        // Set me up
+<span class="nc" id="L3088">        relativeClass = cls;</span>
+<span class="nc" id="L3089">        relativePath = files.relativePath;</span>
+
+<span class="nc" id="L3091">        parents.addElement(a);</span>
+<span class="nc" id="L3092">        }</span>
+
+
+    /** Creates a new parameter database loaded from a parameter file located relative to a class file,
+        wherever the class file may be (such as in a jar).
+        This approach uses resourceLocation.getResourceAsStream() to load the parameter file.
+        If parent.n are defined, parents will be attempted to be loaded -- that's 
+        the reason for the FileNotFoundException and IOException. */
+
+    public ParameterDatabase(String pathNameRelativeToClassFile, Class cls) throws FileNotFoundException, IOException 
+        {
+<span class="nc" id="L3103">        this();</span>
+<span class="nc" id="L3104">        label = &quot;&quot; + cls + &quot; : &quot; + pathNameRelativeToClassFile;</span>
+        
+<span class="nc" id="L3106">        URL def = defaultResourceURL(cls);</span>
+<span class="nc" id="L3107">        relativeClass = cls;</span>
+        try
+            {
+<span class="nc bnc" id="L3110" title="All 2 branches missed.">            if (isJarFile(def))</span>
+                {
+                // loading from jar file, handle it specially.  This is because
+                // file URLs can handle ../ etc but jar urls CANNOT, stupid Java
+<span class="nc" id="L3114">                relativePath = concatenatedJarPath(def, pathNameRelativeToClassFile);</span>
+<span class="nc" id="L3115">                properties.load(concatenatedJarResource(def, pathNameRelativeToClassFile).openStream());</span>
+                }
+            else
+                {
+<span class="nc" id="L3119">                relativePath = simplifyPath(pathNameRelativeToClassFile);</span>
+<span class="nc" id="L3120">                InputStream f = cls.getResourceAsStream(relativePath);</span>
+<span class="nc" id="L3121">                properties.load(f);</span>
+<span class="nc" id="L3122">                try { f.close(); } catch (IOException e) </span>
+<span class="nc" id="L3123">                    { }</span>
+                }
+            }
+<span class="nc" id="L3126">        catch (NullPointerException e)</span>
+            {
+<span class="nc" id="L3128">            throw new IOException(&quot;Could not load database from resource file &quot; + relativePath +</span>
+                &quot; relative to the class &quot; + cls, e);
+            }
+<span class="nc" id="L3131">        catch (IOException e)</span>
+            {
+<span class="nc" id="L3133">            throw new IOException(&quot;Could not load database from resource file &quot; + relativePath +</span>
+                &quot; relative to the class &quot; + cls, e);
+<span class="nc" id="L3135">            }</span>
+
+        // load parents
+<span class="nc" id="L3138">        for (int x = 0 ; ; x++) </span>
+            {
+<span class="nc" id="L3140">            String s = properties.getProperty(&quot;parent.&quot; + x);</span>
+<span class="nc bnc" id="L3141" title="All 2 branches missed.">            if (s == null)</span>
+<span class="nc" id="L3142">                return; // we're done</span>
+
+<span class="nc bnc" id="L3144" title="All 2 branches missed.">            if (new File(s).isAbsolute()) // it's an absolute file definition</span>
+<span class="nc" id="L3145">                parents.addElement(new ParameterDatabase(new File(s)));</span>
+<span class="nc bnc" id="L3146" title="All 2 branches missed.">            else if (s.startsWith(C_CLASS))</span>
+                {
+<span class="nc" id="L3148">                int i = indexOfFirstWhitespace(s);</span>
+<span class="nc bnc" id="L3149" title="All 2 branches missed.">                if (i == -1) throw new FileNotFoundException(&quot;Could not parse file into filename and classname:\n\tparent.&quot; + x + &quot; = &quot; + s);</span>
+<span class="nc" id="L3150">                String classname = s.substring(C_CLASS.length(),i);</span>
+<span class="nc" id="L3151">                String filename = s.substring(i).trim();</span>
+                try
+                    {
+<span class="nc" id="L3154">                    parents.addElement(new ParameterDatabase(filename, Class.forName(classname, true, Thread.currentThread().getContextClassLoader())));</span>
+                    }
+<span class="nc" id="L3156">                catch (ClassNotFoundException ex)</span>
+                    {
+<span class="nc" id="L3158">                    throw new FileNotFoundException(&quot;Could not parse file into filename and classname:\n\tparent.&quot; + x + &quot; = &quot; + s);</span>
+<span class="nc" id="L3159">                    }</span>
+<span class="nc" id="L3160">                }</span>
+            else
+                {
+<span class="nc" id="L3163">                String path = new File(new File(pathNameRelativeToClassFile).getParent(), s).toString();</span>
+<span class="nc" id="L3164">                parents.addElement(new ParameterDatabase(path, cls));</span>
+                }
+            }
+        }
+
+
+    /** Creates a new parameter database loaded from the given stream.  Non-relative parents are not permitted.
+        If parent.n are defined, parents will be attempted to be loaded -- that's 
+        the reason for the FileNotFoundException and IOException. */
+
+    public ParameterDatabase(java.io.InputStream stream) throws FileNotFoundException, IOException 
+        {
+<span class="nc" id="L3176">        this();</span>
+<span class="nc" id="L3177">        label = &quot;Stream: &quot; + System.identityHashCode(stream);</span>
+<span class="nc" id="L3178">        properties.load(stream);</span>
+
+        // load parents
+<span class="nc" id="L3181">        for (int x = 0;; x++) </span>
+            {
+<span class="nc" id="L3183">            String s = properties.getProperty(&quot;parent.&quot; + x);</span>
+<span class="nc bnc" id="L3184" title="All 2 branches missed.">            if (s == null)</span>
+<span class="nc" id="L3185">                return; // we're done</span>
+
+<span class="nc bnc" id="L3187" title="All 2 branches missed.">            if (new File(s).isAbsolute()) // it's an absolute file definition</span>
+<span class="nc" id="L3188">                parents.addElement(new ParameterDatabase(new File(s)));</span>
+<span class="nc bnc" id="L3189" title="All 2 branches missed.">            else if (s.startsWith(C_CLASS))</span>
+                {
+<span class="nc" id="L3191">                int i = indexOfFirstWhitespace(s);</span>
+<span class="nc bnc" id="L3192" title="All 2 branches missed.">                if (i == -1) throw new FileNotFoundException(&quot;Could not parse file into filename and classname:\n\tparent.&quot; + x + &quot; = &quot; + s);</span>
+<span class="nc" id="L3193">                String classname = s.substring(C_CLASS.length(),i);</span>
+<span class="nc" id="L3194">                String filename = s.substring(i).trim();</span>
+                try
+                    {
+<span class="nc" id="L3197">                    parents.addElement(new ParameterDatabase(filename, Class.forName(classname, true, Thread.currentThread().getContextClassLoader())));</span>
+                    }
+<span class="nc" id="L3199">                catch (ClassNotFoundException ex)</span>
+                    {
+<span class="nc" id="L3201">                    throw new FileNotFoundException(&quot;Could not parse file into filename and classname:\n\tparent.&quot; + x + &quot; = &quot; + s);</span>
+<span class="nc" id="L3202">                    }</span>
+<span class="nc" id="L3203">                }</span>
+<span class="nc" id="L3204">            else throw new FileNotFoundException(&quot;Attempt to load a relative file, but there's no parent file: &quot; + s);</span>
+            }
+        }
+
+
+    /**
+     * Creates a new parameter database tree from a given database file and its
+     * parent files.
+     */
+    public ParameterDatabase(File file) throws FileNotFoundException, IOException 
+        {
+<span class="fc" id="L3215">        this();</span>
+<span class="fc" id="L3216">        label = &quot;File: &quot; + file.getPath();</span>
+        //this.file = file.getName();
+<span class="fc" id="L3218">        directory = new File(file.getParent()); // get the directory</span>
+        // file is in
+<span class="fc" id="L3220">        FileInputStream f = new FileInputStream(file);</span>
+<span class="fc" id="L3221">        properties.load(f);</span>
+<span class="pc" id="L3222">        try { f.close(); } catch (IOException e) </span>
+<span class="fc" id="L3223">            { }</span>
+                
+        // load parents
+<span class="fc" id="L3226">        for (int x = 0;; x++) </span>
+            {
+<span class="fc" id="L3228">            String s = properties.getProperty(&quot;parent.&quot; + x);</span>
+<span class="fc bfc" id="L3229" title="All 2 branches covered.">            if (s == null)</span>
+<span class="fc" id="L3230">                return; // we're done</span>
+
+<span class="pc bpc" id="L3232" title="1 of 2 branches missed.">            if (new File(s).isAbsolute()) // it's an absolute file definition</span>
+<span class="nc" id="L3233">                parents.addElement(new ParameterDatabase(new File(s)));</span>
+<span class="pc bpc" id="L3234" title="1 of 2 branches missed.">            else if (s.startsWith(C_CLASS))</span>
+                {
+<span class="nc" id="L3236">                int i = indexOfFirstWhitespace(s);</span>
+<span class="nc bnc" id="L3237" title="All 2 branches missed.">                if (i == -1) throw new FileNotFoundException(&quot;Could not parse file into filename and classname:\n\tparent.&quot; + x + &quot; = &quot; + s);</span>
+<span class="nc" id="L3238">                String classname = s.substring(C_CLASS.length(),i);</span>
+<span class="nc" id="L3239">                String fname = s.substring(i).trim();</span>
+                try
+                    {
+<span class="nc" id="L3242">                    parents.addElement(new ParameterDatabase(fname, Class.forName(classname, true, Thread.currentThread().getContextClassLoader())));</span>
+                    }
+<span class="nc" id="L3244">                catch (ClassNotFoundException ex)</span>
+                    {
+<span class="nc" id="L3246">                    throw new FileNotFoundException(&quot;Could not parse file into filename and classname:\n\tparent.&quot; + x + &quot; = &quot; + s);</span>
+<span class="nc" id="L3247">                    }</span>
+<span class="nc" id="L3248">                }</span>
+            else
+                // it's relative to my path
+<span class="fc" id="L3251">                parents.addElement(new ParameterDatabase(new File(file.getParent(), s)));</span>
+            }
+        }
+
+    /**
+     * Creates a new parameter database from a given database file and argv
+     * list. The top-level database is completely empty, pointing to a second
+     * database which contains the parameter entries stored in args, which
+     * points to a tree of databases constructed using
+     * ParameterDatabase(file).
+     */
+
+    public ParameterDatabase(File file, String[] args) throws FileNotFoundException, IOException 
+        {
+<span class="nc" id="L3265">        this();</span>
+<span class="nc" id="L3266">        label = &quot;File: &quot; + file.getPath();</span>
+        //this.file = file.getName();
+<span class="nc" id="L3268">        directory = new File(file.getParent()); // get the directory</span>
+        // file is in
+
+        // Create the Parameter Database tree for the files
+<span class="nc" id="L3272">        ParameterDatabase files = new ParameterDatabase(file);</span>
+
+        // Create the Parameter Database for the arguments
+<span class="nc" id="L3275">        ParameterDatabase a = new ParameterDatabase();</span>
+<span class="nc" id="L3276">        a.parents.addElement(files);</span>
+<span class="nc" id="L3277">        boolean hasArgs = false;</span>
+<span class="nc bnc" id="L3278" title="All 2 branches missed.">        for (int x = 0; x &lt; args.length - 1; x++) </span>
+            {
+<span class="nc bnc" id="L3280" title="All 2 branches missed.">            if (args[x].equals(&quot;-p&quot;))</span>
+                {
+<span class="nc" id="L3282">                String s = args[x+1].trim();</span>
+<span class="nc bnc" id="L3283" title="All 2 branches missed.">                if (s.length() == 0) continue;  // failure</span>
+<span class="nc" id="L3284">                int eq = s.indexOf('=');  // look for the '='</span>
+<span class="nc bnc" id="L3285" title="All 2 branches missed.">                if (eq &lt;= 0) continue; // '=' isn't there, or it's the first char: failure                      </span>
+<span class="nc" id="L3286">                set(new Parameter(s.substring(0,eq)), s.substring(eq+1));  // add the parameter</span>
+<span class="nc bnc" id="L3287" title="All 2 branches missed.">                if (!hasArgs)</span>
+                    {
+<span class="nc" id="L3289">                    label = label + &quot;    Args:  &quot;;</span>
+<span class="nc" id="L3290">                    hasArgs = true;</span>
+                    }
+<span class="nc" id="L3292">                label = label + s + &quot;  &quot;;</span>
+                }
+            }
+
+        // Set me up
+<span class="nc" id="L3297">        parents.addElement(a);</span>
+<span class="nc" id="L3298">        }</span>
+
+    /**
+     * Prints out all the parameters in the database, but not shadowed
+     * parameters.
+     */
+    public void list(PrintWriter p) 
+        {
+<span class="nc" id="L3306">        list(p, false);</span>
+<span class="nc" id="L3307">        }</span>
+
+    /**
+     * Prints out all the parameters in the database. Useful for debugging. If
+     * listShadowed is true, each parameter is printed with the parameter
+     * database it's located in. If listShadowed is false, only active
+     * parameters are listed, and they're all given in one big chunk.
+     */
+    public void list(PrintWriter p, boolean listShadowed) 
+        {
+<span class="nc bnc" id="L3317" title="All 2 branches missed.">        if (listShadowed)</span>
+<span class="nc" id="L3318">            _list(p, listShadowed, &quot;root&quot;, null);</span>
+        else 
+            {
+<span class="nc" id="L3321">            Hashtable gather = new Hashtable();</span>
+<span class="nc" id="L3322">            _list(null, listShadowed, &quot;root&quot;, gather);</span>
+
+<span class="nc" id="L3324">            Vector vec = new Vector();</span>
+<span class="nc" id="L3325">            Enumeration e = gather.keys();</span>
+<span class="nc bnc" id="L3326" title="All 2 branches missed.">            while (e.hasMoreElements())</span>
+<span class="nc" id="L3327">                vec.addElement(e.nextElement());</span>
+
+<span class="nc" id="L3329">            java.util.Collections.sort(vec);</span>
+
+            // Uncheck and print each item
+<span class="nc bnc" id="L3332" title="All 2 branches missed.">            for (int x = 0; x &lt; vec.size(); x++) </span>
+                {
+<span class="nc" id="L3334">                String s = (String) vec.get(x);</span>
+<span class="nc" id="L3335">                String v = null;</span>
+<span class="nc bnc" id="L3336" title="All 2 branches missed.">                if (s != null)</span>
+<span class="nc" id="L3337">                    v = (String) gather.get(s);</span>
+<span class="nc bnc" id="L3338" title="All 2 branches missed.">                if (v == null)</span>
+<span class="nc" id="L3339">                    v = UNKNOWN_VALUE;</span>
+<span class="nc bnc" id="L3340" title="All 2 branches missed.">                if (p!=null) p.println(s + &quot; = &quot; + v);</span>
+                }
+            }
+<span class="nc bnc" id="L3343" title="All 2 branches missed.">        if (p!=null) p.flush();</span>
+<span class="nc" id="L3344">        }</span>
+
+    /** Private helper function. */
+    void _list(PrintWriter p, boolean listShadowed,
+        String prefix, Hashtable gather) 
+        {
+<span class="nc bnc" id="L3350" title="All 2 branches missed.">        if (listShadowed) </span>
+            {
+            // Print out my header
+<span class="nc bnc" id="L3353" title="All 2 branches missed.">            if (p!=null)</span>
+                {
+<span class="nc" id="L3355">                p.println(&quot;\n########&quot; + prefix);</span>
+<span class="nc" id="L3356">                properties.list(p);</span>
+                }
+<span class="nc" id="L3358">            int size = parents.size();</span>
+<span class="nc bnc" id="L3359" title="All 2 branches missed.">            for (int x = 0; x &lt; size; x++)</span>
+<span class="nc" id="L3360">                ((ParameterDatabase) (parents.elementAt(x)))._list(p,</span>
+                    listShadowed, prefix + &quot;.&quot; + x, gather);
+<span class="nc" id="L3362">            } </span>
+        else 
+            {
+            // load in reverse order so things get properly overwritten
+<span class="nc" id="L3366">            int size = parents.size();</span>
+<span class="nc bnc" id="L3367" title="All 2 branches missed.">            for (int x = size - 1; x &gt;= 0; x--)</span>
+<span class="nc" id="L3368">                ((ParameterDatabase) (parents.elementAt(x)))._list(p,</span>
+                    listShadowed, prefix, gather);
+<span class="nc" id="L3370">            Enumeration e = properties.keys();</span>
+<span class="nc bnc" id="L3371" title="All 2 branches missed.">            while (e.hasMoreElements()) </span>
+                {
+<span class="nc" id="L3373">                String key = (String) (e.nextElement());</span>
+<span class="nc" id="L3374">                gather.put(key, properties.get(key));</span>
+<span class="nc" id="L3375">                }</span>
+            }
+<span class="nc bnc" id="L3377" title="All 2 branches missed.">        if (p!=null) p.flush();</span>
+<span class="nc" id="L3378">        }</span>
+
+    public String toString() 
+        {
+<span class="nc" id="L3382">        String s = super.toString();</span>
+<span class="nc bnc" id="L3383" title="All 2 branches missed.">        if (parents.size() &gt; 0) </span>
+            {
+<span class="nc" id="L3385">            s += &quot; : (&quot;;</span>
+<span class="nc bnc" id="L3386" title="All 2 branches missed.">            for (int x = 0; x &lt; parents.size(); x++) </span>
+                {
+<span class="nc bnc" id="L3388" title="All 2 branches missed.">                if (x &gt; 0)</span>
+<span class="nc" id="L3389">                    s += &quot;, &quot;;</span>
+<span class="nc" id="L3390">                s += parents.elementAt(x);</span>
+                }
+<span class="nc" id="L3392">            s += &quot;)&quot;;</span>
+            }
+<span class="nc" id="L3394">        return s;</span>
+        }
+
+    /**
+     * Builds a TreeModel from the available property keys.   
+     */
+    public TreeModel buildTreeModel() 
+        {
+        //String sep = System.getProperty(&quot;file.separator&quot;);
+<span class="nc" id="L3403">        ParameterDatabaseTreeNode root = new ParameterDatabaseTreeNode(</span>
+            //this.directory.getAbsolutePath() + sep + this.filename);
+            label);
+<span class="nc" id="L3406">        ParameterDatabaseTreeModel model = new ParameterDatabaseTreeModel(root);</span>
+
+<span class="nc" id="L3408">        _buildTreeModel(model, root);</span>
+
+<span class="nc" id="L3410">        model.sort(root, new Comparator() </span>
+<span class="nc" id="L3411">            {</span>
+            public int compare(Object o1, Object o2) 
+                {
+<span class="nc" id="L3414">                ParameterDatabaseTreeNode t1 = (ParameterDatabaseTreeNode)o1;</span>
+<span class="nc" id="L3415">                ParameterDatabaseTreeNode t2 = (ParameterDatabaseTreeNode)o2;</span>
+                
+<span class="nc" id="L3417">                return ((Comparable)t1.getUserObject()).compareTo(t2.getUserObject());</span>
+                }
+            });
+
+        // In order to add elements to the tree model, the leaves need to be
+        // visible. This is because some properties have values *and* sub-
+        // properties. Otherwise, if the nodes representing these properties did
+        // not yet have children, then they would be invisible and the tree model
+        // would be unable to add child nodes to them.
+<span class="nc" id="L3426">        model.setVisibleLeaves(false);</span>
+        
+<span class="nc" id="L3428">        return model;</span>
+        }
+
+    void _buildTreeModel(DefaultTreeModel model,
+        DefaultMutableTreeNode root) 
+        {
+<span class="nc" id="L3434">        Enumeration e = properties.keys();</span>
+<span class="nc bnc" id="L3435" title="All 2 branches missed.">        while (e.hasMoreElements()) </span>
+            {
+<span class="nc" id="L3437">            _addNodeForParameter(model, root, (String)e.nextElement());</span>
+            }
+
+<span class="nc" id="L3440">        int size = parents.size();</span>
+<span class="nc bnc" id="L3441" title="All 2 branches missed.">        for (int i = 0; i &lt; size; ++i) </span>
+            {
+<span class="nc" id="L3443">            ParameterDatabase parentDB = (ParameterDatabase) parents</span>
+<span class="nc" id="L3444">                .elementAt(i);</span>
+<span class="nc" id="L3445">            parentDB._buildTreeModel(model, root);</span>
+            }
+<span class="nc" id="L3447">        }</span>
+
+    /**
+     * @param model
+     * @param root
+     * @param e
+     */
+    void _addNodeForParameter(DefaultTreeModel model, DefaultMutableTreeNode root, String key) 
+        {
+<span class="nc bnc" id="L3456" title="All 2 branches missed.">        if (key.indexOf(&quot;parent.&quot;) == -1) </span>
+            {
+            /* 
+             * TODO split is new to 1.4.  To maintain 1.2 compatability we need
+             * to use a different approach.  Just use a string tokenizer.
+             */ 
+<span class="nc" id="L3462">            StringTokenizer tok = new StringTokenizer(key,&quot;.&quot;);</span>
+<span class="nc" id="L3463">            String[] path = new String[tok.countTokens()];</span>
+<span class="nc" id="L3464">            int t = 0;</span>
+<span class="nc bnc" id="L3465" title="All 2 branches missed.">            while(tok.hasMoreTokens()) </span>
+                {
+<span class="nc" id="L3467">                path[t++] = tok.nextToken();</span>
+                }
+<span class="nc" id="L3469">            DefaultMutableTreeNode parent = root;</span>
+
+<span class="nc bnc" id="L3471" title="All 2 branches missed.">            for (int i = 0; i &lt; path.length; ++i) </span>
+                {
+<span class="nc" id="L3473">                int children = model.getChildCount(parent);</span>
+<span class="nc bnc" id="L3474" title="All 2 branches missed.">                if (children &gt; 0) </span>
+                    {
+<span class="nc" id="L3476">                    int c = 0;</span>
+<span class="nc bnc" id="L3477" title="All 2 branches missed.">                    for (; c &lt; children; ++c) </span>
+                        {
+<span class="nc" id="L3479">                        DefaultMutableTreeNode child = </span>
+<span class="nc" id="L3480">                            (DefaultMutableTreeNode) parent.getChildAt(c);</span>
+<span class="nc bnc" id="L3481" title="All 2 branches missed.">                        if (child.getUserObject().equals(path[i])) </span>
+                            {
+<span class="nc" id="L3483">                            parent = child;</span>
+<span class="nc" id="L3484">                            break;</span>
+                            }
+                        }
+
+<span class="nc bnc" id="L3488" title="All 2 branches missed.">                    if (c == children) </span>
+                        {
+<span class="nc" id="L3490">                        DefaultMutableTreeNode child = </span>
+                            new ParameterDatabaseTreeNode(path[i]);
+<span class="nc" id="L3492">                        model.insertNodeInto(child, parent, </span>
+<span class="nc" id="L3493">                            parent.getChildCount());</span>
+<span class="nc" id="L3494">                        parent = child;</span>
+                        }
+<span class="nc" id="L3496">                    }</span>
+                // If the parent has no children, just add the node.
+                else 
+                    {
+<span class="nc" id="L3500">                    DefaultMutableTreeNode child = </span>
+                        new ParameterDatabaseTreeNode(path[i]);
+<span class="nc" id="L3502">                    model.insertNodeInto(child, parent, 0);</span>
+<span class="nc" id="L3503">                    parent = child;</span>
+                    }
+                }
+            }
+<span class="nc" id="L3507">        }</span>
+
+    /**
+     * Test the ParameterDatabase
+     */
+    public static void main(String[] args)
+        throws FileNotFoundException, IOException
+        {
+<span class="nc" id="L3515">        ParameterDatabase pd = new ParameterDatabase(new File(args[0]), args);</span>
+<span class="nc" id="L3516">        pd.set(new Parameter(&quot;Hi there&quot;), &quot;Whatever&quot;);</span>
+<span class="nc" id="L3517">        pd.set(new Parameter(new String[]</span>
+            {
+            &quot;1&quot;, &quot;2&quot;, &quot;3&quot;
+            }), &quot; Whatever &quot;);
+<span class="nc" id="L3521">        pd.set(new Parameter(new String[]</span>
+            {
+            &quot;a&quot;, &quot;b&quot;, &quot;c&quot;
+<span class="nc" id="L3524">            }).pop().push(&quot;d&quot;),</span>
+            &quot;Whatever&quot;);
+
+<span class="nc" id="L3527">        System.err.println(&quot;\n\n PRINTING ALL PARAMETERS \n\n&quot;);</span>
+<span class="nc" id="L3528">        pd.list(new PrintWriter(System.err, true), true);</span>
+<span class="nc" id="L3529">        System.err.println(&quot;\n\n PRINTING ONLY VALID PARAMETERS \n\n&quot;);</span>
+<span class="nc" id="L3530">        pd.list(new PrintWriter(System.err, true), false);</span>
+<span class="nc" id="L3531">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

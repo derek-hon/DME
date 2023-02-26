@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FitProportionateSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">FitProportionateSelection.java</span></div><h1>FitProportionateSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.select;
+import ec.util.*;
+import ec.*;
+
+/* 
+ * FitProportionateSelection.java
+ * 
+ * Created: Thu Feb 10 16:31:24 2000
+ * By: Sean Luke
+ */
+
+/**
+ * Picks individuals in a population in direct proportion to their
+ * fitnesses as returned by their fitness() methods.  This is expensive to
+ * set up and bring down, so it's not appropriate for steady-state evolution.
+ * If you're not familiar with the relative advantages of 
+ * selection methods and just want a good one,
+ * use TournamentSelection instead.   Not appropriate for
+ * multiobjective fitnesses.
+ *
+ * &lt;p&gt;&lt;b&gt;&lt;font color=red&gt;
+ * Note: Fitnesses must be non-negative.  0 is assumed to be the worst fitness.
+ * &lt;/font&gt;&lt;/b&gt;
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.fitness-proportionate
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L43">public class FitProportionateSelection extends SelectionMethod</span>
+    {
+    /** Default base */
+    public static final String P_FITNESSPROPORTIONATE = &quot;fitness-proportionate&quot;;
+    /** Normalized, totalized fitnesses for the population */
+    public double[] fitnesses;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L52">        return SelectDefaults.base().push(P_FITNESSPROPORTIONATE);</span>
+        }
+
+    // don't need clone etc. 
+
+    public void prepareToProduce(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L61">        super.prepareToProduce(s, subpopulation, thread);</span>
+
+        // load fitnesses
+<span class="nc" id="L64">        fitnesses = new double[s.population.subpops.get(subpopulation).individuals.size()];</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        for(int x=0;x&lt;fitnesses.length;x++)</span>
+            {
+<span class="nc" id="L67">            fitnesses[x] = ((Individual)(s.population.subpops.get(subpopulation).individuals.get(x))).fitness.fitness();</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">            if (fitnesses[x] &lt; 0) // uh oh</span>
+<span class="nc" id="L69">                s.output.fatal(&quot;Discovered a negative fitness value.  FitProportionateSelection requires that all fitness values be non-negative(offending subpopulation #&quot; + subpopulation + &quot;)&quot;);</span>
+            }
+        
+        // organize the distribution.  All zeros in fitness is fine
+<span class="nc" id="L73">        RandomChoice.organizeDistribution(fitnesses, true);</span>
+<span class="nc" id="L74">        }</span>
+
+    public int produce(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+        // Pick and return an individual from the population
+<span class="nc" id="L81">        return RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L82">            fitnesses,state.random[thread].nextDouble());</span>
+        }
+    
+    public void finishProducing(final EvolutionState s,
+        final int subpopulation,
+        final int thread)
+        {
+<span class="nc" id="L89">        super.finishProducing(s, subpopulation, thread);</span>
+
+        // release the distributions so we can quickly 
+        // garbage-collect them if necessary
+<span class="nc" id="L93">        fitnesses = null;</span>
+<span class="nc" id="L94">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

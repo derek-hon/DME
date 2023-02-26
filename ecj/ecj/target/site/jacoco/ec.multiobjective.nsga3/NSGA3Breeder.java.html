@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NSGA3Breeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.multiobjective.nsga3</a> &gt; <span class="el_source">NSGA3Breeder.java</span></div><h1>NSGA3Breeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2017 by Ben Brumbac
+  Modifications Copyright 2017 Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.multiobjective.nsga3;
+
+import ec.*;
+import ec.util.*;
+import ec.simple.*;
+import java.util.*;
+import ec.multiobjective.*;
+import ec.multiobjective.nsga2.*;
+
+/* 
+ * NSGA3Breeder.java
+ * 
+ * Created: Sat Jan 20 2018
+ * By: Ben Brumback and Sean Luke
+ */
+
+/**
+ * This SimpleBreeder subclass breeds a set of children from the Population, then
+ * joins the original Population with the children in a (mu+mu) fashion.   An NSGA3Breeder
+ * may have multiple threads for breeding.
+ *
+ * &lt;p&gt;NSGA-III has fixed archive size (the population size), and so ignores the 'elites'
+ * declaration.  However it will adhere to the 'reevaluate-elites' parameter in SimpleBreeder
+ * to determine whether to force fitness reevaluation.
+
+ */
+
+<span class="nc" id="L35">public class NSGA3Breeder extends NSGA2Breeder</span>
+    {
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L39">        super.setup(state, base);</span>
+<span class="nc" id="L40">        }</span>
+
+    /** Build the auxiliary fitness data and reduce the subpopulation to just the archive, which is returned. */
+    public ArrayList&lt;Individual&gt; buildArchive(EvolutionState state, int subpop)
+        {
+<span class="nc" id="L45">        ArrayList&lt;ArrayList&lt;Individual&gt;&gt; ranks = assignFrontRanks(state.population.subpops.get(subpop));</span>
+                
+<span class="nc" id="L47">        ArrayList&lt;Individual&gt; newSubpopulation = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L48">        int size = ranks.size();</span>
+<span class="nc" id="L49">        int originalPopSize = state.population.subpops.get(subpop).individuals.size();</span>
+
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        for(int i = 0; i &lt; size; i++)</span>
+            {
+<span class="nc" id="L53">            ArrayList&lt;Individual&gt; rank = ranks.get(i);</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            if (rank.size() + newSubpopulation.size() &gt;= originalPopSize)</span>
+                {
+                //This is the differnce between NSGA2 and 3.
+<span class="nc" id="L57">                int numObjectives = ((NSGA3MultiObjectiveFitness) rank.get(0).fitness).getObjectives().length;</span>
+<span class="nc" id="L58">                List&lt;Individual&gt; frontL = new SelectorTools(ranks.subList(0, i+1), numObjectives).selectFrontLIndividuals(originalPopSize- newSubpopulation.size());</span>
+<span class="nc" id="L59">                newSubpopulation.addAll(frontL);</span>
+<span class="nc" id="L60">                break;</span>
+                }
+            else
+                {
+                // dump in everyone
+<span class="nc" id="L65">                newSubpopulation.addAll(rank);</span>
+                }
+            }
+
+<span class="nc" id="L69">        ArrayList&lt;Individual&gt; archive = new ArrayList&lt;Individual&gt;(newSubpopulation);</span>
+                
+        // maybe force reevaluation
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        if (reevaluateElites[subpop])</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">            for(int i = 0 ; i &lt; archive.size(); i++)</span>
+<span class="nc" id="L74">                archive.get(i).evaluated = false;</span>
+
+<span class="nc" id="L76">        return archive;</span>
+        }
+
+
+
+    /** Divides inds into ranks and assigns each individual's rank to be the rank it was placed into.
+        Each front is an ArrayList. */
+    public ArrayList&lt;ArrayList&lt;Individual&gt;&gt; assignFrontRanks(Subpopulation subpop)
+        {
+<span class="nc" id="L85">        ArrayList&lt;Individual&gt; inds = subpop.individuals;</span>
+<span class="nc" id="L86">        ArrayList&lt;ArrayList&lt;Individual&gt;&gt; frontsByRank = MultiObjectiveFitness.partitionIntoRanks(inds);</span>
+
+<span class="nc" id="L88">        int numRanks = frontsByRank.size();</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        for(int rank = 0; rank &lt; numRanks; rank++)</span>
+            {
+<span class="nc" id="L91">            ArrayList&lt;Individual&gt; front = frontsByRank.get(rank);</span>
+<span class="nc" id="L92">            int numInds = front.size();</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">            for(int ind = 0; ind &lt; numInds; ind++)</span>
+<span class="nc" id="L94">                ((NSGA3MultiObjectiveFitness)front.get(ind).fitness).rank = rank;</span>
+            }
+<span class="nc" id="L96">        return frontsByRank;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

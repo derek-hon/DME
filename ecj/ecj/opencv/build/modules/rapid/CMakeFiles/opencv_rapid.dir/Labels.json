@@ -1,0 +1,57 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/rapid/include/opencv2/rapid.hpp",
+			"labels" : 
+			[
+				"Extra",
+				"opencv_rapid",
+				"Module"
+			]
+		},
+		{
+			"file" : "/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/rapid/src/histogram.cpp",
+			"labels" : 
+			[
+				"Extra",
+				"opencv_rapid",
+				"Module"
+			]
+		},
+		{
+			"file" : "/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/rapid/src/rapid.cpp",
+			"labels" : 
+			[
+				"Extra",
+				"opencv_rapid",
+				"Module"
+			]
+		},
+		{
+			"file" : "/home/derek/Documents/thesis-ecj/ecj/opencv_contrib/modules/rapid/src/precomp.hpp",
+			"labels" : 
+			[
+				"Extra",
+				"opencv_rapid",
+				"Module"
+			]
+		},
+		{
+			"file" : "/home/derek/Documents/thesis-ecj/ecj/opencv/build/cvconfig.h"
+		},
+		{
+			"file" : "/home/derek/Documents/thesis-ecj/ecj/opencv/build/opencv2/opencv_modules.hpp"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"Extra",
+			"opencv_rapid",
+			"Module"
+		],
+		"name" : "opencv_rapid"
+	}
+}

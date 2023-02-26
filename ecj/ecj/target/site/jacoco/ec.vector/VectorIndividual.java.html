@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VectorIndividual.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector</a> &gt; <span class="el_source">VectorIndividual.java</span></div><h1>VectorIndividual.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.vector;
+
+import ec.*;
+
+/*
+ * VectorIndividual.java
+ * Created: Tue Mar 13 15:03:12 EST 2001
+ */
+
+/**
+ * VectorIndividual is the abstract superclass of simple individual representations
+ * which consist of vectors of values (booleans, integers, floating-point, etc.)
+ *
+ * &lt;p&gt;This class contains two methods, defaultCrossover and defaultMutate, which can
+ * be overridden if all you need is a simple crossover and a simple mutate mechanism.
+ * the VectorCrossoverPipeline and VectorMutationPipeline classes use these methods to do their
+ * handiwork.  For more sophisticated crossover and mutation, you'll need to write
+ * a custom breeding pipeline.
+ *
+ * &lt;p&gt;The &lt;i&gt;kind&lt;/i&gt; of default crossover and mutation, and associated information,
+ * is stored in the VectorIndividual's VectorSpecies object, which is obtained through
+ * the &lt;tt&gt;species&lt;/tt&gt; variable.  For example, 
+ * VectorIndividual assumes three common types of crossover as defined in VectorSpecies
+ * which you should implement in your defaultCrossover method: one-point, 
+ * two-point, and any-point (otherwise known as &quot;uniform&quot;) crossover.
+ *
+ * &lt;p&gt;VectorIndividual is typically used for fixed-length vector representations;
+ * however, it can also be used with variable-length representations.  Two methods have
+ * been provided in all subclasses of VectorIndividual to help you there: split and
+ * join, which you can use to break up and reconnect VectorIndividuals in a variety
+ * of ways.  Note that you may want to override the reset() method to create individuals
+ * with different initial lengths.
+ *
+ * &lt;p&gt;VectorIndividuals must belong to the species VectorSpecies (or some subclass of it).
+ *
+ 
+ * &lt;P&gt;&lt;b&gt;From ec.Individual:&lt;/b&gt;
+ *
+ * &lt;p&gt;In addition to serialization for checkpointing, Individuals may read and write themselves to streams in three ways.
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;writeIndividual(...,DataOutput)/readIndividual(...,DataInput)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This method
+ * transmits or receives an individual in binary.  It is the most efficient approach to sending
+ * individuals over networks, etc.  These methods write the evaluated flag and the fitness, then
+ * call &lt;b&gt;readGenotype/writeGenotype&lt;/b&gt;, which you must implement to write those parts of your 
+ * Individual special to your functions-- the default versions of readGenotype/writeGenotype throw errors.
+ * You don't need to implement them if you don't plan on using read/writeIndividual.
+ *
+ * &lt;li&gt;&lt;b&gt;printIndividual(...,PrintWriter)/readIndividual(...,LineNumberReader)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach transmits or receives an indivdual in text encoded such that the individual is largely readable
+ * by humans but can be read back in 100% by ECJ as well.  To do this, these methods will encode numbers
+ * using the &lt;tt&gt;ec.util.Code&lt;/tt&gt; class.  These methods are mostly used to write out populations to
+ * files for inspection, slight modification, then reading back in later on.  &lt;b&gt;readIndividual&lt;/b&gt; reads
+ * in the fitness and the evaluation flag, then calls &lt;b&gt;parseGenotype&lt;/b&gt; to read in the remaining individual.
+ * You are responsible for implementing parseGenotype: the Code class is there to help you.
+ * &lt;b&gt;printIndividual&lt;/b&gt; writes out the fitness and evaluation flag, then calls &lt;b&gt;genotypeToString&lt;/b&gt; 
+ * and printlns the resultant string. You are responsible for implementing the genotypeToString method in such
+ * a way that parseGenotype can read back in the individual println'd with genotypeToString.  The default form
+ * of genotypeToString simply calls &lt;b&gt;toString&lt;/b&gt;, which you may override instead if you like.  The default
+ * form of &lt;b&gt;parseGenotype&lt;/b&gt; throws an error.  You are not required to implement these methods, but without
+ * them you will not be able to write individuals to files in a simultaneously computer- and human-readable fashion.
+ *
+ * &lt;li&gt;&lt;b&gt;printIndividualForHumans(...,PrintWriter)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach prints an individual in a fashion intended for human consumption only.
+ * &lt;b&gt;printIndividualForHumans&lt;/b&gt; writes out the fitness and evaluation flag, then calls &lt;b&gt;genotypeToStringForHumans&lt;/b&gt; 
+ * and printlns the resultant string. You are responsible for implementing the genotypeToStringForHumans method.
+ * The default form of genotypeToStringForHumans simply calls &lt;b&gt;toString&lt;/b&gt;, which you may override instead if you like
+ * (though note that genotypeToString's default also calls toString).  You should handle one of these methods properly
+ * to ensure individuals can be printed by ECJ.
+ * &lt;/ul&gt;
+
+ * &lt;p&gt;In general, the various readers and writers do three things: they tell the Fitness to read/write itself,
+ * they read/write the evaluated flag, and they read/write the gene array.  If you add instance variables to
+ * a VectorIndividual or subclass, you'll need to read/write those variables as well.
+
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+<span class="fc" id="L87">public abstract class VectorIndividual extends Individual</span>
+    {
+    /** Destructively crosses over the individual with another in some default manner.  In most
+        implementations provided in ECJ, one-, two-, and any-point crossover is done with a 
+        for loop, rather than a possibly more efficient approach like arrayCopy().  The disadvantage
+        is that arrayCopy() takes advantage of a CPU's bulk copying.  The advantage is that arrayCopy()
+        would require a scratch array, so you'd be allocing and GCing an array for every crossover.
+        Dunno which is more efficient.  */
+    public void defaultCrossover(EvolutionState state, int thread, 
+<span class="nc" id="L96">        VectorIndividual ind) { }</span>
+
+    /** Destructively mutates the individual in some default manner.  The default version calls reset()*/
+<span class="nc" id="L99">    public void defaultMutate(EvolutionState state, int thread) { reset(state,thread); }</span>
+
+    /** Initializes the individual. */
+    public abstract void reset(EvolutionState state, int thread);
+
+    /** Returns the gene array.  If you know the type of the array, you can cast it and work on
+        it directly.  Otherwise, you can still manipulate it in general, because arrays (like
+        all objects) respond to clone() and can be manipulated with arrayCopy without bothering
+        with their type.  This might be useful in creating special generalized crossover operators
+        -- we apologize in advance for the fact that Java doesn't have a template system.  :-( 
+        The default version returns null. */
+<span class="nc" id="L110">    public Object getGenome() { return null; }</span>
+    
+    /** Sets the gene array.  See getGenome().  The default version does nothing.
+     */
+<span class="nc" id="L114">    public void setGenome(Object gen) { }</span>
+
+    /** Returns the length of the gene array.  By default, this method returns 0. */
+<span class="nc" id="L117">    public int genomeLength() { return 0; }</span>
+
+    /** Initializes the individual to a new size.  Only use this if you need to initialize variable-length individuals. */
+    public void reset(EvolutionState state, int thread, int newSize)
+        {
+<span class="nc" id="L122">        setGenomeLength(newSize);</span>
+<span class="nc" id="L123">        reset(state, thread);</span>
+<span class="nc" id="L124">        }</span>
+
+    /** Sets the genome length.  If the length is longer, then it is filled with a default value (likely 0 or false).
+        This may or may not be a valid value -- you will need to set appropriate values here. 
+        The default implementation does nothing; but all subclasses in ECJ implement a subset of this. */
+<span class="nc" id="L129">    public void setGenomeLength(int len) { }</span>
+
+    /** Splits the genome into n pieces, according to points, which *must* be sorted. 
+        pieces.length must be 1 + points.length.  The default form does nothing -- be careful
+        not to use this method if it's not implemented!  It should be trivial to implement it
+        for your genome -- just like at the other implementations.  */
+<span class="nc" id="L135">    public void split(int[] points, Object[] pieces) { }</span>
+
+    /** Joins the n pieces and sets the genome to their concatenation.  The default form does nothing. 
+        It should be trivial to implement it
+        for your genome -- just like at the other implementations.  */
+<span class="nc" id="L140">    public void join(Object[] pieces) { }</span>
+
+    /** Clones the genes in pieces, and replaces the genes with their copies.  Does NOT copy the array, but modifies it in place.
+        If the VectorIndividual holds numbers or booleans etc. instead of genes, nothing is cloned
+        (why bother?). */
+<span class="nc" id="L145">    public void cloneGenes(Object piece) { }  // default does nothing.</span>
+    
+<span class="fc" id="L147">    public long size() { return genomeLength(); }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

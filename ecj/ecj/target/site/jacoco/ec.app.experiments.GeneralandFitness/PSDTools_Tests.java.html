@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PSDTools_Tests.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.GeneralandFitness</a> &gt; <span class="el_source">PSDTools_Tests.java</span></div><h1>PSDTools_Tests.java</h1><pre class="source lang-java linenums">package ec.app.experiments.GeneralandFitness;
+
+import java.awt.image.BufferedImage;
+import java.awt.image.Raster;
+import java.io.File;
+import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.Date;
+import java.util.Random;
+import javax.imageio.ImageIO;
+
+// import ec.proctexture.PSDExtensions.ImageToArrayStrategy;
+import ec.app.experiments.GeneralandFitness.PSDExtensions.ImageToArrayStrategy;
+
+// import PSDTools.PSDExtensions.ImageToArrayStrategy;
+
+<span class="nc" id="L19">public class PSDTools_Tests </span>
+{	
+<span class="nc" id="L21">	private static final DateFormat dateFormat = new SimpleDateFormat(&quot;yyyy-MM-dd HH:mm:ss&quot;);</span>
+	
+	static final int iSide    = PSDTools.SideLength;
+<span class="nc" id="L24">	static double[][] img     = new double[iSide][iSide];</span>
+<span class="nc" id="L25">	static double[]   imgPS   = new double[iSide+1];</span>
+<span class="nc" id="L26">	static double[][] imgFT   = new double[iSide][iSide];</span>
+<span class="nc" id="L27">	static double[][] imgFTa  = new double[iSide][iSide];</span>
+<span class="nc" id="L28">	static double[][] imgFTo  = new double[iSide][iSide];</span>
+<span class="nc" id="L29">	static double[][] imgWD   = new double[iSide][iSide];</span>
+<span class="nc" id="L30">	static BufferedImage bImg = new BufferedImage(iSide, iSide, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L31">	static long perfIters     = 5000;//0xFFFF;</span>
+	
+	
+	
+	public static boolean LoadImage(File filename) throws IOException, Exception
+	{
+<span class="nc" id="L37">		BufferedImage bufImg = ImageIO.read(filename);</span>
+<span class="nc" id="L38">		Raster rasImg = bufImg.getRaster();</span>
+		
+<span class="nc bnc" id="L40" title="All 4 branches missed.">		if(bufImg.getHeight()!=iSide || bufImg.getWidth()!=iSide)</span>
+<span class="nc" id="L41">			throw new Exception(&quot;Image must have dimensions &quot;+String.valueOf(iSide)+&quot;x&quot;+String.valueOf(iSide));</span>
+		
+<span class="nc bnc" id="L43" title="All 2 branches missed.">		for(int y = 0; y &lt; iSide; y++)</span>
+<span class="nc bnc" id="L44" title="All 2 branches missed.">		for(int x = 0; x &lt; iSide; x++)</span>
+		{
+<span class="nc bnc" id="L46" title="All 2 branches missed.">			if(rasImg.getNumDataElements() &gt; 1)</span>
+			{
+				// Colour; Convert to rec601 Grayscale
+<span class="nc" id="L49">				int px = bufImg.getRGB(x,y);</span>
+<span class="nc" id="L50">				int px_r = (px&amp;0xFF0000) &gt;&gt; 16;</span>
+<span class="nc" id="L51">				int px_g = (px&amp;0x00FF00) &gt;&gt; 8;</span>
+<span class="nc" id="L52">				int px_b = (px&amp;0x0000FF);</span>
+<span class="nc" id="L53">				double px_y601 = (0.299*px_r) + (0.587*px_g) + (0.114*px_b);</span>
+<span class="nc" id="L54">				img[x][y] = px_y601 / 255.0;</span>
+<span class="nc" id="L55">			}</span>
+			else
+			{
+				// Grayscale
+<span class="nc" id="L59">				double[] dat = new double[1];</span>
+<span class="nc" id="L60">				rasImg.getPixel(x, y, dat);</span>
+<span class="nc" id="L61">				img[x][y] = dat[0] / 255.0;</span>
+			}
+		}
+		
+<span class="nc" id="L65">		return true;</span>
+	}
+	
+	public static void DataTest()
+	{
+<span class="nc" id="L70">		System.out.print(&quot;PSD Slope: &quot;);</span>
+<span class="nc" id="L71">		double pulledNumber = Double.NaN;</span>
+<span class="nc" id="L72">		pulledNumber = PSDTools.f_PSD_Slope(img);</span>
+<span class="nc" id="L73">		System.out.println(String.valueOf(pulledNumber));</span>
+		
+<span class="nc" id="L75">		System.out.print(&quot;PSD Regression(2): &quot;);</span>
+<span class="nc" id="L76">		double[] regression = new double[]{ Double.NaN, Double.NaN };</span>
+<span class="nc" id="L77">		regression = PSDTools.f_PSD_LinearRegression(img);</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">		for(int i = 0; i &lt; regression.length; i++)</span>
+<span class="nc" id="L79">			System.out.print( String.valueOf(regression[i]) + &quot; &quot; );</span>
+<span class="nc" id="L80">		System.out.println();</span>
+<span class="nc" id="L81">	}</span>
+	
+	public static void PerfTest()
+	{
+<span class="nc" id="L85">		Runtime env = Runtime.getRuntime();</span>
+		long memStart;
+		long memEnd;
+		long memChange;
+		Date dateStart;
+		Date dateEnd;		
+		Duration duration;
+		
+<span class="nc" id="L93">		System.out.println(&quot;-- Test: ImageToDouble2D - FirstChannel&quot;);</span>
+<span class="nc" id="L94">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L95">		dateStart = new Date();</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L97">			PSDExtensions.ImageToDouble2D(bImg,ImageToArrayStrategy.Channel_R);</span>
+<span class="nc" id="L98">		dateEnd = new Date();</span>
+<span class="nc" id="L99">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L100">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L101">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L102">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L103">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L104">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L105">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L106">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L107">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L109">		System.out.println(&quot;-- Test: ImageToDouble2D - Y709&quot;);</span>
+<span class="nc" id="L110">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L111">		dateStart = new Date();</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L113">			PSDExtensions.ImageToDouble2D(bImg,ImageToArrayStrategy.Y709);</span>
+<span class="nc" id="L114">		dateEnd = new Date();</span>
+<span class="nc" id="L115">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L116">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L117">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L118">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L119">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L120">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L121">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L122">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L123">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L125">		System.out.println(&quot;-- Test: Dummy 0&quot;);</span>
+<span class="nc" id="L126">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L127">		dateStart = new Date();</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L129">			PSDTools.f_PSD_Dummy0();</span>
+<span class="nc" id="L130">		dateEnd = new Date();</span>
+<span class="nc" id="L131">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L132">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L133">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L134">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L135">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L136">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L137">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L138">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L139">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L141">		System.out.println(&quot;-- Test: Dummy 1&quot;);</span>
+<span class="nc" id="L142">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L143">		dateStart = new Date();</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L145">			PSDTools.f_PSD_Dummy1(img);</span>
+<span class="nc" id="L146">		dateEnd = new Date();</span>
+<span class="nc" id="L147">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L148">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L149">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L150">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L151">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L152">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L153">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L154">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L155">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L157">		System.out.println(&quot;-- Test: Dummy 2&quot;);</span>
+<span class="nc" id="L158">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L159">		dateStart = new Date();</span>
+<span class="nc bnc" id="L160" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L161">			PSDTools.f_PSD_Dummy2(img);</span>
+<span class="nc" id="L162">		dateEnd = new Date();</span>
+<span class="nc" id="L163">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L164">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L165">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L166">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L167">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L168">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L169">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L170">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L171">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L173">		System.out.println(&quot;-- Test: f_imageFFT&quot;);</span>
+<span class="nc" id="L174">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L175">		dateStart = new Date();</span>
+<span class="nc bnc" id="L176" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L177">			PSDTools.f_ImageFFT(img, imgFTa, imgFTo);</span>
+<span class="nc" id="L178">		dateEnd = new Date();</span>
+<span class="nc" id="L179">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L180">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L181">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L182">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L183">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L184">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L185">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L186">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L187">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L189">		System.out.println(&quot;-- Test: f_ImageFFTPower&quot;);</span>
+<span class="nc" id="L190">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L191">		dateStart = new Date();</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L193">			imgFT = PSDTools.f_ImageFFTPower(img);</span>
+<span class="nc" id="L194">		dateEnd = new Date();</span>
+<span class="nc" id="L195">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L196">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L197">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L198">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L199">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L200">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L201">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L202">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L203">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L205">		System.out.println(&quot;-- Test: f_RadialAverageSpectra&quot;);</span>
+<span class="nc" id="L206">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L207">		dateStart = new Date();</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L209">			PSDTools.f_RadialAverageSpectra(imgFT);</span>
+<span class="nc" id="L210">		dateEnd = new Date();</span>
+<span class="nc" id="L211">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L212">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L213">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L214">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L215">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L216">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L217">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L218">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L219">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L221">		System.out.println(&quot;-- Test: f_PSD_Slope&quot;);</span>
+<span class="nc" id="L222">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L223">		dateStart = new Date();</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L225">			PSDTools.f_PSD_Slope(img);</span>
+<span class="nc" id="L226">		dateEnd = new Date();</span>
+<span class="nc" id="L227">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L228">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L229">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L230">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L231">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L232">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L233">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L234">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L235">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L237">		System.out.println(&quot;-- Test: f_PSD_LinearRegression&quot;);</span>
+<span class="nc" id="L238">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L239">		dateStart = new Date();</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L241">			PSDTools.f_PSD_LinearRegression(img);</span>
+<span class="nc" id="L242">		dateEnd = new Date();</span>
+<span class="nc" id="L243">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L244">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L245">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L246">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L247">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L248">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L249">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L250">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L251">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L253">		System.out.println(&quot;-- Test: f_PSD_Processing&quot;);</span>
+<span class="nc" id="L254">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L255">		dateStart = new Date();</span>
+<span class="nc bnc" id="L256" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L257">			PSDTools.f_PSD_Processing(img,imgPS,imgFT,imgWD);</span>
+<span class="nc" id="L258">		dateEnd = new Date();</span>
+<span class="nc" id="L259">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L260">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L261">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L262">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L263">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L264">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L265">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L266">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L267">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L269">		System.out.println(&quot;-- Test: ChartSpectra&quot;);</span>
+<span class="nc" id="L270">		memStart  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L271">		dateStart = new Date();</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">		for(int i = 0; i &lt; perfIters; i++)</span>
+<span class="nc" id="L273">			PSDExtensions.ChartSpectra(imgPS);</span>
+<span class="nc" id="L274">		dateEnd = new Date();</span>
+<span class="nc" id="L275">		memEnd  = env.totalMemory() - env.freeMemory();</span>
+<span class="nc" id="L276">		duration = Duration.between(dateStart.toInstant(), dateEnd.toInstant());</span>
+<span class="nc" id="L277">		memChange = memEnd - memStart;</span>
+<span class="nc" id="L278">		System.out.println( &quot;Time Start   : &quot; + dateFormat.format(dateStart) );</span>
+<span class="nc" id="L279">		System.out.println( &quot;Time End     : &quot; + dateFormat.format(dateEnd) );</span>
+<span class="nc" id="L280">		System.out.println( &quot;Elapsed time : &quot; + duration.toString() );</span>
+<span class="nc" id="L281">		System.out.println( &quot;Mem Start    : &quot; + memStart );</span>
+<span class="nc" id="L282">		System.out.println( &quot;Mem End      : &quot; + memEnd );</span>
+<span class="nc" id="L283">		System.out.println( &quot;Mem Leak/Use : &quot; + memChange );</span>
+		
+<span class="nc" id="L285">	}</span>
+	
+<span class="nc" id="L287">	public static class ImageData </span>
+	{ 
+<span class="nc" id="L289">		double[][] imgData   = new double[iSide][iSide]; </span>
+<span class="nc" id="L290">		double[][] imgFTData = new double[iSide][iSide];</span>
+	}
+	public static class IntegrityTestThread extends Thread 
+	{
+<span class="nc" id="L294">		int threadnum = 0;</span>
+<span class="nc" id="L295">		ImageData[] images = null;</span>
+<span class="nc" id="L296">		Random r = new Random();</span>
+		public IntegrityTestThread(int tnum, ImageData[] imgs)
+<span class="nc" id="L298">		{</span>
+<span class="nc" id="L299">			threadnum = tnum;</span>
+<span class="nc" id="L300">			images = imgs;</span>
+<span class="nc" id="L301">		}</span>
+		@Override 
+		public void run()
+		{
+<span class="nc" id="L305">			DoCheck();</span>
+<span class="nc" id="L306">		}</span>
+		public void DoCheck()
+		{
+<span class="nc bnc" id="L309" title="All 2 branches missed.">			for(int i = 0; i &lt; 500; i++)</span>
+			{	
+<span class="nc" id="L311">				ImageData image = images[r.nextInt(images.length)];</span>
+<span class="nc" id="L312">				double[][] imageFT = new double[iSide][iSide];</span>
+				
+<span class="nc" id="L314">				PSDTools.f_PSD_Processing_FTOnly(image.imgData, imageFT);</span>
+				
+<span class="nc" id="L316">				boolean failed = false;</span>
+<span class="nc bnc" id="L317" title="All 2 branches missed.">				for(int y = 0; y &lt; iSide; y++)</span>
+				{
+<span class="nc bnc" id="L319" title="All 2 branches missed.">					for(int x = 0; x &lt; iSide; x++)</span>
+					{
+<span class="nc bnc" id="L321" title="All 2 branches missed.">						if(image.imgFTData[x][y] != imageFT[x][y])</span>
+<span class="nc" id="L322">							failed = true;</span>
+<span class="nc bnc" id="L323" title="All 2 branches missed.">						if(failed) break;</span>
+					}
+<span class="nc bnc" id="L325" title="All 2 branches missed.">					if(failed) break;</span>
+				}
+<span class="nc bnc" id="L327" title="All 2 branches missed.">				if(failed) System.out.println(&quot;Thread &quot;+threadnum+&quot; Iteration &quot;+i+&quot; failed.&quot;);</span>
+			}
+<span class="nc" id="L329">		}</span>
+	}
+	public static void IntegrityTest()
+	{
+<span class="nc" id="L333">		Random r = new Random();</span>
+<span class="nc" id="L334">		ImageData[] images = new ImageData[8];</span>
+<span class="nc bnc" id="L335" title="All 2 branches missed.">		for(int i = 0; i &lt; images.length; i++)</span>
+		{
+<span class="nc" id="L337">			images[i] = new ImageData();</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">			for(int y = 0; y &lt; iSide; y++)</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">			for(int x = 0; x &lt; iSide; x++)</span>
+<span class="nc" id="L340">				images[i].imgData[x][y] = r.nextDouble();</span>
+<span class="nc" id="L341">			PSDTools.f_PSD_Processing_FTOnly(images[i].imgData, images[i].imgFTData);</span>
+		}
+		
+<span class="nc" id="L344">		IntegrityTestThread[] t = new IntegrityTestThread[4];</span>
+<span class="nc bnc" id="L345" title="All 2 branches missed.">		for(int i = 0; i &lt; t.length; i++)</span>
+<span class="nc" id="L346">			t[i] = new IntegrityTestThread(i,images);</span>
+		
+<span class="nc" id="L348">		System.out.println(&quot;Single threaded attempt:&quot;);</span>
+<span class="nc" id="L349">		t[0].DoCheck();</span>
+		
+<span class="nc" id="L351">		System.out.println(&quot;multi threaded attempt:&quot;);</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">		for(int i = 0; i &lt; t.length; i++)</span>
+<span class="nc" id="L353">			t[i].start();</span>
+<span class="nc bnc" id="L354" title="All 2 branches missed.">		for(int i = 0; i &lt; t.length; i++)</span>
+		{
+			try 
+			{
+<span class="nc" id="L358">				t[i].join();</span>
+			} 
+<span class="nc" id="L360">			catch (InterruptedException e) </span>
+			{
+<span class="nc" id="L362">				e.printStackTrace();</span>
+<span class="nc" id="L363">			}</span>
+		}
+		
+<span class="nc" id="L366">	}</span>
+	
+	public static void main(String[] args) 
+	{	
+		
+<span class="nc bnc" id="L371" title="All 2 branches missed.">		if(args.length &gt; 0)</span>
+		{
+<span class="nc" id="L373">			String pathname = args[0];</span>
+			try{
+<span class="nc" id="L375">				LoadImage(new File(pathname));</span>
+<span class="nc" id="L376">				System.out.println(&quot;Loaded Image [&quot;+pathname+&quot;]&quot;);</span>
+<span class="nc" id="L377">			}catch(Exception ex){</span>
+<span class="nc" id="L378">				ex.printStackTrace();</span>
+<span class="nc" id="L379">				return;</span>
+<span class="nc" id="L380">			}</span>
+<span class="nc" id="L381">		}</span>
+		else
+		{
+<span class="nc" id="L384">			System.out.println(&quot;Randomizing Image Data.&quot;);</span>
+<span class="nc" id="L385">			Random r = new Random();</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">			for(int y = 0; y &lt; iSide; y++)</span>
+<span class="nc bnc" id="L387" title="All 2 branches missed.">			for(int x = 0; x &lt; iSide; x++)</span>
+<span class="nc" id="L388">				img[x][y] = r.nextDouble();</span>
+		}
+		
+		//DataTest();
+<span class="nc" id="L392">		PerfTest();</span>
+		//IntegrityTest();
+<span class="nc" id="L394">	}</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

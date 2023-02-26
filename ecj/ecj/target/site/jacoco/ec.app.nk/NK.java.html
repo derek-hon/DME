@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NK.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.nk</a> &gt; <span class="el_source">NK.java</span></div><h1>NK.java</h1><pre class="source lang-java linenums">package ec.app.nk; 
+
+import ec.*; 
+import ec.simple.*; 
+import ec.vector.*; 
+import ec.util.*;
+import java.util.*;
+
+/**
+   NK implmements the NK-landscape developed by Stuart Kauffman (in the book &lt;i&gt;The Origins of
+   Order: Self-Organization and Selection in Evolution&lt;/a&gt;).  In the NK model, the fitness 
+   contribution of each allele depends on how that allele interacts with K other alleles.  Based on 
+   this interaction, each gene contributes a random number between 0 and 1.  The individual's 
+   fitness is the average of these N random numbers.  
+
+   &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+   &lt;table&gt;
+   &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;k&lt;/tt&gt;&lt;br&gt;
+   &lt;font size=-1&gt;int &gt;= 0 &amp;&amp; &lt; 31&lt;/td&gt;
+   &lt;td valign=top&gt;(number of interacting alleles)&lt;/td&gt;&lt;/tr&gt;
+   &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;adjacent&lt;/tt&gt;&lt;br&gt; 
+   &lt;font size=-1&gt;boolean&lt;/font&gt;&lt;/td&gt;
+   &lt;td valign=top&gt;(should interacting alleles be adjacent to the given allele)&lt;/td&gt;&lt;/tr&gt; 
+   &lt;/table&gt;
+ 
+   @author Keith Sullivan
+   @version 1.0
+*/
+
+
+<span class="nc" id="L31">public class NK extends Problem implements SimpleProblemForm </span>
+    { 
+    public static final String P_N = &quot;n&quot;; 
+    public static final String P_K = &quot;k&quot;; 
+    public static final String P_ADJACENT=&quot;adjacent&quot;; 
+        
+    int k; 
+    boolean adjacentNeighborhoods;
+    HashMap oldValues; 
+        
+    public void setup(final EvolutionState state, final Parameter base) 
+        {
+<span class="nc" id="L43">        super.setup(state, base); </span>
+                
+<span class="nc" id="L45">        k = state.parameters.getInt(base.push(P_K), null, 1); </span>
+<span class="nc bnc" id="L46" title="All 4 branches missed.">        if ((k &lt; 0) || (k &gt; 31))</span>
+<span class="nc" id="L47">            state.output.fatal(&quot;Value of k must be between 0 and 31&quot;, base.push(P_K)); </span>
+                
+<span class="nc" id="L49">        adjacentNeighborhoods = state.parameters.getBoolean(base.push(P_ADJACENT), null, true); </span>
+<span class="nc" id="L50">        oldValues = new HashMap(); </span>
+<span class="nc" id="L51">        }</span>
+        
+    public void evaluate(final EvolutionState state, final Individual ind, final int subpopulation, final int threadnum)
+        {
+<span class="nc" id="L55">        BitVectorIndividual ind2 = (BitVectorIndividual) ind; </span>
+<span class="nc" id="L56">        double fitness =0; </span>
+<span class="nc" id="L57">        int n = ind2.genome.length; </span>
+                
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        for (int i=0; i &lt; n; i++) </span>
+            { 
+<span class="nc" id="L61">            boolean tmpInd[] = new boolean[k+1]; </span>
+<span class="nc" id="L62">            tmpInd[0] = ind2.genome[i];</span>
+                        
+<span class="nc" id="L64">            double val=0;</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">            if (adjacentNeighborhoods) </span>
+                { 
+<span class="nc" id="L67">                int offset = n - k/2; </span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">                for (int j=0; j &lt; k; j++) </span>
+                    {
+<span class="nc" id="L70">                    tmpInd[j+1] = ind2.genome[(j+i + offset) % n]; </span>
+                    }
+<span class="nc" id="L72">                }</span>
+            else 
+                { 
+                int j;
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                for (int l=0; l &lt; k; l++) </span>
+                    { 
+<span class="nc bnc" id="L78" title="All 2 branches missed.">                    while ((j = state.random[0].nextInt(k)) == i);</span>
+<span class="nc" id="L79">                    tmpInd[l+1] = ind2.genome[j]; </span>
+                    }
+                }
+                        
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            if (oldValues.containsKey(tmpInd))</span>
+<span class="nc" id="L84">                val = ((Double)oldValues.get(tmpInd)).doubleValue(); </span>
+            else 
+                { 
+<span class="nc" id="L87">                double tmp=0; </span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">                for (int j=0; j &lt; tmpInd.length; j++)  </span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                    if (tmpInd[j]) tmp += 1 &lt;&lt; j; </span>
+<span class="nc" id="L90">                val = tmp /  Integer.MAX_VALUE; </span>
+                                                                
+<span class="nc" id="L92">                oldValues.put(tmpInd, new Double(val)); </span>
+                }
+                        
+<span class="nc" id="L95">            fitness += val; </span>
+            }
+                                
+<span class="nc" id="L98">        fitness /= n;</span>
+<span class="nc" id="L99">        ((SimpleFitness)(ind2.fitness)).setFitness( state, fitness, false);</span>
+<span class="nc" id="L100">        ind2.evaluated = true; </span>
+<span class="nc" id="L101">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

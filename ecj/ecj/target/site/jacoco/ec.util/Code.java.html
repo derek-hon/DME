@@ -1,0 +1,784 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Code.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.util</a> &gt; <span class="el_source">Code.java</span></div><h1>Code.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.util;
+import java.io.*;
+import ec.*;
+
+/* 
+ * Code.java
+ * 
+ * Created: Sat Oct 23 13:45:20 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Code provides some simple wrapper functions for encoding and decoding
+ * basic data types for storage in a pseudo-Java source code strings
+ * format.  This differs from just &quot;printing&quot;
+ * them to string in that the actual precision of the object is maintained.
+ * Code attempts to keep the representations as &quot;Java-like&quot; as possible --
+ * the exceptions being primarily floats and doubles, which are encoded as
+ * ints and longs.  Encoding of objects and arrays is not supported.  You'll
+ * have to handle that yourself.  Strings are supported.
+ *
+ * &lt;p&gt;Everything is case-SENSITIVE.  Here's the breakdown.
+ *
+
+ &lt;p&gt;&lt;table&gt;
+ &lt;tr&gt;&lt;td&gt;&lt;b&gt;Type&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;Format&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;boolean&lt;/td&gt;&lt;td&gt;&lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (old style, case sensitive) or &lt;tt&gt;T&lt;/tt&gt; or &lt;tt&gt;F&lt;/tt&gt; (new style, case sensitive)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;byte&lt;/td&gt;&lt;td&gt;&lt;tt&gt;b&lt;i&gt;byte&lt;/i&gt;|&lt;/tt&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;short&lt;/td&gt;&lt;td&gt;&lt;tt&gt;s&lt;i&gt;short&lt;/i&gt;|&lt;/tt&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;int&lt;/td&gt;&lt;td&gt;&lt;tt&gt;i&lt;i&gt;int&lt;/i&gt;|&lt;/tt&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;long&lt;/td&gt;&lt;td&gt;&lt;tt&gt;l&lt;i&gt;long&lt;/i&gt;|&lt;/tt&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;float&lt;/td&gt;&lt;td&gt;&lt;tt&gt;f&lt;i&gt;floatConvertedToIntForStorage&lt;/i&gt;|&lt;i&gt;humanReadableFloat&lt;/i&gt;|&lt;/tt&gt; or (only for reading in) f|&lt;i&gt;humanReadableFloat&lt;/i&gt;|&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;float&lt;/td&gt;&lt;td&gt;&lt;tt&gt;d&lt;i&gt;doubleConvertedToLongForStorage&lt;/i&gt;|&lt;i&gt;humanReadableDouble&lt;/i&gt;|&lt;/tt&gt; or (only for reading in) d|&lt;i&gt;humanReadableDouble&lt;/i&gt;|&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;char&lt;/td&gt;&lt;td&gt;standard Java char, except that the only valid escape sequences are: \0 \t \n \b \' \&quot; \ u &lt;i&gt;unicodeHex&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;string&lt;/td&gt;&lt;td&gt;standard Java string with \ u ...\ u Unicode escapes, except that the only other valid escape sequences are:  \0 \t \n \b \' \&quot; &lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L50">public class Code </span>
+    {
+    /** Encodes a boolean. */
+    public static String encode(final boolean b) 
+    // old style -- no longer used
+    // { return b ? Boolean.TRUE.toString() : Boolean.FALSE.toString(); }
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">        { return b ? &quot;T&quot; : &quot;F&quot;; }</span>
+
+    /** Encodes a byte. */
+    public static String encode(final byte b) 
+<span class="nc" id="L60">        { return &quot;b&quot; + Byte.toString(b) + &quot;|&quot;; }</span>
+
+    /** Encodes a character. */
+    public static String encode(final char c)
+        {
+<span class="nc bnc" id="L65" title="All 8 branches missed.">        if (c &gt;= 32 &amp;&amp; c &lt; 127 &amp;&amp; c !='\\' &amp;&amp; </span>
+            c!= '\'') // we can safely print it
+<span class="nc" id="L67">            return &quot;'&quot; + String.valueOf(c) + &quot;'&quot;;</span>
+        else
+            {
+            // print it with an escape character
+<span class="nc bnc" id="L71" title="All 2 branches missed.">            if (c=='\b')</span>
+<span class="nc" id="L72">                return &quot;'\\b'&quot;;</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">            else if (c=='\n')</span>
+<span class="nc" id="L74">                return &quot;'\\n'&quot;;</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">            else if (c=='\t')</span>
+<span class="nc" id="L76">                return &quot;'\\t'&quot;;</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">            else if (c=='\'')</span>
+<span class="nc" id="L78">                return &quot;'\\''&quot;;</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            else if (c=='\\')</span>
+<span class="nc" id="L80">                return &quot;'\\\\'&quot;;</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            else if (c=='\0')</span>
+<span class="nc" id="L82">                return &quot;'\\\\0&quot;;</span>
+            else
+                {
+<span class="nc" id="L85">                String s = Integer.toHexString((int)c);</span>
+                // pad with 0's  -- Java's parser freaks out otherwise
+<span class="nc bnc" id="L87" title="All 5 branches missed.">                switch (s.length())</span>
+                    {
+<span class="nc" id="L89">                    case 1:  s = &quot;'\\u000&quot; + s + &quot;'&quot;; break;</span>
+<span class="nc" id="L90">                    case 2:  s = &quot;'\\u00&quot; + s + &quot;'&quot;; break;</span>
+<span class="nc" id="L91">                    case 3:  s = &quot;'\\u0&quot; + s + &quot;'&quot;; break;</span>
+<span class="nc" id="L92">                    case 4:  s = &quot;'\\u&quot; + s + &quot;'&quot;; break;</span>
+                    default:
+<span class="nc" id="L94">                        throw new RuntimeException(&quot;Default case should never occur&quot;);</span>
+                    }
+<span class="nc" id="L96">                return s;</span>
+                }
+            }
+        }
+
+    /** Encodes a short. */
+    public static String encode(final short s)
+<span class="nc" id="L103">        { return &quot;s&quot; + Short.toString(s) + &quot;|&quot;; }</span>
+
+    /** Encodes an int. */
+    public static String encode(final int i)
+<span class="nc" id="L107">        { return &quot;i&quot; + Integer.toString(i) + &quot;|&quot;;  }</span>
+    
+    /** Encodes a long. */
+    public static String encode(final long l)
+<span class="nc" id="L111">        { return &quot;l&quot; + Long.toString(l) + &quot;|&quot;; }</span>
+
+    /** Encodes a float. */
+    public static String encode(final float f)
+<span class="nc" id="L115">        { return &quot;f&quot; + Integer.toString(Float.floatToIntBits(f))+ &quot;|&quot; + String.valueOf(f) + &quot;|&quot;; }</span>
+
+    /** Encodes a double. */
+    public static String encode(final double d)
+<span class="nc" id="L119">        { return &quot;d&quot; + Long.toString(Double.doubleToLongBits(d))+ &quot;|&quot; + String.valueOf(d) + &quot;|&quot;; }</span>
+
+    /** Encodes a String. */
+    public static String encode(final String s)
+        {
+<span class="nc" id="L124">        boolean inUnicode = false;</span>
+<span class="nc" id="L125">        int l = s.length();</span>
+<span class="nc" id="L126">        StringBuilder sb = new StringBuilder(l);</span>
+<span class="nc" id="L127">        sb.append(&quot;\&quot;&quot;);</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        for(int x=0;x&lt;l;x++)</span>
+            {
+<span class="nc" id="L130">            char c = s.charAt(x);</span>
+<span class="nc bnc" id="L131" title="All 8 branches missed.">            if ( c &gt;= 32 &amp;&amp; c &lt; 127 &amp;&amp; c !='\\' &amp;&amp; c!= '&quot;') // we allow spaces</span>
+                // we can safely print it
+                {
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                if (inUnicode) { sb.append(&quot;\\u&quot;); inUnicode=false; } </span>
+<span class="nc" id="L135">                sb.append(c);</span>
+                }
+            else
+                {
+                // print it with an escape character
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                if (c=='\b')</span>
+                    {
+<span class="nc bnc" id="L142" title="All 2 branches missed.">                    if (inUnicode) { sb.append(&quot;\\u&quot;); inUnicode=false; } </span>
+<span class="nc" id="L143">                    sb.append(&quot;\\b&quot;);</span>
+                    }
+<span class="nc bnc" id="L145" title="All 2 branches missed.">                else if (c=='\n')</span>
+                    {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                    if (inUnicode) { sb.append(&quot;\\u&quot;); inUnicode=false; } </span>
+<span class="nc" id="L148">                    sb.append(&quot;\\n&quot;);</span>
+                    }
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                else if (c=='\t')</span>
+                    {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">                    if (inUnicode) { sb.append(&quot;\\u&quot;); inUnicode=false; } </span>
+<span class="nc" id="L153">                    sb.append(&quot;\\t&quot;);</span>
+                    }
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                else if (c=='&quot;')</span>
+                    {
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                    if (inUnicode) { sb.append(&quot;\\u&quot;); inUnicode=false; } </span>
+<span class="nc" id="L158">                    sb.append(&quot;\\\&quot;&quot;);</span>
+                    }
+<span class="nc bnc" id="L160" title="All 2 branches missed.">                else if (c=='\\')</span>
+                    {
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                    if (inUnicode) { sb.append(&quot;\\u&quot;); inUnicode=false; } </span>
+<span class="nc" id="L163">                    sb.append(&quot;\\\\&quot;);</span>
+                    }
+<span class="nc bnc" id="L165" title="All 2 branches missed.">                else if (c=='\0')</span>
+                    {
+<span class="nc bnc" id="L167" title="All 2 branches missed.">                    if (inUnicode) { sb.append(&quot;\\u&quot;); inUnicode=false; } </span>
+<span class="nc" id="L168">                    sb.append(&quot;\\0&quot;);</span>
+                    }
+                else
+                    {
+<span class="nc bnc" id="L172" title="All 2 branches missed.">                    if (!inUnicode) {sb.append(&quot;\\u&quot;); inUnicode=true; }</span>
+<span class="nc" id="L173">                    String ss = Integer.toHexString((int)c);</span>
+                    // pad with 0's  -- Java's parser freaks out otherwise
+<span class="nc bnc" id="L175" title="All 5 branches missed.">                    switch (ss.length())</span>
+                        {
+<span class="nc" id="L177">                        case 1:  sb.append(&quot;000&quot; + ss); break;</span>
+<span class="nc" id="L178">                        case 2:  sb.append(&quot;00&quot; + ss); break;</span>
+<span class="nc" id="L179">                        case 3: sb.append(&quot;0&quot; + ss); break;</span>
+<span class="nc" id="L180">                        case 4: sb.append(ss); break;</span>
+                        default:
+<span class="nc" id="L182">                            throw new RuntimeException(&quot;Default case should never occur&quot;);</span>
+                        }
+                    }
+                }
+            }
+<span class="nc bnc" id="L187" title="All 2 branches missed.">        if (inUnicode) sb.append(&quot;\\u&quot;);</span>
+<span class="nc" id="L188">        sb.append(&quot;\&quot;&quot;);</span>
+<span class="nc" id="L189">        return sb.toString();</span>
+        }
+
+
+
+
+
+
+
+
+
+    /** Decodes the next item out of a DecodeReturn and modifies the DecodeReturn to hold the results.  See DecodeReturn for more
+        explanations about how to interpret the results. */
+
+    public static void decode(DecodeReturn d)
+        {
+<span class="nc" id="L205">        String dat = d.data;</span>
+<span class="nc" id="L206">        int x = d.pos;</span>
+<span class="nc" id="L207">        int len = d.data.length();</span>
+
+        // look for whitespace or ( or )
+<span class="nc bnc" id="L210" title="All 2 branches missed.">        for ( ; x&lt;len; x++ ) </span>
+<span class="nc bnc" id="L211" title="All 2 branches missed.">            if (!Character.isWhitespace(dat.charAt(x))) break;</span>
+
+        // am I at the end of my rope?
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        if (x==len) { d.type = DecodeReturn.T_ERROR; d.s = &quot;Out of tokens&quot;; return; }</span>
+
+        // what type am I?
+<span class="nc bnc" id="L217" title="All 12 branches missed.">        switch(dat.charAt(x))</span>
+            {
+
+            case 't': // boolean (true)
+<span class="nc bnc" id="L221" title="All 2 branches missed.">                if (x+3 &lt; len &amp;&amp; /* enough space */ </span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">                    dat.charAt(x+1)=='r' &amp;&amp; </span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">                    dat.charAt(x+2)=='u' &amp;&amp; </span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">                    dat.charAt(x+3)=='e')</span>
+<span class="nc" id="L225">                    { d.type = DecodeReturn.T_BOOLEAN; d.l = 1; d.pos = x+4; return; }</span>
+<span class="nc" id="L226">                else { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a (true) boolean&quot;; return; }</span>
+                //break;
+
+            case 'T': // boolean (true)
+<span class="nc" id="L230">                { d.type = DecodeReturn.T_BOOLEAN; d.l = 1; d.pos = x+1; return; }</span>
+            //break;
+                    
+            case 'F': // boolean (false)
+<span class="nc" id="L234">                { d.type = DecodeReturn.T_BOOLEAN; d.l = 0; d.pos = x+1; return; }</span>
+            //break;
+                    
+
+
+
+            case 'f': // float or boolean
+<span class="nc bnc" id="L241" title="All 2 branches missed.">                if (x+4 &lt; len &amp;&amp; /* enough space */ </span>
+<span class="nc bnc" id="L242" title="All 8 branches missed.">                    dat.charAt(x+1)=='a' &amp;&amp; dat.charAt(x+2)=='l' &amp;&amp; dat.charAt(x+3)=='s' &amp;&amp; dat.charAt(x+4)=='e' )</span>
+<span class="nc" id="L243">                    { d.type = DecodeReturn.T_BOOLEAN; d.l = 0; d.pos = x+5; return; }</span>
+                else
+                    {
+<span class="nc" id="L246">                    boolean readHuman = false;</span>
+<span class="nc" id="L247">                    String sf = null;</span>
+<span class="nc" id="L248">                    int initial = x+1;</span>
+                                
+                    // look for next '|'
+<span class="nc bnc" id="L251" title="All 2 branches missed.">                    for ( ; x &lt; len; x++)</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">                        if (dat.charAt(x)=='|') break;</span>
+                    
+<span class="nc bnc" id="L254" title="All 2 branches missed.">                    if (x==initial) readHuman=true;</span>
+                                
+<span class="nc bnc" id="L256" title="All 2 branches missed.">                    if ( x &gt;= len )</span>
+<span class="nc" id="L257">                        { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a float&quot;; return; }</span>
+
+<span class="nc bnc" id="L259" title="All 2 branches missed.">                    if (!readHuman)</span>
+<span class="nc" id="L260">                        sf = dat.substring(initial,x);</span>
+<span class="nc" id="L261">                    x++;</span>
+                    
+                    // look for next '|'
+<span class="nc" id="L264">                    int initial2 = x;  // x is now just past first |</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">                    for ( ; x &lt; len; x++)</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                        if (dat.charAt(x)=='|') break;</span>
+                    
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                    if ( x &gt;= len )</span>
+<span class="nc" id="L269">                        { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a float&quot;; return; }</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">                    if (readHuman) </span>
+<span class="nc" id="L271">                        sf = dat.substring(initial2,x);</span>
+                    
+                    float f;
+                    try 
+                        { 
+<span class="nc bnc" id="L276" title="All 2 branches missed.">                        if (readHuman) f = Float.parseFloat(sf);</span>
+<span class="nc" id="L277">                        else f = Float.intBitsToFloat(Integer.parseInt(sf)); </span>
+                        }
+<span class="nc" id="L279">                    catch (NumberFormatException e)</span>
+<span class="nc" id="L280">                        { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a float&quot;; return; }</span>
+<span class="nc" id="L281">                    d.type = DecodeReturn.T_FLOAT;</span>
+<span class="nc" id="L282">                    d.d = f;</span>
+<span class="nc" id="L283">                    d.pos = x+1;</span>
+<span class="nc" id="L284">                    return;</span>
+                    }
+
+
+
+
+
+
+
+
+            case 'd': // double
+                
+                {
+<span class="nc" id="L297">                boolean readHuman = false;</span>
+<span class="nc" id="L298">                String sf = null;</span>
+<span class="nc" id="L299">                int initial = x+1;</span>
+                        
+                // look for next '|'
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                for ( ; x &lt; len; x++)</span>
+<span class="nc bnc" id="L303" title="All 2 branches missed.">                    if (dat.charAt(x)=='|') break;</span>
+            
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                if (x==initial) readHuman=true;</span>
+                        
+<span class="nc bnc" id="L307" title="All 2 branches missed.">                if ( x &gt;= len )</span>
+<span class="nc" id="L308">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a double&quot;; return; }</span>
+
+<span class="nc bnc" id="L310" title="All 2 branches missed.">                if (!readHuman)</span>
+<span class="nc" id="L311">                    sf = dat.substring(initial,x);</span>
+<span class="nc" id="L312">                x++;</span>
+            
+                // look for next '|'
+<span class="nc" id="L315">                int initial2 = x;  // x is now just past first |</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">                for ( ; x &lt; len; x++)</span>
+<span class="nc bnc" id="L317" title="All 2 branches missed.">                    if (dat.charAt(x)=='|') break;</span>
+            
+<span class="nc bnc" id="L319" title="All 2 branches missed.">                if ( x &gt;= len )</span>
+<span class="nc" id="L320">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a double&quot;; return; }</span>
+<span class="nc bnc" id="L321" title="All 2 branches missed.">                if (readHuman) </span>
+<span class="nc" id="L322">                    sf = dat.substring(initial2,x);</span>
+            
+                double f;
+                try 
+                    { 
+<span class="nc bnc" id="L327" title="All 2 branches missed.">                    if (readHuman) f = Double.parseDouble(sf);</span>
+<span class="nc" id="L328">                    else f = Double.longBitsToDouble(Long.parseLong(sf)); </span>
+                    }
+<span class="nc" id="L330">                catch (NumberFormatException e)</span>
+<span class="nc" id="L331">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a double&quot;; return; }</span>
+<span class="nc" id="L332">                d.type = DecodeReturn.T_DOUBLE;</span>
+<span class="nc" id="L333">                d.d = f;</span>
+<span class="nc" id="L334">                d.pos = x+1;</span>
+<span class="nc" id="L335">                return;</span>
+                }
+            // break;
+                        
+                        
+
+
+
+
+
+
+            case 'b': // byte
+                
+                {
+<span class="nc" id="L349">                int initial = x+1;</span>
+                        
+                // look for next '|'
+<span class="nc bnc" id="L352" title="All 2 branches missed.">                for ( ; x &lt; len; x++)</span>
+<span class="nc bnc" id="L353" title="All 2 branches missed.">                    if (dat.charAt(x)=='|') break;</span>
+                        
+<span class="nc bnc" id="L355" title="All 2 branches missed.">                if ( x &gt;= len )</span>
+<span class="nc" id="L356">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a byte&quot;; return; }</span>
+<span class="nc" id="L357">                String sf = dat.substring(initial,x);</span>
+                                            
+                byte f;
+                try 
+<span class="nc" id="L361">                    { f = Byte.parseByte(sf); }</span>
+<span class="nc" id="L362">                catch (NumberFormatException e)</span>
+<span class="nc" id="L363">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a byte&quot;; return; }</span>
+<span class="nc" id="L364">                d.type = DecodeReturn.T_BYTE;</span>
+<span class="nc" id="L365">                d.l = f;</span>
+<span class="nc" id="L366">                d.pos = x+1;</span>
+<span class="nc" id="L367">                return;</span>
+                }
+            // break;
+
+
+
+
+
+
+            case 's': // short
+                
+                {
+<span class="nc" id="L379">                int initial = x+1;</span>
+                        
+                // look for next '|'
+<span class="nc bnc" id="L382" title="All 2 branches missed.">                for ( ; x &lt; len; x++)</span>
+<span class="nc bnc" id="L383" title="All 2 branches missed.">                    if (dat.charAt(x)=='|') break;</span>
+                        
+<span class="nc bnc" id="L385" title="All 2 branches missed.">                if ( x &gt;= len )</span>
+<span class="nc" id="L386">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a short&quot;; return; }</span>
+<span class="nc" id="L387">                String sf = dat.substring(initial,x);</span>
+                                            
+                short f;
+                try 
+<span class="nc" id="L391">                    { f = Short.parseShort(sf); }</span>
+<span class="nc" id="L392">                catch (NumberFormatException e)</span>
+<span class="nc" id="L393">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a short&quot;; return; }</span>
+<span class="nc" id="L394">                d.type = DecodeReturn.T_SHORT;</span>
+<span class="nc" id="L395">                d.l = f;</span>
+<span class="nc" id="L396">                d.pos = x+1;</span>
+<span class="nc" id="L397">                return;</span>
+                }
+            // break;
+
+
+
+
+            case 'i': // int
+                
+                {
+<span class="nc" id="L407">                int initial = x+1;</span>
+                        
+                // look for next '|'
+<span class="nc bnc" id="L410" title="All 2 branches missed.">                for ( ; x &lt; len; x++)</span>
+<span class="nc bnc" id="L411" title="All 2 branches missed.">                    if (dat.charAt(x)=='|') break;</span>
+                        
+<span class="nc bnc" id="L413" title="All 2 branches missed.">                if ( x &gt;= len )</span>
+<span class="nc" id="L414">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected an int&quot;; return; }</span>
+<span class="nc" id="L415">                String sf = dat.substring(initial,x);</span>
+                                            
+                int f;
+                try 
+<span class="nc" id="L419">                    { f = Integer.parseInt(sf); }</span>
+<span class="nc" id="L420">                catch (NumberFormatException e)</span>
+<span class="nc" id="L421">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected an int&quot;; return; }</span>
+<span class="nc" id="L422">                d.type = DecodeReturn.T_INT;</span>
+<span class="nc" id="L423">                d.l = f;</span>
+<span class="nc" id="L424">                d.pos = x+1;</span>
+<span class="nc" id="L425">                return;</span>
+                }
+            // break;
+
+
+
+
+
+
+            case 'l': // long
+                
+                {
+<span class="nc" id="L437">                int initial = x+1;</span>
+                        
+                // look for next '|'
+<span class="nc bnc" id="L440" title="All 2 branches missed.">                for ( ; x &lt; len; x++)</span>
+<span class="nc bnc" id="L441" title="All 2 branches missed.">                    if (dat.charAt(x)=='|') break;</span>
+                        
+<span class="nc bnc" id="L443" title="All 2 branches missed.">                if ( x &gt;= len )</span>
+<span class="nc" id="L444">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a long&quot;; return; }</span>
+<span class="nc" id="L445">                String sf = dat.substring(initial,x);</span>
+                                            
+                long f;
+                try 
+<span class="nc" id="L449">                    { f = Long.parseLong(sf); }</span>
+<span class="nc" id="L450">                catch (NumberFormatException e)</span>
+<span class="nc" id="L451">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Expected a long&quot;; return; }</span>
+<span class="nc" id="L452">                d.type = DecodeReturn.T_LONG;</span>
+<span class="nc" id="L453">                d.l = f;</span>
+<span class="nc" id="L454">                d.pos = x+1;</span>
+<span class="nc" id="L455">                return;</span>
+                }
+            // break;
+
+
+
+
+
+
+            case '&quot;':  // string
+                {
+<span class="nc" id="L466">                StringBuilder sb = new StringBuilder();</span>
+<span class="nc" id="L467">                boolean inUnicode = false;</span>
+            
+<span class="nc" id="L469">                x++;</span>
+<span class="nc bnc" id="L470" title="All 2 branches missed.">                for ( ; x &lt; len; x++)</span>
+                    {
+<span class="nc" id="L472">                    char c = dat.charAt(x);</span>
+<span class="nc bnc" id="L473" title="All 2 branches missed.">                    if (c=='&quot;') </span>
+                        {
+                        // done with the string
+<span class="nc bnc" id="L476" title="All 2 branches missed.">                        if (inUnicode)  // uh oh</span>
+<span class="nc" id="L477">                            { d.type = DecodeReturn.T_ERROR; d.s = &quot;Forgot to terminate Unicode with a '\\u' in the string&quot;; return; }</span>
+<span class="nc" id="L478">                        d.type = DecodeReturn.T_STRING; </span>
+<span class="nc" id="L479">                        d.s = sb.toString(); </span>
+<span class="nc" id="L480">                        d.pos = x+1;</span>
+<span class="nc" id="L481">                        return;</span>
+                        }
+<span class="nc bnc" id="L483" title="All 2 branches missed.">                    else if (c=='\\')  // escape</span>
+                        {
+<span class="nc" id="L485">                        x++;</span>
+<span class="nc bnc" id="L486" title="All 2 branches missed.">                        if ( x &gt;= len )</span>
+<span class="nc" id="L487">                            { d.type = DecodeReturn.T_ERROR; d.s = &quot;Unterminated String&quot;; return; }</span>
+<span class="nc bnc" id="L488" title="All 4 branches missed.">                        if (dat.charAt(x)!='u' &amp;&amp; inUnicode)</span>
+<span class="nc" id="L489">                            { d.type = DecodeReturn.T_ERROR; d.s = &quot;Escape character in Unicode sequence&quot;; return; }</span>
+
+<span class="nc bnc" id="L491" title="All 9 branches missed.">                        switch (dat.charAt(x))</span>
+                            {
+<span class="nc bnc" id="L493" title="All 2 branches missed.">                            case 'u': inUnicode = !inUnicode; break;</span>
+<span class="nc" id="L494">                            case 'b': sb.append('\b'); break;</span>
+<span class="nc" id="L495">                            case 'n': sb.append('\n'); break;</span>
+<span class="nc" id="L496">                            case '&quot;': sb.append('&quot;'); break;</span>
+<span class="nc" id="L497">                            case '\'': sb.append('\''); break;</span>
+<span class="nc" id="L498">                            case 't': sb.append('\t'); break;</span>
+<span class="nc" id="L499">                            case '\\': sb.append('\\'); break;</span>
+<span class="nc" id="L500">                            case '0': sb.append('\0'); break;</span>
+                            default: 
+<span class="nc" id="L502">                                { d.type = DecodeReturn.T_ERROR; d.s = &quot;Bad escape char in String&quot;; return; }</span>
+                            }
+                        }
+<span class="nc bnc" id="L505" title="All 2 branches missed.">                    else if (inUnicode)</span>
+                        {
+<span class="nc bnc" id="L507" title="All 2 branches missed.">                        if ( x + 3 &gt;= len )</span>
+<span class="nc" id="L508">                            { d.type = DecodeReturn.T_ERROR; d.s = &quot;Unterminated String&quot;; return; }</span>
+                        try
+                            {
+<span class="nc" id="L511">                            sb.append((char)(Integer.decode(&quot;0x&quot; + c +</span>
+<span class="nc" id="L512">                                        dat.charAt(x+1) +</span>
+<span class="nc" id="L513">                                        dat.charAt(x+2) +</span>
+<span class="nc" id="L514">                                        dat.charAt(x+3)).intValue()));;</span>
+<span class="nc" id="L515">                            x+=3;</span>
+                            }
+<span class="nc" id="L517">                        catch (NumberFormatException e)</span>
+<span class="nc" id="L518">                            { d.type = DecodeReturn.T_ERROR; d.s = &quot;Bad Unicode in String&quot;; return; }</span>
+                        }
+<span class="nc" id="L520">                    else sb.append(c);</span>
+                    }
+<span class="nc" id="L522">                d.type = DecodeReturn.T_ERROR; d.s = &quot;Unterminated String&quot;; return;</span>
+                }
+            //break;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            case '\'': // char
+                {
+<span class="nc" id="L541">                x++;</span>
+<span class="nc bnc" id="L542" title="All 2 branches missed.">                if ( x &gt;= len )</span>
+<span class="nc" id="L543">                    { d.type = DecodeReturn.T_ERROR; d.s = &quot;Unterminated char&quot;; return; }</span>
+<span class="nc" id="L544">                char c = dat.charAt(x);</span>
+<span class="nc bnc" id="L545" title="All 2 branches missed.">                if (c=='\\')</span>
+                    {
+<span class="nc" id="L547">                    x++;</span>
+<span class="nc bnc" id="L548" title="All 2 branches missed.">                    if (x&gt;=len)</span>
+<span class="nc" id="L549">                        { d.type = DecodeReturn.T_ERROR; d.s = &quot;Unterminated char&quot;; return; }</span>
+<span class="nc bnc" id="L550" title="All 9 branches missed.">                    switch (dat.charAt(x))</span>
+                        {
+                        case 'u':
+<span class="nc bnc" id="L553" title="All 2 branches missed.">                            if ( x + 4 &gt;= len )</span>
+<span class="nc" id="L554">                                { d.type = DecodeReturn.T_ERROR; d.s = &quot;Unterminated char&quot;; return; }</span>
+                            try
+                                {
+<span class="nc" id="L557">                                c = (char)(Integer.decode(&quot;0x&quot; + </span>
+<span class="nc" id="L558">                                        dat.charAt(x+1) +</span>
+<span class="nc" id="L559">                                        dat.charAt(x+2) +</span>
+<span class="nc" id="L560">                                        dat.charAt(x+3) +</span>
+<span class="nc" id="L561">                                        dat.charAt(x+4)).intValue());</span>
+                                }
+<span class="nc" id="L563">                            catch (NumberFormatException e)</span>
+<span class="nc" id="L564">                                { d.type = DecodeReturn.T_ERROR; d.s = &quot;Bad Unicode in char&quot;; return; }</span>
+<span class="nc" id="L565">                            x+=5;</span>
+<span class="nc" id="L566">                            break;</span>
+                    
+<span class="nc" id="L568">                        case 'b': c = '\b'; x++; break;</span>
+<span class="nc" id="L569">                        case 'n': c = '\n'; x++; break;</span>
+<span class="nc" id="L570">                        case '&quot;': c = '&quot;'; x++; break;</span>
+<span class="nc" id="L571">                        case '\'': c = '\''; x++; break;</span>
+<span class="nc" id="L572">                        case 't':  c = '\t'; x++; break;</span>
+<span class="nc" id="L573">                        case '\\': c = '\\'; x++; break;</span>
+<span class="nc" id="L574">                        case '0': c = '\0';  x++; break;</span>
+                        default: 
+<span class="nc" id="L576">                            { d.type = DecodeReturn.T_ERROR; d.s = &quot;Bad escape char in char&quot;; return; }</span>
+                        }
+<span class="nc bnc" id="L578" title="All 2 branches missed.">                    if (dat.charAt(x)!='\'')</span>
+<span class="nc" id="L579">                        { d.type = DecodeReturn.T_ERROR; d.s = &quot;Bad char&quot;; return; }</span>
+<span class="nc" id="L580">                    d.type = DecodeReturn.T_CHAR;</span>
+<span class="nc" id="L581">                    d.l = c;</span>
+<span class="nc" id="L582">                    d.pos = x+1;</span>
+<span class="nc" id="L583">                    return;</span>
+                    }
+                else
+                    {
+<span class="nc" id="L587">                    x++;</span>
+<span class="nc bnc" id="L588" title="All 2 branches missed.">                    if ( x &gt;= len )</span>
+<span class="nc" id="L589">                        { d.type = DecodeReturn.T_ERROR; d.s = &quot;Unterminated char&quot;; return; }</span>
+<span class="nc bnc" id="L590" title="All 2 branches missed.">                    if (dat.charAt(x)!='\'')</span>
+<span class="nc" id="L591">                        { d.type = DecodeReturn.T_ERROR; d.s = &quot;Bad char&quot;; return; }</span>
+<span class="nc" id="L592">                    d.type = DecodeReturn.T_CHAR;</span>
+<span class="nc" id="L593">                    d.l = c;</span>
+<span class="nc" id="L594">                    d.pos = x + 1;</span>
+<span class="nc" id="L595">                    return;</span>
+                    }
+
+
+                }
+            //break;
+
+
+
+
+
+
+            
+            default: 
+<span class="nc" id="L609">                d.type = DecodeReturn.T_ERROR; d.s = &quot;Unknown token&quot;; return; </span>
+                // break;
+            }
+        }
+
+    /** Finds the next nonblank line, then trims the line and checks the preamble.  Returns a DecodeReturn on the line if successful, else posts a fatal error.
+        Sets the DecodeReturn's line number.  The DecodeReturn has not yet been decoded.  You'll need to do that with Code.decode(...) */
+    public static DecodeReturn checkPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L619">        int linenumber = 0;  // throw it away later</span>
+        try
+            {
+            // get non-blank line
+<span class="nc" id="L623">            String s = &quot;&quot;;</span>
+<span class="nc bnc" id="L624" title="All 4 branches missed.">            while(s != null &amp;&amp; s.trim().equals(&quot;&quot;))</span>
+                {
+<span class="nc" id="L626">                linenumber = reader.getLineNumber();</span>
+<span class="nc" id="L627">                s = reader.readLine();</span>
+                }
+
+            // check the preamble
+<span class="nc bnc" id="L631" title="All 4 branches missed.">            if (s==null || !(s = s.trim()).startsWith(preamble)) // uh oh</span>
+<span class="nc" id="L632">                state.output.fatal(&quot;Line &quot; + linenumber + </span>
+                    &quot; has a bad preamble.Expected '&quot; + preamble + &quot;'\n--&gt;&quot; + s);
+<span class="nc" id="L634">            DecodeReturn d = new DecodeReturn(s, preamble.length());</span>
+<span class="nc" id="L635">            d.lineNumber = linenumber;</span>
+<span class="nc" id="L636">            return d;</span>
+            }
+<span class="nc" id="L638">        catch (IOException e)</span>
+            {
+<span class="nc" id="L640">            state.output.fatal(&quot;On line &quot; + linenumber + &quot; an IO error occurred:\n\n&quot; + e);</span>
+<span class="nc" id="L641">            return null;  // never happens</span>
+            }
+        }
+
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in a string if there is one, and returns it.
+        Generates an error otherwise. */
+    public static String readStringWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L650">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L651">        Code.decode(d);</span>
+<span class="nc bnc" id="L652" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_STRING)</span>
+<span class="nc" id="L653">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no string after preamble '&quot; + preamble + &quot;'\n--&gt;&quot; + d.data);
+<span class="nc" id="L655">        return (String)(d.s);</span>
+        }
+
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in a character if there is one, and returns it.
+        Generates an error otherwise. */
+    public static char readCharacterWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L663">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L664">        Code.decode(d);</span>
+<span class="nc bnc" id="L665" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_CHAR)</span>
+<span class="nc" id="L666">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no character after preamble '&quot; + preamble + &quot;'\n--&gt;&quot; + d.data);
+<span class="nc" id="L668">        return (char)(d.l);</span>
+        }
+
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in a byte if there is one, and returns it.
+        Generates an error otherwise. */
+    public static byte readByteWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L676">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L677">        Code.decode(d);</span>
+<span class="nc bnc" id="L678" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_BYTE)</span>
+<span class="nc" id="L679">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no byte after preamble '&quot; + preamble + &quot;'\n--&gt;&quot; + d.data);
+<span class="nc" id="L681">        return (byte)(d.l);</span>
+        }
+
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in a short if there is one, and returns it.
+        Generates an error otherwise. */
+    public static short readShortWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L689">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L690">        Code.decode(d);</span>
+<span class="nc bnc" id="L691" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_SHORT)</span>
+<span class="nc" id="L692">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no short after preamble '&quot; + preamble + &quot;'\n--&gt;&quot; + d.data);
+<span class="nc" id="L694">        return (short)(d.l);</span>
+        }
+
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in a long if there is one, and returns it.
+        Generates an error otherwise. */
+    public static long readLongWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L702">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L703">        Code.decode(d);</span>
+<span class="nc bnc" id="L704" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_LONG)</span>
+<span class="nc" id="L705">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no long after preamble '&quot; + preamble + &quot;'\n--&gt;&quot; + d.data);
+<span class="nc" id="L707">        return (long)(d.l);</span>
+        }
+        
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in an integer if there is one, and returns it.
+        Generates an error otherwise. */
+    public static int readIntegerWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L715">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L716">        Code.decode(d);</span>
+<span class="nc bnc" id="L717" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_INT)</span>
+<span class="nc" id="L718">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no integer after preamble '&quot; + preamble + &quot;'\n--&gt;&quot; + d.data);
+<span class="nc" id="L720">        return (int)(d.l);</span>
+        }
+
+
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in a float if there is one, and returns it. 
+        Generates an error otherwise. */
+    public static float readFloatWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L729">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L730">        Code.decode(d);</span>
+<span class="nc bnc" id="L731" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_FLOAT)</span>
+<span class="nc" id="L732">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no floating point number after preamble '&quot; + preamble + &quot;'\n--&gt;&quot; + d.data);
+<span class="nc" id="L734">        return (float)(d.d);</span>
+        }
+
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in a double if there is one, and returns it. 
+        Generates an error otherwise. */
+    public static double readDoubleWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L742">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L743">        Code.decode(d);</span>
+<span class="nc bnc" id="L744" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_DOUBLE)</span>
+<span class="nc" id="L745">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no double floating point number after preamble '&quot; + preamble + &quot;'. --&gt;&quot; + d.data);
+<span class="nc" id="L747">        return d.d;</span>
+        }
+
+    /** Finds the next nonblank line, skips past an expected preamble, and reads in a boolean value (&quot;true&quot; or &quot;false&quot;) if there is one, and returns it. 
+        Generates an error otherwise. */
+    public static boolean readBooleanWithPreamble(String preamble, final EvolutionState state, 
+        final LineNumberReader reader)
+        {
+<span class="nc" id="L755">        DecodeReturn d = checkPreamble(preamble, state, reader);</span>
+<span class="nc" id="L756">        Code.decode(d);</span>
+<span class="nc bnc" id="L757" title="All 2 branches missed.">        if (d.type!=DecodeReturn.T_BOOLEAN)</span>
+<span class="nc" id="L758">            state.output.fatal(&quot;Line &quot; + d.lineNumber + </span>
+                &quot; has no boolean value ('true' or 'false') after preamble '&quot; + preamble + &quot;'\n--&gt;&quot; + d.data);
+<span class="nc bnc" id="L760" title="All 2 branches missed.">        return (d.l != 0);</span>
+        }
+
+    }
+
+
+/*
+  (BeanShell testing for decoding)
+
+  s = &quot;      true false s-12| i232342|b22|f234123|3234.1| d234111231|4342.31|&quot;
+
+
+  s = &quot;\&quot;Hello\&quot; true false s-12| i232342|b22|f234123|3234.1| d234111231|4342.31| ' ' '\\'' '\\n' \&quot;Hello\\u0000\\uWorld\&quot;&quot;
+  c = new ec.util.Code();
+  r = new ec.util.DecodeReturn(s);
+
+  c.decode(r);
+  System.out.println(r.type);
+  System.out.println(r.l);
+
+  System.out.println(r.d);
+  System.out.println(r.s);
+
+*/
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

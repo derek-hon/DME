@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LexicographicTournamentSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.parsimony</a> &gt; <span class="el_source">LexicographicTournamentSelection.java</span></div><h1>LexicographicTournamentSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.parsimony;
+
+import ec.*;
+import ec.util.*;
+import ec.steadystate.*;
+import ec.select.*;
+
+/* 
+ * LexicographicTournamentSelection.java
+ * 
+ * Created: Mon Aug 30 19:27:15 1999
+ * By: Liviu Panait &amp; Sean Luke
+ */
+
+/**
+ * Does a simple tournament selection, limited to the subpopulation it's
+ * working in at the time.
+ *
+ * &lt;p&gt;Tournament selection works like this: first, &lt;i&gt;size&lt;/i&gt; individuals
+ * are chosen at random from the population.  Then of those individuals,
+ * the one with the best fitness is selected.  If two individuals have the
+ * same fitness, the one with smaller size is prefered.
+ *
+ * The default tournament size is 7.
+ *
+ *
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the tournament size)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;pick-worst&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we pick the &lt;i&gt;worst&lt;/i&gt; individual in the tournament instead of the &lt;i&gt;best&lt;/i&gt;?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.lexicographic-tournament
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L58">public class LexicographicTournamentSelection extends TournamentSelection</span>
+    {
+    /** default base */
+    public static final String P_TOURNAMENT = &quot;lexicographic-tournament&quot;;
+
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L65">        return SelectDefaults.base().push(P_TOURNAMENT);</span>
+        }
+    
+    public boolean betterThan(Individual first, Individual second, int subpopulation, EvolutionState state, int thread)
+        {
+<span class="nc bnc" id="L70" title="All 2 branches missed.">        return (first.fitness.betterThan(second.fitness) ||</span>
+<span class="nc bnc" id="L71" title="All 4 branches missed.">            (first.fitness.equivalentTo(second.fitness) &amp;&amp; first.size() &lt; second.size()));</span>
+        }
+                
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

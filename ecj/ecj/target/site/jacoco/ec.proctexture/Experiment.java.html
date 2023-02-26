@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Experiment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.proctexture</a> &gt; <span class="el_source">Experiment.java</span></div><h1>Experiment.java</h1><pre class="source lang-java linenums">package ec.proctexture;
+
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.util.Arrays;
+import javax.imageio.ImageIO;
+import ec.proctexture.PSDExtensions;
+import ec.proctexture.PSDTools;
+// import ec.proctexture.EAS;
+import ec.proctexture.TextureProblemForm;
+import ec.EvolutionState;
+import ec.util.Parameter;
+
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L16">public abstract class Experiment extends ImageRender implements TextureProblemForm</span>
+{
+
+    static final String P_TARGET = &quot;target&quot;;
+
+    // PSD library is expecting a square image (double[][]) with specific size.
+<span class="nc" id="L22">    protected static int PSDTools_Image_Size = PSDTools.SideLength;</span>
+
+<span class="nc" id="L24">    public BufferedImage TargetImage      = null;</span>
+<span class="nc" id="L25">    public double[][]    TargetImage_Gray = null;</span>
+<span class="nc" id="L26">    public File targetFile = null;</span>
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base)
+    {
+<span class="nc" id="L31">        super.setup(state, base);</span>
+
+<span class="nc" id="L33">        Default_Image_Size = PSDTools_Image_Size;</span>
+
+        // Load targets from existing image
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if( state.parameters.exists(base.push(&quot;target&quot;),null) )</span>
+        {
+            // Load Image
+            try {
+<span class="nc" id="L40">                targetFile = state.parameters.getFile(base.push(P_TARGET),null);</span>
+<span class="nc" id="L41">                TargetImage = ImageIO.read(targetFile);</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">                if (TargetImage==null) throw new Exception(&quot;Unknown error&quot;);</span>
+<span class="nc" id="L43">            } catch (Exception e) {</span>
+<span class="nc" id="L44">                System.out.println(base.push(P_TARGET));</span>
+<span class="nc" id="L45">                System.out.println(System.getProperty(&quot;user.dir&quot;));</span>
+<span class="nc" id="L46">                state.output.fatal(&quot;Error loading target image: &quot; + e.toString());</span>
+<span class="nc" id="L47">            }</span>
+
+<span class="nc" id="L49">            int iSide = PSDTools_Image_Size;</span>
+<span class="nc bnc" id="L50" title="All 4 branches missed.">            if( TargetImage.getHeight() != iSide || TargetImage.getWidth() != iSide )</span>
+<span class="nc" id="L51">                state.output.fatal(&quot;Error loading target image: problem requires dimensions of &quot; + iSide + &quot;x&quot; + iSide);</span>
+
+<span class="nc" id="L53">            final int[] GrayscaleType = new int[]{ BufferedImage.TYPE_BYTE_GRAY, BufferedImage.TYPE_BYTE_BINARY, BufferedImage.TYPE_USHORT_GRAY };</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            if ( Arrays.asList(GrayscaleType).contains(TargetImage.getType()) )</span>
+<span class="nc" id="L55">                PSDExtensions.ImageToArrayStrategyDefault = PSDExtensions.ImageToArrayStrategy.Channel_R;</span>
+<span class="nc" id="L56">            else	PSDExtensions.ImageToArrayStrategyDefault = PSDExtensions.ImageToArrayStrategy.Y601;</span>
+<span class="nc" id="L57">            TargetImage_Gray = PSDExtensions.ImageToDouble2D(TargetImage, null);</span>
+        }
+
+<span class="nc" id="L60">    }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

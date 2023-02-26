@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GrammarNode.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.ge</a> &gt; <span class="el_source">GrammarNode.java</span></div><h1>GrammarNode.java</h1><pre class="source lang-java linenums">package ec.gp.ge;
+import java.util.*;
+
+/*
+ * GrammarNode.java
+ *
+ * Created: Sun Dec  5 11:33:43 EST 2010
+ * By: Houston Mooers and Sean Luke
+ *
+ */
+
+/**
+ * The abstract superclass of nodes used by GrammarParser to construct a parse graph to generate
+ * GEIndividuals.  GrammarNode has a *head*, which typically holds the name of the node,
+ * and an array of *children*, which are themselves GrammarNodes.
+ *
+ */
+
+public abstract class GrammarNode implements java.io.Serializable
+    {
+    String head;
+    // may be empty but it's not very expensive
+<span class="nc" id="L23">    protected ArrayList&lt;GrammarNode&gt; children = new ArrayList&lt;GrammarNode&gt;();  </span>
+
+    public GrammarNode(String head)
+<span class="nc" id="L26">        {</span>
+<span class="nc" id="L27">        this.head = head;</span>
+<span class="nc" id="L28">        }</span>
+
+    public String getHead()
+        {
+<span class="nc" id="L32">        return head;</span>
+        }
+
+    public abstract String toString();
+        
+    /**
+     * This is needed when we use a GrammarNode as a &quot;key&quot;
+     * in hash-map, see GrammarParser.java for details.
+     */
+    public boolean equals(Object o)
+        {
+<span class="nc" id="L43">        boolean ret = true ;</span>
+<span class="nc bnc" id="L44" title="All 4 branches missed.">        if((o instanceof GrammarNode) &amp;&amp; head.equals(((GrammarNode)o).getHead()) </span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">            &amp;&amp; (children.size() == ((GrammarNode)o).children.size()))</span>
+            {
+<span class="nc bnc" id="L47" title="All 2 branches missed.">            for(int i = 0 ; i &lt; children.size() ; i++)</span>
+                {
+<span class="nc bnc" id="L49" title="All 2 branches missed.">                if(!children.get(i).getHead().equals(</span>
+<span class="nc" id="L50">                        ((GrammarNode)o).children.get(i).getHead()))</span>
+                    {
+<span class="nc" id="L52">                    ret = false ; </span>
+<span class="nc" id="L53">                    break;</span>
+                    }
+                }
+            }
+        else
+<span class="nc" id="L58">            ret = false ;</span>
+<span class="nc" id="L59">        return ret ;</span>
+        }
+
+    /** As usual */
+    public int hashCode()
+        {
+<span class="nc" id="L65">        final int prime = 7 ;</span>
+<span class="nc" id="L66">        int hash = 1 ;</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        hash = prime * hash + ((head == null) ? 0 : head.hashCode());</span>
+<span class="nc" id="L68">        int tempHash = 0 ;</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">        if(children != null)</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            for(int i = 0 ; i &lt; children.size() ; i++)</span>
+<span class="nc" id="L71">                hash = prime * hash + children.get(i).getHead().hashCode();</span>
+<span class="nc" id="L72">        return hash ;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

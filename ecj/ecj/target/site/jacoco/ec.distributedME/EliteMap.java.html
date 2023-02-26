@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EliteMap.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.distributedME</a> &gt; <span class="el_source">EliteMap.java</span></div><h1>EliteMap.java</h1><pre class="source lang-java linenums">package ec.distributedME;
+
+import ec.util.Parameter;
+import ec.EvolutionState;
+import ec.Individual;
+import ec.Setup;
+import ec.ECDefaults;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.ListIterator;
+import java.util.Map;
+
+import ec.gp.GPIndividual;
+import ec.gp.koza.KozaFitness;
+
+import java.awt.image.BufferedImage;
+
+import java.io.File;
+import java.io.IOException;
+import javax.imageio.ImageIO;
+/**
+ * EliteMap.java
+ * 
+ * Created: 25 January, 2020
+ * @author Derek Hon
+ * @version 1.0
+ * 
+ * Parameter example: map.behaviours = 2 map.behaviour.0.intervals = 2
+ * map.behaviour.1.intervals = 5 map.startInds = 8
+ */
+<span class="nc" id="L34">public class EliteMap implements Setup, Cloneable {</span>
+    private static final long serialVersionUID = 1;
+
+    public Behaviours[] behaviours;
+
+    /** How many individuals have we added to the initial map? */
+    int individualCount;
+
+    /** Map parameters */
+    public static final String P_STARTING_INDS           = &quot;starting-individuals&quot;;
+
+    public static final String P_MAP                     = &quot;map&quot;;
+    /** Parameter for number of behaviours in the map */
+    public static final String P_SIZE                    = &quot;behaviours&quot;;
+    public static final String P_BEHAVIOUR               = &quot;behaviour&quot;;
+    /** Species of the individual */
+    public static final String P_SPECIES                 = &quot;species&quot;;
+    /** Starting individuals for the map taken as a percentage of the max amount of individuals in the map */
+    public static final String P_START_INDS              = &quot;startInds&quot;;
+    public static final String P_NAME                    = &quot;name&quot;;
+    public static final String NUM_INDIVIDUALS_PREAMBLE  = &quot;Number of Individuals: &quot;;
+    public static final String INDIVIDUAL_INDEX_PREAMBLE = &quot;Individual Number: &quot;;
+
+    /** Species for the map */
+    public MapElitesGPSpecies species;
+
+    /** Arraylist used as the map with elements of elites */
+    // public ArrayList&lt;Elite&gt; MAP;
+
+    /** HashMap used to house elite arhcive */
+    Map&lt;String, Elite&gt; eliteHashMap;
+
+    /** Size of the map based off of the intervals */
+    public int mapSize;
+
+    /** Upper limit of evaluations when populating the map so it doesn't take forever */
+    private int populateEvaluations;
+
+    /** Name of the submap */
+    String name; 
+
+
+    public Parameter file;
+
+    public Parameter defaultBase() {
+<span class="nc" id="L79">        return ECDefaults.base().push(P_BEHAVIOUR);</span>
+    }
+
+    public EliteMap emptyClone() {
+        try {
+<span class="nc" id="L84">            EliteMap m = (EliteMap) clone();</span>
+<span class="nc" id="L85">            m.species =  species;</span>
+            // m.MAP = new ArrayList&lt;&gt;();
+<span class="nc" id="L87">            m.eliteHashMap = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L88">            return m;</span>
+<span class="nc" id="L89">        } catch (CloneNotSupportedException e) {</span>
+<span class="nc" id="L90">            throw new InternalError();</span>
+        }
+    }
+
+    // public EliteMap emptyClone() {
+    //     try {
+    //         EliteMap m = (EliteMap) clone();
+    //         m.species = species;
+    //         m.Map = new ArrayList&lt;Elite&gt;(); //empty
+    //         return m;
+    //     } catch (CloneNotSupportedException e) {
+    //         throw new InternalError();
+    //     }
+    // }
+
+    public void clearMap() {
+<span class="nc" id="L106">        this.eliteHashMap.clear();</span>
+<span class="nc" id="L107">    }</span>
+
+    public void setup(final EvolutionState state, Parameter base) {
+
+        // this.MAP = new ArrayList&lt;Elite&gt;();
+<span class="nc" id="L112">        this.eliteHashMap = new HashMap&lt;&gt;();</span>
+<span class="nc" id="L113">        this.mapSize = 1;</span>
+<span class="nc" id="L114">        this.populateEvaluations = 0;</span>
+
+<span class="nc" id="L116">        name = state.parameters.getString(base.push(P_NAME), null);</span>
+
+        // Number of behaviours
+<span class="nc" id="L119">        Parameter size = base.push(P_SIZE);</span>
+<span class="nc" id="L120">        int numBehaviours = state.parameters.getInt(size, null, 1);</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (numBehaviours != 2)</span>
+<span class="nc" id="L122">            state.output.fatal(&quot;Number of behaviours per island needs to be 2.&quot;, base.push(P_SIZE));</span>
+
+<span class="nc" id="L124">        this.behaviours = new Behaviours[numBehaviours];</span>
+
+        // species
+<span class="nc" id="L127">        this.species = (MapElitesGPSpecies) state.parameters.getInstanceForParameter(base.push(P_SPECIES), null,</span>
+        MapElitesSpecies.class);
+<span class="nc" id="L129">        ((MapElitesGPSpecies) species).setup(state, base.push(P_SPECIES));</span>
+
+<span class="nc" id="L131">        double mapPercent = 0;</span>
+<span class="nc" id="L132">        int[] intervalValues = new int[2];</span>
+        
+        // Set up behaviour limits
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        for (int i = 0; i &lt; numBehaviours; i++) {</span>
+            // behaviour parameter
+<span class="nc" id="L137">            Parameter p = base.push(P_BEHAVIOUR).push(&quot;&quot; + i);</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">            if (!state.parameters.exists(p, null)) {</span>
+<span class="nc" id="L139">                int defaultBehaviour = state.parameters.getInt(p, null, 0);</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                if (defaultBehaviour &gt;= 0) {</span>
+<span class="nc" id="L141">                    state.output.warning(&quot;Using behaviour &quot; + defaultBehaviour + &quot; as default for behaviour &quot; + i);</span>
+<span class="nc" id="L142">                    p = base.push(P_BEHAVIOUR).push(&quot;&quot; + defaultBehaviour);</span>
+                }
+            }
+
+            // Behaviour handling
+<span class="nc" id="L147">            Parameter def = defaultBase();</span>
+
+            int intervals;
+
+<span class="nc" id="L151">            intervals = state.parameters.getInt(p.push(Behaviours.P_BSIZE), null, 1);</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">            if (intervals &lt;= 0) {</span>
+<span class="nc" id="L153">                state.output.fatal(&quot;Number of intervals must be &gt;= 1.\n&quot;, p.push(Behaviours.P_BSIZE),</span>
+<span class="nc" id="L154">                        def.push(Behaviours.P_BSIZE));</span>
+            }
+<span class="nc" id="L156">            intervalValues[i] = intervals;</span>
+
+<span class="nc" id="L158">            this.mapSize *= intervals;</span>
+
+<span class="nc" id="L160">            this.behaviours[i] = (Behaviours) (state.parameters.getInstanceForParameterEq(p, null, Behaviours.class));</span>
+<span class="nc" id="L161">            this.behaviours[i].setup(state, p);</span>
+        } // for loop
+
+        // state.output.fatal(Arrays.toString(intervalValues));
+
+<span class="nc" id="L166">        state.output.message(&quot;Total Map Size: &quot; + mapSize);</span>
+
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        if (state.parameters.exists(MapElitesDefaults.base().push(P_STARTING_INDS), null)) {</span>
+<span class="nc" id="L169">            mapPercent = state.parameters.getDouble(MapElitesDefaults.base().push(P_STARTING_INDS), null);</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">            if (mapPercent &lt; 0.0) // uh oh</span>
+<span class="nc" id="L171">                state.output.error(&quot;Starting Individual Percent must be between 0.0 and 1.0 inclusive.&quot;,</span>
+<span class="nc" id="L172">                        MapElitesDefaults.base().push(P_STARTING_INDS), null);</span>
+<span class="nc" id="L173">            state.output.message(&quot;Starting individuals will be &quot; + mapPercent + &quot;% of the map: &quot; + (int)(mapPercent * getTotalSize()) + &quot; individuals&quot;);</span>
+        } else {
+<span class="nc" id="L175">            mapPercent = 0.5;</span>
+<span class="nc" id="L176">            state.output.message(&quot;Starting individuals not defined: using 50% of the map size.&quot;);</span>
+        }
+
+<span class="nc bnc" id="L179" title="All 2 branches missed.">        if (mapPercent &gt; 1.0) {</span>
+<span class="nc" id="L180">            individualCount = (int) mapPercent;</span>
+        } else {
+<span class="nc" id="L182">            individualCount = (int) (getTotalSize() * mapPercent);</span>
+        }
+<span class="nc" id="L184">    } // setup</span>
+    
+    /**
+     * Previous version with array list implementation
+     * @param state
+     * @param e
+     * @param submap
+     */
+    public void populate(EvolutionState state, int thread, int submap) {
+<span class="nc" id="L193">        int maxEvals = this.mapSize * 10;</span>
+<span class="nc" id="L194">        state.output.message(&quot;Populating &quot; + individualCount + &quot; individuals or evaluating &quot; + maxEvals + &quot; times...&quot;);</span>
+        
+<span class="nc bnc" id="L196" title="All 4 branches missed.">        while (this.eliteHashMap.size() &lt; individualCount &amp;&amp; populateEvaluations &lt; maxEvals) {</span>
+
+<span class="nc" id="L198">            Elite e = ((MapElitesGPSpecies) species).newIndividual(state, thread);</span>
+<span class="nc" id="L199">            ((DistributedMEEvolutionState) state).evaluateIndividual(e, submap);</span>
+            
+<span class="nc" id="L201">            newEliteProcess(state, e);</span>
+
+<span class="nc" id="L203">            populateEvaluations ++;</span>
+
+<span class="nc bnc" id="L205" title="All 2 branches missed.">            if (populateEvaluations % 50 == 0) {</span>
+<span class="nc" id="L206">                System.out.println(&quot;Evaluation: &quot; + populateEvaluations);</span>
+            }
+<span class="nc" id="L208">        } // for</span>
+
+<span class="nc" id="L210">        state.output.message(&quot;Duplicate check after populating...&quot;);</span>
+<span class="nc" id="L211">        duplicateCheck(state);</span>
+<span class="nc" id="L212">        state.output.message(&quot;Map populated.&quot;);</span>
+<span class="nc" id="L213">    } // populate</span>
+
+
+    public void newEliteProcess(EvolutionState state, Elite e) {
+<span class="nc" id="L217">        Elite argElite = evaluateBehaviour(state, e);</span>
+
+<span class="nc" id="L219">        String key = argElite.getKey();</span>
+
+<span class="nc bnc" id="L221" title="All 2 branches missed.">        if (eliteHashMap.containsKey(key)) {</span>
+<span class="nc" id="L222">            Elite temp = eliteHashMap.get(key);</span>
+
+<span class="nc bnc" id="L224" title="All 2 branches missed.">            if (((KozaFitness) argElite.fitness).betterThan(temp.fitness)) {</span>
+<span class="nc" id="L225">                eliteHashMap.put(key, (Elite) argElite.clone());</span>
+            }
+<span class="nc" id="L227">        }</span>
+        else {
+<span class="nc" id="L229">            eliteHashMap.put(key, (Elite) argElite.clone());</span>
+        }
+<span class="nc" id="L231">    }</span>
+
+    public Elite evaluateBehaviour(EvolutionState state, Elite e) {
+<span class="nc" id="L234">        double[] behaviourValues = e.getBehaviours();</span>
+
+<span class="nc" id="L236">        double[] tempLimits = new double[behaviours.length];</span>
+<span class="nc" id="L237">        String key = &quot;&quot;;</span>
+<span class="nc" id="L238">        int[] position = new int[2];</span>
+<span class="nc" id="L239">        int counter = 0;</span>
+
+<span class="nc bnc" id="L241" title="All 2 branches missed.">        for (int i = 0; i &lt; behaviours.length; i++) {</span>
+<span class="nc" id="L242">            key += behaviours[i].name;</span>
+<span class="nc" id="L243">            double behaviourValue = behaviourValues[i];</span>
+
+<span class="nc bnc" id="L245" title="All 2 branches missed.">            for (double val : behaviours[i].limits) {</span>
+<span class="nc bnc" id="L246" title="All 6 branches missed.">                if (behaviourValue &lt; val || (val == behaviours[i].limits[behaviours[i].totalLimits() - 1] &amp;&amp; behaviourValue &lt;= val)) {</span>
+<span class="nc" id="L247">                    tempLimits[i] = val;</span>
+<span class="nc" id="L248">                    key += &quot;&quot; + val;</span>
+<span class="nc" id="L249">                    position[i] = counter;</span>
+<span class="nc" id="L250">                    break;</span>
+                } // if
+<span class="nc" id="L252">                counter ++;</span>
+            } // for
+        } // for
+
+<span class="nc" id="L256">        e.setKey(key);</span>
+<span class="nc" id="L257">        e.setLimits(tempLimits);</span>
+<span class="nc" id="L258">        e.setBehaviourPosition(position);</span>
+
+<span class="nc" id="L260">        return (Elite) e.clone();</span>
+    }
+    
+    public void saveAll(EvolutionState state, int submap) {
+        // state.output.message(&quot;in save all&quot;);
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        for (Elite e : this.eliteHashMap.values()) {</span>
+<span class="nc" id="L266">            Elite tempOne = (Elite) e.clone();</span>
+            // state.output.message(tempOne.toString());
+<span class="nc" id="L268">            BufferedImage tempImg = new BufferedImage(128, 128, BufferedImage.TYPE_INT_RGB);</span>
+<span class="nc" id="L269">            int[][] values = tempOne.getPixels();</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">            for (int imageX = 0 ; imageX &lt; 128 ; imageX ++) {</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">                for (int imageY = 0 ; imageY &lt; 128 ; imageY ++) {</span>
+<span class="nc" id="L272">                    tempImg.setRGB(imageX, imageY, values[imageX][imageY]);</span>
+                                    // if (e.getPixels()[x][y] !=  result.getRGB(x, y))
+                                    //     state.output.fatal(&quot;different rgb&quot;);
+                }
+            }
+            try {
+<span class="nc" id="L278">                ImageIO.write(tempImg, &quot;png&quot;, new File(System.getProperty(&quot;user.dir&quot;) + &quot;/haarWavelet/ME/test/eval&quot; + state.evaluations + tempOne.getKey() + &quot;.png&quot;));</span>
+<span class="nc" id="L279">            } catch (IOException exception) {</span>
+<span class="nc" id="L280">                state.output.fatal(exception + &quot;&quot;);</span>
+<span class="nc" id="L281">            }</span>
+<span class="nc" id="L282">        }</span>
+<span class="nc" id="L283">    }</span>
+
+    public int generateValues(double[] values) {
+<span class="nc" id="L286">        String key = &quot;&quot;;</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">        for (int i = 0; i &lt; behaviours.length; i++) {</span>
+<span class="nc bnc" id="L288" title="All 2 branches missed.">            for (double val : behaviours[i].limits) {</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">                if (values[i] &lt;= val) {</span>
+<span class="nc" id="L290">                    key += &quot;&quot; + (int)val;</span>
+<span class="nc" id="L291">                    break;</span>
+                } // if
+            } // for
+        } // for
+<span class="nc" id="L295">        return Integer.parseInt(key);</span>
+    } // generateKey
+
+    /**
+     * 
+     * MAP OPERATIONS
+     * 
+     */
+    public void print(EvolutionState state) {
+<span class="nc bnc" id="L304" title="All 2 branches missed.">        for (Elite e : this.eliteHashMap.values()) {</span>
+<span class="nc" id="L305">            state.output.message(e.getKey() + &quot;\t&quot; + Arrays.toString(e.getLimits()));</span>
+<span class="nc" id="L306">        }</span>
+
+<span class="nc" id="L308">        state.output.message(&quot;\n&quot;);</span>
+<span class="nc" id="L309">    }</span>
+
+    public Individual[] asIndArray() {
+<span class="nc" id="L312">        Elite[] old = asArray();</span>
+<span class="nc" id="L313">        Individual[] newInd = new Individual[old.length];</span>
+
+<span class="nc bnc" id="L315" title="All 2 branches missed.">        for (int i = 0; i &lt; old.length; i++)</span>
+<span class="nc" id="L316">            newInd[i] = (Individual) old[i];</span>
+
+<span class="nc" id="L318">        return newInd;</span>
+    } // asIndArray
+
+    public Elite[] asArray() {
+<span class="nc" id="L322">        return (Elite[]) this.eliteHashMap.values().toArray(new Elite[0]);</span>
+    } // asArray
+
+    public int getTotalSize() {
+<span class="nc" id="L326">        return this.mapSize;</span>
+    } // getSize
+
+    public Behaviours[] getBehaviours() {
+<span class="nc" id="L330">        return this.behaviours;</span>
+    }
+
+    public int getOccupants() {
+<span class="nc" id="L334">        return this.eliteHashMap.size();</span>
+    }
+
+    public Elite getEliteByKey(String key) {
+<span class="nc" id="L338">        return this.eliteHashMap.get(key);</span>
+    }
+
+    // public Elite getEliteByLimits(double[] limits) {
+    //     Iterator&lt;Elite&gt; iterator = this.MAP.iterator();
+    //     while (iterator.hasNext()) {
+    //         Elite temp = iterator.next();
+    //         if (Arrays.equals(limits,temp.getLimits()))
+    //             return temp;
+    //     }
+    //     return null;
+    // }
+
+    public Elite getElite(int index) {
+<span class="nc" id="L352">        Elite[] arr = (Elite[]) this.eliteHashMap.values().toArray(new Elite[0]);</span>
+<span class="nc" id="L353">        return arr[index];</span>
+    }
+
+    public Elite getEliteForMigration(int index) {
+<span class="nc" id="L357">        Elite[] arr = (Elite[]) this.eliteHashMap.values().toArray(new Elite[0]);</span>
+<span class="nc" id="L358">        Elite e = arr[index];</span>
+<span class="nc" id="L359">        this.eliteHashMap.remove(e.getKey());</span>
+<span class="nc" id="L360">        return e;</span>
+    }
+
+    public void duplicateCheck(EvolutionState state) {
+<span class="nc" id="L364">        ArrayList&lt;Elite&gt; MAP = new ArrayList&lt;Elite&gt;(this.eliteHashMap.values());</span>
+        
+<span class="nc bnc" id="L366" title="All 2 branches missed.">        for (int i = 0 ; i &lt; MAP.size() ; i ++) {</span>
+<span class="nc" id="L367">            double[] limitOne = MAP.get(i).getLimits();</span>
+<span class="nc bnc" id="L368" title="All 2 branches missed.">            for (int j = i + 1 ; j &lt; MAP.size() ; j ++) {</span>
+<span class="nc" id="L369">                double[] limitTwo = MAP.get(j).getLimits();</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">                if (Arrays.equals(limitOne, limitTwo)) {</span>
+<span class="nc bnc" id="L371" title="All 2 branches missed.">                    for (Elite elite : MAP)</span>
+<span class="nc" id="L372">                        state.output.message(elite.getKey() + &quot;\t&quot; + Arrays.toString(elite.getLimits()));</span>
+<span class="nc" id="L373">                    state.output.fatal(&quot;Duplicate: &quot; + MAP.get(i).getKey() + &quot;\t&quot; + Arrays.toString(MAP.get(i).getLimits()) + &quot;\tpopulate evaluation: &quot; + populateEvaluations);</span>
+                }
+            }
+        }
+<span class="nc" id="L377">    }</span>
+
+    public String getName() {
+<span class="nc" id="L380">        return this.name;</span>
+    }
+
+    public boolean compareLimits(Elite one, Elite two) {
+<span class="nc" id="L384">        return Arrays.equals(one.getLimits(), two.getLimits());</span>
+    }
+
+    public String keysToString() {
+<span class="nc" id="L388">        ArrayList&lt;Elite&gt; MAP = (ArrayList&lt;Elite&gt;) this.eliteHashMap.values();</span>
+
+<span class="nc" id="L390">        String output = &quot;[&quot;;</span>
+<span class="nc bnc" id="L391" title="All 2 branches missed.">        for (int i = 0; i &lt; MAP.size(); i++) {</span>
+<span class="nc" id="L392">            output += i + &quot;: &quot; + MAP.get(i).getKey() + &quot;, &quot;;</span>
+        }
+<span class="nc" id="L394">        output = output.substring(0, output.length() - 2);</span>
+<span class="nc" id="L395">        output += &quot;]&quot;;</span>
+<span class="nc" id="L396">        return output;</span>
+    }
+} // EliteMap
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

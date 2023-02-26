@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PushInstruction.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.push</a> &gt; <span class="el_source">PushInstruction.java</span></div><h1>PushInstruction.java</h1><pre class="source lang-java linenums">package ec.gp.push;
+import org.spiderland.Psh.*;
+import ec.*;
+import ec.util.*;
+
+/* 
+ * PushInstruction.java
+ * 
+ * Created: Fri Feb 15 23:00:04 EST 2013
+ * By: Sean Luke
+ */
+
+
+/** 
+    PushInstruction encapsulates a custom Push instruction.  This
+    class requires that you implement a Psh method called &lt;b&gt;&lt;tt&gt;Execute(...)&lt;/tt&gt;&lt;/b&gt;.
+    You will need to consult Psh to understand what you can do, and how to do it.  But
+    for some examples, see the &lt;b&gt;Atan.java&lt;/b&gt; and &lt;b&gt;Print.java&lt;/b&gt; classes in
+    &lt;b&gt;ec/app/push/&lt;/b&gt;.
+        
+    &lt;p&gt;PushInstruction is a Prototype, so you may with also to override setup() 
+    to set up your instruction initially.
+
+    &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+    gp.push.func
+*/
+
+
+
+<span class="nc" id="L30">public abstract class PushInstruction extends Instruction implements Prototype</span>
+    {
+    public static final String P_INSTRUCTION = &quot;func&quot;;
+    public Parameter defaultBase() 
+        { 
+<span class="nc" id="L35">        return PushDefaults.base().push(P_INSTRUCTION);</span>
+        }
+        
+<span class="nc" id="L38">    public void setup(EvolutionState state, Parameter base) { }</span>
+    
+    public Object clone() 
+        {
+        try
+            { 
+<span class="nc" id="L44">            PushInstruction myobj = (PushInstruction) (super.clone());</span>
+    
+<span class="nc" id="L46">            return myobj;</span>
+            }
+<span class="nc" id="L48">        catch (CloneNotSupportedException e)</span>
+<span class="nc" id="L49">            { throw new InternalError(); } // never happens</span>
+        } 
+        
+    public abstract void Execute(Interpreter interpreter);
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

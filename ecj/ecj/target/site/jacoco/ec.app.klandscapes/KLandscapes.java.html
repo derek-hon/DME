@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KLandscapes.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.klandscapes</a> &gt; <span class="el_source">KLandscapes.java</span></div><h1>KLandscapes.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2012 by Luca Manzoni
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.app.klandscapes;
+
+import ec.app.klandscapes.func.KLandscapeTree;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+import ec.util.*;
+
+import java.util.*;
+
+/**
+ * KLandscapes implements the K-Landscapes problem of Vanneschi,
+ * Castelli and Manzoni. See the README.txt.  
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.app.klandscapes.KLandscapesData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the KLandscapes problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;k-value&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Integer specifying the amount of epistasis in fitness contributions&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;Values from 0 upwards.&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author Luca Manzoni
+ * @version 1.0
+ */
+
+
+<span class="nc" id="L45">public class KLandscapes extends GPProblem implements SimpleProblemForm {</span>
+
+    // Score of the nodes. Functionals (positions 0 and 1) and terminals (positions from 2 to 5)
+    double nodeScore[];
+    // Score fo the edges. Row: functionals. Columns: funcionals + terminals
+    double edgeScore[][];
+    // Best possible fitness. Must be not negative.
+    double bestFitness;
+    // The K of the K-Landscapes. It is an index of epistasis. It has
+    // integer values from 2 upwards, in the paper's experimental
+    // section, but can take on values 0 and 1.
+    int k;
+<span class="nc" id="L57">    String P_PROBLEMNAME = &quot;k-landscapes&quot;;</span>
+<span class="nc" id="L58">    String P_KVALUE = &quot;k-value&quot;;</span>
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L62">        super.setup(state,base);</span>
+<span class="nc" id="L63">        state.output.exitIfErrors();</span>
+<span class="nc" id="L64">        Parameter kval = new Parameter(state.P_EVALUATOR).push(P_PROBLEM).push(P_PROBLEMNAME).push(P_KVALUE);</span>
+<span class="nc" id="L65">        k = state.parameters.getInt(kval,null,0);</span>
+        // System.out.println(&quot;K = &quot; + k);
+        
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        for(int i = 0 ; i &lt; indices.length; i++)</span>
+<span class="nc" id="L69">            indices[i] = -1;</span>
+<span class="nc" id="L70">        indices['A' - 'A'] = 0;</span>
+<span class="nc" id="L71">        indices['B' - 'A'] = 1;</span>
+<span class="nc" id="L72">        indices['X' - 'A'] = 2;</span>
+<span class="nc" id="L73">        indices['Y' - 'A'] = 3;</span>
+<span class="nc" id="L74">        indices['Z' - 'A'] = 4;</span>
+<span class="nc" id="L75">        indices['W' - 'A'] = 5;</span>
+
+
+        // now do some initialization
+<span class="nc" id="L79">        MersenneTwisterFast r = state.random[0];</span>
+<span class="nc" id="L80">        nodeScore = new double[6];</span>
+<span class="nc" id="L81">        edgeScore = new double[2][6];</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        for (int i = 0; i &lt; 6; i++)</span>
+            {
+<span class="nc" id="L84">            nodeScore[i] = 2*r.nextDouble() -1;</span>
+            }
+        // We need to assure that the best fitness is positive (to normalize it to 1)
+        // A method to do this is to have at least one terminal symbol with a positive score.
+<span class="nc" id="L88">        boolean ok = false;</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        for (int i = 2; i &lt; 6; i++)</span>
+            {
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            if (nodeScore[i] &gt; 0)</span>
+<span class="nc" id="L92">                ok = true;</span>
+            }
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        if (!ok)</span>
+<span class="nc" id="L95">            nodeScore[2] = r.nextDouble();</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        for (int i = 0; i &lt; 2; i++)</span>
+            {
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            for (int j = 0; j &lt; 6; j++)</span>
+                {
+<span class="nc" id="L100">                edgeScore[i][j] = r.nextDouble();</span>
+                }
+            }
+<span class="nc" id="L103">        bestFitness = computeBestFitness();</span>
+
+
+<span class="nc" id="L106">        }</span>
+
+    // doesn't need to be cloned
+<span class="nc" id="L109">    int[] indices = new int[256];  // we assume we only have letters, and 0 means &quot;no sucessor&quot;</span>
+    int getIndex(char c)
+        {
+<span class="nc" id="L112">        return indices[c - 'A'];</span>
+        }
+
+    public void evaluate(
+        final EvolutionState state,
+        final Individual ind,
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (!ind.evaluated)</span>
+            {
+<span class="nc" id="L123">            double score = fitness(((GPIndividual) ind).trees[0].child);</span>
+<span class="nc" id="L124">            SimpleFitness f = ((SimpleFitness) ind.fitness);</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            f.setFitness(state, score, score==1.0);</span>
+<span class="nc" id="L126">            ind.evaluated = true;</span>
+            }
+        
+<span class="nc" id="L129">        }</span>
+
+    double fitness(GPNode root)
+        {
+        // Compute the penality (it increases with the difference in depth between the tree and k.
+<span class="nc" id="L134">        double penalty = 1.0/(1+Math.abs(k+1-root.depth()));</span>
+<span class="nc" id="L135">        return penalty*fitnessHelper(root)/bestFitness;</span>
+        }
+
+    // We recursively search for the subtree with the maximal &quot;score&quot; 
+    double fitnessHelper(GPNode node)
+        {
+<span class="nc" id="L141">        double max = subtreeFitness(node,k);</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        for (int i = 0; i &lt; node.children.length; i++)</span>
+            {
+<span class="nc" id="L144">            GPNode child = node.children[i];</span>
+<span class="nc" id="L145">            double tmp = fitnessHelper(child);</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">            if (tmp &gt; max)</span>
+<span class="nc" id="L147">                max = tmp;</span>
+            }
+<span class="nc" id="L149">        return max;</span>
+        }
+
+    double subtreeFitness(GPNode node, int depth)
+        {
+<span class="nc" id="L154">        int index = getIndex(((KLandscapeTree) node).value());</span>
+<span class="nc" id="L155">        double score = nodeScore[index];</span>
+<span class="nc bnc" id="L156" title="All 4 branches missed.">        if (depth == 0 || index &gt; 1) //If we have reached the maximum depth (or we have found a terminal)</span>
+<span class="nc" id="L157">            return score;</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        for (int i = 0; i &lt; node.children.length; i++)</span>
+            {
+<span class="nc" id="L160">            GPNode child = node.children[i];</span>
+<span class="nc" id="L161">            int childindex = getIndex(((KLandscapeTree) child).value());</span>
+            //We recursively compute the &quot;score&quot; of the subtree
+<span class="nc" id="L163">            score += (1+edgeScore[index][childindex])*subtreeFitness(child,depth-1);</span>
+            }
+<span class="nc" id="L165">        return score;</span>
+        }
+
+    double computeBestFitness()
+        {
+        // This is a dynamic programming kludge.
+<span class="nc" id="L171">        double ttable[][] = new double[k][2];</span>
+<span class="nc" id="L172">        double ftable[][] = new double[k+1][2];</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        for (int i = 0; i &lt; 2; i++)</span>
+            {
+<span class="nc" id="L175">            ftable[0][i] = nodeScore[i];</span>
+            }
+        // Case 1: the optimum hase depth at most k
+<span class="nc bnc" id="L178" title="All 2 branches missed.">        for (int i = 0; i &lt; k; i++)</span>
+            {
+<span class="nc bnc" id="L180" title="All 2 branches missed.">            for (int j = 0; j &lt; 2; j++)</span>
+                {
+<span class="nc bnc" id="L182" title="All 2 branches missed.">                if (i == 0)</span>
+                    {
+<span class="nc" id="L184">                    double max = (1+edgeScore[j][2])*nodeScore[2];</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">                    for (int h = 3; h &lt; 6; h++)</span>
+                        {
+<span class="nc" id="L187">                        double tmp = (1+edgeScore[j][h])*nodeScore[h];</span>
+<span class="nc bnc" id="L188" title="All 2 branches missed.">                        if (tmp &gt; max)</span>
+<span class="nc" id="L189">                            max = tmp;</span>
+                        }
+<span class="nc" id="L191">                    ttable[i][j] = nodeScore[j] + 2*max;</span>
+<span class="nc" id="L192">                    }</span>
+                else
+                    {
+<span class="nc" id="L195">                    double max = (1+edgeScore[j][0])*ttable[i-1][0];</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">                    for (int h = 1; h &lt; 2; h++)</span>
+                        {
+<span class="nc" id="L198">                        double tmp = (1+edgeScore[j][h])*ttable[i-1][h];</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                        if (tmp &gt; max)</span>
+<span class="nc" id="L200">                            max = tmp;</span>
+                        }
+<span class="nc" id="L202">                    ttable[i][j] = nodeScore[j] + 2*max;</span>
+                    }
+                }
+            }
+        // Case 2: the optimum has depth k+1
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        for (int i = 1; i &lt; k+1; i++)</span>
+            {
+<span class="nc bnc" id="L209" title="All 2 branches missed.">            for (int j = 0; j &lt; 2; j++)</span>
+                {
+<span class="nc" id="L211">                double max = (1+edgeScore[j][0])*ftable[i-1][0];</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">                for (int h = 1; h &lt; 2; h++)</span>
+                    {
+<span class="nc" id="L214">                    double tmp = (1+edgeScore[j][h])*ftable[i-1][h];</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                    if (tmp &gt; max)</span>
+<span class="nc" id="L216">                        max = tmp;</span>
+                    }
+<span class="nc" id="L218">                ftable[i][j] = nodeScore[j] + 2*max;</span>
+                }
+            }
+<span class="nc" id="L221">        double best = nodeScore[2];</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">        for (int i = 3; i &lt; 6; i++)</span>
+            {
+<span class="nc bnc" id="L224" title="All 2 branches missed.">            if (nodeScore[i] &gt; best)</span>
+<span class="nc" id="L225">                best = nodeScore[i];</span>
+            }
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        for (int i = 0; i &lt; k; i++)</span>
+            {
+<span class="nc bnc" id="L229" title="All 2 branches missed.">            for (int j = 0; j &lt; 2; j++)</span>
+                {
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                if (ttable[i][j] &gt; best)</span>
+<span class="nc" id="L232">                    best = ttable[i][j];</span>
+                }
+            }
+<span class="nc bnc" id="L235" title="All 2 branches missed.">        for (int i = 0; i &lt; 2; i++)</span>
+            {
+<span class="nc bnc" id="L237" title="All 2 branches missed.">            if (0.5*ftable[k][i] &gt; best)</span>
+<span class="nc" id="L238">                best = 0.5*ftable[k][i];</span>
+            }
+<span class="nc" id="L240">        return best;</span>
+        }
+
+    public Object clone()
+        {
+<span class="nc" id="L245">        KLandscapes tmp = (KLandscapes)(super.clone());</span>
+<span class="nc" id="L246">        tmp.nodeScore = new double[6];</span>
+<span class="nc" id="L247">        tmp.edgeScore = new double[2][6];</span>
+<span class="nc" id="L248">        tmp.bestFitness = bestFitness;</span>
+<span class="nc" id="L249">        tmp.k = k;</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">        for (int i = 0; i &lt; 6; i++)</span>
+            {
+<span class="nc" id="L252">            tmp.nodeScore[i] = nodeScore[i];</span>
+<span class="nc bnc" id="L253" title="All 2 branches missed.">            for (int j = 0; j &lt; 2; j++)</span>
+                {
+<span class="nc" id="L255">                tmp.edgeScore[j][i] = edgeScore[j][i];</span>
+                }
+            }
+<span class="nc" id="L258">        return tmp;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

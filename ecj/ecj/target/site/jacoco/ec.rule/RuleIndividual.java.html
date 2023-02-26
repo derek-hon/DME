@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RuleIndividual.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.rule</a> &gt; <span class="el_source">RuleIndividual.java</span></div><h1>RuleIndividual.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.rule;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+/* 
+ * RuleIndividual.java
+ * 
+ * Created: Tue May 29 18:20:20 EDT 2001
+ * By: Sean Luke
+ */
+
+/**
+ * RuleIndividual is an Individual with an array of RuleSets, each of which
+ * is a set of Rules.  RuleIndividuals belong to some subclass of RuleSpecies
+ * (or just RuleSpecies itself).
+ *
+ * &lt;p&gt;RuleIndividuals really have basically one parameter: the number
+ * of RuleSets to use.  This is determined by the &lt;tt&gt;num-rulesets&lt;/tt&gt;
+ * parameter.
+
+ * &lt;P&gt;&lt;b&gt;From ec.Individual:&lt;/b&gt;  
+ *
+ * &lt;p&gt;In addition to serialization for checkpointing, Individuals may read and write themselves to streams in three ways.
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;writeIndividual(...,DataOutput)/readIndividual(...,DataInput)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This method
+ * transmits or receives an individual in binary.  It is the most efficient approach to sending
+ * individuals over networks, etc.  These methods write the evaluated flag and the fitness, then
+ * call &lt;b&gt;readGenotype/writeGenotype&lt;/b&gt;, which you must implement to write those parts of your 
+ * Individual special to your functions-- the default versions of readGenotype/writeGenotype throw errors.
+ * You don't need to implement them if you don't plan on using read/writeIndividual.
+ *
+ * &lt;li&gt;&lt;b&gt;printIndividual(...,PrintWriter)/readIndividual(...,LineNumberReader)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach transmits or receives an indivdual in text encoded such that the individual is largely readable
+ * by humans but can be read back in 100% by ECJ as well.  To do this, these methods will encode numbers
+ * using the &lt;tt&gt;ec.util.Code&lt;/tt&gt; class.  These methods are mostly used to write out populations to
+ * files for inspection, slight modification, then reading back in later on.  &lt;b&gt;readIndividual&lt;/b&gt;reads
+ * in the fitness and the evaluation flag, then calls &lt;b&gt;parseGenotype&lt;/b&gt; to read in the remaining individual.
+ * You are responsible for implementing parseGenotype: the Code class is there to help you.
+ * &lt;b&gt;printIndividual&lt;/b&gt; writes out the fitness and evaluation flag, then calls &lt;b&gt;genotypeToString&lt;b&gt; 
+ * and printlns the resultant string. You are responsible for implementing the genotypeToString method in such
+ * a way that parseGenotype can read back in the individual println'd with genotypeToString.  The default form
+ * of genotypeToString simply calls &lt;b&gt;toString&lt;/b&gt;, which you may override instead if you like.  The default
+ * form of &lt;b&gt;parseGenotype&lt;/b&gt; throws an error.  You are not required to implement these methods, but without
+ * them you will not be able to write individuals to files in a simultaneously computer- and human-readable fashion.
+ *
+ * &lt;li&gt;&lt;b&gt;printIndividualForHumans(...,PrintWriter)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach prints an individual in a fashion intended for human consumption only.
+ * &lt;b&gt;printIndividualForHumans&lt;/b&gt; writes out the fitness and evaluation flag, then calls &lt;b&gt;genotypeToStringForHumans&lt;b&gt; 
+ * and printlns the resultant string. You are responsible for implementing the genotypeToStringForHumans method.
+ * The default form of genotypeToStringForHumans simply calls &lt;b&gt;toString&lt;/b&gt;, which you may override instead if you like
+ * (though note that genotypeToString's default also calls toString).  You should handle one of these methods properly
+ * to ensure individuals can be printed by ECJ.
+ * &lt;/ul&gt;
+
+ * &lt;p&gt;In general, the various readers and writers do three things: they tell the Fitness to read/write itself,
+ * they read/write the evaluated flag, and they read/write the Rulesets.  If you add instance variables to
+ * a RuleIndividual or subclass, you'll need to read/write those variables as well.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;num-rulesets&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of rulesets used)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ruleset&lt;/tt&gt;.&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;Classname, subclass of or = ec.rule.RuleSet&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(class of ruleset &lt;i&gt;n&lt;/i&gt;)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ 
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;ruleset&lt;/tt&gt;.&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;td&gt;RuleSet &lt;i&gt;n&lt;/i&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ rule.individual
+
+ * @author Sean Luke
+ * @version 1.0 
+ */
+<span class="nc" id="L90">public class RuleIndividual extends Individual</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_RULESET = &quot;ruleset&quot;;
+    public static final String P_NUMRULESETS = &quot;num-rulesets&quot;;
+    
+    /** The individual's rulesets. */
+    public RuleSet[] rulesets;
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L102">        return RuleDefaults.base().push(P_INDIVIDUAL);</span>
+        }
+
+    public Object clone()
+        {
+<span class="nc" id="L107">        RuleIndividual myobj = (RuleIndividual) (super.clone());   </span>
+<span class="nc" id="L108">        myobj.rulesets = new RuleSet[rulesets.length];</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++) </span>
+<span class="nc" id="L110">            myobj.rulesets[x] = (RuleSet)(rulesets[x].clone());</span>
+<span class="nc" id="L111">        return myobj;</span>
+        } 
+
+    /** Called by pipelines before they've modified the individual and
+        it might need to be &quot;fixed&quot;  -- basically a hook for you to override.
+        By default, calls validateRules on each ruleset. */
+    public void preprocessIndividual(final EvolutionState state, final int thread)
+        {
+<span class="nc bnc" id="L119" title="All 2 branches missed.">        for (int x=0;x&lt;rulesets.length;x++)</span>
+<span class="nc" id="L120">            rulesets[x].preprocessRules(state,thread);</span>
+<span class="nc" id="L121">        }</span>
+
+    /** Called by pipelines after they've modified the individual and
+        it might need to be &quot;fixed&quot;  -- basically a hook for you to override.
+        By default, calls validateRules on each ruleset. */
+    public void postprocessIndividual(final EvolutionState state, final int thread)
+        {
+<span class="nc bnc" id="L128" title="All 2 branches missed.">        for (int x=0;x&lt;rulesets.length;x++)</span>
+<span class="nc" id="L129">            rulesets[x].postprocessRules(state,thread);</span>
+<span class="nc" id="L130">        }</span>
+        
+    public boolean equals(Object ind)
+        {
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (ind == null) return false;</span>
+        // My loose definition: ind must be a 
+<span class="nc bnc" id="L136" title="All 2 branches missed.">        if (!getClass().equals(ind.getClass()))  // not the same class, I'm conservative that way</span>
+<span class="nc" id="L137">            return false;</span>
+
+<span class="nc" id="L139">        RuleIndividual other = (RuleIndividual)ind;</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">        if (rulesets.length != other.rulesets.length) return false;</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++)</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">            if (!rulesets[x].equals(other.rulesets[x])) return false;</span>
+<span class="nc" id="L143">        return true;</span>
+        }
+
+    public int hashCode()
+        {
+<span class="nc" id="L148">        int hash = this.getClass().hashCode();</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++)</span>
+            // rotate hash and XOR
+<span class="nc" id="L151">            hash =</span>
+<span class="nc" id="L152">                (hash &lt;&lt; 1 | hash &gt;&gt;&gt; 31 ) ^ rulesets[x].hashCode();</span>
+<span class="nc" id="L153">        return hash;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L158">        super.setup(state,base);  // actually unnecessary (Individual.setup() is empty)</span>
+
+        // I'm the top-level setup, I guess
+<span class="nc" id="L161">        int numrulesets = state.parameters.getInt(</span>
+<span class="nc" id="L162">            base.push(P_NUMRULESETS), defaultBase().push(P_NUMRULESETS),</span>
+            1);  // need at least 1 ruleset!
+<span class="nc bnc" id="L164" title="All 2 branches missed.">        if (numrulesets == 0)</span>
+<span class="nc" id="L165">            state.output.fatal(&quot;RuleIndividual needs at least one RuleSet!&quot;,</span>
+<span class="nc" id="L166">                base.push(P_NUMRULESETS), defaultBase().push(P_NUMRULESETS));</span>
+
+<span class="nc" id="L168">        rulesets  = new RuleSet[numrulesets];</span>
+
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        for(int x=0;x&lt;numrulesets;x++)</span>
+            {
+<span class="nc" id="L172">            rulesets[x] = (RuleSet)(state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L173">                    base.push(P_RULESET).push(&quot;&quot;+x),defaultBase().push(P_RULESET),</span>
+                    RuleSet.class));
+<span class="nc" id="L175">            rulesets[x].setup(state,base.push(P_RULESET).push(&quot;&quot;+x));</span>
+            }
+<span class="nc" id="L177">        }</span>
+
+    public void printIndividualForHumans(final EvolutionState state,
+        final int log)
+        {
+<span class="nc bnc" id="L182" title="All 2 branches missed.">        state.output.println(EVALUATED_PREAMBLE + (evaluated ? &quot;true&quot; : &quot;false&quot;), log);</span>
+<span class="nc" id="L183">        fitness.printFitnessForHumans(state,log);</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++)</span>
+            {
+<span class="nc" id="L186">            state.output.println(&quot;Ruleset &quot; + x + &quot;:&quot;, log);</span>
+<span class="nc" id="L187">            rulesets[x].printRuleSetForHumans(state, log);</span>
+            }
+<span class="nc" id="L189">        }</span>
+
+    public void printIndividual(final EvolutionState state,
+        final int log)
+        {
+<span class="nc" id="L194">        state.output.println(EVALUATED_PREAMBLE + Code.encode(evaluated), log);</span>
+<span class="nc" id="L195">        fitness.printFitness(state, log);</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++)</span>
+            {
+<span class="nc" id="L198">            state.output.println(&quot;Ruleset &quot; + x + &quot;:&quot;, log);</span>
+<span class="nc" id="L199">            rulesets[x].printRuleSet(state,log);</span>
+            }
+<span class="nc" id="L201">        }</span>
+
+    /** Overridden for the RuleIndividual genotype, writing each ruleset in turn. */
+    public void printIndividual(final EvolutionState state,
+        final PrintWriter writer)
+        {
+<span class="nc" id="L207">        writer.println(EVALUATED_PREAMBLE + Code.encode(evaluated));</span>
+<span class="nc" id="L208">        fitness.printFitness(state,writer);</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++)</span>
+            {
+<span class="nc" id="L211">            writer.println(&quot;Ruleset &quot; + x + &quot;:&quot;);</span>
+<span class="nc" id="L212">            rulesets[x].printRuleSet(state,writer);</span>
+            }
+<span class="nc" id="L214">        }</span>
+    
+    /** Overridden for the RuleIndividual genotype, writing each ruleset in turn. */
+    public void writeGenotype(final EvolutionState state,
+        final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L220">        dataOutput.writeInt(rulesets.length);</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++)</span>
+<span class="nc" id="L222">            rulesets[x].writeRuleSet(state,dataOutput);</span>
+<span class="nc" id="L223">        }</span>
+
+    /** Overridden for the RuleIndividual genotype. */
+    public void readGenotype(final EvolutionState state,
+        final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L229">        int len = dataInput.readInt();</span>
+<span class="nc bnc" id="L230" title="All 4 branches missed.">        if (rulesets==null || rulesets.length != len)</span>
+<span class="nc" id="L231">            state.output.fatal(&quot;Number of RuleSets differ in RuleIndividual when reading from readGenotype(EvolutionState, DataInput).&quot;);</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++)</span>
+<span class="nc" id="L233">            rulesets[x].readRuleSet(state,dataInput);</span>
+<span class="nc" id="L234">        }</span>
+
+
+    /** Overridden for the RuleIndividual genotype. */
+    public void parseGenotype(final EvolutionState state, 
+        final LineNumberReader reader)
+        throws IOException
+        {
+        // read my ruleset
+<span class="nc bnc" id="L243" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++)</span>
+            {
+<span class="nc" id="L245">            reader.readLine();  // throw it away -- it's the ruleset# indicator</span>
+<span class="nc" id="L246">            rulesets[x].readRuleSet(state,reader);</span>
+            }
+<span class="nc" id="L248">        }</span>
+
+    public long size() 
+        { 
+<span class="nc" id="L252">        long size=0;</span>
+<span class="nc bnc" id="L253" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++) </span>
+<span class="nc" id="L254">            size+= rulesets[x].numRules();</span>
+<span class="nc" id="L255">        return size;</span>
+        }
+    
+    public void reset(EvolutionState state, int thread)
+        {
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++) </span>
+<span class="nc" id="L261">            rulesets[x].reset(state,thread);</span>
+<span class="nc" id="L262">        }</span>
+
+    /** Mutates the Individual.  The default implementation simply calls mutate(...) on each of
+        the RuleSets. */
+    public void mutate(EvolutionState state, int thread)
+        {
+<span class="nc bnc" id="L268" title="All 2 branches missed.">        for(int x=0;x&lt;rulesets.length;x++) </span>
+<span class="nc" id="L269">            rulesets[x].mutate(state,thread);</span>
+<span class="nc" id="L270">        }</span>
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

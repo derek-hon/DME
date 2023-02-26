@@ -1,0 +1,600 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Uniform.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.build</a> &gt; <span class="el_source">Uniform.java</span></div><h1>Uniform.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp.build;
+import ec.gp.*;
+import java.util.*;
+import java.math.*;
+import ec.util.*;
+import ec.*;
+import java.io.*;
+
+/* 
+ * Uniform.java
+ * 
+ * Created Fri Jan 26 14:02:08 EST 2001
+ * By: Sean Luke
+ */
+
+/**
+   Uniform implements the algorithm described in 
+
+   &lt;p&gt;Bohm, Walter and Andreas Geyer-Schulz. 1996. &quot;Exact Uniform Initialization for Genetic Programming&quot;.  In &lt;i&gt;Foundations of Genetic Algorithms IV,&lt;/i&gt; Richard Belew and Michael Vose, eds.  Morgan Kaufmann.  379-407. (ISBN 1-55860-460-X) 
+
+   &lt;p&gt; The user-provided requested tree size is either provided directly to the Uniform algorithm, or if the size is NOSIZEGIVEN, then Uniform will pick one at random from the GPNodeBuilder probability distribution system (using either max-depth and min-depth, or using num-sizes).  
+
+   &lt;p&gt;Further, if the user sets the &lt;tt&gt;true-dist&lt;/tt&gt; parameter, the Uniform will ignore the user's specified probability distribution and instead pick from a distribution between the minimum size and the maximum size the user specified, where the sizes are distributed according to the &lt;i&gt;actual&lt;/i&gt; number of trees that can be created with that size.  Since many more trees of size 10 than size 3 can be created, for example, size 10 will be picked that much more often.
+
+   &lt;p&gt;Uniform also prints out the actual number of trees that exist for a given size, return type, and function set.  As if this were useful to you.  :-)
+
+   &lt;p&gt; The algorithm, which is quite complex, is described in pseudocode below.  Basically what the algorithm does is this:
+
+   &lt;ol&gt;
+   &lt;li&gt; For each function set and return type, determine the number of trees of each size which exist for that function set and tree type.  Also determine all the permutations of tree sizes among children of a given node.  All this can be done with dynamic programming.  Do this just once offline, after the function sets are loaded. 
+   &lt;li&gt; Using these tables, construct distributions of choices of tree size, child tree size permutations, etc.
+   &lt;li&gt; When you need to create a tree, pick a size, then use the distriutions to recursively create the tree (top-down).
+   &lt;/ol&gt;
+
+   &lt;p&gt; &lt;b&gt;Dealing with Zero Distributions&lt;/b&gt;
+   &lt;p&gt; Some domains have NO tree of a certain size.  For example, 
+   Artificial Ant's function set can make NO trees of size 2.
+   What happens when we're asked to make a tree of (invalid) size 2 in
+   Artificial Ant then?  Uniform presently handles it as follows:
+   &lt;ol&gt;&lt;li&gt; If the system specifically requests a given size that's invalid, Uniform will 
+   look for the next larger size which is valid.  If it can't find any,
+   it will then look for the next smaller size which is valid.
+   &lt;li&gt; If a random choice yields a given size that's invalid,
+   Uniform will pick again.
+   &lt;li&gt; If there is *no* valid size for a given return type, which probably indicates
+   an error, Uniform will halt and complain.
+   &lt;/ol&gt;
+        
+   &lt;h3&gt;Pseudocode:&lt;/h3&gt;
+
+   &lt;pre&gt;
+
+   *    Func NumTreesOfType(type,size)
+   *        If NUMTREESOFTYPE[type,size] not defined,       // memoize
+   *            N[type] = all nodes compatible with type
+   *            NUMTREESOFTYPE[type,size] = Sum(n in N[type], NumTreesRootedByNode(n,size))
+   *            return NUMTREESOFTYPE[type,size]
+   *
+   *    Func NumTreesRootedByNode(node,size)
+   *        If NUMTREESROOTEDBYNODE[node,size] not defined,   // memoize
+   *            count = 0
+   *            left = size - 1
+   *            If node.children.length = 0 and left = 0  // a valid terminal
+   *                count = 1
+   *            Else if node.children.length &lt;= left  // a valid nonterminal
+   *                For s is 1 to left inclusive  // yeah, that allows some illegal stuff, it gets set to 0
+   *                    count += NumChildPermutations(node,s,left,0)
+   *            NUMTREESROOTEDBYNODE[node,size] = count
+   *        return NUMTREESROOTEBYNODE[node,size]
+   *
+   *
+   *    Func NumChildPermutations(parent,size,outof,pickchild)
+   *    // parent is our parent node
+   *    // size is the size of pickchild's tree that we're considering
+   *    // pickchild is the child we're considering
+   *    // outof is the total number of remaining nodes (including size) yet to fill
+   *        If NUMCHILDPERMUTATIONS[parent,size,outof,pickchild] is not defined,        // memoize
+   *            count = 0
+   *            if pickchild = parent.children.length - 1        and outof==size        // our last child, outof must be size
+   *                count = NumTreesOfType(parent.children[pickchild].type,size)
+   *            else if pickchild &lt; parent.children.length - 1 and 
+   *                                outof-size &gt;= (parent.children.length - pickchild-1)    // maybe we can fill with terminals
+   *                cval = NumTreesOfType(parent.children[pickchild].type,size)
+   *                tot = 0
+   *                For s is 1 to outof-size // some illegal stuff, it gets set to 0
+   *                    tot += NumChildPermutations(parent,s,outof-size,pickchild+1)
+   *                count = cval * tot
+   *            NUMCHILDPERMUTATIONS [parent,size,outof,pickchild] = count            
+   *        return NUMCHILDPERMUTATIONS[parent,size,outof,pickchild]
+   *
+   *
+   *    For each type type, size size
+   *        ROOT_D[type,size] = probability distribution of nodes of type and size, derived from
+   *                            NUMTREESOFTYPE[type,size], our node list, and NUMTREESROOTEDBYNODE[node,size]
+   *
+   *    For each parent,outof,pickchild
+   *        CHILD_D[parent,outof,pickchild] = probability distribution of tree sizes, derived from
+   *                            NUMCHILDPERMUTATIONS[parent,size,outof,pickchild]
+   *
+   *    Func FillNodeWithChildren(parent,pickchild,outof)
+   *        If pickchild = parent.children.length - 1               // last child
+   *            Fill parent.children[pickchild] with CreateTreeOfType(parent.children[pickchild].type,outof)
+   *        Else choose size from CHILD_D[parent,outof,pickchild]
+   *            Fill parent.pickchildren[pickchild] with CreateTreeOfType(parent.children[pickchild].type,size)
+   *            FillNodeWithChildren(parent,pickchild+1,outof-size)
+   *        return
+   &lt;/pre&gt;
+
+   Func CreateTreeOfType(type,size)
+   Choose node from ROOT_D[type,size]
+   If size &gt; 1
+   FillNodeWithChildren(node,0,size-1)
+   return node
+
+
+   &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+   &lt;table&gt;
+   &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;true-dist&lt;/tt&gt;&lt;br&gt;
+   &lt;font size=-1&gt;bool= true or false (default)&lt;/font&gt;&lt;/td&gt;
+   &lt;td valign=top&gt;(should we use the true numbers of trees for each size as the distribution for picking trees, as opposed to the user-specified distribution?)&lt;/td&gt;&lt;/tr&gt;
+   &lt;/table&gt;
+
+   &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+   gp.build.uniform
+
+*/
+
+
+
+<span class="nc" id="L137">public class Uniform extends GPNodeBuilder </span>
+    {
+    public static final String P_UNIFORM = &quot;uniform&quot;;
+    public static final String P_TRUEDISTRIBUTION = &quot;true-dist&quot;;
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L144">        return GPBuildDefaults.base().push(P_UNIFORM);</span>
+        }
+
+    // Mapping of integers to function sets
+    public GPFunctionSet[] functionsets;
+    
+    // Mapping of function sets to Integers
+    public Hashtable _functionsets;
+    
+    // Mapping of GPNodes to Integers (thus to ints)
+    public Hashtable funcnodes;
+    
+    // number of nodes
+    public int numfuncnodes;
+    
+    // max arity of any node
+    public int maxarity;
+    
+    // maximum size of nodes computed
+    public int maxtreesize;
+    
+    // true size distributions
+    public BigInteger[/*functionset*/][/*type*/][/*size*/] _truesizes;
+    public double[/*functionset*/][/*type*/][/*size*/] truesizes;
+    
+    // do we use the true distributions to pick tree sizes?
+    public boolean useTrueDistribution;
+    
+    // Sun in its infinite wisdom (what idiots) decided to make
+    // BigInteger IMMUTABLE.  There is a MutableBigInteger, but it's not
+    // public!  And Sun only caches the first 16 positive and 16 negative
+    // integer constants, not exactly that useful for us.  As a result, we'll
+    // be making a dang lot of BigIntegers here.  Garbage-collection hell.  :-(
+    // ...well, it's not all that slow really.
+    public BigInteger NUMTREESOFTYPE[/*FunctionSet*/][/*type*/][/*size*/];
+    public BigInteger NUMTREESROOTEDBYNODE[/*FunctionSet*/][/*nodenum*/][/*size*/];
+    public BigInteger NUMCHILDPERMUTATIONS[/*FunctionSet*/][/*parentnodenum*/][/*size*/][/*outof*/][/*pickchild*/];
+    
+    
+    
+    // tables derived from the previous ones through some massaging
+    
+    // [/*the nodes*/] is an array of &lt;node,probability&gt; pairs for all possible nodes rooting
+    // trees of the desired size and compatible with the given return type.  It says that if you
+    // were to pick a tree, this would be the probability that this node would be the root of it.
+    public UniformGPNodeStorage ROOT_D[/*FunctionSet*/][/*type*/][/*size*/][/*the nodes*/];
+    
+    // True if ROOT_D all zero for all possible nodes in [/*the nodes*/] above. 
+    public boolean ROOT_D_ZERO[/*FunctionSet*/][/*type*/][/*size*/];
+    
+    public double CHILD_D[/*FunctionSet*/][/*type*/][/*outof*/][/*pickchild*/][/* the nodes*/];
+    
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L199">        super.setup(state,base);</span>
+        
+<span class="nc" id="L201">        Parameter def = defaultBase();</span>
+        
+        // use true distributions? false is default
+<span class="nc" id="L204">        useTrueDistribution = state.parameters.getBoolean(</span>
+<span class="nc" id="L205">            base.push(P_TRUEDISTRIBUTION), def.push(P_TRUEDISTRIBUTION),false);</span>
+        
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        if (minSize&gt;0)  // we're using maxSize and minSize</span>
+<span class="nc" id="L208">            maxtreesize=maxSize;</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        else if (sizeDistribution != null)</span>
+<span class="nc" id="L210">            maxtreesize = sizeDistribution.length;</span>
+<span class="nc" id="L211">        else state.output.fatal(&quot;Uniform is used for the GP node builder, but no distribution was specified.&quot; +</span>
+            &quot;  You must specify either a min/max size, or a full size distribution.&quot;,
+<span class="nc" id="L213">            base.push(P_MINSIZE), def.push(P_MINSIZE));</span>
+        // preprocess offline
+<span class="nc" id="L215">        preprocess(state,maxtreesize);</span>
+<span class="nc" id="L216">        }</span>
+        
+    public int pickSize(final EvolutionState state, final int thread, 
+        final int functionset, final int type)
+        {
+<span class="nc bnc" id="L221" title="All 2 branches missed.">        if (useTrueDistribution)</span>
+<span class="nc" id="L222">            return RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L223">                truesizes[functionset][type],state.random[thread].nextDouble());</span>
+<span class="nc" id="L224">        else return super.pickSize(state,thread);</span>
+        }
+    
+    public void preprocess(final EvolutionState state, final int _maxtreesize)
+        {
+<span class="nc" id="L229">        state.output.message(&quot;Determining Tree Sizes&quot;);</span>
+        
+<span class="nc" id="L231">        maxtreesize = _maxtreesize;</span>
+        
+<span class="nc" id="L233">        Hashtable functionSetRepository = ((GPInitializer)state.initializer).functionSetRepository;</span>
+        
+        // Put each function set into the arrays
+<span class="nc" id="L236">        functionsets = new GPFunctionSet[functionSetRepository.size()];</span>
+<span class="nc" id="L237">        _functionsets = new Hashtable();</span>
+<span class="nc" id="L238">        Enumeration e = functionSetRepository.elements();</span>
+<span class="nc" id="L239">        int count=0;</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        while(e.hasMoreElements())</span>
+            {
+<span class="nc" id="L242">            GPFunctionSet set = (GPFunctionSet)(e.nextElement());</span>
+<span class="nc" id="L243">            _functionsets.put(set,Integer.valueOf(count));</span>
+<span class="nc" id="L244">            functionsets[count++] = set;</span>
+<span class="nc" id="L245">            }</span>
+        
+        // For each function set, assign each GPNode to a unique integer
+        // so we can keep track of it (ick, this will be inefficient!)
+<span class="nc" id="L249">        funcnodes = new Hashtable();</span>
+<span class="nc" id="L250">        Hashtable t_nodes = new Hashtable();</span>
+<span class="nc" id="L251">        count = 0;</span>
+<span class="nc" id="L252">        maxarity=0;</span>
+        GPNode n;
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        for(int x=0;x&lt;functionsets.length;x++)</span>
+            {
+            // hash all the nodes so we can remove duplicates
+<span class="nc bnc" id="L257" title="All 2 branches missed.">            for(int typ=0;typ&lt;functionsets[x].nodes.length;typ++)</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">                for(int nod=0;nod&lt;functionsets[x].nodes[typ].length;nod++)</span>
+<span class="nc" id="L259">                    t_nodes.put(n=functionsets[x].nodes[typ][nod],n);</span>
+            // rehash with Integers, yuck
+<span class="nc" id="L261">            e = t_nodes.elements();</span>
+            GPNode tmpn;
+<span class="nc bnc" id="L263" title="All 2 branches missed.">            while(e.hasMoreElements())</span>
+                {
+<span class="nc" id="L265">                tmpn = (GPNode)(e.nextElement());</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">                if (maxarity &lt; tmpn.children.length) </span>
+<span class="nc" id="L267">                    maxarity = tmpn.children.length;</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                if (!funcnodes.containsKey(tmpn))  // don't remap the node; it'd make holes</span>
+<span class="nc" id="L269">                    funcnodes.put(tmpn,new Integer(count++));</span>
+                }
+            }
+        
+<span class="nc" id="L273">        numfuncnodes = funcnodes.size();</span>
+        
+<span class="nc" id="L275">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc" id="L276">        int numAtomicTypes = initializer.numAtomicTypes;</span>
+<span class="nc" id="L277">        int numSetTypes = initializer.numSetTypes;</span>
+        
+        // set up the arrays
+<span class="nc" id="L280">        NUMTREESOFTYPE = new BigInteger[functionsets.length][numAtomicTypes+numSetTypes][maxtreesize+1];</span>
+<span class="nc" id="L281">        NUMTREESROOTEDBYNODE = new BigInteger[functionsets.length][numfuncnodes][maxtreesize+1];</span>
+<span class="nc" id="L282">        NUMCHILDPERMUTATIONS = new BigInteger[functionsets.length][numfuncnodes][maxtreesize+1][maxtreesize+1][maxarity];</span>
+<span class="nc" id="L283">        ROOT_D = new UniformGPNodeStorage[functionsets.length][numAtomicTypes+numSetTypes][maxtreesize+1][];</span>
+<span class="nc" id="L284">        ROOT_D_ZERO = new boolean[functionsets.length][numAtomicTypes+numSetTypes][maxtreesize+1];</span>
+<span class="nc" id="L285">        CHILD_D = new double[functionsets.length][numfuncnodes][maxtreesize+1][maxtreesize+1][];</span>
+
+<span class="nc" id="L287">        GPType[] types = ((GPInitializer)(state.initializer)).types;</span>
+        // Go through each function set and determine numbers
+        // (this will take quite a while!  Thankfully it's offline)
+<span class="nc" id="L290">        _truesizes = new BigInteger[functionsets.length][numAtomicTypes+numSetTypes][maxtreesize+1];</span>
+<span class="nc bnc" id="L291" title="All 2 branches missed.">        for(int x=0;x&lt;functionsets.length;x++)</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">            for(int y=0;y&lt;numAtomicTypes+numSetTypes;y++)</span>
+<span class="nc bnc" id="L293" title="All 2 branches missed.">                for(int z=1;z&lt;=maxtreesize;z++)</span>
+<span class="nc" id="L294">                    state.output.message(&quot;FunctionSet: &quot; + functionsets[x].name + &quot;, Type: &quot; + types[y].name + &quot;, Size: &quot; + z + &quot; num: &quot; + </span>
+<span class="nc" id="L295">                        (_truesizes[x][y][z] = numTreesOfType(initializer,x,y,z)));</span>
+
+<span class="nc" id="L297">        state.output.message(&quot;Compiling Distributions&quot;);</span>
+
+        // convert to doubles and organize distribution
+<span class="nc" id="L300">        truesizes = new double[functionsets.length][numAtomicTypes+numSetTypes][maxtreesize+1];</span>
+<span class="nc bnc" id="L301" title="All 2 branches missed.">        for(int x=0;x&lt;functionsets.length;x++)</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">            for(int y=0;y&lt;numAtomicTypes+numSetTypes;y++)</span>
+                {
+<span class="nc bnc" id="L304" title="All 2 branches missed.">                for(int z=1;z&lt;=maxtreesize;z++)</span>
+<span class="nc" id="L305">                    truesizes[x][y][z] = _truesizes[x][y][z].doubleValue();</span>
+                // and if this is all zero (a possibility) we should be forgiving (hence the 'true') -- I *think*
+<span class="nc" id="L307">                RandomChoice.organizeDistribution(truesizes[x][y],true);</span>
+                }
+        
+        // compute our percentages
+<span class="nc" id="L311">        computePercentages();</span>
+<span class="nc" id="L312">        }</span>
+    
+    // hopefully this will get inlined
+    public final int intForNode(GPNode node)
+        {
+<span class="nc" id="L317">        return ((Integer)(funcnodes.get(node))).intValue();</span>
+        }
+    
+    
+    public BigInteger numTreesOfType(final GPInitializer initializer, 
+        final int functionset, final int type, final int size)
+        {
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        if (NUMTREESOFTYPE[functionset][type][size]==null)</span>
+            {
+<span class="nc" id="L326">            GPNode[] nodes = functionsets[functionset].nodes[type];</span>
+<span class="nc" id="L327">            BigInteger count = BigInteger.valueOf(0);</span>
+<span class="nc bnc" id="L328" title="All 2 branches missed.">            for(int x=0;x&lt;nodes.length;x++)</span>
+<span class="nc" id="L329">                count = count.add(numTreesRootedByNode(initializer,functionset,nodes[x],size));</span>
+<span class="nc" id="L330">            NUMTREESOFTYPE[functionset][type][size] = count;</span>
+            }
+<span class="nc" id="L332">        return NUMTREESOFTYPE[functionset][type][size];</span>
+        }
+    
+    public BigInteger numTreesRootedByNode(final GPInitializer initializer,
+        final int functionset, final GPNode node, final int size)
+        {
+<span class="nc bnc" id="L338" title="All 2 branches missed.">        if (NUMTREESROOTEDBYNODE[functionset][intForNode(node)][size]==null)</span>
+            {
+<span class="nc" id="L340">            BigInteger one = BigInteger.valueOf(1);</span>
+<span class="nc" id="L341">            BigInteger count = BigInteger.valueOf(0);</span>
+<span class="nc" id="L342">            int outof = size-1;</span>
+<span class="nc bnc" id="L343" title="All 4 branches missed.">            if (node.children.length == 0 &amp;&amp; outof == 0) // a valid terminal</span>
+<span class="nc" id="L344">                count = one;</span>
+<span class="nc bnc" id="L345" title="All 2 branches missed.">            else if (node.children.length &lt;= outof)  // a valid nonterminal</span>
+<span class="nc bnc" id="L346" title="All 2 branches missed.">                for (int s=1;s&lt;=outof;s++)</span>
+<span class="nc" id="L347">                    count = count.add(numChildPermutations(initializer,functionset,node,s,outof,0));</span>
+            //System.out.println(&quot;Node: &quot; + node + &quot; Size: &quot; + size + &quot; Count: &quot; +count);
+<span class="nc" id="L349">            NUMTREESROOTEDBYNODE[functionset][intForNode(node)][size] = count;</span>
+            }
+<span class="nc" id="L351">        return NUMTREESROOTEDBYNODE[functionset][intForNode(node)][size];</span>
+        }
+    
+    public BigInteger numChildPermutations( final GPInitializer initializer,
+        final int functionset, final GPNode parent, final int size,
+        final int outof, final int pickchild)
+        {
+<span class="nc bnc" id="L358" title="All 2 branches missed.">        if (NUMCHILDPERMUTATIONS[functionset][intForNode(parent)][size][outof][pickchild]==null)</span>
+            {
+<span class="nc" id="L360">            BigInteger count = BigInteger.valueOf(0);</span>
+<span class="nc bnc" id="L361" title="All 4 branches missed.">            if (pickchild == parent.children.length - 1 &amp;&amp; size==outof)</span>
+<span class="nc" id="L362">                count = numTreesOfType(initializer,functionset,parent.constraints(initializer).childtypes[pickchild].type,size);</span>
+<span class="nc bnc" id="L363" title="All 4 branches missed.">            else if (pickchild &lt; parent.children.length - 1 &amp;&amp; </span>
+                outof-size &gt;= (parent.children.length - pickchild-1))
+                {
+<span class="nc" id="L366">                BigInteger cval = numTreesOfType(initializer,functionset,parent.constraints(initializer).childtypes[pickchild].type,size);</span>
+<span class="nc" id="L367">                BigInteger tot = BigInteger.valueOf(0);</span>
+<span class="nc bnc" id="L368" title="All 2 branches missed.">                for (int s=1; s&lt;=outof-size; s++)</span>
+<span class="nc" id="L369">                    tot = tot.add(numChildPermutations(initializer,functionset,parent,s,outof-size,pickchild+1));</span>
+<span class="nc" id="L370">                count = cval.multiply(tot);</span>
+                }
+            // System.out.println(&quot;Parent: &quot; + parent + &quot; Size: &quot; + size + &quot; OutOf: &quot; + outof + 
+            //       &quot; PickChild: &quot; + pickchild + &quot; Count: &quot; +count);
+<span class="nc" id="L374">            NUMCHILDPERMUTATIONS[functionset][intForNode(parent)][size][outof][pickchild] = count;</span>
+            }
+<span class="nc" id="L376">        return NUMCHILDPERMUTATIONS[functionset][intForNode(parent)][size][outof][pickchild];</span>
+        }
+    
+    private final double getProb(final BigInteger i)
+        {
+<span class="nc bnc" id="L381" title="All 2 branches missed.">        if (i==null) return 0.0f;</span>
+<span class="nc" id="L382">        else return i.doubleValue();</span>
+        }
+        
+    public void computePercentages()
+        {
+        // load ROOT_D
+<span class="nc bnc" id="L388" title="All 2 branches missed.">        for(int f = 0;f&lt;NUMTREESOFTYPE.length;f++)</span>
+<span class="nc bnc" id="L389" title="All 2 branches missed.">            for(int t=0;t&lt;NUMTREESOFTYPE[f].length;t++)</span>
+<span class="nc bnc" id="L390" title="All 2 branches missed.">                for(int s=0;s&lt;NUMTREESOFTYPE[f][t].length;s++)</span>
+                    {
+<span class="nc" id="L392">                    ROOT_D[f][t][s] = new UniformGPNodeStorage[functionsets[f].nodes[t].length];</span>
+<span class="nc bnc" id="L393" title="All 2 branches missed.">                    for(int x=0;x&lt;ROOT_D[f][t][s].length;x++)</span>
+                        {
+<span class="nc" id="L395">                        ROOT_D[f][t][s][x] = new UniformGPNodeStorage();</span>
+<span class="nc" id="L396">                        ROOT_D[f][t][s][x].node = functionsets[f].nodes[t][x];</span>
+<span class="nc" id="L397">                        ROOT_D[f][t][s][x].prob = getProb(NUMTREESROOTEDBYNODE[f][intForNode(ROOT_D[f][t][s][x].node)][s]);</span>
+                        }
+                    // organize the distribution
+                    //System.out.println(&quot;Organizing &quot; + f + &quot; &quot; + t + &quot; &quot; + s);
+                    // check to see if it's all zeros
+<span class="nc bnc" id="L402" title="All 2 branches missed.">                    for(int x=0;x&lt;ROOT_D[f][t][s].length;x++)</span>
+<span class="nc bnc" id="L403" title="All 2 branches missed.">                        if (ROOT_D[f][t][s][x].prob != 0.0)</span>
+                            {
+                            // don't need to check for negatives here I believe
+<span class="nc" id="L406">                            RandomChoice.organizeDistribution(ROOT_D[f][t][s],ROOT_D[f][t][s][0]);</span>
+<span class="nc" id="L407">                            ROOT_D_ZERO[f][t][s] = false;</span>
+<span class="nc" id="L408">                            break;</span>
+                            }
+                        else
+                            {
+<span class="nc" id="L412">                            ROOT_D_ZERO[f][t][s] = true;</span>
+                            }
+                    }
+
+        // load CHILD_D
+<span class="nc bnc" id="L417" title="All 2 branches missed.">        for(int f = 0;f&lt;NUMCHILDPERMUTATIONS.length;f++)</span>
+<span class="nc bnc" id="L418" title="All 2 branches missed.">            for(int p=0;p&lt;NUMCHILDPERMUTATIONS[f].length;p++)</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                for(int o=0;o&lt;maxtreesize+1;o++)</span>
+<span class="nc bnc" id="L420" title="All 2 branches missed.">                    for(int c=0;c&lt;maxarity;c++)</span>
+                        {
+<span class="nc" id="L422">                        CHILD_D[f][p][o][c] = new double[o+1];</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">                        for(int s=0;s&lt;CHILD_D[f][p][o][c].length;s++)</span>
+<span class="nc" id="L424">                            CHILD_D[f][p][o][c][s] = getProb(NUMCHILDPERMUTATIONS[f][p][s][o][c]);</span>
+                        // organize the distribution
+                        //System.out.println(&quot;Organizing &quot; + f + &quot; &quot; + p + &quot; &quot; + o + &quot; &quot; + c);
+                        // check to see if it's all zeros
+<span class="nc bnc" id="L428" title="All 2 branches missed.">                        for(int x=0;x&lt;CHILD_D[f][p][o][c].length;x++)</span>
+<span class="nc bnc" id="L429" title="All 2 branches missed.">                            if (CHILD_D[f][p][o][c][x] != 0.0)</span>
+                                {
+                                // don't need to check for negatives here I believe
+<span class="nc" id="L432">                                RandomChoice.organizeDistribution(CHILD_D[f][p][o][c]);</span>
+<span class="nc" id="L433">                                break;</span>
+                                }
+                        }
+<span class="nc" id="L436">        }</span>
+        
+    GPNode createTreeOfType(final EvolutionState state, final int thread, final GPInitializer initializer, 
+        final int functionset, final int type, final int size, final MersenneTwisterFast mt)
+        
+        {
+        //System.out.println(&quot;&quot; + functionset + &quot; &quot; + type + &quot; &quot; + size);
+<span class="nc" id="L443">        int choice = RandomChoice.pickFromDistribution(</span>
+            ROOT_D[functionset][type][size],ROOT_D[functionset][type][size][0],
+<span class="nc" id="L445">            mt.nextDouble());</span>
+<span class="nc" id="L446">        GPNode node = (GPNode)(ROOT_D[functionset][type][size][choice].node.lightClone());</span>
+<span class="nc" id="L447">        node.resetNode(state,thread);  // give ERCs a chance to randomize</span>
+        //System.out.println(&quot;Size: &quot; + size + &quot;Rooted: &quot; + node);
+<span class="nc bnc" id="L449" title="All 4 branches missed.">        if (node.children.length == 0 &amp;&amp; size !=1) // uh oh</span>
+            {
+<span class="nc" id="L451">            System.out.println(&quot;Size: &quot; + size + &quot; Node: &quot; + node);</span>
+<span class="nc bnc" id="L452" title="All 2 branches missed.">            for(int x=0;x&lt;ROOT_D[functionset][type][size].length;x++)</span>
+<span class="nc" id="L453">                System.out.println(&quot;&quot; + x + (GPNode)(ROOT_D[functionset][type][size][x].node) + &quot; &quot; + ROOT_D[functionset][type][size][x].prob );</span>
+            }
+<span class="nc bnc" id="L455" title="All 2 branches missed.">        if (size &gt; 1)  // nonterminal</span>
+<span class="nc" id="L456">            fillNodeWithChildren(state,thread,initializer,functionset,node,ROOT_D[functionset][type][size][choice].node,0,size-1,mt);</span>
+<span class="nc" id="L457">        return node;</span>
+        }
+       
+    void fillNodeWithChildren(final EvolutionState state, final int thread, final GPInitializer initializer,
+        final int functionset, final GPNode parent, final GPNode parentc, 
+        final int pickchild, final int outof, final MersenneTwisterFast mt)
+        
+        {
+<span class="nc bnc" id="L465" title="All 2 branches missed.">        if (pickchild == parent.children.length - 1)</span>
+            {
+<span class="nc" id="L467">            parent.children[pickchild] = </span>
+<span class="nc" id="L468">                createTreeOfType(state,thread,initializer,functionset,parent.constraints(initializer).childtypes[pickchild].type,outof, mt);</span>
+            }
+        else 
+            {
+<span class="nc" id="L472">            int size = RandomChoice.pickFromDistribution(</span>
+<span class="nc" id="L473">                CHILD_D[functionset][intForNode(parentc)][outof][pickchild],</span>
+<span class="nc" id="L474">                mt.nextDouble());</span>
+<span class="nc" id="L475">            parent.children[pickchild] = </span>
+<span class="nc" id="L476">                createTreeOfType(state,thread,initializer,functionset,parent.constraints(initializer).childtypes[pickchild].type,size,mt);</span>
+<span class="nc" id="L477">            fillNodeWithChildren(state,thread,initializer,functionset,parent,parentc,pickchild+1,outof-size,mt);</span>
+            }
+<span class="nc" id="L479">        parent.children[pickchild].parent = parent;</span>
+<span class="nc" id="L480">        parent.children[pickchild].argposition = (byte)pickchild;            </span>
+<span class="nc" id="L481">        }</span>
+        
+
+    public GPNode newRootedTree(final EvolutionState state,
+        final GPType type,
+        final int thread,
+        final GPNodeParent parent,
+        final GPFunctionSet set,
+        final int argposition,
+        final int requestedSize)
+        {
+<span class="nc" id="L492">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+        
+<span class="nc bnc" id="L494" title="All 2 branches missed.">        if (requestedSize == NOSIZEGIVEN)  // pick from the distribution</span>
+            {
+<span class="nc" id="L496">            final int BOUNDARY = 20;  // if we try 20 times and fail, check to see if it's possible to succeed</span>
+<span class="nc" id="L497">            int bound=0;</span>
+                
+<span class="nc" id="L499">            int fset = ((Integer)(_functionsets.get(set))).intValue();</span>
+<span class="nc" id="L500">            int siz = pickSize(state,thread,fset,type.type);</span>
+<span class="nc" id="L501">            int typ = type.type;</span>
+            
+            // this code is confusing.  The idea is:
+            // if the number of trees of our arbitrarily-picked size is zero, we try BOUNDARY
+            // number of times to find a tree which will work, picking new sizes each
+            // time.  If we still haven't found anything, we will continue to search
+            // for a working tree only if we know for sure that one exists in the distribution.
+            
+<span class="nc" id="L509">            boolean checked = false;</span>
+<span class="nc bnc" id="L510" title="All 2 branches missed.">            while(ROOT_D_ZERO[fset][typ][siz])</span>
+                {
+<span class="nc bnc" id="L512" title="All 2 branches missed.">                if (++bound == BOUNDARY)</span>
+                    {
+                    check: 
+<span class="nc bnc" id="L515" title="All 2 branches missed.">                    if (!checked) </span>
+                        {
+<span class="nc" id="L517">                        checked = true;</span>
+<span class="nc bnc" id="L518" title="All 2 branches missed.">                        for(int x=0;x&lt;ROOT_D_ZERO[fset][typ].length;x++)</span>
+<span class="nc bnc" id="L519" title="All 2 branches missed.">                            if (!ROOT_D_ZERO[fset][typ][x]) </span>
+<span class="nc" id="L520">                                break check;  // found a non-zero</span>
+                        // uh oh, we're all zeroes
+<span class="nc" id="L522">                        state.output.fatal(&quot;ec.gp.build.Uniform was asked to build a tree with functionset &quot; + set + &quot; rooted with type &quot; + type + &quot;, but cannot because for some reason there are no trees of any valid size (within the specified size range) which exist for this function set and type.&quot;);       </span>
+                        }   
+                    }
+<span class="nc" id="L525">                siz = pickSize(state,thread,fset,typ);</span>
+                }
+                    
+            // okay, now we have a valid size.
+<span class="nc" id="L529">            GPNode n = createTreeOfType(state,thread,initializer,fset,typ,siz,state.random[thread]);</span>
+<span class="nc" id="L530">            n.parent = parent;</span>
+<span class="nc" id="L531">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L532">            return n;</span>
+            }
+<span class="nc bnc" id="L534" title="All 2 branches missed.">        else if (requestedSize&lt;1)</span>
+            {
+<span class="nc" id="L536">            state.output.fatal(&quot;ec.gp.build.Uniform requested to build a tree, but a requested size was given that is &lt; 1.&quot;);</span>
+<span class="nc" id="L537">            return null;  // never happens</span>
+            }
+        else 
+            {
+<span class="nc" id="L541">            int fset = ((Integer)(_functionsets.get(set))).intValue();</span>
+<span class="nc" id="L542">            int typ = type.type;</span>
+<span class="nc" id="L543">            int siz = requestedSize;</span>
+            
+            // if the number of trees of the requested size is zero, we first march up until we
+            // find a tree size with non-zero numbers of trees.  Failing that, we march down to
+            // find one.  If that still fails, we issue an error.  Otherwise we use the size
+            // we discovered.
+            
+            determineSize:
+<span class="nc bnc" id="L551" title="All 2 branches missed.">            if (ROOT_D_ZERO[fset][typ][siz])</span>
+                {
+                // march up
+<span class="nc bnc" id="L554" title="All 2 branches missed.">                for(int x=siz+1;x&lt;ROOT_D_ZERO[fset][typ].length;x++)</span>
+<span class="nc bnc" id="L555" title="All 2 branches missed.">                    if (ROOT_D_ZERO[fset][typ][siz])</span>
+<span class="nc" id="L556">                        { siz=x; break determineSize; }</span>
+                // march down
+<span class="nc bnc" id="L558" title="All 2 branches missed.">                for(int x=siz-1;x&gt;=0;x--)</span>
+<span class="nc bnc" id="L559" title="All 2 branches missed.">                    if (ROOT_D_ZERO[fset][typ][siz])</span>
+<span class="nc" id="L560">                        { siz=x; break determineSize; }</span>
+                // issue an error
+<span class="nc" id="L562">                state.output.fatal(&quot;ec.gp.build.Uniform was asked to build a tree with functionset &quot; + set + &quot; rooted with type &quot; + type + &quot;, and of size &quot; + requestedSize + &quot;, but cannot because for some reason there are no trees of any valid size (within the specified size range) which exist for this function set and type.&quot;);</span>
+                }
+                
+<span class="nc" id="L565">            GPNode n = createTreeOfType(state,thread,initializer,fset,typ,siz,state.random[thread]);</span>
+<span class="nc" id="L566">            n.parent = parent;</span>
+<span class="nc" id="L567">            n.argposition = (byte)argposition;</span>
+<span class="nc" id="L568">            return n;</span>
+            }
+        }
+        
+    }
+    
+    
+<span class="nc" id="L575">class UniformGPNodeStorage implements RandomChoiceChooserD, Serializable</span>
+    {
+    public GPNode node;
+    public double prob;
+    public double getProbability(final Object obj)
+<span class="nc" id="L580">        { return (((UniformGPNodeStorage)obj).prob); }</span>
+    public void setProbability(final Object obj, final double _prob)
+<span class="nc" id="L582">        { ((UniformGPNodeStorage)obj).prob = _prob; }</span>
+    }
+
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

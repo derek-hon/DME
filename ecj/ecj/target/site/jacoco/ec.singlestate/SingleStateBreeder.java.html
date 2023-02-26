@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SingleStateBreeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.singlestate</a> &gt; <span class="el_source">SingleStateBreeder.java</span></div><h1>SingleStateBreeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.singlestate;
+
+import ec.*;
+import ec.simple.*;
+import ec.util.*;
+import ec.vector.*;
+import java.util.*;
+
+
+/* 
+ * SingleStateBreeder.java
+ * 
+ * Created: Tue May  9 15:08:53 CEST 2017
+ * By: Ermo Wei and David Freelan
+ */
+
+/**
+ * A very simple single-threaded breeder with optional elitism.
+ *
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.elite.&lt;i&gt;i&lt;/i&gt;&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 0 (default=0)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(will subpopulation &lt;i&gt;i&lt;/i&gt; include ONE elite individual?)&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.expanded-subpop-size.&lt;i&gt;i&lt;/i&gt;&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1 (default=not resized)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;What is the expanded size of the subpopulation after generation 0?&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ ec.subpop
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;species&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the subpopulations' species)&lt;/td&gt;&lt;/tr&gt;
+
+ *
+ *
+ * @author Ermo Wei and David Freelan
+ * @version 1.0 
+ */
+
+
+
+<span class="nc" id="L54">public class SingleStateBreeder extends Breeder</span>
+    {
+    public static final String P_ELITE = &quot;elite&quot;;
+    public static final String P_EXPANDED_SUBPOP_SIZE = &quot;expanded-subpop-size&quot;;
+    public static final int V_SUBPOP_NOT_RESIZED = -1;
+    public boolean[] elite;
+    public int[] expandedSubpopSize;
+    public boolean[] stubsFilled;
+
+    public Population breedPopulation(final EvolutionState state)
+        {
+<span class="nc" id="L65">        Population pop = state.population;</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        for (int x = 0; x &lt; pop.subpops.size(); x++)            </span>
+<span class="nc" id="L67">            breedSubpop(state, pop.subpops.get(x), x);</span>
+<span class="nc" id="L68">        return pop;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base) 
+        {
+<span class="nc" id="L73">        Parameter p = new Parameter(Initializer.P_POP).push(Population.P_SIZE);</span>
+<span class="nc" id="L74">        int size = state.parameters.getInt(p,null,1);  // if size is wrong, we'll let Population complain about it -- for us, we'll just make 0-sized arrays and drop out.</span>
+
+<span class="nc" id="L76">        int defaultSubpop = state.parameters.getInt(new Parameter(Initializer.P_POP).push(Population.P_DEFAULT_SUBPOP), null, 0);</span>
+        
+<span class="nc" id="L78">        elite = new boolean[size];</span>
+        
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        for(int x=0;x&lt;size;x++)</span>
+            {
+            // get elites
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_ELITE).push(&quot;&quot;+x),null))</span>
+                {
+<span class="nc" id="L85">                elite[x] = state.parameters.getBoolean(base.push(P_ELITE).push(&quot;&quot;+x),null,false);</span>
+                }
+<span class="nc bnc" id="L87" title="All 4 branches missed.">            else if (defaultSubpop &gt;= 0 &amp;&amp; state.parameters.exists(base.push(P_ELITE).push(&quot;&quot;+defaultSubpop),null))</span>
+                {
+<span class="nc" id="L89">                elite[x] = state.parameters.getBoolean(base.push(P_ELITE).push(&quot;&quot;+defaultSubpop),null,false);</span>
+                }
+            else  // no elitism
+                {
+<span class="nc" id="L93">                state.output.warning(&quot;Elites not defined for subpopulation &quot; + x + &quot;.  Assuming false.&quot;);</span>
+<span class="nc" id="L94">                elite[x] = false;</span>
+                }
+            }
+
+<span class="nc" id="L98">        expandedSubpopSize = new int[size];</span>
+        
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        for(int x=0;x&lt;size;x++)</span>
+            {
+            // get expanded subpops
+<span class="nc bnc" id="L103" title="All 2 branches missed.">            if (state.parameters.exists(base.push(P_EXPANDED_SUBPOP_SIZE).push(&quot;&quot;+x),null))</span>
+                {
+<span class="nc" id="L105">                expandedSubpopSize[x] = state.parameters.getInt(base.push(P_EXPANDED_SUBPOP_SIZE).push(&quot;&quot;+x),null,1);</span>
+                }
+<span class="nc bnc" id="L107" title="All 4 branches missed.">            else if (defaultSubpop &gt;= 0 &amp;&amp; state.parameters.exists(base.push(P_EXPANDED_SUBPOP_SIZE).push(&quot;&quot;+defaultSubpop),null))</span>
+                {
+<span class="nc" id="L109">                expandedSubpopSize[x] = state.parameters.getInt(base.push(P_EXPANDED_SUBPOP_SIZE).push(&quot;&quot;+defaultSubpop),null,1);</span>
+                }
+            else
+                {
+<span class="nc" id="L113">                state.output.warning(&quot;Expanded subpopulation size not defined for subpopulation &quot; + x + &quot;.  Assuming populations are not changed.&quot;);</span>
+<span class="nc" id="L114">                expandedSubpopSize[x] = V_SUBPOP_NOT_RESIZED;</span>
+                }
+            }
+
+<span class="nc" id="L118">        stubsFilled = new boolean[size];</span>
+
+<span class="nc" id="L120">        }</span>
+
+    public void breedSubpop(EvolutionState state, Subpopulation subpop, int index)
+        {
+<span class="nc" id="L124">        BreedingSource bp = (BreedingSource) subpop.species.pipe_prototype;</span>
+<span class="nc bnc" id="L125" title="All 2 branches missed.">        if (!stubsFilled[index]) </span>
+<span class="nc" id="L126">            bp.fillStubs(state, null);</span>
+<span class="nc" id="L127">        stubsFilled[index] = true;</span>
+
+<span class="nc" id="L129">        bp.prepareToProduce(state, index, 0);</span>
+        
+        // maybe resize?
+<span class="nc" id="L132">        ArrayList&lt;Individual&gt; newIndividuals = null;</span>
+<span class="nc" id="L133">        int newlen = subpop.individuals.size();</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (expandedSubpopSize[index] != V_SUBPOP_NOT_RESIZED)</span>
+            {
+<span class="nc" id="L136">            newlen = expandedSubpopSize[index];</span>
+            }
+        
+<span class="nc" id="L139">        newIndividuals = new ArrayList();</span>
+        
+<span class="nc" id="L141">        ArrayList&lt;Individual&gt; individuals = subpop.individuals;</span>
+<span class="nc" id="L142">        int len = individuals.size();</span>
+        
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        if (elite[index])</span>
+            {
+            // We need to do some elitism: we put the BEST individual in the first slot
+<span class="nc" id="L147">            Individual best = individuals.get(0);</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">            for(int i = 1; i &lt; len ; i++)</span>
+                {
+<span class="nc" id="L150">                Individual ind = individuals.get(i);</span>
+<span class="nc bnc" id="L151" title="All 2 branches missed.">                if (ind.fitness.betterThan(best.fitness))</span>
+<span class="nc" id="L152">                    best = ind;</span>
+                }
+<span class="nc" id="L154">            newIndividuals.add(best);</span>
+            }
+
+        // start breedin'!
+<span class="nc bnc" id="L158" title="All 2 branches missed.">        while(newIndividuals.size() &lt; newlen)</span>
+            {
+            // we don't allocate a hash table every time, so we pass in null
+<span class="nc" id="L161">            bp.produce(1,newlen-newIndividuals.size(), index, newIndividuals, state, 0,  null);</span>
+            }
+            
+<span class="nc" id="L164">        subpop.individuals = newIndividuals;</span>
+<span class="nc" id="L165">        bp.finishProducing(state, index, 0);</span>
+<span class="nc" id="L166">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

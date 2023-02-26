@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NSGA2Breeder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.multiobjective.nsga2</a> &gt; <span class="el_source">NSGA2Breeder.java</span></div><h1>NSGA2Breeder.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2010 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.multiobjective.nsga2;
+
+import ec.*;
+import ec.util.*;
+import ec.simple.*;
+import java.util.*;
+import ec.multiobjective.*;
+
+/* 
+ * NSGA2Breeder.java
+ * 
+ * Created: Thu Feb 04 2010
+ * By: Faisal Abidi and Sean Luke
+ */
+
+/**
+ * This SimpleBreeder subclass breeds a set of children from the Population, then
+ * joins the original Population with the children in a (mu+mu) fashion.   An NSGA2Breeder
+ * may have multiple threads for breeding.
+ *
+ * &lt;p&gt;NSGA-II has fixed archive size (the population size), and so ignores the 'elites'
+ * declaration.  However it will adhere to the 'reevaluate-elites' parameter in SimpleBreeder
+ * to determine whether to force fitness reevaluation.
+
+ */
+
+<span class="fc" id="L33">public class NSGA2Breeder extends SimpleBreeder</span>
+    {
+    /** We use a state variable to make sure that the nextSubpopulationSize() method
+     * is only called at the appropriate time.
+     */
+<span class="fc" id="L38">    public enum BreedingState { ARCHIVE_LOADED, BREEDING_COMPLETE };</span>
+    BreedingState breedingState;
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L43">        super.setup(state, base);</span>
+        // make sure SimpleBreeder's elites facility isn't being used
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        for (int i = 0; i &lt; elite.length; i++)  // we use elite.length here instead of pop.subpops.length because the population hasn't been made yet.</span>
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">            if (usingElitism(i))</span>
+<span class="nc" id="L47">                state.output.warning(&quot;You're using elitism with &quot; + this.getClass().getSimpleName() + &quot;, which is not permitted and will be ignored.  However the '&quot; + P_REEVALUATE_ELITES + &quot;' parameter *will* be recognized.&quot;,</span>
+<span class="nc" id="L48">                    base.push(P_ELITE).push(&quot;&quot;+i));</span>
+
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">        if (sequentialBreeding) // uh oh, haven't tested with this</span>
+<span class="nc" id="L51">            state.output.fatal(this.getClass().getSimpleName() + &quot;does not support sequential evaluation.&quot;,</span>
+<span class="nc" id="L52">                base.push(P_SEQUENTIAL_BREEDING));</span>
+        
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (!clonePipelineAndPopulation)</span>
+<span class="nc" id="L55">            state.output.fatal(P_CLONE_PIPELINE_AND_POPULATION + &quot; must be true for &quot; + this.getClass().getSimpleName());</span>
+        
+<span class="fc" id="L57">        breedingState = BreedingState.BREEDING_COMPLETE;</span>
+<span class="fc" id="L58">        }</span>
+
+<span class="fc" id="L60">    int[] numElites = null;</span>
+        
+    // This method is called AFTER loadElites.
+    @Override
+    public int numElites(EvolutionState state, int subpopulation)
+        {
+<span class="fc bfc" id="L66" title="All 2 branches covered.">        if (breedingState != BreedingState.ARCHIVE_LOADED)</span>
+<span class="nc" id="L67">            state.output.fatal(String.format(&quot;%s: Tried to query numElites before loadElites() was called.&quot;, this.getClass().getSimpleName()));</span>
+<span class="fc" id="L68">        return numElites[subpopulation];</span>
+        }
+
+<span class="fc" id="L71">    Population oldPopulation = null;</span>
+    
+    /** Extract the elite individuals from the current population and
+     * &lt;i&gt;both&lt;/i&gt; place in newpop &lt;i&gt;and&lt;/i&gt; replace the current population 
+     * with the archive.
+     *
+     * We place the elites straight into the current population because breeding
+     * is the next thing that happens right after loadElites() is called, and
+     * NSGA-II breeds children from the elitist archive.
+     */
+    @Override
+    protected void loadElites(EvolutionState state, Population newpop)
+        {
+<span class="fc bfc" id="L84" title="All 2 branches covered.">        if (breedingState == BreedingState.ARCHIVE_LOADED)</span>
+<span class="nc" id="L85">            state.output.fatal(String.format(&quot;%s: Tried to load elites for the next generation before breeding for the current generation was complete.&quot;, this.getClass().getSimpleName()));</span>
+<span class="fc" id="L86">        numElites = new int[newpop.subpops.size()];</span>
+        
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        for(int i = 0; i &lt; newpop.subpops.size(); i++)</span>
+            {
+<span class="fc" id="L90">            ArrayList list = buildArchive(state, i);</span>
+<span class="fc" id="L91">            numElites[i] = list.size();</span>
+<span class="fc" id="L92">            newpop.subpops.get(i).individuals.addAll(list);</span>
+            }
+        
+<span class="fc" id="L95">        breedingState = BreedingState.ARCHIVE_LOADED;</span>
+
+        // replace old population with archive so new individuals are bred from the archive members only
+<span class="fc" id="L98">        oldPopulation = state.population;</span>
+<span class="fc" id="L99">        state.population = state.population.emptyClone();</span>
+        
+<span class="fc bfc" id="L101" title="All 2 branches covered.">        for(int i = 0; i &lt; newpop.subpops.size(); i++)</span>
+            {
+<span class="fc" id="L103">            Subpopulation subpop = state.population.subpops.get(i);</span>
+<span class="fc" id="L104">            Subpopulation newsubpop = newpop.subpops.get(i);</span>
+<span class="fc" id="L105">            int ne = numElites[i];</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">            for(int j = 0; j &lt; ne; j++)</span>
+<span class="fc" id="L107">                subpop.individuals.add(j, (Individual)(newsubpop.individuals.get(j).clone()));</span>
+            }
+<span class="fc" id="L109">        }</span>
+
+    @Override
+    public void postProcess(EvolutionState state)
+        {
+<span class="nc" id="L114">        state.population = oldPopulation;</span>
+<span class="nc" id="L115">        oldPopulation = null;</span>
+<span class="nc" id="L116">        }</span>
+    
+    /** Use super's breeding, but also set our local state to record that breeding is complete. */
+    public Population breedPopulation(EvolutionState state) 
+        {
+<span class="nc" id="L121">        final Population result = super.breedPopulation(state);</span>
+<span class="nc" id="L122">        breedingState = BreedingState.BREEDING_COMPLETE;</span>
+<span class="nc" id="L123">        return result;</span>
+        }
+    
+    /** Build the auxiliary fitness data and reduce the subpopulation to just the archive, which is returned. */
+    ArrayList&lt;Individual&gt; buildArchive(final EvolutionState state, int subpop)
+        {
+<span class="fc" id="L129">        ArrayList&lt;ArrayList&lt;Individual&gt;&gt; ranks = assignFrontRanks(state.population.subpops.get(subpop));</span>
+        
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        if (!(state.population.subpops.get(subpop).species.f_prototype instanceof NSGA2MultiObjectiveFitness))</span>
+<span class="nc" id="L132">            state.output.fatal(String.format(&quot;%s: subpopulation %d is using %s to represent fitness, but NSGA2 requires %s or a subtype of %s.&quot;, this.getClass().getSimpleName(), subpop, state.population.subpops.get(subpop).species.f_prototype.getClass().getSimpleName(), NSGA2MultiObjectiveFitness.class.getSimpleName(), NSGA2MultiObjectiveFitness.class.getSimpleName()));</span>
+                
+<span class="fc" id="L134">        ArrayList&lt;Individual&gt; newSubpopulation = new ArrayList&lt;Individual&gt;();</span>
+<span class="fc" id="L135">        int size = ranks.size();</span>
+<span class="fc" id="L136">        int originalPopSize = state.population.subpops.get(subpop).individuals.size();</span>
+<span class="fc" id="L137">        int archiveSize = originalPopSize/2; // Reduce the combined (mu + mu)-style population size to just the archive of size mu.</span>
+
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">        for(int i = 0; i &lt; size; i++)</span>
+            {
+<span class="fc" id="L141">            ArrayList&lt;Individual&gt; rank = ranks.get(i);</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">            if (rank.size() + newSubpopulation.size() &gt;= archiveSize)</span>
+                {
+<span class="fc" id="L144">                assignSparsity(rank);</span>
+
+                // first sort the rank by sparsity
+                // decreasing order
+<span class="fc" id="L148">                Collections.sort(rank, new Comparator&lt;Individual&gt;(){</span>
+                    public int compare(Individual i1, Individual i2)
+                        {
+<span class="fc" id="L151">                        return Double.compare(((NSGA2MultiObjectiveFitness) i2.fitness).sparsity, </span>
+                            (((NSGA2MultiObjectiveFitness) i1.fitness).sparsity));
+                        }
+                    });
+
+                // then put the m sparsest individuals in the new population
+<span class="fc" id="L157">                int m = archiveSize - newSubpopulation.size();</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">                for(int j = 0 ; j &lt; m; j++)</span>
+<span class="fc" id="L159">                    newSubpopulation.add(rank.get(j));</span>
+                                
+                // and bail
+<span class="fc" id="L162">                break;</span>
+                }
+            else
+                {
+                // dump in everyone
+<span class="fc" id="L167">                newSubpopulation.addAll(rank);</span>
+                }
+            }
+
+<span class="fc" id="L171">        ArrayList&lt;Individual&gt; archive = new ArrayList&lt;Individual&gt;(newSubpopulation);</span>
+                
+        // maybe force reevaluation
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">        if (reevaluateElites[subpop])</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            for(int i = 0 ; i &lt; archive.size(); i++)</span>
+<span class="nc" id="L176">                archive.get(i).evaluated = false;</span>
+
+<span class="fc" id="L178">        return archive;</span>
+        }
+
+
+
+    /** Divides inds into ranks and assigns each individual's rank to be the rank it was placed into.
+        Each front is an ArrayList. */
+    public ArrayList&lt;ArrayList&lt;Individual&gt;&gt; assignFrontRanks(Subpopulation subpop)
+        {
+<span class="fc" id="L187">        ArrayList&lt;Individual&gt; inds = subpop.individuals;</span>
+<span class="fc" id="L188">        ArrayList&lt;ArrayList&lt;Individual&gt;&gt; frontsByRank = MultiObjectiveFitness.partitionIntoRanks(inds);</span>
+
+<span class="fc" id="L190">        int numRanks = frontsByRank.size();</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">        for(int rank = 0; rank &lt; numRanks; rank++)</span>
+            {
+<span class="fc" id="L193">            ArrayList&lt;Individual&gt; front = frontsByRank.get(rank);</span>
+<span class="fc" id="L194">            int numInds = front.size();</span>
+<span class="fc bfc" id="L195" title="All 2 branches covered.">            for(int ind = 0; ind &lt; numInds; ind++)</span>
+<span class="fc" id="L196">                ((NSGA2MultiObjectiveFitness)front.get(ind).fitness).rank = rank;</span>
+            }
+<span class="fc" id="L198">        return frontsByRank;</span>
+        }
+
+
+
+    /**
+     * Computes and assigns the sparsity values of a given front.
+     */
+    void assignSparsity(ArrayList&lt;Individual&gt; front)
+        {
+<span class="fc" id="L208">        int numObjectives = ((NSGA2MultiObjectiveFitness) front.get(0).fitness).getObjectives().length;</span>
+                
+<span class="fc bfc" id="L210" title="All 2 branches covered.">        for (int i = 0; i &lt; front.size(); i++)</span>
+<span class="fc" id="L211">            ((NSGA2MultiObjectiveFitness) front.get(i).fitness).sparsity = 0;</span>
+
+<span class="fc bfc" id="L213" title="All 2 branches covered.">        for (int i = 0; i &lt; numObjectives; i++)</span>
+            {
+<span class="fc" id="L215">            final int o = i;</span>
+            // 1. Sort front by each objective.
+            // 2. Sum the manhattan distance of an individual's neighbours over
+            // each objective.
+            // NOTE: No matter which objectives objective you sort by, the
+            // first and last individuals will always be the same (they maybe
+            // interchanged though). This is because a Pareto front's
+            // objective values are strictly increasing/decreasing.
+
+            // increasing order
+<span class="fc" id="L225">            Collections.sort(front, new Comparator&lt;Individual&gt;(){</span>
+                public int compare(Individual i1, Individual i2)
+                    {
+<span class="fc" id="L228">                    return Double.compare(((NSGA2MultiObjectiveFitness) i1.fitness).getObjective(o), </span>
+<span class="fc" id="L229">                        ((NSGA2MultiObjectiveFitness) i2.fitness).getObjective(o));</span>
+                    }
+                });
+
+            // Compute and assign sparsity.
+            // the first and last individuals are the sparsest.
+<span class="fc" id="L235">            ((NSGA2MultiObjectiveFitness) front.get(0).fitness).sparsity = Double.POSITIVE_INFINITY;</span>
+<span class="fc" id="L236">            ((NSGA2MultiObjectiveFitness) front.get(front.size() - 1).fitness).sparsity = Double.POSITIVE_INFINITY;</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">            for (int j = 1; j &lt; front.size() - 1; j++)</span>
+                {
+<span class="fc" id="L239">                NSGA2MultiObjectiveFitness f_j = (NSGA2MultiObjectiveFitness) (front.get(j).fitness);</span>
+<span class="fc" id="L240">                NSGA2MultiObjectiveFitness f_jplus1 = (NSGA2MultiObjectiveFitness) (front.get(j+1).fitness);</span>
+<span class="fc" id="L241">                NSGA2MultiObjectiveFitness f_jminus1 = (NSGA2MultiObjectiveFitness) (front.get(j-1).fitness);</span>
+                                
+                // store the NSGA2Sparsity in sparsity
+<span class="fc" id="L244">                f_j.sparsity += (f_jplus1.getObjective(o) - f_jminus1.getObjective(o)) / (f_j.maxObjective[o] - f_j.minObjective[o]);</span>
+                }
+            }
+<span class="fc" id="L247">        }</span>
+
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

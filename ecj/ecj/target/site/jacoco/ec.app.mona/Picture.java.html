@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Picture.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.mona</a> &gt; <span class="el_source">Picture.java</span></div><h1>Picture.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2013 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.app.mona; 
+
+import java.awt.*;
+import java.awt.image.*;
+import javax.imageio.*;
+import javax.swing.*;
+import java.io.*;
+
+/** Picture contains two images: an ORIGINAL image which is loaded from a file, and
+    writable IMAGE, which you scribble on and try to make as similar to the ORIGINAL.
+*/
+
+public class Picture implements Cloneable, Serializable
+    {
+    public BufferedImage original;
+    public BufferedImage image;
+    public Graphics graphics;
+
+<span class="nc" id="L25">    int[] xpoints = new int[0];</span>
+<span class="nc" id="L26">    int[] ypoints = new int[0];</span>
+        
+    public Picture(final boolean headless)
+<span class="nc" id="L29">        {</span>
+<span class="nc bnc" id="L30" title="All 2 branches missed.">        if (!headless)</span>
+<span class="nc" id="L31">            f = new JFrame();</span>
+<span class="nc" id="L32">        }</span>
+    // This allows genes from 0...1 to go to -0.025 ... +1.025.
+    // which in turn makes it easy for polygons to have points off-screen
+    double extend(double value)
+        {
+<span class="nc" id="L37">        return (value * 1.05) - 0.025;</span>
+        }
+
+    // this is small enough to be inlined
+    int discretize(double value, int max)
+        {
+        // This weird bit of magic uniformly spreads doubles over the 0...max space properly
+<span class="nc" id="L44">        int v = (int)(value * (max + 1));</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        if (v &gt; max) v = max;</span>
+<span class="nc" id="L46">        return v;</span>
+        }
+
+    public void disposeGraphics()
+        {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        if (graphics!=null) graphics.dispose();</span>
+<span class="nc" id="L52">        graphics = null;</span>
+<span class="nc" id="L53">        }</span>
+
+    /** Adds a polygon with the given colors. ALL double values passed in must be 0.0 ... 1.0.
+        The values are taken starting at vals[offset].  The first four values are colors and alpha.
+        The remaining values are the x and y values of the polygon vertices. 
+        You must call graphics.dispose() after you're done with all your polygon-drawing.  */
+    public void addPolygon(double[] vals, int offset, int numVertices)
+        {
+
+        // RGB
+<span class="nc" id="L63">        double c1 = (vals[offset]);</span>
+<span class="nc" id="L64">        double c2 = (vals[offset+1]);</span>
+<span class="nc" id="L65">        double c3 = (vals[offset+2]);</span>
+<span class="nc" id="L66">        double c4 = (vals[offset+3]);</span>
+<span class="nc" id="L67">        int r = discretize(c1, 255);</span>
+<span class="nc" id="L68">        int b = discretize(c2, 255);</span>
+<span class="nc" id="L69">        int g = discretize(c3, 255);</span>
+<span class="nc" id="L70">        int a = discretize(c4, 255);</span>
+<span class="nc" id="L71">        Color color = new Color(r,b,g,a);</span>
+
+        /*
+        // HSB (or HSV)
+        double c1 = (vals[offset]);
+        double c2 = (vals[offset+1]);
+        double c3 = (vals[offset+2]);
+        double c4 = (vals[offset+3]);
+        int r = discretize(c1, 255);
+        int b = discretize(c2, 255);
+        int g = discretize(c3, 255);
+        int a = discretize(c4, 255);
+        int rgb = Color.HSBtoRGB((float)c1, (float)c2, (float)c3);
+        Color color = new Color((rgb) &amp; 0xFF, (rgb &gt;&gt; 8) &amp; 0xFF, (rgb &gt;&gt; 16) &amp; 0xFF, a);
+        */
+        
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        if (graphics == null) graphics =  image.getGraphics();</span>
+
+<span class="nc" id="L89">        graphics.setColor(color);</span>
+
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        if (xpoints.length != numVertices)</span>
+            {
+<span class="nc" id="L93">            xpoints = new int[numVertices];</span>
+<span class="nc" id="L94">            ypoints = new int[numVertices];</span>
+            }
+
+<span class="nc" id="L97">        int[] xpoints = this.xpoints;</span>
+<span class="nc" id="L98">        int[] ypoints = this.ypoints;</span>
+<span class="nc" id="L99">        int width = image.getWidth(null);</span>
+<span class="nc" id="L100">        int height = image.getHeight(null);</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        for(int i=0;i&lt;numVertices;i++)</span>
+            {
+<span class="nc" id="L103">            xpoints[i] = discretize(extend(vals[offset+i*2 + 4]), width-1);</span>
+<span class="nc" id="L104">            ypoints[i] = discretize(extend(vals[offset+i*2 + 5]), height-1);</span>
+            }
+<span class="nc" id="L106">        graphics.fillPolygon(xpoints, ypoints, numVertices);</span>
+<span class="nc" id="L107">        }</span>
+
+    /** Erases the image. */
+    public void clear()
+        {
+        // this is faster than drawing a big white rect
+<span class="nc" id="L113">        int width = image.getWidth(null);</span>
+<span class="nc" id="L114">        int height = image.getHeight(null);</span>
+<span class="nc" id="L115">        int[] data = new int[width * height];</span>
+<span class="nc" id="L116">        int len = data.length;</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        for(int i = 0; i &lt; len; i++)</span>
+            // you could do opaque white also:        0xFFFFFFFF; 
+<span class="nc" id="L119">            data[i] = 0xFF000000;  // totally opaque, but black</span>
+<span class="nc" id="L120">        image.getRaster().setDataElements(0,0,width,height, data);  // clears it out</span>
+<span class="nc" id="L121">        }</span>
+
+    /** The maximum possible error between the two images.  Will be a value &gt;= 0.
+        By the way, the min error -- what you're shooting for -- is 0 */
+    double maxError()
+        {
+        // we disregard alpha
+        // width x height pixels, each with 3 color channels (rgb), each with an error of up to 255
+<span class="nc" id="L129">        return Math.sqrt(image.getWidth(null) * image.getHeight(null) * (255.0*255.0) * 3);</span>
+        }
+
+    /** Computes the sum squared error between the image and the original.  This is defined as the sum, for all pixels,
+        and for all three colors in the pixel, of the squared difference between the images with regard
+        to that color on that pixel.  Error goes from 0 to 1.*/
+    public double error()
+        {
+<span class="nc" id="L137">        int width = image.getWidth(null);</span>
+<span class="nc" id="L138">        int height = image.getHeight(null);</span>
+<span class="nc" id="L139">        int[] originalData = (int[])(original.getRaster().getDataElements(0,0,width,height,null));</span>
+<span class="nc" id="L140">        int[] imageData = (int[])(image.getRaster().getDataElements(0,0,width,height,null));</span>
+        // since it's *ARGB*, the alpha is in the high byte, we ignore that.
+<span class="nc" id="L142">        int len = originalData.length;</span>
+<span class="nc" id="L143">        double error = 0;</span>
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        for(int i = 0; i &lt; len; i++)  // go through every pixel (which is stored as an int)</span>
+            {
+<span class="nc" id="L146">            int a = originalData[i];</span>
+<span class="nc" id="L147">            int b = imageData[i];</span>
+
+<span class="nc" id="L149">            int error1 = ((a &amp; 0xff) - (b &amp; 0xff));</span>
+<span class="nc" id="L150">            int error2 = (((a &gt;&gt; 8) &amp; 0xff) - (((b &gt;&gt; 8) &amp; 0xff)));</span>
+<span class="nc" id="L151">            int error3 = (((a &gt;&gt; 16) &amp; 0xff) - (((b &gt;&gt; 16) &amp; 0xff)));</span>
+
+            // do sum squared of color errors
+<span class="nc" id="L154">            error += error1*error1 + error2*error2 + error3*error3;</span>
+            }
+<span class="nc" id="L156">        return Math.sqrt(error) / maxError();</span>
+        }
+
+    /** Loads the original and creates a new blank image to scribble on, and a new graphics object. */
+    public void load(File file)
+        {
+<span class="nc" id="L162">        BufferedImage i = null;</span>
+        try
+            {
+<span class="nc" id="L165">            i = ImageIO.read(file);</span>
+            }
+<span class="nc" id="L167">        catch(Exception e)</span>
+            {
+<span class="nc" id="L169">            throw new RuntimeException(&quot;Cannot load image file &quot; + file + &quot; because of error:\n\n&quot; + e);</span>
+<span class="nc" id="L170">            }</span>
+<span class="nc" id="L171">        int width = i.getWidth(null);</span>
+<span class="nc" id="L172">        int height = i.getHeight(null);</span>
+<span class="nc" id="L173">        int type = BufferedImage.TYPE_INT_ARGB;  // is this the fastest choice?</span>
+<span class="nc" id="L174">        original = new BufferedImage(width, height, type);</span>
+<span class="nc" id="L175">        image = new BufferedImage(width, height, type);</span>
+<span class="nc" id="L176">        original.flush();</span>
+<span class="nc" id="L177">        image.flush();</span>
+<span class="nc" id="L178">        clear();</span>
+
+        // now copy the loaded image into the buffer.  This is ugly but gets the job done.
+        // Rasters are a pain so I'm just using graphics2d here.
+<span class="nc" id="L182">        Graphics2D g = (Graphics2D)(original.getGraphics());</span>
+<span class="nc" id="L183">        g.drawImage(i, 0, 0, null);</span>
+<span class="nc" id="L184">        g.dispose();</span>
+<span class="nc" id="L185">        }</span>
+
+    static JFrame f;
+<span class="nc" id="L188">    static  boolean first = true;</span>
+<span class="nc" id="L189">    static JLabel left = new JLabel();</span>
+<span class="nc" id="L190">    static JLabel right = new JLabel();</span>
+
+<span class="nc" id="L192">    int count = 0;</span>
+        
+    /** For debugging only.  */
+    public void display(String title)
+        {           
+<span class="nc bnc" id="L197" title="All 2 branches missed.">        if (f == null)</span>
+<span class="nc" id="L198">            return;</span>
+<span class="nc" id="L199">        left.setIcon(new ImageIcon(copyImage(original)));</span>
+<span class="nc" id="L200">        right.setIcon(new ImageIcon(copyImage(image)));</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">        if (first)</span>
+            {
+<span class="nc" id="L203">            first = false;</span>
+<span class="nc" id="L204">            f.getContentPane().setLayout(new GridLayout(1,2));</span>
+<span class="nc" id="L205">            f.getContentPane().add(left);</span>
+<span class="nc" id="L206">            f.getContentPane().add(right);</span>
+<span class="nc" id="L207">            f.pack();</span>
+<span class="nc" id="L208">            f.setVisible(true);</span>
+            }
+<span class="nc" id="L210">        f.setTitle(title);</span>
+<span class="nc" id="L211">        f.repaint();</span>
+<span class="nc" id="L212">        }</span>
+
+
+    /** Saves the image (not the original) out to a PNG file so you can compare. */
+    public void save(File file)
+        {
+        try
+            {
+<span class="nc" id="L220">            ImageIO.write(image, &quot;png&quot;, file);</span>
+            }
+<span class="nc" id="L222">        catch(Exception e)</span>
+            {
+<span class="nc" id="L224">            }</span>
+<span class="nc" id="L225">        }</span>
+
+    // for serialization, 'cause (grrr) BufferedImage isn't serializable for some reason
+    private void writeObject(java.io.ObjectOutputStream out) throws IOException
+        {
+<span class="nc" id="L230">        int width = image.getWidth(null);</span>
+<span class="nc" id="L231">        int height = image.getHeight(null);</span>
+<span class="nc" id="L232">        int type = image.getType();</span>
+<span class="nc" id="L233">        out.writeInt(type);</span>
+<span class="nc" id="L234">        out.writeInt(width);</span>
+<span class="nc" id="L235">        out.writeInt(height);</span>
+<span class="nc" id="L236">        out.writeObject(image.getRGB(0,0,width,height,null,0,width));</span>
+<span class="nc" id="L237">        out.writeObject(original.getRGB(0,0,width,height,null,0,width));</span>
+<span class="nc" id="L238">        }</span>
+
+    // for serialization, 'cause (grrr) BufferedImage isn't serializable for some reason
+    private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException
+        {
+<span class="nc" id="L243">        int type = in.readInt();</span>
+<span class="nc" id="L244">        int width = in.readInt();</span>
+<span class="nc" id="L245">        int height = in.readInt();</span>
+<span class="nc" id="L246">        original = new BufferedImage(width, height, type);</span>
+<span class="nc" id="L247">        image = new BufferedImage(width, height, type);</span>
+<span class="nc" id="L248">        image.getRGB(0,0,width,height,(int[])(in.readObject()),0,width);</span>
+<span class="nc" id="L249">        original.getRGB(0,0,width,height,(int[])(in.readObject()),0,width);</span>
+<span class="nc" id="L250">        xpoints = new int[0];</span>
+<span class="nc" id="L251">        ypoints = new int[0];</span>
+<span class="nc" id="L252">        }</span>
+
+    // for cloneable, 'cause (grrr) BufferedImage isn't cloneable for some reason
+    public Object clone()
+        {
+<span class="nc" id="L257">        Picture p = null;</span>
+<span class="nc" id="L258">        try { p = (Picture)(super.clone()); } catch (CloneNotSupportedException e) { } </span>
+<span class="nc" id="L259">        p.original = copyImage(original);</span>
+<span class="nc" id="L260">        p.image = copyImage(image);</span>
+<span class="nc" id="L261">        p.xpoints = new int[0];</span>
+<span class="nc" id="L262">        p.ypoints = new int[0];</span>
+<span class="nc" id="L263">        return p;</span>
+        }
+
+    public BufferedImage copyImage(BufferedImage image)
+        {
+<span class="nc" id="L268">        int width = image.getWidth(null);</span>
+<span class="nc" id="L269">        int height = image.getHeight(null);</span>
+<span class="nc" id="L270">        BufferedImage i = new BufferedImage(width, height,</span>
+<span class="nc" id="L271">            image.getType());</span>
+<span class="nc" id="L272">        i.setRGB(0,0,width,height,image.getRGB(0,0,width,height,null,0,width),0,width);  // Always assume alpha is opaque</span>
+<span class="nc" id="L273">        return i;</span>
+        }           
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

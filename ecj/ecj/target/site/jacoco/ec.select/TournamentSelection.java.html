@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TournamentSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.select</a> &gt; <span class="el_source">TournamentSelection.java</span></div><h1>TournamentSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.select;
+import java.util.ArrayList;
+
+import ec.*;
+import ec.util.*;
+import ec.steadystate.*;
+
+/* 
+ * TournamentSelection.java
+ * 
+ * Created: Mon Aug 30 19:27:15 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Does a simple tournament selection, limited to the subpopulation it's
+ * working in at the time.
+ *
+ * &lt;p&gt;Tournament selection works like this: first, &lt;i&gt;size&lt;/i&gt; individuals
+ * are chosen at random from the population.  Then of those individuals,
+ * the one with the best fitness is selected.  
+ * 
+ * &lt;p&gt;&lt;i&gt;size&lt;/i&gt; can be any floating point value &gt;= 1.0.  If it is a non-
+ * integer value &lt;i&gt;x&lt;/i&gt; then either a tournament of size ceil(x) is used
+ * (with probability x - floor(x)), else a tournament of size floor(x) is used.
+ *
+ * &lt;p&gt;Common sizes for &lt;i&gt;size&lt;/i&gt; include: 2, popular in Genetic Algorithms
+ * circles, and 7, popularized in Genetic Programming by John Koza.
+ * If the size is 1, then individuals are picked entirely at random.
+ *
+ * &lt;p&gt;Tournament selection is so simple that it doesn't need to maintain
+ * a cache of any form, so many of the SelectionMethod methods just
+ * don't do anything at all.
+ *
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;double &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the tournament size)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;pick-worst&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we pick the &lt;i&gt;worst&lt;/i&gt; individual in the tournament instead of the &lt;i&gt;best&lt;/i&gt;?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.tournament
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="fc" id="L66">public class TournamentSelection extends SelectionMethod implements SteadyStateBSourceForm</span>
+    {
+    /** default base */
+    public static final String P_TOURNAMENT = &quot;tournament&quot;;
+
+    public static final String P_PICKWORST = &quot;pick-worst&quot;;
+
+    /** size parameter */
+    public static final String P_SIZE = &quot;size&quot;;
+
+    /** Base size of the tournament; this may change.  */
+    public int size;
+
+    /** Probablity of picking the size plus one */
+    public double probabilityOfPickingSizePlusOne;
+    
+    /** Do we pick the worst instead of the best? */
+    public boolean pickWorst;
+
+    public Parameter defaultBase()
+        {
+<span class="fc" id="L87">        return SelectDefaults.base().push(P_TOURNAMENT);</span>
+        }
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="fc" id="L92">        super.setup(state,base);</span>
+        
+<span class="fc" id="L94">        Parameter def = defaultBase();</span>
+
+<span class="fc" id="L96">        double val = state.parameters.getDouble(base.push(P_SIZE),def.push(P_SIZE),1.0);</span>
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">        if (val &lt; 1.0)</span>
+<span class="nc" id="L98">            state.output.fatal(&quot;Tournament size must be &gt;= 1.&quot;,base.push(P_SIZE),def.push(P_SIZE));</span>
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">        else if (val == (int) val)  // easy, it's just an integer</span>
+            {
+<span class="fc" id="L101">            size = (int) val;</span>
+<span class="fc" id="L102">            probabilityOfPickingSizePlusOne = 0.0;</span>
+            }
+        else
+            {
+<span class="nc" id="L106">            size = (int) Math.floor(val);</span>
+<span class="nc" id="L107">            probabilityOfPickingSizePlusOne = val - size;  // for example, if we have 5.4, then the probability of picking *6* is 0.4</span>
+            }
+
+<span class="fc" id="L110">        pickWorst = state.parameters.getBoolean(base.push(P_PICKWORST),def.push(P_PICKWORST),false);</span>
+<span class="fc" id="L111">        }</span>
+
+    /** Returns a tournament size to use, at random, based on base size and probability of picking the size plus one. */
+    public int getTournamentSizeToUse(MersenneTwisterFast random)
+        {
+<span class="fc" id="L116">        double p = probabilityOfPickingSizePlusOne;   // pulls us to under 35 bytes</span>
+<span class="pc bpc" id="L117" title="1 of 2 branches missed.">        if (p == 0.0) return size;</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        return size + (random.nextBoolean(p) ? 1 : 0);</span>
+        }
+
+
+    /** Produces the index of a (typically uniformly distributed) randomly chosen individual
+        to fill the tournament.  &lt;i&gt;number&lt;/&gt; is the position of the individual in the tournament.  */
+    public int getRandomIndividual(int number, int subpopulation, EvolutionState state, int thread)
+        {
+<span class="fc" id="L126">        ArrayList&lt;Individual&gt; oldinds = state.population.subpops.get(subpopulation).individuals;</span>
+<span class="fc" id="L127">        return state.random[thread].nextInt(oldinds.size());</span>
+        }
+
+    /** Returns true if *first* is a better (fitter, whatever) individual than *second*. */
+    public boolean betterThan(Individual first, Individual second, int subpopulation, EvolutionState state, int thread)
+        {
+<span class="fc" id="L133">        return first.fitness.betterThan(second.fitness);</span>
+        }
+                
+    public int produce(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+        // pick size random individuals, then pick the best.
+<span class="fc" id="L141">        ArrayList&lt;Individual&gt; oldinds = state.population.subpops.get(subpopulation).individuals;</span>
+<span class="fc" id="L142">        int best = getRandomIndividual(0, subpopulation, state, thread);</span>
+        
+<span class="fc" id="L144">        int s = getTournamentSizeToUse(state.random[thread]);</span>
+                
+<span class="pc bpc" id="L146" title="1 of 2 branches missed.">        if (pickWorst)</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">            for (int x=1;x&lt;s;x++)</span>
+                {
+<span class="nc" id="L149">                int j = getRandomIndividual(x, subpopulation, state, thread);</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                if (!betterThan(oldinds.get(j), oldinds.get(best), subpopulation, state, thread))  // j is at least as bad as best</span>
+<span class="nc" id="L151">                    best = j;</span>
+                }
+        else
+<span class="fc bfc" id="L154" title="All 2 branches covered.">            for (int x=1;x&lt;s;x++)</span>
+                {
+<span class="fc" id="L156">                int j = getRandomIndividual(x, subpopulation, state, thread);</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">                if (betterThan(oldinds.get(j), oldinds.get(best), subpopulation, state, thread))  // j is better than best</span>
+<span class="fc" id="L158">                    best = j;</span>
+                }
+            
+<span class="fc" id="L161">        return best;</span>
+        }
+
+    // included for SteadyState
+    public void individualReplaced(final SteadyStateEvolutionState state,
+        final int subpopulation,
+        final int thread,
+        final int individual)
+<span class="nc" id="L169">        { return; }</span>
+    
+    public void sourcesAreProperForm(final SteadyStateEvolutionState state)
+<span class="nc" id="L172">        { return; }</span>
+    
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

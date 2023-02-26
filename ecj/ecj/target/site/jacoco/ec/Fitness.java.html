@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Fitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">Fitness.java</span></div><h1>Fitness.java</h1><pre class="source lang-java linenums">/* 
+   Copyright 2006 by Sean Luke
+   Licensed under the Academic Free License version 3.0
+   See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+import java.io.*;
+import ec.util.*;
+import java.util.*;
+
+/*
+ * Fitness.java
+ *
+ * Created: Tue Aug 10 20:10:42 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Fitness is a prototype which describes the fitness of an individual.
+ * Every individual contains exactly one Fitness object.
+ * Fitness objects are compared to each other with the equivalentTo()
+ * and betterThan(), etc. methods. 
+ *
+ &lt;p&gt;Rules: 
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td&gt;&lt;b&gt;comparison&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;method&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td&gt;a &amp;gt; b&lt;/td&gt;&lt;td&gt;a.betterThan(b)&lt;/td&gt;
+ &lt;tr&gt;&lt;td&gt;a &amp;gt;= b&lt;/td&gt;&lt;td&gt;a.betterThan(b) || a.equivalentTo(b)&lt;/td&gt;
+ &lt;tr&gt;&lt;td&gt;a = b&lt;/td&gt;&lt;td&gt;a.equivalentTo(b)&lt;/td&gt;
+ &lt;/table&gt;
+
+ This applies even to multiobjective pareto-style dominance, eg:
+ &lt;ul&gt;
+ &lt;li&gt; a dominates b :: a &amp;gt; b
+ &lt;li&gt; a and b do not dominate each other :: a = b
+ &lt;li&gt; b dominates a :: a &amp;lt; b
+ &lt;/ul&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;fit&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;default fitness base&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+
+<span class="fc" id="L53">public abstract class Fitness implements Prototype, Comparable</span>
+    {
+    /** Auxiliary variable, used by coevolutionary processes, to compute the
+        number of trials used to compute this Fitness value.  By default trials=null and stays that way. 
+        If you set this variable, all of the elements of the ArrayList must be immutable -- once they're
+        set they never change internally.  */
+<span class="fc" id="L59">    public ArrayList trials = null;</span>
+        
+    /** Auxiliary variable, used by coevolutionary processes, to store the individuals
+        involved in producing this given Fitness value.  By default context=null and stays that way.
+        Note that individuals stored here may possibly not themselves have Fitness values to avoid
+        circularity when cloning.
+    */
+<span class="fc" id="L66">    public Individual[] context = null;</span>
+
+    public void setContext(Individual[] cont, int index)
+        {
+<span class="nc" id="L70">        Individual ind = cont[index];</span>
+<span class="nc" id="L71">        cont[index] = null;</span>
+<span class="nc" id="L72">        setContext(cont);</span>
+<span class="nc" id="L73">        cont[index] = ind;</span>
+<span class="nc" id="L74">        }</span>
+
+    public void setContext(Individual[] cont)
+        {
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">        if (cont == null)</span>
+<span class="fc" id="L79">            context = null;</span>
+        else // make sure it's deep-cloned and stripped of context itself
+            {
+<span class="nc" id="L82">            context = new Individual[cont.length];</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">            for(int i = 0; i &lt; cont.length; i++)</span>
+                {
+<span class="nc bnc" id="L85" title="All 2 branches missed.">                if (cont[i] == null)</span>
+<span class="nc" id="L86">                    { context[i] = null; }</span>
+                else 
+                    {
+                    // we first temporarily remove context so we don't have any circularity in cloning 
+<span class="nc" id="L90">                    Individual[] c = cont[i].fitness.context;</span>
+<span class="nc" id="L91">                    cont[i].fitness.context = null;</span>
+                                        
+                    // now clone the individual in place
+<span class="nc" id="L94">                    context[i] = (Individual)(cont[i].clone());</span>
+                                        
+                    // now put the context back
+<span class="nc" id="L97">                    cont[i].fitness.context = c;</span>
+                    }
+                }
+            }
+<span class="fc" id="L101">        }</span>
+        
+    /** Treat the Individual[] you receive from this as read-only. */
+    public Individual[] getContext()
+        {
+<span class="fc" id="L106">        return context;</span>
+        }
+
+    /** base parameter for defaults */
+    public static final String P_FITNESS = &quot;fitness&quot;;
+
+    /** Basic preamble for printing Fitness values out */
+    public static final String FITNESS_PREAMBLE = &quot;Fitness: &quot;;
+
+    /** Should return an absolute fitness value ranging from negative
+        infinity to infinity, NOT inclusive (thus infinity, negative
+        infinity, and NaN are NOT valid fitness values).  This should
+        be interpreted as: negative infinity is worse than the WORST
+        possible fitness, and positive infinity is better than the IDEAL
+        fitness.
+        
+        &lt;p&gt;You are free to restrict this range any way you like: for example,
+        your fitness values might fall in the range [-5.32, 2.3]
+        
+        &lt;p&gt;Selection methods relying on fitness proportionate information will
+        &lt;b&gt;assume the fitness is non-negative&lt;/b&gt; and should throw an error
+        if it is not.  Thus if you plan on using FitProportionateSelection, 
+        BestSelection, or
+        GreedyOverselection, for example, your fitnesses should assume that 0
+        is the worst fitness and positive fitness are better.  If you're using
+        other selection methods (Tournament selection, various ES selection
+        procedures, etc.) your fitness values can be anything.
+        
+        &lt;p&gt;Similarly, if you're writing a selection method and it needs positive
+        fitnesses, you should check for negative values and issue an error; and
+        if your selection method doesn't need an &lt;i&gt;absolute&lt;/i&gt; fitness
+        value, it should use the equivalentTo() and betterThan() methods instead.
+        
+        &lt;p&gt; If your fitness scheme does not use a metric quantifiable to
+        a single positive value (for example, MultiObjectiveFitness), you should 
+        perform some reasonable translation.
+    */
+    public abstract double fitness();
+
+    /** Should return true if this is a good enough fitness to end the run */
+    public abstract boolean isIdealFitness();
+
+    /** Should return true if this fitness is in the same equivalence class
+        as _fitness, that is, neither is clearly better or worse than the
+        other.  You may assume that _fitness is of the same class as yourself.
+        For any two fitnesses fit1 and fit2 of the same class,
+        it must be the case that fit1.equivalentTo(fit2) == fit2.equivalentTo(fit1),
+        and that only one of fit1.betterThan(fit2), fit1.equivalentTo(fit2),
+        and fit2.betterThan(fit1) can be true.
+    */
+    public abstract boolean equivalentTo(Fitness _fitness);
+    
+    /** Should return true if this fitness is clearly better than _fitness;
+        You may assume that _fitness is of the same class as yourself. 
+        For any two fitnesses fit1 and fit2 of the same class,
+        it must be the case that fit1.equivalentTo(fit2) == fit2.equivalentTo(fit1),
+        and that only one of fit1.betterThan(fit2), fit1.equivalentTo(fit2),
+        and fit2.betterThan(fit1) can be true.
+    */ 
+    public abstract boolean betterThan(Fitness _fitness);
+
+    /** Should print the fitness out fashion pleasing for humans to read, 
+        with a verbosity of Output.V_NO_GENERAL.
+    */
+    public void printFitnessForHumans(EvolutionState state, int log)
+        {
+<span class="fc" id="L172">        printFitnessForHumans( state, log, Output.V_NO_GENERAL);</span>
+<span class="fc" id="L173">        }</span>
+
+    /** Should print the fitness out fashion pleasing for humans to read, 
+        using state.output.println(...,verbosity,log).  The default version
+        of this method calls fitnessToStringForHumans(), adds context (collaborators) if any,
+        and printlns the resultant string.
+        @deprecated Verbosity no longer has meaning
+    */
+    public void printFitnessForHumans(EvolutionState state, int log, 
+        int verbosity)
+        {
+<span class="fc" id="L184">        String s = fitnessToStringForHumans();</span>
+<span class="pc bpc" id="L185" title="1 of 2 branches missed.">        if (context != null)</span>
+            {
+<span class="nc bnc" id="L187" title="All 2 branches missed.">            for(int i = 0; i &lt; context.length; i++)</span>
+                {
+<span class="nc bnc" id="L189" title="All 2 branches missed.">                if (context[i] != null)</span>
+                    {
+<span class="nc" id="L191">                    s += &quot;\nCollaborator &quot; + i + &quot;: &quot;;</span>
+                    // temporarily de-link the context of the collaborator
+                    // to avoid loops
+<span class="nc" id="L194">                    Individual[] c = context[i].fitness.context;</span>
+<span class="nc" id="L195">                    context[i].fitness.context = null;</span>
+<span class="nc" id="L196">                    s += context[i].genotypeToStringForHumans();</span>
+                    // relink
+<span class="nc" id="L198">                    context[i].fitness.context = c;</span>
+                    }
+                else // that's me!
+                    {
+                    // do nothing
+                    }
+                }
+            }
+<span class="fc" id="L206">        state.output.println( s, verbosity, log);</span>
+<span class="fc" id="L207">        }</span>
+
+    /** Should print the fitness out in a computer-readable fashion, 
+        with a verbosity of Output.V_NO_GENERAL.
+    */
+    public void printFitness(EvolutionState state, int log)
+        {
+<span class="nc" id="L214">        printFitness( state, log, Output.V_NO_GENERAL);</span>
+<span class="nc" id="L215">        }</span>
+
+    /** Should print the fitness out in a computer-readable fashion, 
+        using state.output.println(...,verbosity,log).  You might use
+        ec.util.Code to encode fitness values.  The default version
+        of this method calls fitnessToString() and println's the
+        resultant string.
+        @deprecated Verbosity no longer has meaning
+    */
+    public void printFitness(EvolutionState state, int log, 
+        int verbosity)
+        {
+<span class="nc" id="L227">        state.output.println( fitnessToString(), verbosity, log);</span>
+<span class="nc" id="L228">        }</span>
+    
+    /** Should print the fitness out in a computer-readable fashion, 
+        using writer.println(...).  You might use
+        ec.util.Code to encode fitness values.  The default version
+        of this method calls fitnessToString() and println's the
+        resultant string.
+    */
+    public void printFitness(final EvolutionState state,
+        final PrintWriter writer)
+        {
+<span class="nc" id="L239">        writer.println( fitnessToString() );</span>
+<span class="nc" id="L240">        }</span>
+
+    /** Reads in the fitness from a form outputted by fitnessToString() and thus
+        printFitnessForHumans(...).  The default version of this method
+        exits the program with an &quot;unimplemented&quot; error. */ 
+    public void readFitness(final EvolutionState state, 
+        final LineNumberReader reader)
+        throws IOException
+        {
+<span class="nc" id="L249">        state.output.fatal(&quot;readFitness(EvolutionState, DataOutput)  not implemented in &quot; + this.getClass());</span>
+<span class="nc" id="L250">        }</span>
+        
+    /** Print to a string the fitness in a fashion readable by humans, and not intended
+        to be parsed in again.  The default form
+        simply calls toString(), but you'll probably want to override this to something else. */
+    public String fitnessToStringForHumans()
+        {
+<span class="nc" id="L257">        return toString();</span>
+        }
+        
+    /** Print to a string the fitness in a fashion intended
+        to be parsed in again via readFitness(...).
+        The fitness and evaluated flag should not be included.  The default form
+        simply calls toString(), which is almost certainly wrong, 
+        and you'll probably want to override this to something else.  When overriding, you
+        may wish to check to see if the 'trials' variable is non-null, and issue an error if so.  */
+    public String fitnessToString()
+        {
+<span class="nc" id="L268">        return toString();</span>
+        }
+        
+    /** Writes the binary form of an individual out to a DataOutput.  This is not for serialization:
+        the object should only write out the data relevant to the object sufficient to rebuild it from a DataInput.
+        The default version exits the program with an &quot;unimplemented&quot; error; you should override this, and be
+        certain to also write the 'trials' variable as well.
+    */
+    public void writeFitness(final EvolutionState state,
+        final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L279">        state.output.fatal(&quot;writeFitness(EvolutionState, DataOutput) not implemented in &quot; + this.getClass());</span>
+<span class="nc" id="L280">        }</span>
+
+
+    /** Writes trials out to DataOutput */
+    public void writeTrials(final EvolutionState state, final DataOutput dataOutput) throws IOException
+        {
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        if (trials == null)</span>
+<span class="nc" id="L287">            dataOutput.writeInt(-1);</span>
+        else
+            {
+<span class="nc" id="L290">            int len = trials.size();</span>
+<span class="nc" id="L291">            dataOutput.writeInt(len);</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">            for(int i = 0; i &lt; len; i++)</span>
+<span class="nc" id="L293">                dataOutput.writeDouble(((Double)(trials.get(i))).doubleValue());</span>
+            }
+<span class="nc" id="L295">        }</span>
+
+    /** Reads the binary form of an individual from a DataInput.  This is not for serialization:
+        the object should only read in the data written out via printIndividual(state,dataInput).  
+        The default version exits the program with an &quot;unimplemented&quot; error; you should override this, and be
+        certain to also write the 'trials' variable as well.
+    */
+    public void readFitness(final EvolutionState state,
+        final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L305">        state.output.fatal(&quot;readFitness(EvolutionState, DataOutput) not implemented in &quot; + this.getClass());</span>
+<span class="nc" id="L306">        }</span>
+
+
+    /** Reads trials in from DataInput. */
+    public void readTrials(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L312">        int len = dataInput.readInt();</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">        if (len &gt;= 0)</span>
+            {
+<span class="nc" id="L315">            trials = new ArrayList(len);</span>
+<span class="nc bnc" id="L316" title="All 2 branches missed.">            for(int i = 0; i &lt; len; i++)</span>
+<span class="nc" id="L317">                trials.add(new Double(dataInput.readDouble()));</span>
+            }
+<span class="nc" id="L319">        }</span>
+
+    /** Given another Fitness, 
+        returns true if the trial which produced my current context is &quot;better&quot; in fitness than
+        the trial which produced his current context, and thus should be retained in lieu of his.
+        This method by default assumes that trials are Doubles, and that higher Doubles are better.
+        If you are using distributed evaluation and coevolution and your tirals are otherwise, you
+        need to override this method.
+    */
+    public boolean contextIsBetterThan(Fitness other)
+        {
+<span class="nc bnc" id="L330" title="All 2 branches missed.">        if (other.trials == null) return true;  // I win</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        else if (trials == null) return false;  // he wins</span>
+<span class="nc bnc" id="L332" title="All 2 branches missed.">        return bestTrial(trials) &lt; bestTrial(other.trials);</span>
+        }
+
+    double bestTrial(ArrayList l)
+        {
+<span class="nc bnc" id="L337" title="All 4 branches missed.">        if (l == null || l.size() == 0) return Double.NEGATIVE_INFINITY;</span>
+<span class="nc" id="L338">        double best = ((Double)(l.get(0))).doubleValue();</span>
+<span class="nc" id="L339">        int len = l.size();</span>
+<span class="nc bnc" id="L340" title="All 2 branches missed.">        for (int i = 1 ; i &lt; len; i ++)</span>
+            {
+<span class="nc" id="L342">            double next = ((Double)(l.get(i))).doubleValue();</span>
+<span class="nc bnc" id="L343" title="All 2 branches missed.">            if (next &gt; best) best = next;</span>
+            }
+<span class="nc" id="L345">        return best;</span>
+        }
+
+    /** Merges the other fitness into this fitness.  May destroy the other Fitness in the process.
+        This method is typically called by coevolution in combination with distributed evauation where
+        the Individual may be sent to various different sites to have trials performed on it, and
+        the results must be merged together to form a relevant fitness.  By default merging occurs as follows.
+        First, the trials arrays are concatenated.  Then whoever has the best trial has his context retained:
+        this Fitness is determined by calling contextIsBetterThan(other).  By default that method assumes
+        that trials are Doubles, and that higher values are better.  You will wish to override that method 
+        if trials are different.  In coevolution nothing
+        else needs to be merged usually, though you may need to override this to handle other things specially.
+                
+        &lt;p&gt;This method only works properly if the other Fitness had its trials deleted before it was sent off
+        for evaluation on a remote machine: thus all of the trials are new and can be concatenated in.  This
+        is what sim.eval.Job presently does in its method copyIndividualsForward().
+    */
+    public void merge(EvolutionState state, Fitness other)
+        {
+        // first let's merge trials.  We assume they're Doubles
+                
+<span class="nc bnc" id="L366" title="All 2 branches missed.">        if (other.trials == null) return;  // I win</span>
+<span class="nc bnc" id="L367" title="All 2 branches missed.">        else if (trials == null)  // he wins</span>
+            {
+<span class="nc" id="L369">            trials = other.trials;                              // just steal him</span>
+<span class="nc" id="L370">            context = other.getContext();       // grab his context</span>
+            }
+        else  // gotta concatenate
+            {
+            // first question: who has the best context?
+<span class="nc bnc" id="L375" title="All 2 branches missed.">            if (!contextIsBetterThan(other))    // other is beter</span>
+<span class="nc" id="L376">                context = other.getContext();</span>
+                        
+            // now concatenate the trials
+<span class="nc" id="L379">            trials.addAll(other.trials);</span>
+            }
+<span class="nc" id="L381">        }</span>
+                
+
+    public Object clone()
+        {
+        try 
+            {
+<span class="fc" id="L388">            Fitness f = (Fitness)(super.clone());</span>
+<span class="pc bpc" id="L389" title="1 of 2 branches missed.">            if (f.trials != null) f.trials = new ArrayList(trials);  // we can do a light clone because trials must be immutable</span>
+<span class="fc" id="L390">            f.setContext(f.getContext()); // deep-clones and removes context just in case</span>
+<span class="fc" id="L391">            return f;</span>
+            }
+<span class="nc" id="L393">        catch (CloneNotSupportedException e) </span>
+<span class="nc" id="L394">            { throw new InternalError(); } // never happens</span>
+        }
+
+
+    public void setup(EvolutionState state, Parameter base)
+        {
+        // by default does nothing
+<span class="fc" id="L401">        }</span>
+
+    /**
+       Returns -1 if I am FITTER than the other Fitness, 1 if I am LESS FIT than the other Fitness,
+       and 0 if we are equivalent.
+    */
+    public int compareTo(Object o)
+        {
+<span class="fc" id="L409">        Fitness other = (Fitness) o;</span>
+<span class="fc bfc" id="L410" title="All 2 branches covered.">        if (this.betterThan(other)) return -1;</span>
+<span class="fc bfc" id="L411" title="All 2 branches covered.">        if (other.betterThan(this)) return 1;</span>
+<span class="fc" id="L412">        return 0;</span>
+        }
+        
+    /** Sets the fitness to be the same value as the best of the provided fitnesses.  This method calls
+        setToMeanOf(...), so if that method is unimplemented, this method will also fail.  */
+    public void setToBestOf(EvolutionState state, Fitness[] fitnesses)
+        {
+<span class="nc" id="L419">        Fitness[] f2 = (Fitness[])(fitnesses.clone());</span>
+<span class="nc" id="L420">        Arrays.sort(f2);</span>
+<span class="nc" id="L421">        setToMeanOf(state, new Fitness[] { f2[0] });</span>
+<span class="nc" id="L422">        }</span>
+
+    /** Sets the fitness to be the same value as the mean of the provided fitnesses.  The default
+        version of this method exits with an &quot;unimplemented&quot; error; you should override this. */
+    public void setToMeanOf(EvolutionState state, Fitness[] fitnesses)
+        {
+<span class="nc" id="L428">        state.output.fatal(&quot;setToMeanOf(EvolutionState, Fitness[]) not implemented in &quot; + this.getClass());</span>
+<span class="nc" id="L429">        }</span>
+
+    /** Sets the fitness to be the median of the provided fitnesses.  This method calls
+        setToMeanOf(...), so if that method is unimplemented, this method will also fail. */
+    public void setToMedianOf(EvolutionState state, Fitness[] fitnesses)
+        {
+<span class="nc" id="L435">        Fitness[] f2 = (Fitness[])(fitnesses.clone());</span>
+<span class="nc" id="L436">        Arrays.sort(f2);</span>
+<span class="nc bnc" id="L437" title="All 2 branches missed.">        if (f2.length % 2 == 1)</span>
+            {
+<span class="nc" id="L439">            setToMeanOf(state, new Fitness[] { f2[f2.length / 2] });   // for example, 5/2 = 2, and 0, 1, *2*, 3, 4</span>
+            }
+        else
+            {
+<span class="nc" id="L443">            setToMeanOf(state, new Fitness[] { f2[f2.length/2 - 1], f2[f2.length/2] });  // for example, 6/2 = 3, and 0, 1, *2*, *3*, 4, 5</span>
+            }
+<span class="nc" id="L445">        }</span>
+
+    }
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

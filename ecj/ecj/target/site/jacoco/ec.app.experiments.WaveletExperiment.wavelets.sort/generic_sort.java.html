@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>generic_sort.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets.sort</a> &gt; <span class="el_source">generic_sort.java</span></div><h1>generic_sort.java</h1><pre class="source lang-java linenums">
+
+package ec.app.experiments.WaveletExperiment.wavelets.sort;
+
+/**
+  &lt;p&gt;
+  A generic sort class for arrays whose elements are derived
+  from Object.  Sadly, this does not include types like integer
+  and double.
+  &lt;/p&gt;
+
+  &lt;p&gt;
+  This is an abstract class.  The class that extends this class must
+  define the &lt;i&gt;compare&lt;/i&gt; function.  The &lt;i&gt;compare&lt;/i&gt; function returns an
+  integer value that is less than, equal or greater than zero
+  depending on the result of the comparision (the function is modeled
+  after UNIX strcmp).
+  &lt;/p&gt;
+
+  &lt;p&gt;
+  This class is based on the Java quicksort algorithm by
+  James Gosling at at Sun Microsystems (see below).
+  &lt;/p&gt;
+  &lt;blockquote&gt;
+  &lt;p&gt;
+  @(#)QSortAlgorithm.java	1.3   29 Feb 1996 James Gosling
+  &lt;/p&gt;
+  &lt;p&gt;
+  Copyright (c) 1994-1996 Sun Microsystems, Inc. All Rights Reserved.
+  &lt;/p&gt;
+  &lt;p&gt;
+  Permission to use, copy, modify, and distribute this software
+  and its documentation for NON-COMMERCIAL or COMMERCIAL purposes and
+  without fee is hereby granted. 
+  &lt;/p&gt;
+  &lt;p&gt;
+  Please refer to the file http://www.javasoft.com/copy_trademarks.html
+  for further important copyright and trademark information and to
+  http://www.javasoft.com/licensing.html for further important
+  licensing information for the Java (tm) Technology.
+  &lt;/p&gt;
+  &lt;/blockquote&gt;
+  
+  */
+
+<span class="nc" id="L46">public abstract class generic_sort</span>
+{
+
+  /**
+    Exchange element a[i] and a[j]
+   */
+  private void swap(Object a[], int i, int j)
+  {
+    Object t;
+
+<span class="nc" id="L56">    t = a[i];</span>
+<span class="nc" id="L57">    a[i] = a[j];</span>
+<span class="nc" id="L58">    a[j] = t;</span>
+<span class="nc" id="L59">  } // swap</span>
+
+
+  /** This is a generic version of C.A.R Hoare's Quick Sort 
+   * algorithm.  This will handle arrays that are already
+   * sorted, and arrays with duplicate keys.&lt;BR&gt;
+   *
+   * If you think of a one dimensional array as going from
+   * the lowest index on the left to the highest index on the right
+   * then the parameters to this function are lowest index or
+   * left and highest index or right.  The first time you call
+   * this function it will be with the parameters 0, a.length - 1.
+   *
+   * @param a       an integer array
+   * @param lo0     left boundary of array partition
+   * @param hi0     right boundary of array partition
+   */
+  private void QuickSort(Object a[], int lo0, int hi0)
+  {
+<span class="nc" id="L78">    int lo = lo0;</span>
+<span class="nc" id="L79">    int hi = hi0;</span>
+    Object mid;
+    
+<span class="nc bnc" id="L82" title="All 2 branches missed.">    if ( hi0 &gt; lo0) {</span>
+      /* Arbitrarily establishing partition element as the midpoint of
+       * the array.
+       */
+<span class="nc" id="L86">      mid = a[ ( lo0 + hi0 ) / 2 ];</span>
+      
+      // loop through the array until indices cross
+<span class="nc bnc" id="L89" title="All 2 branches missed.">      while( lo &lt;= hi )	{</span>
+	/* find the first element that is greater than or equal to 
+	 * the partition element starting from the left Index.
+	 */
+<span class="nc bnc" id="L93" title="All 4 branches missed.">	while( ( lo &lt; hi0 ) &amp;&amp; ( compare(a[lo], mid) &lt; 0 ) )</span>
+<span class="nc" id="L94">	  ++lo;</span>
+	
+	/* find an element that is smaller than or equal to 
+	 * the partition element starting from the right Index.
+	 */
+<span class="nc bnc" id="L99" title="All 4 branches missed.">	while( ( hi &gt; lo0 ) &amp;&amp; ( compare(a[hi], mid) &gt; 0) )</span>
+<span class="nc" id="L100">	  --hi;</span>
+	
+	// if the indexes have not crossed, swap
+<span class="nc bnc" id="L103" title="All 2 branches missed.">	if( lo &lt;= hi ) {</span>
+<span class="nc" id="L104">	  swap(a, lo, hi);</span>
+	  
+<span class="nc" id="L106">	  ++lo;</span>
+<span class="nc" id="L107">	  --hi;</span>
+	}
+      } // while
+      
+      /* If the right index has not reached the left side of array
+       * must now sort the left partition.
+       */
+<span class="nc bnc" id="L114" title="All 2 branches missed.">      if( lo0 &lt; hi )</span>
+<span class="nc" id="L115">	QuickSort( a, lo0, hi );</span>
+      
+      /* If the left index has not reached the right side of array
+       * must now sort the right partition.
+       */
+<span class="nc bnc" id="L120" title="All 2 branches missed.">      if( lo &lt; hi0 )</span>
+<span class="nc" id="L121">	QuickSort( a, lo, hi0 );</span>
+      
+    }
+<span class="nc" id="L124">  }  // QuickSort</span>
+
+
+  public void sort(Object a[])
+  {
+<span class="nc" id="L129">    QuickSort(a, 0, a.length - 1);</span>
+<span class="nc" id="L130">  } // sort</span>
+
+
+  /**
+    &lt;p&gt;
+    This is an abstract function that should be defined
+    by the class derived from generic_sort.  This function
+    is passed two objects, &lt;i&gt;a&lt;/i&gt; and &lt;i&gt;b&lt;/i&gt;.  It 
+    compares them and should return the following values:
+    &lt;/p&gt;
+&lt;pre&gt;
+    If (a == b) return 0
+    if (a &lt; b) return -1
+    if (a &gt; b) return 1
+&lt;/pre&gt;
+   */
+  abstract protected int compare( Object a, Object b);
+
+} // generic_sort
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

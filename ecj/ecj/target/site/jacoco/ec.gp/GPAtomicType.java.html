@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPAtomicType.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPAtomicType.java</span></div><h1>GPAtomicType.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+
+/* 
+ * GPAtomicType.java
+ * 
+ * Created: Fri Aug 27 21:16:45 1999
+ * By: Sean Luke
+ */
+
+/**
+ * A GPAtomicType is a simple, atomic GPType.  For more information, see GPType.
+ @see ec.gp.GPType
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+public final class GPAtomicType extends GPType
+    {
+    /** Use this constructor for GPAtomic Type unless you know what you're doing */
+<span class="nc" id="L28">    public GPAtomicType(final String n) { name = n; }</span>
+
+    /** Don't use this constructor unless you call setup(...) immediately after it. */
+<span class="nc" id="L31">    public GPAtomicType() { }</span>
+
+    public final boolean compatibleWith(final GPInitializer initializer, final GPType t)
+        {
+        // if the type is me, then I'm compatible with it
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (t.type==type) return true;</span>
+        
+        // if the type an atomic type, then return false
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        else if (t.type &lt; initializer.numAtomicTypes) return false;</span>
+        
+        // if the type is &lt; 0 (it's a set type), then I'm compatible
+        // if I'm contained in it.  Use its sparse array.
+<span class="nc" id="L43">        else return ((GPSetType)t).types_sparse[type];</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

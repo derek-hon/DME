@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProceduralTextureFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.DMEtutorial</a> &gt; <span class="el_source">ProceduralTextureFitness.java</span></div><h1>ProceduralTextureFitness.java</h1><pre class="source lang-java linenums">package ec.app.DMEtutorial;
+
+import ec.util.Parameter;
+import ec.util.ParameterDatabase;
+
+import java.awt.image.BufferedImage;
+// import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Stream;
+
+import ec.gp.koza.*;
+import ec.distributedME.*;
+import ec.EvolutionState;
+import ec.app.DMEtutorial.Fitness.AKAZEFitness;
+import ec.app.DMEtutorial.Fitness.Haar;
+import ec.app.DMEtutorial.Fitness.MultiScaleSSIM;
+import ec.app.DMEtutorial.Fitness.PSDExtensions;
+import ec.app.DMEtutorial.Fitness.SIFTFitness;
+import ec.app.DMEtutorial.Fitness.Haar.ImageQueryData;
+import ec.app.experiments.DME.ImageLoad;
+// import ec.app.DMEtutorial.SSIM.SsimException;
+
+
+/**
+ * ProceduralTextureFitness.java Created: 05/05/2020 By: Derek Hon
+ **/
+
+@SuppressWarnings(&quot;serial&quot;)
+<span class="nc" id="L31">public class ProceduralTextureFitness extends ImageLoad {</span>
+    
+    MultiScaleSSIM SSIM;
+    Haar Target;
+    ImageQueryData TargetData;
+    SIFTFitness sift;
+    AKAZEFitness akazeFitness;
+<span class="nc" id="L38">    double targetSIFT = 0;</span>
+    
+    int[][] targetData;
+
+    ArrayList&lt;Integer&gt; waveletIslands;
+    ArrayList&lt;Integer&gt; SSIMIslands;
+    ArrayList&lt;Integer&gt; SIFTIslands;
+    ArrayList&lt;Integer&gt; AKAZEIslands;
+<span class="nc" id="L46">    boolean website = false;</span>
+
+    @Override
+    public void setup(final EvolutionState state, final Parameter base) {
+<span class="nc" id="L50">        super.setup(state, base);</span>
+
+<span class="nc" id="L52">        ParameterDatabase parameters = new ParameterDatabase();</span>
+<span class="nc" id="L53">        website = parameters.getBoolean(new Parameter(&quot;website&quot;), null, false);</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (website) {</span>
+<span class="nc bnc" id="L55" title="All 2 branches missed.">            if (parameters.exists(new Parameter(&quot;SIFTIslands&quot;), null) &amp;&amp;</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                parameters.exists(new Parameter(&quot;SSIMIslands&quot;), null) &amp;&amp;</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">                parameters.exists(new Parameter(&quot;waveletIslands&quot;), null) &amp;&amp;</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">                parameters.exists(new Parameter(&quot;AKAZEIslands&quot;), null)) {</span>
+<span class="nc" id="L59">                    websiteIslandSetup(parameters);</span>
+            }
+        }
+
+<span class="nc" id="L63">        targetData = PSDExtensions.ImageToInt2D(TargetImage, null);</span>
+<span class="nc" id="L64">        sift = new SIFTFitness(targetData, targetData);</span>
+<span class="nc" id="L65">        targetSIFT = sift.getSIFT();</span>
+<span class="nc" id="L66">        Target = new Haar(state, TargetImage);</span>
+<span class="nc" id="L67">        TargetData = Target.getHaarData();</span>
+<span class="nc" id="L68">    }</span>
+
+    private void websiteIslandSetup(ParameterDatabase parameters) {
+<span class="nc" id="L71">        String temp = parameters.getString(new Parameter(&quot;SIFTIslands&quot;), null);</span>
+<span class="nc" id="L72">        temp = temp.trim();</span>
+<span class="nc" id="L73">        String[] tempArr = temp.split(&quot; &quot;);</span>
+
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        for (int i = 0 ; i &lt; tempArr.length ; i ++) {</span>
+<span class="nc" id="L76">            SIFTIslands.add(Integer.parseInt(tempArr[i]));</span>
+        }
+
+<span class="nc" id="L79">        temp = parameters.getString(new Parameter(&quot;SSIMIslands&quot;), null);</span>
+<span class="nc" id="L80">        temp = temp.trim();</span>
+<span class="nc" id="L81">        tempArr = temp.split(&quot; &quot;);</span>
+        
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        for (int i = 0 ; i &lt; tempArr.length ; i ++) {</span>
+<span class="nc" id="L84">            SSIMIslands.add(Integer.parseInt(tempArr[i]));</span>
+        }
+
+<span class="nc" id="L87">        temp = parameters.getString(new Parameter(&quot;waveletIslands&quot;), null);</span>
+<span class="nc" id="L88">        temp = temp.trim();</span>
+<span class="nc" id="L89">        tempArr = temp.split(&quot; &quot;);</span>
+        
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        for (int i = 0 ; i &lt; tempArr.length ; i ++) {</span>
+<span class="nc" id="L92">            waveletIslands.add(Integer.parseInt(tempArr[i]));</span>
+        }
+
+<span class="nc" id="L95">        temp = parameters.getString(new Parameter(&quot;AKAZEIslands&quot;), null);</span>
+<span class="nc" id="L96">        temp = temp.trim();</span>
+<span class="nc" id="L97">        tempArr = temp.split(&quot; &quot;);</span>
+        
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        for (int i = 0 ; i &lt; tempArr.length ; i ++) {</span>
+<span class="nc" id="L100">            AKAZEIslands.add(Integer.parseInt(tempArr[i]));</span>
+        }
+<span class="nc" id="L102">    }</span>
+
+    @Override
+    public void evaluate(EvolutionState state, Elite ind, int submap, int threadnum) {
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (!ind.evaluated) {</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">            if (!(ind instanceof Elite))</span>
+<span class="nc" id="L108">                state.output.fatal(&quot;&quot; + this.getClass() + &quot; expects individuals of type Elite.&quot;);</span>
+
+            // int[] luminance = new int[width * height];
+<span class="nc" id="L111">            super.evaluate(state, ind, submap, threadnum);</span>
+            
+<span class="nc" id="L113">            double fitness = 0.0;</span>
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">            if (website) {</span>
+<span class="nc" id="L116">                int[][] solutionPixels = ind.getPixels();</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">                if (SIFTIslands.contains(submap)) {</span>
+<span class="nc" id="L118">                    sift = new SIFTFitness(targetData, solutionPixels);</span>
+<span class="nc" id="L119">                    fitness = targetSIFT / sift.getSIFT();</span>
+                }
+<span class="nc bnc" id="L121" title="All 2 branches missed.">                else if (SSIMIslands.contains(submap)) {</span>
+<span class="nc" id="L122">                    SSIM = new MultiScaleSSIM(targetData, solutionPixels);</span>
+<span class="nc" id="L123">                    fitness = SSIM.getMultiScaleSSIM();</span>
+                }
+<span class="nc bnc" id="L125" title="All 2 branches missed.">                else if (waveletIslands.contains(submap)) {</span>
+<span class="nc" id="L126">                    Haar solution = new Haar(state, ind);</span>
+<span class="nc" id="L127">                    fitness = TargetData.compareTo(solution.getHaarData());</span>
+<span class="nc" id="L128">                }</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">                else if (AKAZEIslands.contains(submap)) {</span>
+<span class="nc" id="L130">                    akazeFitness = new AKAZEFitness(targetData, solutionPixels);</span>
+<span class="nc" id="L131">                    fitness = akazeFitness.getMatches();</span>
+                }
+            }
+
+<span class="nc" id="L135">            KozaFitness f = ((KozaFitness) ind.fitness);</span>
+<span class="nc" id="L136">            f.setStandardizedFitness(state, fitness);</span>
+            
+<span class="nc" id="L138">            ind.evaluated = true;</span>
+        } // if
+<span class="nc" id="L140">    } // evaluate</span>
+
+    @Override
+    public void describe(final EvolutionState state, final Elite ind, final int submap, final int threadnum, final int log) {
+<span class="nc" id="L144">        super.describe(state, ind, submap, threadnum, log);</span>
+<span class="nc" id="L145">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

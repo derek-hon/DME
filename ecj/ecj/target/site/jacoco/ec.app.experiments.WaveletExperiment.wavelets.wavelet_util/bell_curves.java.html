@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>bell_curves.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.experiments.WaveletExperiment.wavelets.wavelet_util</a> &gt; <span class="el_source">bell_curves.java</span></div><h1>bell_curves.java</h1><pre class="source lang-java linenums">
+package ec.app.experiments.WaveletExperiment.wavelets.wavelet_util;
+
+import java.io.*;
+
+import ec.app.experiments.WaveletExperiment.wavelets.sort.qsort;
+
+/**
+&lt;p&gt;
+class bell_curves
+&lt;/p&gt;
+&lt;p&gt;
+  Plot the Haar coefficients as a histogram, in Gnuplot format.  In
+  another file generate a normal curve with the mean and standard
+  deviation of the histogram.  Using two files allows the histogram
+  and the normal curve to be plotted together using gnu plot, where
+  the histogram and normal curve will be different colored lines.
+  If the spectrum as 256 coefficient points, the files generated
+  would be &lt;tt&gt;coef256&lt;/tt&gt; and &lt;tt&gt;normal256&lt;/tt&gt; for the coefficient
+  histogram and the normal curve.  To plot these using gnuplot the
+  following command would be used:
+&lt;/p&gt;
+&lt;pre&gt;
+   plot 'coef256' with boxes, 'normal256' with lines
+&lt;/pre&gt;
+&lt;p&gt;
+  This will result in a gnuplot graph where the histogram is one
+  color and the normal curve is another.
+&lt;/p&gt;
+&lt;p&gt;
+  A normal curve is a probability distribution, where the values
+  are plotted on the x-axis and the probability of that value
+  occuring is plotted on the y-axis.  To plot the coefficient 
+  histogram in the same terms, the percentage of the total points
+  is represented for each histogram bin.  This is the same as the
+  integral of the normal curve in the histogram range, if the 
+  coefficient histogram fell in a perfect normal distribution.
+  For example;
+&lt;/p&gt;
+
+&lt;p&gt;
+&lt;img src=&quot;http://www.bearcave.com/misl/misl_tech/wavelets/close_images/coef256.jpg&quot; border=0 align=center&gt;
+&lt;/p&gt;
+
+ */
+<span class="nc" id="L46">public class bell_curves extends plot {</span>
+
+<span class="nc" id="L48">  String class_name() { return &quot;bell_curves&quot;; }</span>
+
+  /**
+    A histogram &quot;bin&quot;
+   */
+  private class bin {
+<span class="nc" id="L54">     public bin() {};        // suppress default initialization</span>
+     public double start;    // start of the bin
+     public double percent;  // percentage of the total points in bin
+  }
+
+  /**
+   Encapsulate the low and high values of a number range
+   */
+  private class low_high {
+<span class="nc" id="L63">     public low_high() {}</span>
+     public low_high( double l, double h )
+<span class="nc" id="L65">     {</span>
+<span class="nc" id="L66">       low = l;</span>
+<span class="nc" id="L67">       high = h;</span>
+<span class="nc" id="L68">     }</span>
+     public double low;
+     public double high;
+  }
+
+   /**
+      Bell curve info: mean, sigma (the standard deviation)
+      
+    */
+   private class bell_info {
+<span class="nc" id="L78">     public bell_info() {}</span>
+     public bell_info(double m, double s)
+<span class="nc" id="L80">     {</span>
+<span class="nc" id="L81">       mean = m;</span>
+<span class="nc" id="L82">       sigma = s;</span>
+<span class="nc" id="L83">     }</span>
+     public double mean;
+     public double sigma;
+   } // bell_info
+
+
+  /**
+   &lt;p&gt;
+   Calculate the mean and standard deviation.
+   &lt;/p&gt;
+   &lt;p&gt;
+   The stddev function is passed an array of numbers.
+   It returns the mean, standard deviation in the
+   bell_info object.
+   &lt;/p&gt;
+   */
+  public bell_info stddev( double v[] )
+  {
+<span class="nc" id="L101">    bell_info stats = null;</span>
+<span class="nc bnc" id="L102" title="All 4 branches missed.">    if (v != null &amp;&amp; v.length &gt; 0) {</span>
+<span class="nc" id="L103">      int N = v.length;</span>
+    
+      // calculate the mean (a.k.a average)
+<span class="nc" id="L106">      double sum = 0.0;</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">      for (int i = 0; i &lt; N; i++) {</span>
+<span class="nc" id="L108">	sum = sum + v[i];</span>
+      }
+<span class="nc" id="L110">      double mean = sum / (double)N;</span>
+
+      // calculate the standard deviation sum
+<span class="nc" id="L113">      double stdDevSum = 0;</span>
+      double x;
+<span class="nc bnc" id="L115" title="All 2 branches missed.">      for (int i = 0; i &lt; N; i++) {</span>
+<span class="nc" id="L116">	x = v[i] - mean;</span>
+<span class="nc" id="L117">	stdDevSum = stdDevSum + (x * x);</span>
+      }
+<span class="nc" id="L119">      double sigmaSquared = stdDevSum / (N-1);</span>
+<span class="nc" id="L120">      double sigma = Math.sqrt( sigmaSquared );</span>
+
+<span class="nc" id="L122">      stats = new bell_info(mean, sigma);</span>
+    }
+<span class="nc" id="L124">    return stats;</span>
+  } // stddev
+
+
+  /**
+    &lt;p&gt;
+    normal_interval
+    &lt;/p&gt;
+
+    &lt;p&gt;
+    Numerically integreate the normal curve with mean
+    &lt;i&gt;info.mean&lt;/i&gt; and standard deviation &lt;i&gt;info.sigma&lt;/i&gt;
+    over the range &lt;i&gt;low&lt;/i&gt; to &lt;i&gt;high&lt;/i&gt;.
+    &lt;/P&gt;
+
+    &lt;p&gt;
+    There normal curve equation that is integrated is:
+     &lt;/p&gt;
+     &lt;pre&gt;
+       f(y) = (1/(s * sqrt(2 * pi)) e&lt;sup&gt;-(1/(2 * s&lt;sup&gt;2&lt;/sup&gt;)(y-u)&lt;sup&gt;2&lt;/sup&gt;&lt;/sup&gt;
+     &lt;/pre&gt;
+
+     &lt;p&gt;
+     Where &lt;i&gt;u&lt;/i&gt; is the mean and &lt;i&gt;s&lt;/i&gt; is the standard deviation.
+     &lt;/p&gt;
+
+     &lt;p&gt;
+     The area under the section of this curve from &lt;i&gt;low&lt;/i&gt; to
+     &lt;i&gt;high&lt;/i&gt; is returned as the function result.
+     &lt;/p&gt;
+
+     &lt;p&gt;
+     The normal curve equation results in a curve expressed as
+     a probability distribution, where probabilities are expressed
+     as values greater than zero and less than one.  The total area
+     under a normal curve is one.
+     &lt;/p&gt;
+
+     &lt;p&gt;
+     The integral is calculated in a dumb fashion (e.g., we're not
+     using anything fancy like simpson's rule).  The area in
+     the interval &lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt; to &lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i+1&lt;/sub&gt;
+     is 
+     &lt;/P&gt;
+
+     &lt;pre&gt;
+     area = (&lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i+1&lt;/sub&gt; - &lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;) * g(&lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;)
+     &lt;/pre&gt;
+
+     &lt;p&gt;
+     Where the function g(&lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;) is the point on the
+     normal curve probability distribution at &lt;b&gt;x&lt;/b&gt;&lt;sub&gt;i&lt;/sub&gt;.
+     &lt;/p&gt;
+
+     @param info       This object encapsulates the mean and standard deviation
+     @param low        Start of the integral
+     @param high       End of the integral
+     @param num_points Number of points to calculate (should be even)
+
+   */
+  private double normal_interval(bell_info info,
+				 double low, 
+				 double high, 
+				 int num_points )
+  {
+<span class="nc" id="L189">    double integral = 0;</span>
+
+<span class="nc bnc" id="L191" title="All 2 branches missed.">    if (info != null) {</span>
+<span class="nc" id="L192">      double s = info.sigma;</span>
+      // calculate 1/(s * sqrt(2 * pi)), where &lt;i&gt;s&lt;/i&gt; is the stddev
+<span class="nc" id="L194">      double sigmaSqrt = 1.0 / (s * (Math.sqrt(2 * Math.PI)));</span>
+<span class="nc" id="L195">      double oneOverTwoSigmaSqrd = 1.0 / (2 * s * s);</span>
+
+<span class="nc" id="L197">      double range = high - low;</span>
+<span class="nc" id="L198">      double step = range / num_points;</span>
+<span class="nc" id="L199">      double x = low;</span>
+      double f_of_x;
+      double area;
+      double t;
+<span class="nc bnc" id="L203" title="All 2 branches missed.">      for (int i = 0; i &lt; num_points-1; i++) {</span>
+<span class="nc" id="L204">	t = x - info.mean;</span>
+<span class="nc" id="L205">	f_of_x = sigmaSqrt * Math.exp( -(oneOverTwoSigmaSqrd * t * t) );</span>
+<span class="nc" id="L206">	area = step * f_of_x; // area of one rectangle in the interval</span>
+<span class="nc" id="L207">	integral = integral + area;  // sum of the rectangles</span>
+<span class="nc" id="L208">	x = x + step;</span>
+      } // for
+    }
+
+<span class="nc" id="L212">    return integral;</span>
+  } // normal_interval
+
+
+
+  /**
+
+   &lt;p&gt;
+   Output a gnuplot formatted histogram of the area under a normal
+   curve through the range &lt;i&gt;m.low&lt;/i&gt; to &lt;i&gt;m.high&lt;/i&gt; based on the
+   mean and standard deviation of the values in the array &lt;i&gt;v&lt;/i&gt;.
+   The number of bins used in the histogram is &lt;i&gt;num_bins&lt;/i&gt;
+   &lt;/p&gt;
+
+   @param prStr     PrintWriter object for output file
+   @param num_bins  Number of histogram bins
+   @param m         An object encapsulating the high and low values of v
+   @param v         An array of doubles from which the mean and standard deviation is calculated.
+
+   */
+  private void normal_curve(PrintWriter prStr,
+			    int num_bins,
+			    low_high m,
+			    double v[] )
+  {
+    // calculate the mean and standard deviation
+<span class="nc" id="L238">    bell_info info = stddev( v );</span>
+
+<span class="nc" id="L240">    int N = v.length;</span>
+<span class="nc" id="L241">    int points_per_bin = N/num_bins;</span>
+    
+<span class="nc" id="L243">    double range = m.high - m.low;</span>
+<span class="nc" id="L244">    double step = range / (double)num_bins;</span>
+<span class="nc" id="L245">    double start = m.low;</span>
+<span class="nc" id="L246">    double end = start + step;</span>
+    double area;
+<span class="nc" id="L248">    double total_area = 0;</span>
+
+<span class="nc" id="L250">    prStr.println(&quot;#&quot;);</span>
+<span class="nc" id="L251">    prStr.println(&quot;# histogram of normal curve&quot;);</span>
+<span class="nc" id="L252">    prStr.println(&quot;# mean = &quot; + info.mean + &quot;, std. dev. = &quot; + info.sigma );</span>
+<span class="nc" id="L253">    prStr.println(&quot;#&quot;);</span>
+
+<span class="nc bnc" id="L255" title="All 2 branches missed.">    for (int i = 0; i &lt; num_bins; i++) {</span>
+<span class="nc" id="L256">      area = normal_interval( info, start, end, points_per_bin );</span>
+<span class="nc" id="L257">      total_area = total_area + area;</span>
+<span class="nc" id="L258">      prStr.println(&quot; &quot; + start + &quot;  &quot; + area );</span>
+<span class="nc" id="L259">      start = end;</span>
+<span class="nc" id="L260">      end = start + step;</span>
+    } // for
+
+<span class="nc" id="L263">    prStr.println(&quot;#&quot;);</span>
+<span class="nc" id="L264">    prStr.println(&quot;# Total area under curve = &quot; + total_area );</span>
+<span class="nc" id="L265">    prStr.println(&quot;#&quot;);</span>
+
+<span class="nc" id="L267">  } // normal_curve</span>
+
+
+
+  /**
+    &lt;p&gt;
+    Write out a histogram for the Haar coefficient frequency
+    spectrum in gnuplot format.
+    &lt;/p&gt;
+
+    @param prStr     PrintWriter object for output file
+    @param num_bins  Number of histogram bins 
+    @param m         An object encapsulating the high and low values from v
+    @param v         The array of doubles to histogram
+   */
+  private void histogram_coef(PrintWriter prStr, 
+			      int num_bins, 
+			      low_high m,
+			      double v[] )
+  {
+<span class="nc bnc" id="L287" title="All 4 branches missed.">    if (prStr != null &amp;&amp; v != null) {</span>
+<span class="nc" id="L288">      prStr.println(&quot;#&quot;);</span>
+<span class="nc" id="L289">      prStr.println(&quot;# Histogram of Haar coefficients&quot;);</span>
+<span class="nc" id="L290">      prStr.println(&quot;#&quot;);</span>
+<span class="nc" id="L291">      int len = v.length;</span>
+<span class="nc" id="L292">      double range = m.high - m.low;</span>
+<span class="nc" id="L293">      double step = range / (double)num_bins;</span>
+<span class="nc" id="L294">      double start = m.low;</span>
+<span class="nc" id="L295">      double end = start + step;</span>
+<span class="nc" id="L296">      int count = 0;</span>
+<span class="nc" id="L297">      int i = 0;</span>
+<span class="nc" id="L298">      double area = 0;</span>
+      
+<span class="nc bnc" id="L300" title="All 4 branches missed.">      while (i &lt; len &amp;&amp; end &lt;= m.high ) {</span>
+<span class="nc bnc" id="L301" title="All 4 branches missed.">	if (v[i] &gt;= start &amp;&amp; v[i] &lt; end) {</span>
+<span class="nc" id="L302">	  count++;</span>
+<span class="nc" id="L303">	  i++;</span>
+	}
+	else {
+<span class="nc" id="L306">	  double percent = (double)count / (double)len;</span>
+<span class="nc" id="L307">	  area = area + percent;</span>
+<span class="nc" id="L308">	  prStr.println(&quot; &quot; + start + &quot;  &quot; + percent );</span>
+<span class="nc" id="L309">	  start = end;</span>
+<span class="nc" id="L310">	  end = end + step;</span>
+<span class="nc" id="L311">	  count = 0;</span>
+<span class="nc" id="L312">	}</span>
+      } // for
+<span class="nc" id="L314">      prStr.println(&quot;#&quot;);</span>
+<span class="nc" id="L315">      prStr.println(&quot;# Total area under curve = &quot; + area );</span>
+<span class="nc" id="L316">      prStr.println(&quot;#&quot;);</span>
+    }
+<span class="nc" id="L318">  } // histogram_coef</span>
+
+
+  /**
+   &lt;p&gt;
+   plot_freq
+   &lt;/p&gt;
+
+   &lt;p&gt;
+   Generate histograms for a set of coefficients
+   (passed in the argument &lt;i&gt;v&lt;/i&gt;).  Generate
+   a seperate histogram for a normal curve.  Both
+   histograms have the same number of bins and the
+   same scale.
+   &lt;/p&gt;
+
+   &lt;p&gt;
+   The histograms are written to separate files in gnuplot
+   format.  Different files are needed (as far as I can tell)
+   to allow different colored lines for the coefficient histogram
+   and the normal plot.  The file name reflects the number of
+   points in the coefficient spectrum.
+   &lt;/p&gt;
+
+   */
+  private void plot_freq( double v[] ) 
+     throws IOException
+  {
+<span class="nc bnc" id="L346" title="All 2 branches missed.">    if (v != null) {</span>
+<span class="nc" id="L347">      String file_name = &quot;coef&quot; + v.length;</span>
+<span class="nc" id="L348">      PrintWriter prStr = OpenFile( file_name );</span>
+<span class="nc bnc" id="L349" title="All 2 branches missed.">      if (prStr != null) {</span>
+<span class="nc" id="L350">	final int num_bins = 32;</span>
+<span class="nc" id="L351">	qsort.sort( v );</span>
+<span class="nc" id="L352">	low_high m = new low_high(v[0], v[v.length-1]);</span>
+<span class="nc" id="L353">	histogram_coef( prStr, num_bins, m, v );</span>
+<span class="nc" id="L354">	prStr.close();</span>
+
+<span class="nc" id="L356">	file_name = &quot;normal&quot; + v.length;</span>
+<span class="nc" id="L357">	prStr = OpenFile( file_name );</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">	if (prStr != null) {</span>
+<span class="nc" id="L359">	  normal_curve( prStr, num_bins, m, v );</span>
+<span class="nc" id="L360">	  prStr.close();</span>
+	}
+	else {
+<span class="nc" id="L363">	  IOException ioerr = new IOException();</span>
+<span class="nc" id="L364">	  throw ioerr;</span>
+	}
+<span class="nc" id="L366">      }</span>
+      else {
+<span class="nc" id="L368">	IOException ioerr = new IOException();</span>
+<span class="nc" id="L369">	throw ioerr;</span>
+      }
+    }
+<span class="nc" id="L372">  }  // plot_freq</span>
+
+
+  /**
+   &lt;p&gt;
+   This function is passed an ordered set of Haar wavelet
+   coefficients.  For each frequency of coefficients
+   a graph will be generated, in gnuplot format, that
+   plots the ordered Haar coefficients as a histogram.  A
+   gaussian (normal) curve with the same mean and standard
+   deviation will also be plotted for comparision.
+   &lt;/p&gt;
+   &lt;p&gt;
+   The histogram for the coefficients is generated by counting the
+   number of coefficients that fall within a particular bin range and
+   then dividing by the total number of coefficients.  This results in
+   a histogram where all bins add up to one (or to put it another way,
+   a curve whose area is one).
+   &lt;/p&gt;
+   &lt;p&gt;
+   The standard formula for a normal curve results in a curve showing
+   the probability profile.  To convert this curve to the same
+   scale as the coefficient histogram, the area under the curve is
+   integrated over the range of each bin (corresponding to the 
+   coefficient histogram bins).  The area under the normal curve
+   is one, resulting in the same scale.
+   &lt;/p&gt;
+   &lt;p&gt;
+   The size of the coefficient array must be a power of two.  When the
+   Haar coefficients are ordered (see inplace_haar) the coefficient
+   frequencies are the component powers of two.  For example, if the
+   array length is 512, there will be 256 coefficients from the highest
+   frequence from index 256 to 511.  The next frequency set will
+   be 128 in length, from 128 to 255, the next will be 64 in length
+   from 64 to 127, etc...
+   &lt;/p&gt;
+
+   &lt;p&gt;
+   As the number of coefficients decreases, the histograms become
+   less meaningful.  This function only graphs the coefficient
+   spectrum down to 64 coefficients.
+   &lt;/p&gt;
+
+   */
+  public void plot_curves( double coef[] )
+  {
+<span class="nc bnc" id="L418" title="All 2 branches missed.">    if (coef != null) {</span>
+<span class="nc" id="L419">      final int min_coef = 64;</span>
+<span class="nc" id="L420">      int len = coef.length;</span>
+<span class="nc" id="L421">      int end = len;</span>
+<span class="nc" id="L422">      int start = len &gt;&gt; 1;</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">      while (start &gt;= min_coef) {</span>
+<span class="nc" id="L424">	double v[] = new double[ start ];</span>
+<span class="nc" id="L425">	int ix = 0;</span>
+<span class="nc bnc" id="L426" title="All 2 branches missed.">	for (int i = start; i &lt; end; i++) {</span>
+<span class="nc" id="L427">	  v[ix] = coef[i];</span>
+<span class="nc" id="L428">	  ix++;</span>
+	}
+	try {
+<span class="nc" id="L431">	  plot_freq( v );</span>
+	}
+<span class="nc" id="L433">	catch (Exception e) {</span>
+<span class="nc" id="L434">	  break; // exit the while loop</span>
+<span class="nc" id="L435">	}</span>
+<span class="nc" id="L436">	end = start;</span>
+<span class="nc" id="L437">	start = end &gt;&gt; 1;</span>
+<span class="nc" id="L438">      } // for</span>
+    }
+<span class="nc" id="L440">  } // plot_curves</span>
+
+} // curve_plot
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

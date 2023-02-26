@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Nonterminal.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp.push</a> &gt; <span class="el_source">Nonterminal.java</span></div><h1>Nonterminal.java</h1><pre class="source lang-java linenums">package ec.gp.push;
+import ec.gp.*;
+import ec.*;
+
+/* 
+ * Nonterminal.java
+ * 
+ * Created: Fri Feb 15 23:00:04 EST 2013
+ * By: Sean Luke
+ */
+ 
+/**
+ *
+ * Nonterminal is one of two GPNodes which are used to encode Push programs in ECJ GP trees.
+  
+ &lt;p&gt;ECJ implements Push's s-expressions as trees of nonterminals
+ and terminals.  The nonterminals are all dummy instances of the Nonterminal class.
+ Terminals are all instances of the Terminal class.
+    
+ &lt;p&gt;The nonterminals and terminals aren't actually evaluated.  Instead, the
+ tree is printed out as a lisp s-expression and sent to the Push interpreter.
+
+ &lt;p&gt;The Nonterminal class can have any number of children.  When writing itself out
+ via printNodeForHumans, it displays itself as &quot;.&quot;  But when writing itself out via
+ printNode, it doesn't display anything at all (which produces a proper-looking Push program).
+   
+ &lt;p&gt;You must specify a size distribution for PushBuilder.
+  
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+/** 
+    ECJ implements Push's s-expressions as trees of nonterminals
+    and terminals.  The nonterminals are all dummies -- this is the
+    class in question.  Notably the nonterminals also have an arbitrary
+    arity, requiring a custom tree builder (see PushBuilder).  The terminals
+    are instances of Terminal.java.
+*/
+
+<span class="nc" id="L41">public class Nonterminal extends GPNode</span>
+    {
+<span class="nc" id="L43">    public String toString() { return &quot;.&quot;; }   // display a &quot;.&quot; when being printed in computer-readable fashion</span>
+<span class="nc" id="L44">    public String toStringForHumans() { return &quot;&quot;; }  // don't print it when being displayed</span>
+    
+    // Note that expectedChildren() is not overridden, so the default is CHILDREN_UKNOWN
+    // which results in arbitrary arity.
+
+    public void eval(final EvolutionState state,
+        final int thread,
+        final GPData input,
+        final ADFStack stack,
+        final GPIndividual individual,
+        final Problem problem)
+        {
+        // do nothing at all
+<span class="nc" id="L57">        }</span>
+    }
+
+
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

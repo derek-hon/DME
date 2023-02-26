@@ -1,0 +1,442 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InterPopulationExchange.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.exchange</a> &gt; <span class="el_source">InterPopulationExchange.java</span></div><h1>InterPopulationExchange.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.exchange;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+
+/* 
+ * InterPopulationExchange.java
+ * 
+ * Created Sat Feb 10 13:44:11 EST 2001
+ * By: Liviu Panait
+ */
+
+/**
+ * InterPopulationExchange is an Exchanger which implements a simple exchanger
+ * between subpopulations. IterPopulationExchange uses an arbitrary graph topology
+ * for migrating individuals from subpopulations. The assumption is that all
+ * subpopulations have the same representation and same task to solve, otherwise
+ * the exchange between subpopulations does not make much sense.
+
+ * &lt;p&gt;InterPopulationExchange has a topology which is similar to the one used by
+ * IslandExchange.  Every few generations, a subpopulation will send some number
+ * of individuals to other subpopulations.  Since all subpopulations evolve at
+ * the same generational speed, this is a synchronous procedure (IslandExchange
+ * instead is asynchronous by default, though you can change it to synchronous).
+ 
+ * &lt;p&gt;Individuals are sent from a subpopulation prior to breeding.  They are stored
+ * in a waiting area until after all subpopulations have bred; thereafter they are
+ * added into the new subpopulation.  This means that the subpopulation order doesn't
+ * matter.  Also note that it means that some individuals will be created during breeding,
+ * and immediately killed to make way for the migrants.  A little wasteful, we know,
+ * but it's simpler that way.
+ 
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.chatty&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;boolean, default = true&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt; Should we be verbose or silent about our exchanges?
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ &lt;p&gt;&lt;i&gt;Note:&lt;/i&gt; For each subpopulation in your population, there &lt;b&gt;must&lt;/b&gt; be 
+ one exch.subpop... declaration set.
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.subpop.&lt;i&gt;n&lt;/i&gt;.select&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.SelectionMethod&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt; The selection method used by subpopulation #n for picking 
+ migrants to emigrate to other subpopulations.  If not set, uses the default parameter below.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.select&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.SelectionMethod&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;
+ &lt;i&gt;server&lt;/i&gt;: Default parameter: the selection method used by a given subpopulation for picking 
+ migrants to emigrate to other subpopulations.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.subpop.&lt;i&gt;n&lt;/i&gt;.select-to-die&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.SelectionMethod (Default is random selection)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt; The selection method used by subpopulation #n for picking 
+ individuals to be replaced by migrants.  If not set, uses the default parameter below.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.select-to-die&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.SelectionMethod (Default is random selection)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;
+ &lt;i&gt;server&lt;/i&gt;: Default parameter: the selection method used by a given subpopulation for picking 
+ individuals to be replaced by migrants.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.subpop.&lt;i&gt;n&lt;/i&gt;.mod&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt; The number of generations that subpopulation #n waits between 
+ sending emigrants.  If not set, uses the default parameter below.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.mod&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;
+ &lt;i&gt;server&lt;/i&gt;: Default parameter: the number of generations that a given subpopulation waits between 
+ sending emigrants.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.subpop.&lt;i&gt;n&lt;/i&gt;.start&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt; The generation when subpopulation #n begins sending emigrants.  If not set, uses the default parameter below.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.start&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;
+ &lt;i&gt;server&lt;/i&gt;: Default parameter: the generation when a given subpopulation begins sending emigrants.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.subpop.&lt;i&gt;n&lt;/i&gt;.size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt; The number of emigrants sent at one time by generation #n.  If not set, uses the default parameter below.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.subpop.&lt;i&gt;n&lt;/i&gt;.num-dest&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt; The number of destination subpopulations for this subpopulation.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.subpop.&lt;i&gt;n&lt;/i&gt;.dest.&lt;i&gt;m&lt;/i&gt;&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &gt;= 0&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt; Subpopulation #n's destination #m is this subpopulation.
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ 
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;&lt;i&gt;base&lt;/i&gt;.subpop.&lt;i&gt;n&lt;/i&gt;.select&lt;/tt&gt;&lt;br&gt;
+ &lt;td&gt;selection method for subpopulation #n's migrants&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ *  
+ * @author Liviu Panait &amp; Sean Luke
+ * @version 2.0 
+ */
+
+
+<span class="nc" id="L118">public class InterPopulationExchange extends Exchanger</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    // static inner classes don't need SerialVersionUIDs
+<span class="nc" id="L123">    static class IPEInformation implements Serializable</span>
+        {
+        // the selection method
+        SelectionMethod immigrantsSelectionMethod;
+
+        // the selection method
+        SelectionMethod indsToDieSelectionMethod;
+
+        // the number of destination subpopulations
+        int numDest;
+
+        // the subpopulations where individuals need to be sent
+        int[] destinations;
+
+        // the modulo
+        int modulo;
+
+        // the start (offset)
+        int offset;
+
+        // the size
+        int size;
+        }
+
+
+    /** The subpopulation delimiter */
+    public static final String P_SUBPOP = &quot;subpop&quot;;
+
+    /** The parameter for the modulo (how many generations should pass between consecutive sendings of individuals */
+    public static final String P_MODULO = &quot;mod&quot;;
+
+    /** The number of emigrants to be sent */
+    public static final String P_SIZE = &quot;size&quot;;
+
+    /** How many generations to pass at the beginning of the evolution before the first
+        emigration from the current subpopulation */
+    public static final String P_OFFSET = &quot;start&quot;;
+
+    /** The number of destinations from current island */
+    public static final String P_DEST_FOR_SUBPOP = &quot;num-dest&quot;;
+
+    /** The prefix for destinations */
+    public static final String P_DEST = &quot;dest&quot;;
+
+    /** The selection method for sending individuals to other islands */
+    public static final String P_SELECT_METHOD = &quot;select&quot;;
+
+    /** The selection method for deciding individuals to be replaced by immigrants */
+    public static final String P_SELECT_TO_DIE_METHOD = &quot;select-to-die&quot;;
+    
+    /** Whether or not we're chatty */
+    public static final String P_CHATTY = &quot;chatty&quot;;
+
+    /** My parameter base -- I need to keep this in order to help the server
+        reinitialize contacts */
+    // SERIALIZE
+    public Parameter base;
+    
+    IPEInformation[] exchangeInformation;
+
+    //  storage for the incoming immigrants: 2 sizes:
+    //    the subpopulation and the index of the emigrant
+    // this is virtually the array of mailboxes
+    Individual[][] immigrants;
+
+    // the number of immigrants in the storage for each of the subpopulations
+    int[] nImmigrants;
+
+    int nrSources;
+    
+    public boolean chatty;
+
+    // sets up the Island Exchanger
+    public void setup( final EvolutionState state, final Parameter _base )
+        {
+<span class="nc" id="L198">        base = _base;</span>
+
+<span class="nc" id="L200">        Parameter p_numsubpops = new Parameter( ec.Initializer.P_POP ).push( ec.Population.P_SIZE );</span>
+<span class="nc" id="L201">        int numsubpops = state.parameters.getInt(p_numsubpops,null,1);</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        if ( numsubpops == 0 )</span>
+            {
+            // later on, Population will complain with this fatally, so don't
+            // exit here, just deal with it and assume that you'll soon be shut
+            // down
+            }
+
+        // how many individuals (maximally) would each of the mailboxes have to hold
+<span class="nc" id="L210">        int[] incoming = new int[ numsubpops ];</span>
+
+        // allocate some of the arrays
+<span class="nc" id="L213">        exchangeInformation = new IPEInformation[ numsubpops ];</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        for( int i = 0 ; i &lt; numsubpops ; i++ )</span>
+<span class="nc" id="L215">            exchangeInformation[i] = new IPEInformation();</span>
+<span class="nc" id="L216">        nImmigrants = new int[ numsubpops ];</span>
+
+        Parameter p;
+
+<span class="nc" id="L220">        Parameter localBase = base.push( P_SUBPOP );</span>
+
+<span class="nc" id="L222">        chatty = state.parameters.getBoolean(base.push(P_CHATTY), null, true);</span>
+
+<span class="nc bnc" id="L224" title="All 2 branches missed.">        for( int i = 0 ; i &lt; numsubpops ; i++ )</span>
+            {
+
+            // update the parameter for the new context
+<span class="nc" id="L228">            p = localBase.push( &quot;&quot; + i );</span>
+
+            // read the selection method
+<span class="nc" id="L231">            exchangeInformation[i].immigrantsSelectionMethod = (SelectionMethod)</span>
+<span class="nc" id="L232">                state.parameters.getInstanceForParameter( p.push( P_SELECT_METHOD ), base.push(P_SELECT_METHOD), ec.SelectionMethod.class );</span>
+<span class="nc bnc" id="L233" title="All 2 branches missed.">            if( exchangeInformation[i].immigrantsSelectionMethod == null )</span>
+<span class="nc" id="L234">                state.output.fatal( &quot;Invalid parameter.&quot;,  p.push( P_SELECT_METHOD ), base.push(P_SELECT_METHOD) );</span>
+<span class="nc" id="L235">            exchangeInformation[i].immigrantsSelectionMethod.setup( state, p.push(P_SELECT_METHOD) );</span>
+
+            // read the selection method
+<span class="nc bnc" id="L238" title="All 2 branches missed.">            if( state.parameters.exists( p.push( P_SELECT_TO_DIE_METHOD ), base.push(P_SELECT_TO_DIE_METHOD ) ) )</span>
+<span class="nc" id="L239">                exchangeInformation[i].indsToDieSelectionMethod = (SelectionMethod)</span>
+<span class="nc" id="L240">                    state.parameters.getInstanceForParameter( p.push( P_SELECT_TO_DIE_METHOD ), base.push( P_SELECT_TO_DIE_METHOD ), ec.SelectionMethod.class );</span>
+            else // use RandomSelection
+<span class="nc" id="L242">                exchangeInformation[i].indsToDieSelectionMethod = new ec.select.RandomSelection();</span>
+<span class="nc" id="L243">            exchangeInformation[i].indsToDieSelectionMethod.setup( state, p.push(P_SELECT_TO_DIE_METHOD));</span>
+
+            // get the modulo
+<span class="nc" id="L246">            exchangeInformation[i].modulo = state.parameters.getInt( p.push( P_MODULO ), base.push(P_MODULO ), 1 );</span>
+<span class="nc bnc" id="L247" title="All 2 branches missed.">            if( exchangeInformation[i].modulo == 0 )</span>
+<span class="nc" id="L248">                state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_MODULO ), base.push( P_MODULO ) );</span>
+            
+            // get the offset
+<span class="nc" id="L251">            exchangeInformation[i].offset = state.parameters.getInt( p.push( P_OFFSET ), base.push( P_OFFSET ), 0 );</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">            if( exchangeInformation[i].offset == -1 )</span>
+<span class="nc" id="L253">                state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_OFFSET ), base.push( P_OFFSET ) );</span>
+            
+            // get the size
+<span class="nc" id="L256">            exchangeInformation[i].size = state.parameters.getInt( p.push( P_SIZE ), base.push( P_SIZE ), 1 );</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">            if( exchangeInformation[i].size == 0 )</span>
+<span class="nc" id="L258">                state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_SIZE ), base.push( P_SIZE ) );</span>
+
+            // get the number of destinations
+<span class="nc" id="L261">            exchangeInformation[i].numDest = state.parameters.getInt( p.push( P_DEST_FOR_SUBPOP ), null, 0 );</span>
+<span class="nc bnc" id="L262" title="All 2 branches missed.">            if( exchangeInformation[i].numDest == -1 )</span>
+<span class="nc" id="L263">                state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_DEST_FOR_SUBPOP ) );</span>
+
+<span class="nc" id="L265">            exchangeInformation[i].destinations = new int[ exchangeInformation[i].numDest ];</span>
+            // read the destinations
+<span class="nc bnc" id="L267" title="All 2 branches missed.">            for( int j = 0 ; j &lt; exchangeInformation[i].numDest ; j++ )</span>
+                {
+<span class="nc" id="L269">                exchangeInformation[i].destinations[j] =</span>
+<span class="nc" id="L270">                    state.parameters.getInt( p.push( P_DEST ).push( &quot;&quot; + j ), null, 0 );</span>
+<span class="nc bnc" id="L271" title="All 4 branches missed.">                if( exchangeInformation[i].destinations[j] == -1 ||</span>
+                    exchangeInformation[i].destinations[j] &gt;= numsubpops )
+<span class="nc" id="L273">                    state.output.fatal( &quot;Parameter not found, or it has an incorrect value.&quot;, p.push( P_DEST ).push( &quot;&quot; + j ) );</span>
+                // update the maximum number of incoming individuals for the destination island
+<span class="nc" id="L275">                incoming[ exchangeInformation[i].destinations[j] ] += exchangeInformation[i].size;</span>
+                }
+
+            }
+            
+        // calculate the maximum number of incoming individuals to be stored in the mailbox
+<span class="nc" id="L281">        int max = -1;</span>
+
+<span class="nc bnc" id="L283" title="All 2 branches missed.">        for( int i = 0 ; i &lt; incoming.length ; i++ )</span>
+<span class="nc bnc" id="L284" title="All 4 branches missed.">            if( max == - 1 || max &lt; incoming[i] )</span>
+<span class="nc" id="L285">                max = incoming[i];</span>
+
+        // set up the mailboxes
+<span class="nc" id="L288">        immigrants = new Individual[ numsubpops ][ max ];</span>
+
+<span class="nc" id="L290">        }    </span>
+
+
+    /**
+       Initializes contacts with other processes, if that's what you're doing.
+       Called at the beginning of an evolutionary run, before a population is set up.
+       It doesn't do anything, as this exchanger works on only 1 computer.
+    */
+    public void initializeContacts(EvolutionState state)
+        {
+<span class="nc" id="L300">        }</span>
+
+    /**
+       Initializes contacts with other processes, if that's what you're doing.  Called after restarting from a checkpoint.
+       It doesn't do anything, as this exchanger works on only 1 computer.
+    */
+    public void reinitializeContacts(EvolutionState state)
+        {
+<span class="nc" id="L308">        }</span>
+
+
+
+    public Population preBreedingExchangePopulation(EvolutionState state)
+        {
+        // exchange individuals between subpopulations
+        // BUT ONLY if the modulo and offset are appropriate for this
+        // generation (state.generation)
+        // I am responsible for returning a population.  This could
+        // be a new population that I created fresh, or I could modify
+        // the existing population and return that.
+
+        // for each of the islands that sends individuals
+<span class="nc bnc" id="L322" title="All 2 branches missed.">        for( int i = 0 ; i &lt; exchangeInformation.length ; i++ )</span>
+            {
+
+            // else, check whether the emigrants need to be sent
+<span class="nc bnc" id="L326" title="All 6 branches missed.">            if( ( state.generation &gt;= exchangeInformation[i].offset ) &amp;&amp;</span>
+                    ( ( exchangeInformation[i].modulo == 0 ) ||
+                    ( ( ( state.generation - exchangeInformation[i].offset ) % exchangeInformation[i].modulo ) == 0 ) ) )
+                {
+
+                // send the individuals!!!!
+
+                // for each of the islands where we have to send individuals
+<span class="nc bnc" id="L334" title="All 2 branches missed.">                for( int x = 0 ; x &lt; exchangeInformation[i].numDest ; x++ )</span>
+                    {
+
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                    if (chatty) state.output.message( &quot;Sending the emigrants from subpopulation &quot; +</span>
+                        i + &quot; to subpopulation &quot; +
+                        exchangeInformation[i].destinations[x] );
+
+                    // select &quot;size&quot; individuals and send then to the destination as emigrants
+<span class="nc" id="L342">                    exchangeInformation[i].immigrantsSelectionMethod.prepareToProduce( state, i, 0 );</span>
+<span class="nc bnc" id="L343" title="All 2 branches missed.">                    for( int y = 0 ; y &lt; exchangeInformation[i].size ; y++ ) // send all necesary individuals</span>
+                        {
+                        // get the index of the immigrant
+<span class="nc" id="L346">                        int index = exchangeInformation[i].immigrantsSelectionMethod.produce( i, state, 0 );</span>
+                        // copy the individual to the mailbox of the destination subpopulation
+<span class="nc" id="L348">                        immigrants[ exchangeInformation[i].destinations[x] ]</span>
+                            [ nImmigrants[ exchangeInformation[i].destinations[x] ] ] =
+<span class="nc" id="L350">                            process(state, 0, null, exchangeInformation[i].destinations[x], (Individual) state.population.subpops.get(i).individuals.get(index).clone());</span>
+                        // increment the counter with the number of individuals in the mailbox
+<span class="nc" id="L352">                        nImmigrants[ exchangeInformation[i].destinations[x] ]++;</span>
+                        }
+<span class="nc" id="L354">                    exchangeInformation[i].immigrantsSelectionMethod.finishProducing( state, i, 0 ); // end the selection step</span>
+                    }
+                }
+            }
+
+<span class="nc" id="L359">        return state.population;</span>
+
+        }
+        
+
+    public Population postBreedingExchangePopulation(EvolutionState state)
+        {
+        // receiving individuals from other islands
+        // same situation here of course.
+
+<span class="nc bnc" id="L369" title="All 2 branches missed.">        for( int x = 0 ; x &lt; nImmigrants.length ; x++ )</span>
+            {
+
+<span class="nc bnc" id="L372" title="All 4 branches missed.">            if( nImmigrants[x] &gt; 0 &amp;&amp; chatty )</span>
+                {
+<span class="nc" id="L374">                state.output.message( &quot;Immigrating &quot; +  nImmigrants[x] +</span>
+                    &quot; individuals from mailbox for subpopulation &quot; + x );
+                }
+                
+<span class="nc" id="L378">            int len = state.population.subpops.get(x).individuals.size();</span>
+            // double check that we won't go into an infinite loop!
+<span class="nc bnc" id="L380" title="All 2 branches missed.">            if ( nImmigrants[x] &gt;= state.population.subpops.get(x).individuals.size() )</span>
+<span class="nc" id="L381">                state.output.fatal(&quot;Number of immigrants (&quot;+nImmigrants[x] +</span>
+                    &quot;) is larger than subpopulation #&quot; + x + &quot;'s size (&quot; +
+                    len +&quot;).  This would cause an infinite loop in the selection-to-die procedure.&quot;);
+
+<span class="nc" id="L385">            boolean[] selected = new boolean[ len ];</span>
+<span class="nc" id="L386">            int[] indices = new int[ nImmigrants[x] ];</span>
+<span class="nc bnc" id="L387" title="All 2 branches missed.">            for( int i = 0 ; i &lt; selected.length ; i++ )</span>
+<span class="nc" id="L388">                selected[i] = false;</span>
+<span class="nc" id="L389">            exchangeInformation[x].indsToDieSelectionMethod.prepareToProduce( state, x, 0 );</span>
+<span class="nc bnc" id="L390" title="All 2 branches missed.">            for( int i = 0 ; i &lt; nImmigrants[x] ; i++ )</span>
+                {
+                do {
+<span class="nc" id="L393">                    indices[i] = exchangeInformation[x].indsToDieSelectionMethod.produce( x, state, 0 );</span>
+                    }
+<span class="nc bnc" id="L395" title="All 2 branches missed.">                while( selected[indices[i]] );</span>
+<span class="nc" id="L396">                selected[indices[i]] = true;</span>
+                }
+<span class="nc" id="L398">            exchangeInformation[x].indsToDieSelectionMethod.finishProducing( state, x, 0 );</span>
+
+<span class="nc bnc" id="L400" title="All 2 branches missed.">            for( int y = 0 ; y &lt; nImmigrants[x] ; y++ )</span>
+                {
+                // read the individual
+<span class="nc" id="L403">                state.population.subpops.get(x).individuals.set( indices[y] ,immigrants[x][y]);</span>
+
+                // reset the evaluated flag (the individuals are not evaluated in the current island */
+<span class="nc" id="L406">                state.population.subpops.get(x).individuals.get(indices[y]).evaluated = false;</span>
+
+                }
+
+            // reset the number of immigrants in the mailbox for the current subpopulation
+            // this doesn't need another synchronization, because the thread is already synchronized
+<span class="nc" id="L412">            nImmigrants[x] = 0;</span>
+            }
+
+<span class="nc" id="L415">        return state.population;</span>
+
+        }
+
+
+
+    /** Called after preBreedingExchangePopulation(...) to evaluate whether or not
+        the exchanger wishes the run to shut down (with ec.EvolutionState.R_FAILURE).
+        This would happen for two reasons.  First, another process might have found
+        an ideal individual and the global run is now over.  Second, some network
+        or operating system error may have occurred and the system needs to be shut
+        down gracefully.
+        This function does not return a String as soon as it wants to exit (another island found
+        the perfect individual, or couldn't connect to the server). Instead, it sets a flag, called
+        message, to remember next time to exit. This is due to a need for a graceful
+        shutdown, where checkpoints are working properly and save all needed information. */
+    public String runComplete(EvolutionState state)
+        {
+<span class="nc" id="L433">        return null;</span>
+        }
+
+    /** Closes contacts with other processes, if that's what you're doing.  Called at the end of an evolutionary run. result is either ec.EvolutionState.R_SUCCESS or ec.EvolutionState.R_FAILURE, indicating whether or not an ideal individual was found. */
+    public void closeContacts(EvolutionState state, int result)
+        {
+<span class="nc" id="L439">        }</span>
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

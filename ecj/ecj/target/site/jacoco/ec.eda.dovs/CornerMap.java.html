@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CornerMap.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.eda.dovs</a> &gt; <span class="el_source">CornerMap.java</span></div><h1>CornerMap.java</h1><pre class="source lang-java linenums">package ec.eda.dovs;
+
+import java.util.*;
+import java.util.Map.Entry;
+import ec.*;
+
+/**
+ * CornerMap can help us to quickly identify the possible individuals that is
+ * able to form a hyperbox around best individual. It has multiple key-value
+ * pairs. Each key can have multiple values. The elements in CornerMap is sorted
+ * based on the key of the elements. If two elements have the same key value,
+ * it's order is determined by their insertion time.
+ * 
+ * &lt;p&gt;
+ * It stores the map between one of the coordinate of the individual to the
+ * individual. For example, we have a individual &quot;ind&quot; with 5 dimension (12, 3,
+ * 4, 2, 8), we should create a array &quot;corners&quot; with 5 CornerMap. For each of
+ * the CornerMap, we should insert the coordinate of the individual as key, and
+ * the individual itself as the value, like (12, ind), (3, ind) .... into their
+ * corresponding CornerMap.
+ *
+ * &lt;p&gt;
+ * CornerMap is essentially a mimic of multimap in C++ where keys are in sorted,
+ * but in the ArrayList for each key, the order is determined by their insertion
+ * order. Here we simplify it with only useful function such as lowerBound and
+ * upperBound.
+ * 
+ * @author Ermo Wei and David Freelan
+ */
+
+<span class="nc" id="L31">public class CornerMap</span>
+    {
+
+    /**
+     * Simple structure store the key and value from this CornerMap. This is
+     * userd for retrieving data from CornerMap
+     * 
+     * @author Ermo Wei
+     *
+     */
+<span class="nc" id="L41">    public class Pair</span>
+        {
+        public Integer key;
+        public Individual value;
+
+        public int getKey()
+            {
+<span class="nc" id="L48">            return key;</span>
+            }
+
+        public Individual getValue()
+            {
+<span class="nc" id="L53">            return value;</span>
+            }
+        }
+
+    /** major data structure used for this CornerMap, it is order by key */
+<span class="nc" id="L58">    TreeMap&lt;Integer, ArrayList&lt;Individual&gt;&gt; map = new TreeMap&lt;Integer, ArrayList&lt;Individual&gt;&gt;();</span>
+
+    /** Insert a key and value pair into CornerMap */
+    public void insert(int coordindate, Individual ind)
+        {
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (!map.containsKey(coordindate))</span>
+<span class="nc" id="L64">            map.put(coordindate, new ArrayList&lt;Individual&gt;());</span>
+<span class="nc" id="L65">        map.get(coordindate).add(ind);</span>
+<span class="nc" id="L66">        }</span>
+
+    /**
+     * This returns the smallest element whose key is equal to or bigger than
+     * the argument &quot;key&quot;.
+     */
+    public Pair lowerBound(int key)
+        {
+<span class="nc" id="L74">        Pair entry = new Pair();</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        if (map.get(key).size() == 0)</span>
+<span class="nc" id="L76">            return null;</span>
+
+<span class="nc" id="L78">        entry.key = key;</span>
+<span class="nc" id="L79">        entry.value = map.get(key).get(0);</span>
+<span class="nc" id="L80">        return entry;</span>
+        }
+
+    /**
+     * This method returns the smallest element whose key is bigger than
+     * (excluding equal to) &quot;key&quot;,
+     */
+    public Pair upperBound(int key)
+        {
+<span class="nc" id="L89">        Entry&lt;Integer, ArrayList&lt;Individual&gt;&gt; entry = map.higherEntry(key);</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        if (entry != null)</span>
+            {
+<span class="nc bnc" id="L92" title="All 2 branches missed.">            if (entry.getValue().size() == 0)</span>
+<span class="nc" id="L93">                return null;</span>
+<span class="nc" id="L94">            Pair pair = new Pair();</span>
+<span class="nc" id="L95">            pair.key = entry.getKey();</span>
+<span class="nc" id="L96">            pair.value = entry.getValue().get(0);</span>
+<span class="nc" id="L97">            return pair;</span>
+            }
+        else
+<span class="nc" id="L100">            return null;</span>
+        }
+
+    /** Test if we have another key value pair before parameter pair */
+    public boolean hasSmaller(Pair pair)
+        {
+        // First search this individual in the list
+<span class="nc" id="L107">        ArrayList&lt;Individual&gt; currentList = map.get(pair.key);</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        for (int i = currentList.size() - 1; i &gt;= 0; i--)</span>
+            {
+            // We want to compare EXACT SAME OBJECT
+<span class="nc bnc" id="L111" title="All 2 branches missed.">            if (currentList.get(i) == pair.value)</span>
+                {
+                // find, can we just return true?
+<span class="nc bnc" id="L114" title="All 2 branches missed.">                if (i == 0)</span>
+                    {
+                    // if this is already the first element in current list,
+                    // find previous list
+<span class="nc" id="L118">                    Entry&lt;Integer, ArrayList&lt;Individual&gt;&gt; entry = map.lowerEntry(pair.key);</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">                    if (entry != null)</span>
+                        {
+<span class="nc bnc" id="L121" title="All 2 branches missed.">                        if (entry.getValue().size() == 0)</span>
+<span class="nc" id="L122">                            return false;</span>
+                        else
+<span class="nc" id="L124">                            return true;</span>
+                        }
+                    else
+<span class="nc" id="L127">                        return false;</span>
+                    }
+                else
+<span class="nc" id="L130">                    return true;</span>
+                }
+            }
+        // we didn't find it in the list, which should not happen
+<span class="nc" id="L134">        return false;</span>
+        }
+
+    /** Test if we have another key value pair after parameter pair */
+    public boolean hasLarger(Pair pair)
+        {
+        // First search this individual in the list
+<span class="nc" id="L141">        ArrayList&lt;Individual&gt; currentList = map.get(pair.key);</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        for (int i = 0; i &lt; currentList.size(); ++i)</span>
+            {
+            // We want to compare EXACT SAME OBJECT
+<span class="nc bnc" id="L145" title="All 2 branches missed.">            if (currentList.get(i) == pair.value)</span>
+                {
+                // find, can we just return true?
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                if (i == currentList.size() - 1)</span>
+                    {
+                    // if this is already the last element in current list,
+                    // find next list
+<span class="nc" id="L152">                    Entry&lt;Integer, ArrayList&lt;Individual&gt;&gt; entry = map.higherEntry(pair.key);</span>
+<span class="nc bnc" id="L153" title="All 2 branches missed.">                    if (entry != null)</span>
+                        {
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                        if (entry.getValue().size() == 0)</span>
+<span class="nc" id="L156">                            return false;</span>
+                        else
+<span class="nc" id="L158">                            return true;</span>
+                        }
+                    else
+<span class="nc" id="L161">                        return false;</span>
+                    }
+                else
+<span class="nc" id="L164">                    return true;</span>
+                }
+            }
+        // we didn't find it in the list, which should not happen
+<span class="nc" id="L168">        return false;</span>
+        }
+
+    /**
+     * Get a greatest key value pair from this CornerMap who is the immediate
+     * previous element of pair
+     */
+    public Pair smaller(Pair pair)
+        {
+<span class="nc" id="L177">        Pair newPair = new Pair();</span>
+        // First search this individual in the list
+<span class="nc" id="L179">        ArrayList&lt;Individual&gt; currentList = map.get(pair.key);</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        for (int i = currentList.size() - 1; i &gt;= 0; i--)</span>
+            {
+            // We want to compare EXACT SAME OBJECT
+<span class="nc bnc" id="L183" title="All 2 branches missed.">            if (currentList.get(i) == pair.value)</span>
+                {
+                // find, can we just return true?
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                if (i == 0)</span>
+                    {
+                    // if this is already the first element in current list,
+                    // find previous list
+<span class="nc" id="L190">                    Entry&lt;Integer, ArrayList&lt;Individual&gt;&gt; entry = map.lowerEntry(pair.key);</span>
+<span class="nc bnc" id="L191" title="All 2 branches missed.">                    if (entry != null)</span>
+                        {
+<span class="nc bnc" id="L193" title="All 2 branches missed.">                        if (entry.getValue().size() == 0)</span>
+<span class="nc" id="L194">                            return null;</span>
+                        else
+                            {
+<span class="nc" id="L197">                            newPair.key = entry.getKey();</span>
+<span class="nc" id="L198">                            newPair.value = entry.getValue().get(entry.getValue().size() - 1);</span>
+<span class="nc" id="L199">                            return newPair;</span>
+                            }
+                        }
+                    else
+<span class="nc" id="L203">                        return null;</span>
+                    }
+                else
+                    {
+<span class="nc" id="L207">                    newPair.key = pair.key;</span>
+<span class="nc" id="L208">                    newPair.value = currentList.get(i - 1);</span>
+<span class="nc" id="L209">                    return newPair;</span>
+                    }
+                }
+            }
+        // we didn't find it in the list, which should not happen
+<span class="nc" id="L214">        return null;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

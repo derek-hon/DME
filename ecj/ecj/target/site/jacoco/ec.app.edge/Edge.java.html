@@ -1,0 +1,698 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Edge.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.app.edge</a> &gt; <span class="el_source">Edge.java</span></div><h1>Edge.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.app.edge;
+import ec.util.*;
+import java.io.*;
+import java.util.*;
+import java.util.zip.*;
+import ec.*;
+import ec.gp.*;
+import ec.gp.koza.*;
+import ec.simple.*;
+
+/* 
+ * Edge.java
+ * 
+ * Created: Mon Nov  1 15:46:19 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Edge implements the Symbolic Edge problem.
+ *
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or == ec.app.edge.EdgeData&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the class for the prototypical GPData object for the Edge problem)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;data&lt;/tt&gt;&lt;/td&gt;
+ &lt;td&gt;species (the GPData object)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L45">public class Edge extends GPProblem implements SimpleProblemForm</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_GENERALIZE = &quot;generalize&quot;;
+    public static final String P_ALLPOS = &quot;allpos&quot;;
+    public static final String P_ALLNEG = &quot;allneg&quot;;
+    public static final String P_TESTPOS = &quot;testpos&quot;;
+    public static final String P_TESTNEG = &quot;testneg&quot;;
+    public static final String P_MAXTEST = &quot;maxtest&quot;;
+
+    public static final int MIN_ARRAY_SIZE = 64;
+
+    // reading states (BAD is initial state)
+    public static final int BAD = 0;
+    public static final int READING0 = 1;
+    public static final int READING1 = 2;
+    public static final int EPSILON = 3;
+
+    // building graph
+    public boolean[] start;
+    public boolean[] accept;
+    public int numNodes;
+    public int[] from;
+    public int[] to;
+    public int[] reading;
+    public int numEdges;
+
+    // adjacency lists
+    public int[][] reading1;
+    public int[] reading1_l;
+    public int[][] reading0;
+    public int[] reading0_l;
+    public int[][] epsilon;
+    public int[] epsilon_l;
+
+    // positive test
+    public boolean[][] posT;
+    // negative test
+    public boolean[][] negT;
+    // positive all
+    public boolean[][] posA;
+    // negative all
+    public boolean[][] negA;
+
+    // testing
+    public boolean[] state1;
+    public boolean[] state2;
+
+    // generalize?
+    public boolean generalize;
+
+
+    // we don't need to copy any of our arrays, they're null until
+    // we actually start using them.
+
+    public static String fill(int num, char c)
+        {
+<span class="nc" id="L103">        char[] buf = new char[num];</span>
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        for(int x=0;x&lt;num;x++) buf[x]=c;</span>
+<span class="nc" id="L105">        return new String(buf);</span>
+        }
+
+    public static final int J_LEFT = 0;
+    public static final int J_RIGHT = 1;
+    public static final int J_CENTER = 2;
+    public static String justify(final String s, final int len, final int justification)
+        {
+<span class="nc" id="L113">        int size = len - s.length();</span>
+<span class="nc bnc" id="L114" title="All 2 branches missed.">        if (size&lt;0) size=0;</span>
+<span class="nc bnc" id="L115" title="All 3 branches missed.">        switch(justification)</span>
+            {
+            case J_LEFT:
+<span class="nc" id="L118">                return s + fill(size,' ');</span>
+            case J_RIGHT:
+<span class="nc" id="L120">                return fill(size,' ') + s;</span>
+            default: // (J_CENTER)
+<span class="nc" id="L122">                return fill(size/2,' ') + s + fill(size-(size/2),' ');</span>
+            }
+        }
+
+    public String printCurrentNFA()
+        {
+<span class="nc" id="L128">        int strsize = String.valueOf(numNodes).length();</span>
+<span class="nc" id="L129">        String str = &quot;&quot;;</span>
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        for(int x=0;x&lt;numNodes;x++)</span>
+            {
+<span class="nc" id="L132">            str += justify(String.valueOf(x),strsize,J_RIGHT) + &quot; &quot; + </span>
+<span class="nc bnc" id="L133" title="All 4 branches missed.">                (start[x] ? &quot;S&quot; : &quot; &quot;) + (accept[x] ? &quot;A&quot; : &quot; &quot;) + </span>
+                &quot; -&gt; &quot;;
+
+<span class="nc bnc" id="L136" title="All 2 branches missed.">            if (reading0_l[x]&gt;0)</span>
+                { 
+<span class="nc" id="L138">                str += &quot;(0:&quot;;</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                for(int y=0;y&lt;reading0_l[x];y++)</span>
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                    str += ((y&gt;0 ? &quot;,&quot; : &quot;&quot;) + String.valueOf(reading0[x][y]));</span>
+<span class="nc" id="L141">                str += &quot;) &quot;;</span>
+                }
+
+<span class="nc bnc" id="L144" title="All 2 branches missed.">            if (reading1_l[x]&gt;0)</span>
+                { 
+<span class="nc" id="L146">                str += &quot;(1:&quot;;</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                for(int y=0;y&lt;reading1_l[x];y++)</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                    str += ((y&gt;0 ? &quot;,&quot; : &quot;&quot;) + String.valueOf(reading1[x][y]));</span>
+<span class="nc" id="L149">                str += &quot;) &quot;;</span>
+                }
+
+<span class="nc bnc" id="L152" title="All 2 branches missed.">            if (epsilon_l[x]&gt;0)</span>
+                { 
+<span class="nc" id="L154">                str += &quot;(e:&quot;;</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                for(int y=0;y&lt;epsilon_l[x];y++)</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">                    str += ((y&gt;0 ? &quot;,&quot; : &quot;&quot;) + String.valueOf(epsilon[x][y]));</span>
+<span class="nc" id="L157">                str += &quot;)&quot;;</span>
+                }
+<span class="nc" id="L159">            str += &quot;\n&quot;;</span>
+            }
+<span class="nc" id="L161">        return str;</span>
+        }
+
+    public boolean[][] restrictToSize(int size, boolean[][]cases, EvolutionState state, int thread)
+        {
+<span class="nc" id="L166">        int csize = cases.length;</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        if (csize &lt; size) return cases;</span>
+
+<span class="nc" id="L169">        Hashtable hash = new Hashtable();</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">        for(int x=0;x&lt;size;x++)</span>
+            {
+            while(true)
+                {
+<span class="nc" id="L174">                boolean[] b = cases[state.random[thread].nextInt(csize)];</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                if (!hash.contains(b)) { hash.put(b,b); break; }</span>
+<span class="nc" id="L176">                }</span>
+            }
+        
+<span class="nc" id="L179">        boolean[][] newcases = new boolean[size][];</span>
+<span class="nc" id="L180">        Enumeration e = hash.keys();</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">        for(int x=0;x&lt;size;x++)</span>
+            {
+<span class="nc" id="L183">            newcases[x] = (boolean[])(e.nextElement());</span>
+            }
+
+        // sort the cases -- amazing, but hashtable doesn't always
+        // return the same ordering, I guess that's because it does
+        // pointer hashing.  Just want to guarantee replicability!
+
+        // is this correct?
+<span class="nc" id="L191">        java.util.Arrays.sort(newcases,</span>
+            new java.util.Comparator()
+<span class="nc" id="L193">                {</span>
+                public int compare(Object a, Object b)
+                    {
+<span class="nc" id="L196">                    boolean[] aa = (boolean[])a;</span>
+<span class="nc" id="L197">                    boolean[] bb = (boolean[])b;</span>
+                                        
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                    for(int x=0;x&lt;Math.min(aa.length,bb.length);x++)</span>
+<span class="nc bnc" id="L200" title="All 4 branches missed.">                        if (!aa[x] &amp;&amp; bb[x]) return -1;</span>
+<span class="nc bnc" id="L201" title="All 4 branches missed.">                        else if (aa[x] &amp;&amp; !bb[x]) return 1;</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                    if (aa.length&lt;bb.length) return -1;</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">                    if (aa.length&gt;bb.length) return 1;</span>
+<span class="nc" id="L204">                    return 0;</span>
+                    }
+                });
+<span class="nc" id="L207">        return newcases;</span>
+        }
+
+
+
+    //    public boolean[][] slurp(final File f) throws IOException
+    public boolean[][] slurp(final InputStream f) throws IOException
+        {
+        //LineNumberReader r = new LineNumberReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(f))));
+<span class="nc" id="L216">        LineNumberReader r = new LineNumberReader(new InputStreamReader(new GZIPInputStream(f)));</span>
+        String bits;
+
+<span class="nc" id="L219">        Vector v = new Vector();</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        while((bits=r.readLine())!=null)</span>
+            {
+<span class="nc" id="L222">            bits = bits.trim();</span>
+<span class="nc" id="L223">            int len = bits.length();</span>
+<span class="nc bnc" id="L224" title="All 2 branches missed.">            if (len==0) continue; // empty line</span>
+<span class="nc bnc" id="L225" title="All 2 branches missed.">            if (bits.charAt(0)=='#') continue;  // comment</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">            if (bits.equalsIgnoreCase(&quot;e&quot;))</span>
+<span class="nc" id="L227">                v.addElement(new boolean[0]);</span>
+            else
+                {
+<span class="nc" id="L230">                boolean[] b = new boolean[len];</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                for(int x=0;x&lt;len;x++)</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">                    b[x] = (bits.charAt(x)=='1');</span>
+<span class="nc" id="L233">                v.addElement(b);</span>
+                }
+<span class="nc" id="L235">            }</span>
+<span class="nc" id="L236">        r.close();</span>
+<span class="nc" id="L237">        boolean[][] result = new boolean[v.size()][];</span>
+<span class="nc" id="L238">        v.copyInto(result);</span>
+<span class="nc" id="L239">        return result;</span>
+        }
+
+
+    public void printBits(final EvolutionState state, final boolean[][] bits)
+        {
+        StringBuilder s;
+<span class="nc bnc" id="L246" title="All 2 branches missed.">        for(int x=0;x&lt;bits.length;x++)</span>
+            {
+<span class="nc" id="L248">            s = new StringBuilder();</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">            for(int y=0;y&lt;bits[x].length;y++)</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">                if (bits[x][y]) s.append('1');</span>
+<span class="nc" id="L251">                else s.append('0');</span>
+<span class="nc bnc" id="L252" title="All 2 branches missed.">            if (s.length()==0) state.output.message(&quot;(empty)&quot;);</span>
+<span class="nc" id="L253">            else state.output.message(s.toString());</span>
+            }
+<span class="nc" id="L255">        }</span>
+
+
+    public void setup(final EvolutionState state,
+        final Parameter base)
+        {
+        // very important, remember this
+<span class="nc" id="L262">        super.setup(state,base);</span>
+
+        // verify our input is the right class (or subclasses from it)
+<span class="nc bnc" id="L265" title="All 2 branches missed.">        if (!(input instanceof EdgeData))</span>
+<span class="nc" id="L266">            state.output.fatal(&quot;GPData class must subclass from &quot; + EdgeData.class,</span>
+<span class="nc" id="L267">                base.push(P_DATA), null);</span>
+
+        // do we generalize?
+<span class="nc" id="L270">        generalize = state.parameters.getBoolean(base.push(P_GENERALIZE),null,false);</span>
+
+        // load the test examples here
+
+        /*
+          File ap = null;
+          File an = null;
+          File tp = null;
+          File tn = null;
+          int restriction;
+
+          if (generalize)
+          {
+          ap = state.parameters.getFile(base.push(P_ALLPOS),null);
+          an = state.parameters.getFile(base.push(P_ALLNEG),null);
+          }
+
+          tp = state.parameters.getFile(base.push(P_TESTPOS),null);
+          tn = state.parameters.getFile(base.push(P_TESTNEG),null);
+
+          if (generalize)
+          {
+          if (ap==null) state.output.error(&quot;File doesn't exist&quot;, base.push(P_ALLPOS));
+          if (an==null) state.output.error(&quot;File doesn't exist&quot;, base.push(P_ALLNEG));
+          }
+
+          if (tp==null) state.output.error(&quot;File doesn't exist&quot;, base.push(P_TESTPOS));
+          if (tn==null) state.output.error(&quot;File doesn't exist&quot;, base.push(P_TESTNEG));
+          state.output.exitIfErrors();
+
+          if (generalize)
+          {
+          if (!ap.canRead()) state.output.error(&quot;File cannot be read&quot;, base.push(P_ALLPOS));
+          if (!an.canRead()) state.output.error(&quot;File cannot be read&quot;, base.push(P_ALLNEG));
+          }
+
+          if (!tp.canRead()) state.output.error(&quot;File cannot be read&quot;, base.push(P_TESTPOS));
+          if (!tn.canRead()) state.output.error(&quot;File cannot be read&quot;, base.push(P_TESTNEG));
+          state.output.exitIfErrors();
+        */
+
+
+<span class="nc" id="L312">        InputStream ap = null;</span>
+<span class="nc" id="L313">        InputStream an = null;</span>
+<span class="nc" id="L314">        InputStream tp = null;</span>
+<span class="nc" id="L315">        InputStream tn = null;</span>
+        int restriction;
+
+<span class="nc bnc" id="L318" title="All 2 branches missed.">        if (generalize)</span>
+            {
+<span class="nc" id="L320">            ap = state.parameters.getResource(base.push(P_ALLPOS),null);</span>
+<span class="nc" id="L321">            an = state.parameters.getResource(base.push(P_ALLNEG),null);</span>
+            }
+
+<span class="nc" id="L324">        tp = state.parameters.getResource(base.push(P_TESTPOS),null);</span>
+<span class="nc" id="L325">        tn = state.parameters.getResource(base.push(P_TESTNEG),null);</span>
+
+<span class="nc bnc" id="L327" title="All 2 branches missed.">        if (generalize)</span>
+            {
+<span class="nc bnc" id="L329" title="All 2 branches missed.">            if (ap==null) state.output.error(&quot;File doesn't exist&quot;, base.push(P_ALLPOS));</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">            if (an==null) state.output.error(&quot;File doesn't exist&quot;, base.push(P_ALLNEG));</span>
+            }
+
+<span class="nc bnc" id="L333" title="All 2 branches missed.">        if (tp==null) state.output.error(&quot;File doesn't exist&quot;, base.push(P_TESTPOS));</span>
+<span class="nc bnc" id="L334" title="All 2 branches missed.">        if (tn==null) state.output.error(&quot;File doesn't exist&quot;, base.push(P_TESTNEG));</span>
+<span class="nc" id="L335">        state.output.exitIfErrors();</span>
+        
+
+
+<span class="nc bnc" id="L339" title="All 2 branches missed.">        if (generalize)</span>
+            {
+<span class="nc" id="L341">            state.output.message(&quot;Reading Positive Examples&quot;);</span>
+<span class="nc" id="L342">            try { posA = slurp(ap); }</span>
+<span class="nc" id="L343">            catch(IOException e) { state.output.error(</span>
+<span class="nc" id="L344">                    &quot;IOException reading file (here it is)\n&quot; + e, base.push(P_ALLPOS)); }</span>
+<span class="nc" id="L345">            state.output.message(&quot;Reading Negative Examples&quot;);</span>
+<span class="nc" id="L346">            try { negA = slurp(an); }</span>
+<span class="nc" id="L347">            catch(IOException e) { state.output.error(</span>
+<span class="nc" id="L348">                    &quot;IOException reading file (here it is)\n&quot; + e, base.push(P_ALLNEG)); }</span>
+            }
+
+<span class="nc" id="L351">        state.output.message(&quot;Reading Positive Training Examples&quot;);</span>
+<span class="nc" id="L352">        try { posT = slurp(tp); }</span>
+<span class="nc" id="L353">        catch(IOException e) { state.output.error(</span>
+<span class="nc" id="L354">                &quot;IOException reading file (here it is)\n&quot; + e, base.push(P_TESTPOS)); }</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">        if ((restriction = state.parameters.getInt(</span>
+<span class="nc" id="L356">                    base.push(P_MAXTEST),null,1))&gt;0)</span>
+            {
+            // Need to restrict
+<span class="nc" id="L359">            state.output.message(&quot;Restricting to &lt;= &quot; + restriction + &quot; Unique Examples&quot;);</span>
+<span class="nc" id="L360">            posT = restrictToSize(restriction,posT,state,0);</span>
+            }
+
+<span class="nc" id="L363">        state.output.message(&quot;&quot;);</span>
+<span class="nc" id="L364">        printBits(state,posT);</span>
+<span class="nc" id="L365">        state.output.message(&quot;&quot;);</span>
+
+<span class="nc" id="L367">        state.output.message(&quot;Reading Negative Training Examples&quot;);</span>
+<span class="nc" id="L368">        try { negT = slurp(tn); }</span>
+<span class="nc" id="L369">        catch(IOException e) { state.output.error(</span>
+<span class="nc" id="L370">                &quot;IOException reading file (here it is)\n&quot; + e, base.push(P_TESTNEG)); }</span>
+<span class="nc bnc" id="L371" title="All 2 branches missed.">        if ((restriction = state.parameters.getInt(</span>
+<span class="nc" id="L372">                    base.push(P_MAXTEST),null,1))&gt;0)</span>
+            {
+            // Need to restrict
+<span class="nc" id="L375">            state.output.message(&quot;Restricting to &lt;= &quot; + restriction + &quot; Unique Examples&quot;);</span>
+<span class="nc" id="L376">            negT = restrictToSize(restriction,negT,state,0);</span>
+            }
+
+<span class="nc" id="L379">        state.output.message(&quot;&quot;);</span>
+<span class="nc" id="L380">        printBits(state,negT);</span>
+<span class="nc" id="L381">        state.output.message(&quot;&quot;);</span>
+
+<span class="nc" id="L383">        state.output.exitIfErrors();</span>
+<span class="nc" id="L384">        }</span>
+
+
+    public boolean test(final boolean[] sample)
+        {
+<span class="nc" id="L389">        final boolean STATE_1 = false;</span>
+        //        final boolean STATE_2 = true;
+<span class="nc" id="L391">        boolean st = STATE_1;</span>
+        
+        // set initial state
+<span class="nc bnc" id="L394" title="All 2 branches missed.">        for(int x=0;x&lt;numNodes;x++)</span>
+<span class="nc" id="L395">            state1[x]=start[x];</span>
+
+        // run
+<span class="nc bnc" id="L398" title="All 2 branches missed.">        for(int x=0;x&lt;sample.length;x++)</span>
+            {
+<span class="nc bnc" id="L400" title="All 2 branches missed.">            if (st==STATE_1)</span>
+                {
+<span class="nc bnc" id="L402" title="All 2 branches missed.">                for(int y=0;y&lt;numNodes;y++)</span>
+<span class="nc" id="L403">                    state2[y]=false;</span>
+<span class="nc bnc" id="L404" title="All 2 branches missed.">                for(int y=0;y&lt;numNodes;y++)  // yes, *start*.length</span>
+<span class="nc bnc" id="L405" title="All 2 branches missed.">                    if (state1[y])  // i'm in this state</span>
+                        {
+                        // advance edges
+<span class="nc bnc" id="L408" title="All 2 branches missed.">                        if (sample[x]) // reading a 1</span>
+<span class="nc bnc" id="L409" title="All 2 branches missed.">                            for(int z=0;z&lt;reading1_l[y];z++)</span>
+<span class="nc" id="L410">                                state2[reading1[y][z]] = true;</span>
+                        else  // reading a 0
+<span class="nc bnc" id="L412" title="All 2 branches missed.">                            for(int z=0;z&lt;reading0_l[y];z++)</span>
+<span class="nc" id="L413">                                state2[reading0[y][z]] = true;</span>
+                        }
+
+                
+                // advance along epsilon boundary
+<span class="nc" id="L418">                boolean moreEpsilons = true;</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                while(moreEpsilons)</span>
+                    {
+<span class="nc" id="L421">                    moreEpsilons = false;</span>
+<span class="nc bnc" id="L422" title="All 2 branches missed.">                    for(int y=0;y&lt;numNodes;y++)</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">                        if (state2[y])</span>
+<span class="nc bnc" id="L424" title="All 2 branches missed.">                            for(int z=0;z&lt;epsilon_l[y];z++)</span>
+                                {
+<span class="nc bnc" id="L426" title="All 2 branches missed.">                                if (!state2[epsilon[y][z]]) moreEpsilons = true;</span>
+<span class="nc" id="L427">                                state2[epsilon[y][z]] = true;</span>
+                                }
+                    }
+<span class="nc" id="L430">                }</span>
+
+
+            else //if (st==STATE_2)
+                {
+<span class="nc bnc" id="L435" title="All 2 branches missed.">                for(int y=0;y&lt;numNodes;y++)</span>
+<span class="nc" id="L436">                    state1[y]=false;</span>
+<span class="nc bnc" id="L437" title="All 2 branches missed.">                for(int y=0;y&lt;numNodes;y++)  // yes, *start*.length</span>
+<span class="nc bnc" id="L438" title="All 2 branches missed.">                    if (state2[y])  // i'm in this state</span>
+                        {
+                        // advance edges
+<span class="nc bnc" id="L441" title="All 2 branches missed.">                        if (sample[x]) // reading a 1</span>
+<span class="nc bnc" id="L442" title="All 2 branches missed.">                            for(int z=0;z&lt;reading1_l[y];z++)</span>
+<span class="nc" id="L443">                                state1[reading1[y][z]] = true;</span>
+                        else  // reading a 0
+<span class="nc bnc" id="L445" title="All 2 branches missed.">                            for(int z=0;z&lt;reading0_l[y];z++)</span>
+<span class="nc" id="L446">                                state1[reading0[y][z]] = true;</span>
+                        }
+
+                // advance along epsilon boundary
+<span class="nc" id="L450">                boolean moreEpsilons = true;</span>
+<span class="nc bnc" id="L451" title="All 2 branches missed.">                while(moreEpsilons)</span>
+                    {
+<span class="nc" id="L453">                    moreEpsilons = false;</span>
+<span class="nc bnc" id="L454" title="All 2 branches missed.">                    for(int y=0;y&lt;numNodes;y++)</span>
+<span class="nc bnc" id="L455" title="All 2 branches missed.">                        if (state1[y])</span>
+<span class="nc bnc" id="L456" title="All 2 branches missed.">                            for(int z=0;z&lt;epsilon_l[y];z++)</span>
+                                {
+<span class="nc bnc" id="L458" title="All 2 branches missed.">                                if (!state1[epsilon[y][z]]) moreEpsilons = true;</span>
+<span class="nc" id="L459">                                state1[epsilon[y][z]] = true;</span>
+                                }
+                    }
+                }
+
+<span class="nc bnc" id="L464" title="All 2 branches missed.">            st = !st;</span>
+            }
+
+        // am I in an accepting state?
+<span class="nc bnc" id="L468" title="All 2 branches missed.">        if (st==STATE_1)  // just loaded the result into state 1 from state 2</span>
+            {
+<span class="nc bnc" id="L470" title="All 2 branches missed.">            for(int x=0;x&lt;numNodes;x++)</span>
+<span class="nc bnc" id="L471" title="All 4 branches missed.">                if (accept[x] &amp;&amp; state1[x]) return true;</span>
+            }
+        else // (st==STATE_2)
+            {
+<span class="nc bnc" id="L475" title="All 2 branches missed.">            for(int x=0;x&lt;numNodes;x++)</span>
+<span class="nc bnc" id="L476" title="All 4 branches missed.">                if (accept[x] &amp;&amp; state2[x]) return true;</span>
+            }
+<span class="nc" id="L478">        return false;</span>
+        }
+
+    
+
+
+
+
+    int totpos;
+    int totneg;
+    
+    /** Tests an individual, returning its successful positives
+        in totpos and its successful negatives in totneg. */
+    public void fullTest(final EvolutionState state, 
+        final Individual ind, 
+        final int threadnum,
+        boolean[][] pos,
+        boolean[][] neg)
+        {
+        // reset the graph
+<span class="nc" id="L498">        numNodes = 2;</span>
+<span class="nc" id="L499">        numEdges = 1; from[0]=0; to[0]=1;</span>
+<span class="nc" id="L500">        start[0]=start[1]=accept[0]=accept[1]=false; </span>
+<span class="nc" id="L501">        ((EdgeData)input).edge = 0;</span>
+        
+        // generate the graph
+<span class="nc" id="L504">        ((GPIndividual)ind).trees[0].child.eval(</span>
+            state,threadnum,input,stack,((GPIndividual)ind),this);
+        
+        // produce the adjacency matrix
+<span class="nc bnc" id="L508" title="All 4 branches missed.">        if (reading1.length &lt; numNodes ||</span>
+            reading1[0].length &lt; numEdges)
+            { 
+<span class="nc" id="L511">            reading1 = new int[numNodes*2][numEdges*2];</span>
+<span class="nc" id="L512">            reading0 = new int[numNodes*2][numEdges*2];</span>
+<span class="nc" id="L513">            epsilon = new int[numNodes*2][numEdges*2];</span>
+<span class="nc" id="L514">            reading1_l = new int[numNodes*2];</span>
+<span class="nc" id="L515">            reading0_l = new int[numNodes*2];</span>
+<span class="nc" id="L516">            epsilon_l = new int[numNodes*2];</span>
+            }
+        
+<span class="nc bnc" id="L519" title="All 2 branches missed.">        for(int y=0;y&lt;numNodes;y++)</span>
+            {
+<span class="nc" id="L521">            reading1_l[y]=0;</span>
+<span class="nc" id="L522">            reading0_l[y]=0;</span>
+<span class="nc" id="L523">            epsilon_l[y]=0;</span>
+            }
+        
+<span class="nc bnc" id="L526" title="All 2 branches missed.">        for(int y=0;y&lt;numEdges;y++)</span>
+<span class="nc bnc" id="L527" title="All 4 branches missed.">            switch(reading[y])</span>
+                {
+                case READING0:
+<span class="nc" id="L530">                    reading0[from[y]][reading0_l[from[y]]++]=to[y];</span>
+<span class="nc" id="L531">                    break;</span>
+                case READING1:
+<span class="nc" id="L533">                    reading1[from[y]][reading1_l[from[y]]++]=to[y];</span>
+<span class="nc" id="L534">                    break;</span>
+                case EPSILON:
+<span class="nc" id="L536">                    epsilon[from[y]][epsilon_l[from[y]]++]=to[y];</span>
+<span class="nc" id="L537">                    break;</span>
+                default:
+<span class="nc" id="L539">                    state.output.fatal(&quot;Invalid case &quot; + reading[y] + &quot; in Edge.fullTest()&quot;);</span>
+                    break;
+                }
+        
+        // create the states
+<span class="nc bnc" id="L544" title="All 2 branches missed.">        if (state1.length &lt; numNodes)</span>
+            { 
+<span class="nc" id="L546">            state1 = new boolean[numNodes*2];</span>
+<span class="nc" id="L547">            state2 = new boolean[numNodes*2];</span>
+            }
+        
+        // test the graph on our data
+        
+<span class="nc" id="L552">        totpos=0;</span>
+<span class="nc" id="L553">        totneg=0;</span>
+<span class="nc bnc" id="L554" title="All 2 branches missed.">        for(int y=0;y&lt;pos.length;y++)</span>
+<span class="nc bnc" id="L555" title="All 2 branches missed.">            if (test(pos[y])) totpos++;</span>
+<span class="nc bnc" id="L556" title="All 2 branches missed.">        for(int y=0;y&lt;neg.length;y++)</span>
+<span class="nc bnc" id="L557" title="All 2 branches missed.">            if (!test(neg[y])) totneg++;</span>
+<span class="nc" id="L558">        }</span>
+
+
+
+
+    public void evaluate(final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L568" title="All 2 branches missed.">        if (start==null)</span>
+            {
+<span class="nc" id="L570">            start = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L571">            accept = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L572">            reading = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L573">            from = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L574">            to = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L575">            state1 = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L576">            state2 = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L577">            reading1 = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L578">            reading0 = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L579">            epsilon = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L580">            reading1_l = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L581">            reading0_l = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L582">            epsilon_l = new int[MIN_ARRAY_SIZE];</span>
+            }
+
+<span class="nc bnc" id="L585" title="All 2 branches missed.">        if (!ind.evaluated)  // don't bother reevaluating</span>
+            {
+            //EdgeData input = (EdgeData)(this.input);
+
+<span class="nc" id="L589">            fullTest(state,ind,threadnum,posT,negT);</span>
+            // the fitness better be KozaFitness!
+<span class="nc" id="L591">            KozaFitness f = ((KozaFitness)ind.fitness);</span>
+
+            // this is an awful fitness metric, but it's the standard
+            // one used for these problems.  :-(
+                
+<span class="nc" id="L596">            f.setStandardizedFitness(state,</span>
+                    (1.0 - ((double)(totpos + totneg)) / 
+                    (posT.length + negT.length)));
+
+            // here are two other more reasonable fitness metrics
+            /*
+              f.setStandardizedFitness(state,
+              (1.0 - Math.min(((double)totpos)/posT.length,
+              ((double)totneg)/negT.length)));
+
+              f.setStandardizedFitness(state,
+              (1.0 - (((double)totpos)/posT.length +
+              ((double)totneg)/negT.length)/2.0));
+            */
+
+<span class="nc" id="L611">            f.hits = totpos + totneg;</span>
+<span class="nc" id="L612">            ind.evaluated = true;</span>
+            }
+<span class="nc" id="L614">        }</span>
+
+    public void describe(
+        final EvolutionState state, 
+        final Individual ind, 
+        final int subpopulation,
+        final int threadnum,
+        final int log)
+        {
+<span class="nc bnc" id="L623" title="All 2 branches missed.">        if (start==null)</span>
+            {
+<span class="nc" id="L625">            start = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L626">            accept = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L627">            reading = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L628">            from = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L629">            to = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L630">            state1 = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L631">            state2 = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L632">            reading1 = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L633">            reading0 = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L634">            epsilon = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L635">            reading1_l = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L636">            reading0_l = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L637">            epsilon_l = new int[MIN_ARRAY_SIZE];</span>
+            }
+
+<span class="nc bnc" id="L640" title="All 2 branches missed.">        if (generalize)</span>
+<span class="nc" id="L641">            fullTest(state,ind,threadnum,posA,negA);</span>
+        else
+<span class="nc" id="L643">            fullTest(state,ind,threadnum,posT,negT);</span>
+        
+<span class="nc bnc" id="L645" title="All 2 branches missed.">        if (generalize)</span>
+<span class="nc" id="L646">            state.output.println(&quot;\n\nBest Individual's Generalization Score...\n&quot; +</span>
+                &quot;Pos: &quot; + totpos + &quot;/&quot; + posA.length + 
+                &quot; Neg: &quot; + totneg + &quot;/&quot; + negA.length + 
+                &quot;\n(pos+neg)/(allpos+allneg):     &quot; + 
+                
+                (((double)(totpos+totneg))/(posA.length+negA.length)) +
+                &quot;\n((pos/allpos)+(neg/allneg))/2: &quot; + 
+                
+                (((((double)totpos)/posA.length)+(((double)totneg)/negA.length))/2) +
+                &quot;\nMin(pos/allpos,neg/allneg):    &quot; +
+<span class="nc" id="L656">                Math.min((((double)totpos)/posA.length),(((double)totneg)/negA.length)),</span>
+                log);
+                
+<span class="nc" id="L659">        state.output.println(&quot;\nBest Individual's NFA\n=====================\n&quot;,</span>
+            log);
+        
+<span class="nc" id="L662">        state.output.println(printCurrentNFA(),log);</span>
+<span class="nc" id="L663">        }</span>
+
+    public String describeShortGeneralized(final Individual ind, 
+        final EvolutionState state, 
+        final int subpopulation,
+        final int threadnum)
+        {
+<span class="nc bnc" id="L670" title="All 2 branches missed.">        if (start==null)</span>
+            {
+<span class="nc" id="L672">            start = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L673">            accept = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L674">            reading = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L675">            from = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L676">            to = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L677">            state1 = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L678">            state2 = new boolean[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L679">            reading1 = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L680">            reading0 = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L681">            epsilon = new int[MIN_ARRAY_SIZE][MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L682">            reading1_l = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L683">            reading0_l = new int[MIN_ARRAY_SIZE];</span>
+<span class="nc" id="L684">            epsilon_l = new int[MIN_ARRAY_SIZE];</span>
+            }
+
+<span class="nc" id="L687">        fullTest(state,ind,threadnum,posA,negA);</span>
+
+<span class="nc" id="L689">        return &quot;: &quot; + </span>
+            ((double)totpos)/posA.length + &quot; &quot; + 
+            ((double)totneg)/negA.length + &quot; &quot; +
+            (((double)(totpos+totneg))/(posA.length+negA.length)) + &quot; &quot; +
+            (((((double)totpos)/posA.length)+(((double)totneg)/negA.length))/2) + &quot; &quot; +
+<span class="nc" id="L694">            Math.min((((double)totpos)/posA.length),(((double)totneg)/negA.length)) + &quot; : &quot; ;</span>
+        }           
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

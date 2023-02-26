@@ -1,0 +1,315 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GPIndividual.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.gp</a> &gt; <span class="el_source">GPIndividual.java</span></div><h1>GPIndividual.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.gp;
+import ec.*;
+import ec.util.*;
+import java.io.*;
+import ec.util.Code;
+
+/* 
+ * GPIndividual.java
+ * 
+ * Created: Fri Aug 27 17:07:45 1999
+ * By: Sean Luke
+ */
+
+/**
+ * GPIndividual is an Individual used for GP evolution runs.
+ * GPIndividuals contain, at the very least, a nonempty array of GPTrees.
+ * You can use GPIndividual directly, or subclass it to extend it as
+ * you see fit.
+ 
+ * &lt;P&gt;GPIndividuals have two clone methods: clone() and lightClone().  clone() is
+ * a deep clone method as usual.  lightClone() is a light clone which does not copy
+ * the trees.
+ *
+ * &lt;p&gt;In addition to serialization for checkpointing, Individuals may read and write themselves to streams in three ways.
+ *
+ * &lt;ul&gt;
+ * &lt;li&gt;&lt;b&gt;writeIndividual(...,DataOutput)/readIndividual(...,DataInput)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This method
+ * transmits or receives an individual in binary.  It is the most efficient approach to sending
+ * individuals over networks, etc.  These methods write the evaluated flag and the fitness, then
+ * call &lt;b&gt;readGenotype/writeGenotype&lt;/b&gt;, which you must implement to write those parts of your 
+ * Individual special to your functions-- the default versions of readGenotype/writeGenotype throw errors.
+ * You don't need to implement them if you don't plan on using read/writeIndividual.
+ *
+ * &lt;li&gt;&lt;b&gt;printIndividual(...,PrintWriter)/readIndividual(...,LineNumberReader)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach transmits or receives an indivdual in text encoded such that the individual is largely readable
+ * by humans but can be read back in 100% by ECJ as well.  Because GPIndividuals are often very large,
+ * &lt;b&gt;GPIndividual has overridden these methods -- they work differently than in Individual (the superclass).&lt;/b&gt;  In specific:
+ * &lt;b&gt;readIndividual&lt;/b&gt; by default reads in the fitness and the evaluation flag, then calls &lt;b&gt;parseGenotype&lt;/b&gt; 
+ * to read in the trees (via GPTree.readTree(...)).
+ * However &lt;b&gt;printIndividual&lt;/b&gt; by default prints the fitness and evaluation flag, and prints all the trees
+ * by calling GPTree.printTree(...).  It does not call &lt;b&gt;genotypeToString&lt;/b&gt; at all.  This
+ * is because it's very wasteful to build up a large string holding the printed form of the GPIndividual 
+ * just to pump it out a stream once.
+ *
+ * &lt;li&gt;&lt;b&gt;printIndividualForHumans(...,PrintWriter)&lt;/b&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;This
+ * approach prints an individual in a fashion intended for human consumption only. Because GPIndividuals are often very large,
+ * &lt;b&gt;GPIndividual has overridden this methods -- it works differently than in Individual (the superclass).&lt;/b&gt;  In specific:
+ * &lt;b&gt;printIndividual&lt;/b&gt; by default prints the fitness and evaluation flag, and prints all the trees
+ * by calling GPTree.printTreeForHumans(...).  It does not call &lt;b&gt;genotypeToStringForHumans&lt;/b&gt; at all.  This
+ * is because it's very wasteful to build up a large string holding the printed form of the GPIndividual 
+ * just to pump it out a stream once.
+ *
+ * &lt;p&gt;In general, the various readers and writers do three things: they tell the Fitness to read/write itself,
+ * they read/write the evaluated flag, and they read/write the GPTree array (by having each GPTree read/write
+ * itself).  If you add instance variables to GPIndividual, you'll need to read/write those variables as well.
+
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;numtrees&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(number of trees in the GPIndividual)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits or = ec.gp.GPTree&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(class of tree &lt;i&gt;n&lt;/i&gt; in the individual)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ gp.individual
+
+ &lt;p&gt;&lt;b&gt;Parameter bases&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base&lt;/i&gt;.&lt;tt&gt;tree.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;/td&gt;
+ &lt;td&gt;tree &lt;i&gt;n&lt;/i&gt; in the individual&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L90">public class GPIndividual extends Individual</span>
+    {
+    private static final long serialVersionUID = 1;
+
+    public static final String P_NUMTREES = &quot;numtrees&quot;;
+    public static final String P_TREE = &quot;tree&quot;;
+    
+    public GPTree[] trees;
+    
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L101">        return GPDefaults.base().push(P_INDIVIDUAL);</span>
+        }
+
+    public boolean equals(Object ind)
+        {
+<span class="nc bnc" id="L106" title="All 2 branches missed.">        if (ind == null) return false;</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        if (!(this.getClass().equals(ind.getClass()))) return false;  // GPIndividuals are special.</span>
+<span class="nc" id="L108">        GPIndividual i = (GPIndividual)ind;</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        if (trees.length != i.trees.length) return false;</span>
+        // this default version works fine for most GPIndividuals.
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">            if (!(trees[x].treeEquals(i.trees[x]))) return false;</span>
+<span class="nc" id="L113">        return true;</span>
+        }
+    
+    public int hashCode()
+        {
+        // stolen from GPNode.  It's a decent algorithm.
+<span class="nc" id="L119">        int hash = this.getClass().hashCode();</span>
+        
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+<span class="nc" id="L122">            hash =</span>
+                // Rotate hash and XOR
+                (hash &lt;&lt; 1 | hash &gt;&gt;&gt; 31 ) ^
+<span class="nc" id="L125">                trees[x].treeHashCode();</span>
+<span class="nc" id="L126">        return hash;</span>
+        }
+
+    /** Sets up a prototypical GPIndividual with those features which it
+        shares with other GPIndividuals in its species, and nothing more. */
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L134">        super.setup(state,base);  // actually unnecessary (Individual.setup() is empty)</span>
+
+<span class="nc" id="L136">        Parameter def = defaultBase();</span>
+
+        // set my evaluation to false
+<span class="nc" id="L139">        evaluated = false;</span>
+
+        // how many trees?
+<span class="nc" id="L142">        int t = state.parameters.getInt(base.push(P_NUMTREES),def.push(P_NUMTREES),1);  // at least 1 tree for GP!</span>
+<span class="nc bnc" id="L143" title="All 2 branches missed.">        if (t &lt;= 0) </span>
+<span class="nc" id="L144">            state.output.fatal(&quot;A GPIndividual must have at least one tree.&quot;,</span>
+<span class="nc" id="L145">                base.push(P_NUMTREES),def.push(P_NUMTREES));</span>
+        
+        // load the trees
+<span class="nc" id="L148">        trees = new GPTree[t];</span>
+
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        for (int x=0;x&lt;t;x++)</span>
+            {
+<span class="nc" id="L152">            Parameter p = base.push(P_TREE).push(&quot;&quot;+x);</span>
+<span class="nc" id="L153">            trees[x] = (GPTree)(state.parameters.getInstanceForParameterEq(</span>
+<span class="nc" id="L154">                    p,def.push(P_TREE).push(&quot;&quot;+x),GPTree.class));</span>
+<span class="nc" id="L155">            trees[x].owner = this;</span>
+<span class="nc" id="L156">            trees[x].setup(state,p);</span>
+            }
+        
+        // now that our function sets are all associated with trees,
+        // give the nodes a chance to determine whether or not this is
+        // going to work for them (especially the ADFs).
+<span class="nc" id="L162">        GPInitializer initializer = ((GPInitializer)state.initializer);</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">        for (int x=0;x&lt;t;x++)</span>
+            {
+<span class="nc bnc" id="L165" title="All 2 branches missed.">            for(int w = 0;w &lt; trees[x].constraints(initializer).functionset.nodes.length;w++)</span>
+                {
+<span class="nc" id="L167">                GPNode[] gpfi = trees[x].constraints(initializer).functionset.nodes[w];</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">                for (int y = 0;y&lt;gpfi.length;y++)</span>
+<span class="nc" id="L169">                    gpfi[y].checkConstraints(state,x,this,base);</span>
+                }
+            }
+        // because I promised with checkConstraints(...)
+<span class="nc" id="L173">        state.output.exitIfErrors();</span>
+<span class="nc" id="L174">        }</span>
+
+
+    /** Verification of validity of the GPIndividual -- strictly for debugging purposes only */
+    public void verify(EvolutionState state)
+        {
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (!(state.initializer instanceof GPInitializer))</span>
+<span class="nc" id="L181">            { state.output.error(&quot;Initializer is not a GPInitializer&quot;); return; }</span>
+            
+        // GPInitializer initializer = (GPInitializer)(state.initializer);
+
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        if (trees==null) </span>
+<span class="nc" id="L186">            { state.output.error(&quot;Null trees in GPIndividual.&quot;); return; }</span>
+<span class="nc bnc" id="L187" title="All 4 branches missed.">        for(int x=0;x&lt;trees.length;x++) if (trees[x]==null) </span>
+<span class="nc" id="L188">                                            { state.output.error(&quot;Null tree (#&quot;+x+&quot;) in GPIndividual.&quot;); return; }</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+<span class="nc" id="L190">            trees[x].verify(state);</span>
+<span class="nc" id="L191">        state.output.exitIfErrors();</span>
+<span class="nc" id="L192">        }</span>
+
+    /** Prints just the trees of the GPIndividual.  Broken out like this to be used by GEIndividual to avoid
+        re-printing the fitness and evaluated premables. */
+    public void printTrees(final EvolutionState state, final int log)
+        {
+<span class="nc bnc" id="L198" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+            {
+<span class="nc" id="L200">            state.output.println(&quot;Tree &quot; + x + &quot;:&quot;,log);</span>
+<span class="nc" id="L201">            trees[x].printTreeForHumans(state,log);</span>
+            }
+<span class="nc" id="L203">        }</span>
+
+    public void printIndividualForHumans(final EvolutionState state, final int log)
+        {
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        state.output.println(EVALUATED_PREAMBLE + (evaluated ? &quot;true&quot; : &quot;false&quot;), log);</span>
+<span class="nc" id="L208">        fitness.printFitnessForHumans(state,log);</span>
+<span class="nc" id="L209">        printTrees(state,log);</span>
+<span class="nc" id="L210">        }</span>
+
+    public void printIndividual(final EvolutionState state, final int log)
+        {
+<span class="nc" id="L214">        state.output.println(EVALUATED_PREAMBLE + Code.encode(evaluated), log);</span>
+<span class="nc" id="L215">        fitness.printFitness(state,log);</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+            {
+<span class="nc" id="L218">            state.output.println(&quot;Tree &quot; + x + &quot;:&quot;,log);</span>
+<span class="nc" id="L219">            trees[x].printTree(state,log);</span>
+            }   
+<span class="nc" id="L221">        }</span>
+            
+    public void printIndividual(final EvolutionState state,
+        final PrintWriter writer)
+        {
+<span class="nc" id="L226">        writer.println(EVALUATED_PREAMBLE + Code.encode(evaluated));</span>
+<span class="nc" id="L227">        fitness.printFitness(state,writer);</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+            {
+<span class="nc" id="L230">            writer.println(&quot;Tree &quot; + x + &quot;:&quot;);</span>
+<span class="nc" id="L231">            trees[x].printTree(state,writer);</span>
+            }   
+<span class="nc" id="L233">        }</span>
+        
+    /** Overridden for the GPIndividual genotype. */
+    public void writeGenotype(final EvolutionState state,
+        final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L239">        dataOutput.writeInt(trees.length);</span>
+<span class="nc bnc" id="L240" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+<span class="nc" id="L241">            trees[x].writeTree(state,dataOutput);</span>
+<span class="nc" id="L242">        }</span>
+
+    /** Overridden for the GPIndividual genotype. */
+    public void readGenotype(final EvolutionState state,
+        final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L248">        int treelength = dataInput.readInt();</span>
+<span class="nc bnc" id="L249" title="All 4 branches missed.">        if (trees == null || treelength != trees.length) // wrong size!</span>
+<span class="nc" id="L250">            state.output.fatal(&quot;Number of trees differ in GPIndividual when reading from readGenotype(EvolutionState, DataInput).&quot;);</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+<span class="nc" id="L252">            trees[x].readTree(state,dataInput);</span>
+<span class="nc" id="L253">        }</span>
+
+    public void parseGenotype(final EvolutionState state,
+        final LineNumberReader reader) throws IOException
+        {
+        // Read my trees
+<span class="nc bnc" id="L259" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+            {
+<span class="nc" id="L261">            reader.readLine();  // throw it away -- it's the tree indicator</span>
+<span class="nc" id="L262">            trees[x].readTree(state,reader);</span>
+            }
+<span class="nc" id="L264">        }</span>
+
+    /** Deep-clones the GPIndividual.  Note that you should not deep-clone the prototypical GPIndividual
+        stored in GPSpecies: they contain blank GPTrees with null roots, and this method,
+        which calls GPTree.clone(), will produce a NullPointerException as a result. Instead, you probably
+        want to use GPSpecies.newIndividual(...) if you're thinking of playing with the prototypical
+        GPIndividual. */
+        
+    public Object clone()
+        {
+        // a deep clone
+                
+<span class="nc" id="L276">        GPIndividual myobj = (GPIndividual)(super.clone());</span>
+
+        // copy the tree array
+<span class="nc" id="L279">        myobj.trees = new GPTree[trees.length];</span>
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+            {
+<span class="nc" id="L282">            myobj.trees[x] = (GPTree)(trees[x].clone());  // force a deep clone</span>
+<span class="nc" id="L283">            myobj.trees[x].owner = myobj;  // reset owner away from me</span>
+            }
+<span class="nc" id="L285">        return myobj;</span>
+        }
+
+    /** Like clone(), but doesn't force the GPTrees to deep-clone themselves. */
+    public GPIndividual lightClone()
+        {
+        // a light clone
+<span class="nc" id="L292">        GPIndividual myobj = (GPIndividual)(super.clone());</span>
+        
+        // copy the tree array
+<span class="nc" id="L295">        myobj.trees = new GPTree[trees.length];</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+            {
+<span class="nc" id="L298">            myobj.trees[x] = (GPTree)(trees[x].lightClone());  // note light-cloned!</span>
+<span class="nc" id="L299">            myobj.trees[x].owner = myobj;  // reset owner away from me</span>
+            }
+<span class="nc" id="L301">        return myobj;</span>
+        }
+
+    /** Returns the &quot;size&quot; of the individual, namely, the number of nodes
+        in all of its subtrees.  */
+    public long size()
+        {
+<span class="nc" id="L308">        long size = 0;</span>
+<span class="nc bnc" id="L309" title="All 2 branches missed.">        for(int x=0;x&lt;trees.length;x++)</span>
+<span class="nc" id="L310">            size += trees[x].child.numNodes(GPNode.NODESEARCH_ALL);</span>
+<span class="nc" id="L311">        return size;</span>
+        }
+
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

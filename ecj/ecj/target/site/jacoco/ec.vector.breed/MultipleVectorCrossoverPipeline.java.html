@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MultipleVectorCrossoverPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.vector.breed</a> &gt; <span class="el_source">MultipleVectorCrossoverPipeline.java</span></div><h1>MultipleVectorCrossoverPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.vector.breed;
+
+import ec.vector.*;
+import ec.*;
+import ec.util.Parameter;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+
+
+/* 
+ * MultipleVectorCrossoverPipeline.java
+ * 
+ * Created: Thu May 14 2009
+ * By: Beenish Jamil
+ */
+
+
+/**
+ *
+ MultipleVectorCrossoverPipeline is a BreedingPipeline which implements a uniform
+ (any point) crossover between multiple vectors. It is intended to be used with
+ three or more vectors. It takes n parent individuals and returns n crossed over
+ individuals. The number of parents and consequently children is specified by the
+ number of sources parameter. 
+ &lt;p&gt;The standard vector crossover probability is used for this crossover type. 
+ &lt;br&gt; &lt;i&gt; Note&lt;/i&gt; : It is necessary to set the crossover-type parameter to 'any' 
+ in order to use this pipeline.
+ 
+ 
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ number of parents
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ variable (generally 3 or more)
+
+ 
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ vector.multixover
+*/
+
+// This class is MUCH MUCH longer than it need be.  We could just do it by using 
+// ECJ's generic split and join operations, but only rely on that in the default
+// case, and instead use faster per-array operations.
+
+
+<span class="nc" id="L54">public class MultipleVectorCrossoverPipeline extends BreedingPipeline {</span>
+
+    /** default base */
+    public static final String P_CROSSOVER = &quot;multixover&quot;;
+    
+    /** Temporary holding place for parents */
+    ArrayList&lt;Individual&gt; parents;
+   
+<span class="nc" id="L62">    public Parameter defaultBase() { return VectorDefaults.base().push(P_CROSSOVER); }    </span>
+    
+    /** Returns the number of parents */
+<span class="nc" id="L65">    public int numSources() { return DYNAMIC_SOURCES;}</span>
+    
+    public Object clone()
+        {
+<span class="nc" id="L69">        MultipleVectorCrossoverPipeline c = (MultipleVectorCrossoverPipeline)(super.clone());</span>
+
+        // deep-cloned stuff
+<span class="nc" id="L72">        c.parents = new ArrayList&lt;Individual&gt;(parents);</span>
+<span class="nc" id="L73">        return c;</span>
+        }
+
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L78">        super.setup(state,base);</span>
+        
+<span class="nc" id="L80">        Parameter def = defaultBase(); </span>
+
+<span class="nc bnc" id="L82" title="All 2 branches missed.">        if (sources.length &lt;= 2)  // uh oh</span>
+<span class="nc" id="L83">            state.output.fatal(&quot;num-sources must be provided and &gt; 2 for MultipleVectorCrossoverPipeline&quot;,</span>
+<span class="nc" id="L84">                base.push(P_NUMSOURCES), def.push(P_NUMSOURCES));</span>
+
+<span class="nc" id="L86">        parents = new ArrayList&lt;Individual&gt;();</span>
+<span class="nc" id="L87">        }</span>
+        
+    /**
+     * Returns the minimum number of children that are produced per crossover 
+     */
+    public int typicalIndsProduced()
+        {
+<span class="nc" id="L94">        return minChildProduction()*sources.length; // minChild is always 1     </span>
+        }
+    
+        
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+
+        {
+<span class="nc" id="L106">        int start = inds.size();</span>
+        
+        // how many individuals should we make?
+<span class="nc" id="L109">        int n = typicalIndsProduced();</span>
+<span class="nc bnc" id="L110" title="All 2 branches missed.">        if (n &lt; min) n = min;</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">        if (n &gt; max) n = max;</span>
+
+        
+        // should we bother?
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+            // just load from source 0
+<span class="nc" id="L118">            sources[0].produce(n,n,subpopulation,inds, state,thread,misc);</span>
+<span class="nc" id="L119">            return n;</span>
+            }
+
+<span class="nc" id="L122">        parents.clear();</span>
+        // fill up parents: 
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        for(int i = 0; i&lt; sources.length; i++)</span>
+            {
+            // produce one parent from each source 
+<span class="nc" id="L127">            sources[i].produce(1,1,subpopulation, parents, state,thread, misc);</span>
+            }
+
+        // We assume all of the species are the same species ... 
+<span class="nc" id="L131">        VectorSpecies species = (VectorSpecies)((VectorIndividual) parents.get(0)).species;</span>
+
+        // an array of the split points (width = 1)
+<span class="nc" id="L134">        int[] points = new int[((VectorIndividual) parents.get(0)).genomeLength() - 1];</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">        for(int i = 0; i &lt; points.length; i++)</span>
+            {
+<span class="nc" id="L137">            points[i] = i + 1;    // first split point/index = 1</span>
+            }
+
+        // split all the parents into object arrays 
+<span class="nc" id="L141">        Object[][] pieces = new Object[parents.size()][((VectorIndividual) parents.get(0)).genomeLength()];</span>
+        
+        // splitting...
+<span class="nc bnc" id="L144" title="All 2 branches missed.">        for(int i = 0; i &lt; parents.size(); i++)</span>
+            {
+<span class="nc bnc" id="L146" title="All 2 branches missed.">            if(((VectorIndividual) parents.get(i)).genomeLength() != ((VectorIndividual) parents.get(0)).genomeLength())</span>
+<span class="nc" id="L147">                state.output.fatal(&quot;All vectors must be of the same length for crossover!&quot;);</span>
+            else
+<span class="nc" id="L149">                ((VectorIndividual) parents.get(i)).split(points, pieces[i]);</span>
+            }
+
+
+        // crossing them over now
+<span class="nc bnc" id="L154" title="All 2 branches missed.">        for(int i = 0; i &lt; pieces[0].length; i++)</span>
+            {   
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            if(state.random[thread].nextBoolean(species.crossoverProbability))</span>
+                {
+                // shuffle
+<span class="nc bnc" id="L159" title="All 2 branches missed.">                for(int j = pieces.length-1; j &gt; 0; j--) // no need to shuffle first index at the end</span>
+                    {
+                    // find parent to swap piece with
+<span class="nc" id="L162">                    int parent2 = state.random[thread].nextInt(j); // not inclusive; don't want to swap with self</span>
+                        
+                    // swap
+<span class="nc" id="L165">                    Object temp = pieces[j][i];</span>
+<span class="nc" id="L166">                    pieces[j][i] = pieces[parent2][i];</span>
+<span class="nc" id="L167">                    pieces[parent2][i] = temp;</span>
+                    }
+                }
+            }
+
+        // join them and add them to the population starting at the start location
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        for(int i = 0, q = start; i &lt; parents.size(); i++, q++)</span>
+            { 
+<span class="nc" id="L175">            ((VectorIndividual) parents.get(i)).join(pieces[i]);</span>
+<span class="nc" id="L176">            parents.get(i).evaluated = false;</span>
+            //            if(q&lt;inds.size()) // just in case
+            //                {               
+            //                inds.set(q, (VectorIndividual) parents.get(i));
+            //                }
+            // by Ermo. The comment code seems to be wrong. inds are empty, which means indes.size() returns 0.
+            // I think it should be changed to following code
+            // Sean -- right?
+<span class="nc" id="L184">            inds.add(parents.get(i));</span>
+            }
+
+<span class="nc" id="L187">        return n;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

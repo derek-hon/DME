@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RuleMutationPipeline.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.rule.breed</a> &gt; <span class="el_source">RuleMutationPipeline.java</span></div><h1>RuleMutationPipeline.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.rule.breed;
+
+import ec.rule.*;
+import ec.*;
+import ec.util.*;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+
+/* 
+ * RuleMutationPipeline.java
+ * 
+ * Created: Tue Mar 13 15:03:12 EST 2001
+ * By: Sean Luke
+ */
+
+
+/**
+ *
+ RuleMutationPipeline is a BreedingPipeline which implements a simple default Mutation
+ for RuleIndividuals.  Normally it takes an individual and returns a mutated 
+ child individual. RuleMutationPipeline works by calling mutateRules(...) on each RuleSet in the 
+ parent individual.
+ 
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Number of Sources&lt;/b&gt;&lt;br&gt;
+ 1
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ rule.mutate (not that it matters)
+
+ * @author Sean Luke
+ * @version 1.0
+ */
+
+<span class="nc" id="L45">public class RuleMutationPipeline extends BreedingPipeline</span>
+    {
+    public static final String P_MUTATION = &quot;mutate&quot;;
+    public static final int INDS_PRODUCED = 1;
+    public static final int NUM_SOURCES = 1;
+
+<span class="nc" id="L51">    public Parameter defaultBase() { return RuleDefaults.base().push(P_MUTATION); }</span>
+    
+    /** Returns 1 */
+<span class="nc" id="L54">    public int numSources() { return NUM_SOURCES; }</span>
+
+    /** Returns 1 */
+    // DO I need to change this?
+<span class="nc" id="L58">    public int typicalIndsProduced() { return (INDS_PRODUCED); }</span>
+
+    public int produce(final int min,
+        final int max,
+        final int subpopulation,
+        final ArrayList&lt;Individual&gt; inds,
+        final EvolutionState state,
+        final int thread, HashMap&lt;String, Object&gt; misc)
+        {
+<span class="nc" id="L67">        int start = inds.size();</span>
+        
+        // grab n individuals from our source and stick 'em right into inds.
+        // we'll modify them from there
+<span class="nc" id="L71">        int n = sources[0].produce(min,max,subpopulation,inds, state,thread, misc);</span>
+
+        // should we bother?
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (!state.random[thread].nextBoolean(likelihood))</span>
+            {
+<span class="nc" id="L76">            return n;</span>
+            }
+
+        // mutate 'em
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        for(int q=start;q&lt;n+start;q++)</span>
+            {
+
+<span class="nc" id="L83">            ((RuleIndividual)inds.get(q)).preprocessIndividual(state,thread);</span>
+
+            /*
+              int len = ((RuleIndividual)inds[q]).rulesets.length;
+              for( int x = 0 ; x &lt; len ; x++ )
+              {
+              ((RuleIndividual)inds[q]).rulesets[x].mutateRules( state, thread );
+              }
+            */
+<span class="nc" id="L92">            ((RuleIndividual)inds.get(q)).mutate(state, thread);</span>
+<span class="nc" id="L93">            ((RuleIndividual)inds.get(q)).postprocessIndividual(state,thread);</span>
+
+<span class="nc" id="L95">            ((RuleIndividual)inds.get(q)).evaluated=false;</span>
+            }
+
+<span class="nc" id="L98">        return n;</span>
+        }
+
+    }
+    
+    
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

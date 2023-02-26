@@ -1,0 +1,788 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Evolve.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec</a> &gt; <span class="el_source">Evolve.java</span></div><h1>Evolve.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec;
+import ec.util.*;
+import java.io.File;
+import java.io.PrintWriter;
+
+/* 
+ * Evolve.java
+ * 
+ * Created: Wed Aug 11 17:49:01 1999
+ * By: Sean Luke
+ */
+
+/**
+ * Evolve is the main entry class for an evolutionary computation run.
+ *
+ * &lt;p&gt; An EC run is done with one of two argument formats:
+ *
+ * &lt;p&gt;&lt;tt&gt;java ec.Evolve -file &lt;/tt&gt;&lt;i&gt;parameter_file [&lt;/i&gt;&lt;tt&gt;-p &lt;/tt&gt;&lt;i&gt;parameter=value]*&lt;/i&gt;
+ *
+ * &lt;p&gt;This starts a new evolutionary run, using the parameter file &lt;i&gt;parameter_file&lt;/i&gt;.
+ * The user can provide optional overriding parameters on the command-line with the &lt;tt&gt;-p&lt;/tt&gt; option.
+ *
+ * &lt;p&gt;&lt;tt&gt;java ec.Evolve -checkpoint &lt;/tt&gt;&lt;i&gt;checkpoint_file&lt;/i&gt;
+ * 
+ * &lt;p&gt;This starts up an evolutionary run from a previous checkpoint file.
+ *
+ * &lt;p&gt;The basic Evolve class has a main() loop with a simple job iteration facility.
+ * If you'd like to run the evolutionary system four times, each with a different random
+ * seed, you might do:
+ * 
+ * &lt;p&gt;&lt;tt&gt;java ec.Evolve -file &lt;/tt&gt;&lt;i&gt;parameter_file&lt;/i&gt; &lt;tt&gt;-p jobs=4&lt;/tt&gt;
+ *
+ * &lt;p&gt;Here, Evolve will run the first time with the random seed equal to whatever's specified
+ * in your file, then job#2 will be run with the seed + 1, job#3 with the seed + 2, 
+ * and job#4 with the seed + 3.  If you have multiple seeds, ECJ will try to make sure they're
+ * all different even across jobs by adding the job number * numberOfSeeds to each of them.
+ * This means that if you're doing multiple jobs with multiple seeds, you should probably set
+ * seed.0 to x, seed.1 to x+1, seed.2 to x+2, etc. for best results.  It also works if seed.0
+ * is x, seed.1 is y (a number much bigger than x), seed.2 is z (a number much bigger than y) etc.
+ *
+ * If you set seed.0=time etc. for multiple jobs, the values of each seed will be set to the
+ * current time that the job starts plus the job number * numberOfSeeds.  As current time always
+ * goes up, this shouldn't be an issue.  However it's theoretically possible that if you checkpoint and restart
+ * on another system with a clock set back in time, you could get the same seed in a later job.
+ *
+ * &lt;p&gt;&lt;b&gt;main() has been designed to be modified.&lt;/b&gt;  The comments for the Evolve.java file contain
+ * a lot discussion of how ECJ's main() bootstraps the EvolutionState object and runs it, plus a much
+ * simpler example of main() and explanations for how main() works.
+ *
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;jobs&lt;/tt&gt;&lt;/br&gt;
+ &lt;font size=-1&gt; int &gt;= 1 (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(The number of jobs to iterate.  The current job number (0...jobs-1) will be added to each seed UNLESS the seed is loaded from the system time.  The job number also gets added as a prefix (if the number of jobs is more than 1)).&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;nostore&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should the ec.util.Output facility &lt;i&gt;not&lt;/i&gt; store announcements in memory?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;flush&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should I flush all output as soon as it's printed (useful for debugging when an exception occurs))&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;evalthreads&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the number of threads to spawn for evaluation)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;breedthreads&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the number of threads to spawn for breeding)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;seed.&lt;/tt&gt;&lt;i&gt;n&lt;/i&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int != 0, or string  = &lt;tt&gt;time&lt;/tt&gt;&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the seed for random number generator #&lt;i&gt;n&lt;/i&gt;.  &lt;i&gt;n&lt;/i&gt; should range from 0 to Max(evalthreads,breedthreads)-1.  If value is &lt;tt&gt;time&lt;/tt&gt;, then the seed is based on the system clock plus &lt;i&gt;n&lt;/i&gt;.)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;state&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;classname, inherits and != ec.EvolutionState&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the EvolutionState object class)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;print-accessed-params&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/td&gt;
+ &lt;td valign=top&gt;(at the end of a run, do we print out a list of all the parameters requested during the run?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;print-used-params&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/td&gt;
+ &lt;td valign=top&gt;(at the end of a run, do we print out a list of all the parameters actually &lt;i&gt;used&lt;/i&gt; during the run?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;print-unaccessed-params&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/td&gt;
+ &lt;td valign=top&gt;(at the end of a run, do we print out a list of all the parameters NOT requested during the run?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;print-unused-params&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/td&gt;
+ &lt;td valign=top&gt;(at the end of a run, do we print out a list of all the parameters NOT actually used during the run?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;tt&gt;print-all-params&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/td&gt;
+ &lt;td valign=top&gt;(at the end of a run, do we print out a list of all the parameters stored in the parameter database?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;/table&gt;
+ * 
+ *
+ * @author Sean Luke
+ * @version 1.0 
+ */
+
+<span class="nc" id="L116">public class Evolve </span>
+    {
+    public final static String P_PRINTACCESSEDPARAMETERS = &quot;print-accessed-params&quot;;
+    public final static String P_PRINTUSEDPARAMETERS = &quot;print-used-params&quot;;
+    public final static String P_PRINTALLPARAMETERS = &quot;print-all-params&quot;;
+    public final static String P_PRINTUNUSEDPARAMETERS = &quot;print-unused-params&quot;;
+    public final static String P_PRINTUNACCESSEDPARAMETERS = &quot;print-unaccessed-params&quot;;
+
+    /** The argument indicating that we're starting up from a checkpoint file. */
+    public static final String A_CHECKPOINT = &quot;-checkpoint&quot;;
+    
+    /** The argument indicating that we're starting fresh from a new parameter file. */
+    public static final String A_FILE = &quot;-file&quot;;
+    
+    /** The argument indicating that we're starting fresh from a parameter file stored in a jar file or as some resource. */
+    public static final String A_FROM = &quot;-from&quot;;
+
+    /** The argument indicating the class where the resource is relative to. */
+    public static final String A_AT = &quot;-at&quot;;
+
+    /** The argument indicating a request to print out the help message. */
+    public static final String A_HELP = &quot;-help&quot;;
+
+    /** evalthreads parameter */
+    public static final String P_EVALTHREADS = &quot;evalthreads&quot;;
+
+    /** breedthreads parameter */
+    public static final String P_BREEDTHREADS = &quot;breedthreads&quot;;
+
+    /** seed parameter */
+    public static final String P_SEED = &quot;seed&quot;;
+
+    /** 'time' seed parameter value */
+    public static final String V_SEED_TIME = &quot;time&quot;;
+
+    /** state parameter */
+    public static final String P_STATE = &quot;state&quot;;
+    
+    /** 'auto' thread parameter value */
+    public static final String V_THREADS_AUTO = &quot;auto&quot;;
+    
+    /** Should we muzzle stdout and stderr? */
+    public static final String P_SILENT = &quot;silent&quot;;
+
+    /** Should we muzzle stdout and stderr? [deprecated] */
+    static final String P_MUZZLE = &quot;muzzle&quot;;
+
+
+
+    /** Optionally prints the help message. */
+    public static void checkForHelp(String[] args) 
+        {
+<span class="nc bnc" id="L168" title="All 2 branches missed.">        for(int x=0;x&lt;args.length;x++)</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">            if (args[x].equals(A_HELP))</span>
+                {
+<span class="nc" id="L171">                Output.initialMessage(Version.message());</span>
+<span class="nc" id="L172">                Output.initialMessage(</span>
+                    &quot;Format:\n\n&quot; + 
+                    &quot;    java ec.Evolve -file FILE [-p PARAM=VALUE] [-p PARAM=VALUE] ...\n&quot; +
+                    &quot;    java ec.Evolve -from FILE [-p PARAM=VALUE] [-p PARAM=VALUE] ...\n&quot; + 
+                    &quot;    java ec.Evolve -from FILE -at CLASS [-p PARAM=VALUE] [-p PARAM=VALUE] ...\n&quot; + 
+                    &quot;    java ec.Evolve -checkpoint CHECKPOINT\n&quot; + 
+                    &quot;    java ec.Evolve -help\n\n&quot; +
+                    &quot;-help                   Shows this message and exits.\n\n&quot; +
+                    &quot;-file FILE              Launches ECJ using the provided parameter FILE.\n\n&quot; +
+                    &quot;-from FILE              Launches ECJ using the provided parameter FILE\n&quot; + 
+                    &quot;                        which is defined relative to the directory\n&quot; + 
+                    &quot;                        holding the classfile ec/Evolve.class  If this\n&quot; + 
+                    &quot;                        class file is found inside a Jar file, then the\n&quot; + 
+                    &quot;                        FILE will also be assumed to be in that Jar file,\n&quot; +
+                    &quot;                        at the proper relative location.\n\n&quot; +
+                    &quot;-from FILE -at CLASS    Launches ECJ using the provided parameter FILE\n&quot; + 
+                    &quot;                        which is defined relative to the directory\n&quot; + 
+                    &quot;                        holding the classfile CLASS (for example,\n&quot; + 
+                    &quot;                        ec/ant/ant.class).  If this class file is found\n&quot; +
+                    &quot;                        inside a Jar file, then the FILE will also be\n&quot; + 
+                    &quot;                        assumed to be in that Jar file, at the proper\n&quot; +
+                    &quot;                        relative location.\n\n&quot; +
+                    &quot;-p PARAM=VALUE          Overrides the parameter PARAM in the parameter\n&quot; +
+                    &quot;                        file, setting it to the value VALUE instead.  You\n&quot; + 
+                    &quot;                        can override as many parameters as you like on\n&quot; + 
+                    &quot;                        the command line.\n\n&quot; +
+                    &quot;-checkpoint CHECKPOINT  Launches ECJ from the provided CHECKPOINT file.\n&quot;
+                    );
+<span class="nc" id="L200">                System.exit(1);</span>
+                }
+<span class="nc" id="L202">        }</span>
+
+    /** Restores an EvolutionState from checkpoint if &quot;-checkpoint FILENAME&quot; is in the command-line arguments. */
+    public static EvolutionState possiblyRestoreFromCheckpoint(String[] args)
+        {
+<span class="nc bnc" id="L207" title="All 2 branches missed.">        for(int x=0;x&lt;args.length-1;x++)</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            if (args[x].equals(A_CHECKPOINT))</span>
+                {
+<span class="nc" id="L210">                Output.initialMessage(&quot;Restoring from Checkpoint &quot; + args[x+1]);</span>
+                try
+                    {
+<span class="nc" id="L213">                    return Checkpoint.restoreFromCheckpoint(args[x+1]);</span>
+                    }
+<span class="nc" id="L215">                catch(Exception e)</span>
+                    {
+<span class="nc" id="L217">                    Output.initialError(&quot;An exception was generated upon starting up from a checkpoint.\nFor help, try:  java ec.Evolve -help\n\n&quot; + e);</span>
+                    }
+                }
+<span class="nc" id="L220">        return null;  // should never happen</span>
+        }
+    
+    /** Loads a ParameterDatabase from checkpoint if &quot;-params&quot; is in the command-line arguments. */
+    public static ParameterDatabase loadParameterDatabase(String[] args) 
+        {
+        // search for a -file
+<span class="nc" id="L227">        ParameterDatabase parameters = null;        </span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        for(int x=0;x&lt;args.length-1;x++)</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">            if (args[x].equals(A_FILE))</span>
+                try
+                    {
+<span class="nc" id="L232">                    parameters = new ParameterDatabase(</span>
+<span class="nc" id="L233">                        new File(new File(args[x+1]).getAbsolutePath()),</span>
+                        args);
+<span class="nc" id="L235">                    break;</span>
+                    }
+<span class="nc" id="L237">                catch(Exception e)</span>
+                    {
+<span class="nc" id="L239">                    e.printStackTrace();</span>
+<span class="nc" id="L240">                    Output.initialError(&quot;An exception was generated upon reading the parameter file \&quot;&quot; + args[x+1] + &quot;\&quot;.\nHere it is:\n&quot; + e); </span>
+                    }
+                    
+        // search for a resource class (we may or may not use this)
+<span class="nc" id="L244">        Class cls = null;</span>
+<span class="nc bnc" id="L245" title="All 2 branches missed.">        for(int x=0;x&lt;args.length-1;x++)</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">            if (args[x].equals(A_AT))</span>
+                try
+                    {
+<span class="nc bnc" id="L249" title="All 2 branches missed.">                    if (parameters != null)  // uh oh</span>
+<span class="nc" id="L250">                        Output.initialError(&quot;Both -from and -at arguments provided.  This is not permitted.\nFor help, try:  java ec.Evolve -help&quot;);</span>
+                    else 
+<span class="nc" id="L252">                        cls = Class.forName(args[x+1]);</span>
+<span class="nc" id="L253">                    break;</span>
+                    }
+<span class="nc" id="L255">                catch (Exception e)</span>
+                    {
+<span class="nc" id="L257">                    e.printStackTrace();</span>
+<span class="nc" id="L258">                    Output.initialError(</span>
+                        &quot;An exception was generated upon extracting the class to load the parameter file relative to: &quot; + args[x+1] + 
+                        &quot;\nFor help, try:  java ec.Evolve -help\n\n&quot; + e);
+                    }
+                    
+        // search for a resource (we may or may not use this)
+<span class="nc bnc" id="L264" title="All 2 branches missed.">        for(int x=0;x&lt;args.length-1;x++)</span>
+<span class="nc bnc" id="L265" title="All 2 branches missed.">            if (args[x].equals(A_FROM))</span>
+                try
+                    {
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                    if (parameters != null)  // uh oh</span>
+<span class="nc" id="L269">                        Output.initialError(&quot;Both -file and -from arguments provided.  This is not permitted.\nFor help, try:  java ec.Evolve -help&quot;);</span>
+                    else 
+                        {
+<span class="nc bnc" id="L272" title="All 2 branches missed.">                        if (cls == null)  // no -at</span>
+<span class="nc" id="L273">                            cls = Evolve.class;</span>
+<span class="nc" id="L274">                        parameters = new ParameterDatabase(args[x+1], cls, args);</span>
+<span class="nc" id="L275">                        Output.initialMessage(&quot;Using database resource location &quot; + parameters.getLabel());</span>
+                        }
+<span class="nc" id="L277">                    break;</span>
+                    }
+<span class="nc" id="L279">                catch (Exception e)</span>
+                    {
+<span class="nc" id="L281">                    e.printStackTrace();</span>
+<span class="nc" id="L282">                    Output.initialError(</span>
+                        &quot;The parameter file is missing at the resource location: &quot; + args[x+1] + &quot; relative to the class: &quot; + cls + &quot;\n\nFor help, try:  java ec.Evolve -help&quot;);
+                    }
+
+<span class="nc bnc" id="L286" title="All 2 branches missed.">        if (parameters == null)</span>
+<span class="nc" id="L287">            Output.initialError(&quot;No parameter or checkpoint file was specified.\nFor help, try:   java ec.Evolve -help&quot; );</span>
+<span class="nc" id="L288">        return parameters;</span>
+        }
+    
+    
+    /** Loads the number of threads. */
+    public static int determineThreads(Output output, ParameterDatabase parameters, Parameter threadParameter)
+        {
+<span class="fc" id="L295">        int thread = 1;</span>
+<span class="fc" id="L296">        String tmp_s = parameters.getString(threadParameter,null);</span>
+<span class="pc bpc" id="L297" title="1 of 2 branches missed.">        if (tmp_s==null) // uh oh</span>
+            {
+<span class="nc" id="L299">            output.fatal(&quot;Threads number must exist.&quot;,threadParameter,null);</span>
+            }
+<span class="pc bpc" id="L301" title="1 of 2 branches missed.">        else if (V_THREADS_AUTO.equalsIgnoreCase(tmp_s))</span>
+            {
+<span class="nc" id="L303">            Runtime runtime = Runtime.getRuntime();</span>
+<span class="nc" id="L304">            try { return ((Integer)runtime.getClass().getMethod(&quot;availableProcessors&quot;, (Class[])null).</span>
+<span class="nc" id="L305">                    invoke(runtime,(Object[])null)).intValue(); }</span>
+<span class="nc" id="L306">            catch (Exception e)</span>
+                { 
+<span class="nc" id="L308">                output.fatal(&quot;Whoa! This Java version is too old to have the Runtime.availableProcessors() method available.\n&quot; + </span>
+                    &quot;This means you can't use 'auto' as a threads option.&quot;,threadParameter,null);
+                }
+<span class="nc" id="L311">            }</span>
+        else
+            {
+            try
+                {
+<span class="fc" id="L316">                thread = parameters.getInt(threadParameter,null);</span>
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">                if (thread &lt;= 0)</span>
+<span class="nc" id="L318">                    output.fatal(&quot;Threads value must be &gt; 0&quot;, threadParameter, null);</span>
+                }
+<span class="nc" id="L320">            catch (NumberFormatException e)</span>
+                {
+<span class="nc" id="L322">                output.fatal(&quot;Invalid, non-integer threads value (&quot;+thread+&quot;)&quot;,threadParameter,null);</span>
+<span class="fc" id="L323">                }</span>
+            }
+<span class="fc" id="L325">        return thread;</span>
+        }
+        
+    /** Primes the generator.  Mersenne Twister seeds its first 624 numbers using a basic
+        linear congruential generator; thereafter it uses the MersenneTwister algorithm to
+        build new seeds.  Those first 624 numbers are generally just fine, but to be extra
+        safe, you can prime the generator by calling nextInt() on it some (N&gt;1) * 624 times.
+        This method does exactly that, presently with N=2. */
+    public static MersenneTwisterFast primeGenerator(MersenneTwisterFast generator)
+        {
+        // 624 = MersenneTwisterFast.N  which is private duh
+<span class="fc bfc" id="L336" title="All 2 branches covered.">        for(int i = 0; i &lt; 624 * 2 + 1; i++)</span>
+<span class="fc" id="L337">            generator.nextInt();</span>
+<span class="fc" id="L338">        return generator;</span>
+        }
+
+    /** Loads a random generator seed.  First, the seed is loaded from the seedParameter.  If the parameter
+        is V_SEED_TIME, the seed is set to the currentTime value.  Then the seed is incremented by the offset. 
+        This method is broken out of initialize(...) primarily to share code with ec.eval.MasterProblem.*/
+    public static int determineSeed(Output output, ParameterDatabase parameters, Parameter seedParameter, long currentTime, int offset, boolean auto)
+        {
+<span class="fc" id="L346">        int seed = 1;  // have to initialize to make the compiler happy</span>
+<span class="fc" id="L347">        String tmp_s = parameters.getString(seedParameter,null);</span>
+<span class="pc bpc" id="L348" title="3 of 4 branches missed.">        if (tmp_s==null &amp;&amp; !auto) // uh oh</span>
+            {
+<span class="nc" id="L350">            output.fatal(&quot;Seed must exist.&quot;,seedParameter,null);</span>
+            }
+<span class="pc bpc" id="L352" title="5 of 6 branches missed.">        else if (V_SEED_TIME.equalsIgnoreCase(tmp_s) || (tmp_s == null &amp;&amp; auto))</span>
+            {
+<span class="pc bpc" id="L354" title="3 of 4 branches missed.">            if (tmp_s == null &amp;&amp; auto)</span>
+<span class="nc" id="L355">                output.warnOnce(&quot;Using automatic determination number of threads, but not all seeds are defined.\nThe rest will be defined using the wall clock time.&quot;);</span>
+<span class="fc" id="L356">            seed = (int)currentTime;  // using low-order bits so it's probably okay</span>
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">            if (seed==0)</span>
+<span class="nc" id="L358">                output.fatal(&quot;Whoa! This Java version is returning 0 for System.currentTimeMillis(), which ain't right.  This means you can't use '&quot;+V_SEED_TIME+&quot;' as a seed &quot;,seedParameter,null);</span>
+            }
+        else
+            {
+            try
+                {
+<span class="nc" id="L364">                seed = parameters.getInt(seedParameter,null);</span>
+                }
+<span class="nc" id="L366">            catch (NumberFormatException e)</span>
+                {
+<span class="nc" id="L368">                output.fatal(&quot;Invalid, non-integer seed value (&quot;+seed+&quot;)&quot;,seedParameter,null);</span>
+<span class="nc" id="L369">                }</span>
+            }
+<span class="fc" id="L371">        return seed + offset;</span>
+        }
+
+
+    /** Constructs and sets up an Output object. */
+    
+    public static Output buildOutput()
+        {
+        Output output;
+        // 1. create the output
+
+<span class="fc" id="L382">        output = new Output(true);</span>
+
+        // stdout is always log #0.  stderr is always log #1.
+        // stderr accepts announcements, and both are fully verbose 
+        // by default.
+<span class="fc" id="L387">        output.addLog(ec.util.Log.D_STDOUT,false);</span>
+<span class="fc" id="L388">        output.addLog(ec.util.Log.D_STDERR,true);</span>
+                
+<span class="fc" id="L390">        return output;</span>
+        }
+
+
+    /** Initializes an evolutionary run given the parameters and a random seed adjustment (added to each random seed).
+        The adjustment offers a convenient way to change the seeds of the random number generators each time you
+        do a new evolutionary run.  You are of course welcome to replace the random number generators after initialize(...)
+        but before startFresh(...) 
+        
+        &lt;p&gt;This method works by first setting up an Output (using buildOutput), then calling initialize(ParameterDatabase, seed, output)
+    */
+                
+    public static EvolutionState initialize(ParameterDatabase parameters, int randomSeedOffset)
+        {
+<span class="fc" id="L404">        return initialize(parameters, randomSeedOffset, buildOutput());</span>
+        }
+
+
+    /** Initializes an evolutionary run given the parameters and a random seed adjustment (added to each random seed),
+        with the Output pre-constructed.
+        The adjustment offers a convenient way to change the seeds of the random number generators each time you
+        do a new evolutionary run.  You are of course welcome to replace the random number generators after initialize(...)
+        but before startFresh(...) */
+                
+    public static EvolutionState initialize(ParameterDatabase parameters, int randomSeedOffset, Output output)
+        {
+<span class="fc" id="L416">        EvolutionState state=null;</span>
+        MersenneTwisterFast[] random;
+        int[] seeds;
+<span class="fc" id="L419">        int breedthreads = 1;</span>
+<span class="fc" id="L420">        int evalthreads = 1;</span>
+        boolean store;
+        int x;
+        
+        // Should we muzzle stdout and stderr?
+        
+<span class="pc bpc" id="L426" title="1 of 2 branches missed.">        if (parameters.exists(new Parameter(P_MUZZLE), null))</span>
+<span class="nc" id="L427">            output.warning(&quot;&quot; + new Parameter(P_MUZZLE) + &quot; has been deprecated.  We suggest you use &quot; + </span>
+                new Parameter(P_SILENT) + &quot; or similar newer options.&quot;);
+        
+<span class="pc bpc" id="L430" title="1 of 2 branches missed.">        if (parameters.getBoolean(new Parameter(P_SILENT), null, false) ||</span>
+<span class="pc bpc" id="L431" title="1 of 2 branches missed.">            parameters.getBoolean(new Parameter(P_MUZZLE), null, false))</span>
+            {
+<span class="nc" id="L433">            output.getLog(0).silent = true;</span>
+<span class="nc" id="L434">            output.getLog(1).silent = true;</span>
+            }
+
+        // output was already created for us.  
+<span class="fc" id="L438">        output.systemMessage(Version.message());</span>
+                
+        // 2. set up thread values
+        
+<span class="fc" id="L442">        breedthreads = Evolve.determineThreads(output, parameters, new Parameter(P_BREEDTHREADS));</span>
+<span class="fc" id="L443">        evalthreads = Evolve.determineThreads(output, parameters, new Parameter(P_EVALTHREADS));</span>
+<span class="pc bpc" id="L444" title="1 of 2 branches missed.">        boolean auto = (V_THREADS_AUTO.equalsIgnoreCase(parameters.getString(new Parameter(P_BREEDTHREADS),null)) ||</span>
+<span class="pc bpc" id="L445" title="1 of 2 branches missed.">            V_THREADS_AUTO.equalsIgnoreCase(parameters.getString(new Parameter(P_EVALTHREADS),null)));  // at least one thread is automatic.  Seeds may need to be dynamic.</span>
+
+        // 3. create the Mersenne Twister random number generators,
+        // one per thread
+
+<span class="pc bpc" id="L450" title="1 of 2 branches missed.">        random = new MersenneTwisterFast[breedthreads &gt; evalthreads ? </span>
+<span class="pc" id="L451">            breedthreads : evalthreads];</span>
+<span class="fc" id="L452">        seeds = new int[random.length];</span>
+                                                
+<span class="fc" id="L454">        String seedMessage = &quot;Seed: &quot;;</span>
+<span class="fc" id="L455">        int time = (int)(System.currentTimeMillis());</span>
+<span class="fc bfc" id="L456" title="All 2 branches covered.">        for (x=0;x&lt;random.length;x++)</span>
+            {
+<span class="fc" id="L458">            seeds[x] = determineSeed(output, parameters, new Parameter(P_SEED).push(&quot;&quot;+x),</span>
+                time+x,random.length * randomSeedOffset, auto);
+<span class="pc bpc" id="L460" title="1 of 2 branches missed.">            for (int y=0;y&lt;x;y++)</span>
+<span class="nc bnc" id="L461" title="All 2 branches missed.">                if (seeds[x]==seeds[y])</span>
+<span class="nc" id="L462">                    output.fatal(P_SEED+&quot;.&quot;+x+&quot; (&quot;+seeds[x]+&quot;) and &quot;+P_SEED+&quot;.&quot;+y+&quot; (&quot;+seeds[y]+&quot;) ought not be the same seed.&quot;,null,null); </span>
+<span class="fc" id="L463">            random[x] = Evolve.primeGenerator(new MersenneTwisterFast(seeds[x]));    // we prime the generator to be more sure of randomness.</span>
+<span class="fc" id="L464">            seedMessage = seedMessage + seeds[x] + &quot; &quot;;</span>
+            }
+
+        // 4.  Start up the evolution
+                
+        // what evolution state to use?
+<span class="fc" id="L470">        state = (EvolutionState)</span>
+<span class="fc" id="L471">            parameters.getInstanceForParameter(new Parameter(P_STATE),null,</span>
+                EvolutionState.class);
+<span class="fc" id="L473">        state.parameters = parameters;</span>
+<span class="fc" id="L474">        state.random = random;</span>
+<span class="fc" id="L475">        state.output = output;</span>
+<span class="fc" id="L476">        state.evalthreads = evalthreads;</span>
+<span class="fc" id="L477">        state.breedthreads = breedthreads;</span>
+<span class="fc" id="L478">        state.randomSeedOffset = randomSeedOffset;</span>
+
+<span class="fc" id="L480">        output.systemMessage(&quot;Threads:  breed/&quot; + breedthreads + &quot; eval/&quot; + evalthreads);</span>
+<span class="fc" id="L481">        output.systemMessage(seedMessage);</span>
+                
+<span class="fc" id="L483">        return state;</span>
+        }
+                
+                
+    /** Begins a fresh evolutionary run with a given state.  The state should have been
+        provided by initialize(...).  The jobPrefix is added to the front of output and
+        checkpoint filenames.  If it's null, nothing is added to the front.  */
+        
+    public static void cleanup(EvolutionState state)
+        {
+        // flush the output
+<span class="nc" id="L494">        state.output.flush();</span>
+
+        // Possibly print out the run parameters
+<span class="nc" id="L497">        PrintWriter pw = new PrintWriter(System.err);</span>
+                
+        // before we print out access information, we need to still &quot;get&quot; these
+        // parameters, so that they show up as accessed and gotten.
+<span class="nc" id="L501">        state.parameters.getBoolean(new Parameter(P_PRINTUSEDPARAMETERS),null,false);</span>
+<span class="nc" id="L502">        state.parameters.getBoolean(new Parameter(P_PRINTACCESSEDPARAMETERS),null,false);</span>
+<span class="nc" id="L503">        state.parameters.getBoolean(new Parameter(P_PRINTUNUSEDPARAMETERS),null,false);</span>
+<span class="nc" id="L504">        state.parameters.getBoolean(new Parameter(P_PRINTUNACCESSEDPARAMETERS),null,false);</span>
+<span class="nc" id="L505">        state.parameters.getBoolean(new Parameter(P_PRINTALLPARAMETERS),null,false);</span>
+                
+        //...okay, here we go...
+                
+<span class="nc bnc" id="L509" title="All 2 branches missed.">        if (state.parameters.getBoolean(new Parameter(P_PRINTUSEDPARAMETERS),null,false))</span>
+            {
+<span class="nc" id="L511">            pw.println(&quot;\n\nUsed Parameters\n===============\n&quot;);</span>
+<span class="nc" id="L512">            state.parameters.listGotten(pw);</span>
+            }
+
+<span class="nc bnc" id="L515" title="All 2 branches missed.">        if (state.parameters.getBoolean(new Parameter(P_PRINTACCESSEDPARAMETERS),null,false))</span>
+            {
+<span class="nc" id="L517">            pw.println(&quot;\n\nAccessed Parameters\n===================\n&quot;);</span>
+<span class="nc" id="L518">            state.parameters.listAccessed(pw);</span>
+            }
+
+<span class="nc bnc" id="L521" title="All 2 branches missed.">        if (state.parameters.getBoolean(new Parameter(P_PRINTUNUSEDPARAMETERS),null,false))</span>
+            {
+<span class="nc" id="L523">            pw.println(&quot;\n\nUnused Parameters\n&quot;+</span>
+                &quot;================= (Ignore parent.x references) \n&quot;);
+<span class="nc" id="L525">            state.parameters.listNotGotten(pw);</span>
+            }
+
+<span class="nc bnc" id="L528" title="All 2 branches missed.">        if (state.parameters.getBoolean(new Parameter(P_PRINTUNACCESSEDPARAMETERS),null,false))</span>
+            {
+<span class="nc" id="L530">            pw.println(&quot;\n\nUnaccessed Parameters\n&quot;+</span>
+                &quot;===================== (Ignore parent.x references) \n&quot;);
+<span class="nc" id="L532">            state.parameters.listNotAccessed(pw);</span>
+            }
+
+<span class="nc bnc" id="L535" title="All 2 branches missed.">        if (state.parameters.getBoolean(new Parameter(P_PRINTALLPARAMETERS),null,false))</span>
+            {
+<span class="nc" id="L537">            pw.println(&quot;\n\nAll Parameters\n==============\n&quot;);</span>
+            // list only the parameters visible.  Shadowed parameters not shown
+<span class="nc" id="L539">            state.parameters.list(pw,false);</span>
+            }
+
+<span class="nc" id="L542">        pw.flush();</span>
+
+<span class="nc" id="L544">        System.err.flush();</span>
+<span class="nc" id="L545">        System.out.flush();</span>
+                
+        // finish by closing down Output.  This is because gzipped and other buffered
+        // streams just don't shut write themselves out, and finalize isn't called
+        // on them because Java's being obnoxious.  Pretty stupid.
+<span class="nc" id="L550">        state.output.close();</span>
+<span class="nc" id="L551">        }</span>
+
+
+
+
+    /*
+
+     * MAIN
+     * 
+     * Evolve has... evolved from previous Evolves.  The goal behind these changes is:
+     *       1. To provide a simple jobs facility
+     *       2. To make it easy for you to make your own main(), including more
+     *          sophisticated jobs facilities.
+     * 
+     * Before we get into the specifics of this file, let's first look at the main
+     * evolution loop in EvolutionState.java.  The general code is:
+     *       1.  If I was loaded from a checkpoint, call the hook startFromCheckpoint()
+     *       2.  If I'm instead starting from scratch, call the hook startFresh() 
+     *       3.  Loop:
+     *               4. result = evolve() 
+     *               5. If result != EvolutionState.R_NOTDONE, break from loop
+     *       6.      Call the hook finish(result)
+     * 
+     * That's all there's to it.  Various EvolutionState classes need to implement
+     * the startFromCheckpoint, startFresh, evolve, and finish methods.  This basic
+     * evolution loop is encapsulated in a convenience method called EvolutionState.run(...).
+     * 
+     * Evolve.java is little more than code to fire up the right EvolutionState class,
+     * call run(...), and then shut down.  The complexity mostly comes from bringing
+     * up the class (loading it from checkpoint or from scratch) and in shutting down.
+     * Here's the general mechanism:
+     * 
+     * - To load from checkpoint, we must find the checkpoint filename and call
+     *       Checkpoint.restoreFromCheckpoint(filename) to generate the EvolutionState
+     *       instance.  Evolve.java provides a convenience function for this called
+     *       possiblyRestoreFromCheckpoint(...), which returns null if there *isn't*
+     *       a checkpoint file to load from.  Else it returns the unfrozen EvolutionState.
+     *       
+     * - To instead set up from scratch, you have to do a bunch of stuff to set up the state.
+     *       First, you need to load a parameter database.  Evolve.java has a convenience function
+     *       for that called loadParameterDatabase(...).  Second, you must do a series
+     *       of items: (1) generate an Output object (2) identify the number of threads
+     *       (3) create the MersenneTwisterFast random number generators (4) instantiate
+     *       the EvolutionState subclass instance (5) plug these items, plus the random 
+     *       seed offset and the parameter database, into the instance.  These five
+     *       steps are done for you in a convenience function called initialize(...).
+     * 
+     * -     Now the state is ready to go. Call run(...) on your EvolutionState
+     *       (or do the evolution loop described above manually if you wish)
+     * 
+     * - Finally, to shut down, you need to (1) flush the Output (2) print out
+     *       the used, accessed, unused, unaccessed, and all parameters if the user
+     *       requested a printout at the end [rarely] (3) flush System.err and System.out
+     *       for good measure, and (4) close Output -- which closes its streams except
+     *       for System.err and System.out.  There is a convenience function for this as
+     *       well.  It's called cleanup(...).
+     *       
+     * - Last, you shut down with System.exit(0) -- very important because it quits
+     *       any remaining threads the user might have had running and forgot about.
+     *       
+     * So there you have it.  Several convenience functions in Evolve...
+     *       Evolve.possiblyRestoreFromCheckpoint
+     *       Evolve.loadParameterDatabase
+     *       Evolve.initialize
+     *       EvolutionState.run
+     *       Evolve.cleanup
+     * ... result in a very simple basic main() function:
+     *       
+     *
+     *               public static void main(String[] args)
+     *                       {
+     *                       EvolutionState state = possiblyRestoreFromCheckpoint(args);
+     *                       if (state!=null)  // loaded from checkpoint
+     *                               state.run(EvolutionState.C_STARTED_FROM_CHECKPOINT);
+     *                       else
+     *                               {
+     *                               state = initialize(loadParameterDatabase(args), 0);
+     *                               state.run(EvolutionState.C_STARTED_FRESH);
+     *                               }
+     *                       cleanup(state);
+     *                       System.exit(0);
+     *                       }
+     *
+     *
+     * Piece of cake!
+     * 
+     * The more extravagant main(...) you see below just has a few extra gizmos for
+     * doing basic job iteration.  EvolutionState has two convenience slots for
+     * doing job iteration:
+     *
+     *       job                                     (an Object[]    use this as you like)
+     *       runtimeArguments        (a String[]             put args in here)
+     *
+     * The reason these are slots in EvolutionState is so you can store this information
+     * across checkpoints and continue where you had started job-number-wise when the
+     * user starts up from a checkpoint again.
+     * 
+     * You'll probably want the EvolutionState to output its stat files etc. using unique
+     * prefixes to differentiate between jobs (0.stat, 1.stat, or whatever you like -- it
+     * doesn't have to be numbers), and you'll also probably want checkpoint files to be
+     * similarly prefixed.  So you'll probably want to do:
+     *
+     *       state.output.setFilePrefix(jobPrefix);
+     *       state.checkpointPrefix = jobPrefix + state.checkpointPrefix;
+     *
+     * The extravagant main below is basically doing this.  We're using state.job to stash
+     * away a single iterated job number, stored as an Integer in state.job[0], and then
+     * iterating that way, making sure we stash the job number and runtime arguments each time 
+     * so we can recover them when loading from checkpoint.  We use the &quot;jobs&quot; parameter 
+     * to determine how many jobs to run.  If this number is 1, we don't even bother to set
+     * the file prefixes, so ECJ generates files just like it used to.
+     *
+     * It's important to note that this main was created with the assumption that you might
+     * modify it for your own purposes.  Do you want a nested loop, perhaps to do all combinations
+     * of two parameters or something?  Rewrite it to use two array slots in the job array.
+     * Want to store more information on a per-job basis?  Feel free to use the job array any
+     * way you like -- it's ONLY used by this main() loop.
+     *
+     */
+
+
+
+
+
+
+    /** Top-level evolutionary loop.  */
+
+    public static void main(String[] args)
+        {
+        EvolutionState state;
+        ParameterDatabase parameters;
+        
+        // should we print the help message and quit?
+<span class="nc" id="L684">        checkForHelp(args);</span>
+                
+        // if we're loading from checkpoint, let's finish out the most recent job
+<span class="nc" id="L687">        state = possiblyRestoreFromCheckpoint(args);</span>
+<span class="nc" id="L688">        int currentJob = 0;                             // the next job number (0 by default)</span>
+
+        // this simple job iterator just uses the 'jobs' parameter, iterating from 0 to 'jobs' - 1
+        // inclusive.  The current job number is stored in state.jobs[0], so we'll begin there if
+        // we had loaded from checkpoint.
+                
+<span class="nc bnc" id="L694" title="All 2 branches missed.">        if (state != null)  // loaded from checkpoint</span>
+            {
+            // extract the next job number from state.job[0] (where in this example we'll stash it)
+            try
+                {
+<span class="nc bnc" id="L699" title="All 2 branches missed.">                if (state.runtimeArguments == null)</span>
+<span class="nc" id="L700">                    Output.initialError(&quot;Checkpoint completed from job started by foreign program (probably GUI).  Exiting...&quot;);</span>
+<span class="nc" id="L701">                args = state.runtimeArguments;                          // restore runtime arguments from checkpoint</span>
+<span class="nc" id="L702">                currentJob = ((Integer)(state.job[0])).intValue() + 1;  // extract next job number</span>
+                }
+<span class="nc" id="L704">            catch (Exception e)</span>
+                {
+<span class="nc" id="L706">                Output.initialError(&quot;EvolutionState's jobs variable is not set up properly.  Exiting...&quot;);</span>
+<span class="nc" id="L707">                }</span>
+
+<span class="nc" id="L709">            state.run(EvolutionState.C_STARTED_FROM_CHECKPOINT);</span>
+<span class="nc" id="L710">            cleanup(state);</span>
+            }
+
+        // A this point we've finished out any previously-checkpointed job.  If there was
+        // one such job, we've updated the current job number (currentJob) to the next number.
+        // Otherwise currentJob is 0.
+
+        // Now we're going to load the parameter database to see if there are any more jobs.
+        // We could have done this using the previous parameter database, but it's no big deal.
+<span class="nc" id="L719">        parameters = loadParameterDatabase(args);</span>
+<span class="nc bnc" id="L720" title="All 2 branches missed.">        if (currentJob == 0)  // no current job number yet</span>
+<span class="nc" id="L721">            currentJob = parameters.getIntWithDefault(new Parameter(&quot;current-job&quot;), null, 0);</span>
+<span class="nc bnc" id="L722" title="All 2 branches missed.">        if (currentJob &lt; 0)</span>
+<span class="nc" id="L723">            Output.initialError(&quot;The 'current-job' parameter must be &gt;= 0 (or not exist, which defaults to 0)&quot;);</span>
+            
+<span class="nc" id="L725">        int numJobs = parameters.getIntWithDefault(new Parameter(&quot;jobs&quot;), null, 1);</span>
+<span class="nc bnc" id="L726" title="All 2 branches missed.">        if (numJobs &lt; 1)</span>
+<span class="nc" id="L727">            Output.initialError(&quot;The 'jobs' parameter must be &gt;= 1 (or not exist, which defaults to 1)&quot;);</span>
+                
+                
+        // Now we know how many jobs remain.  Let's loop for that many jobs.  Each time we'll
+        // load the parameter database scratch (except the first time where we reuse the one we
+        // just loaded a second ago).  The reason we reload from scratch each time is that the
+        // experimenter is free to scribble all over the parameter database and it'd be nice to
+        // have everything fresh and clean.  It doesn't take long to load the database anyway,
+        // it's usually small.
+<span class="nc bnc" id="L736" title="All 2 branches missed.">        for(int job = currentJob ; job &lt; numJobs; job++)</span>
+            {
+            // We used to have a try/catch here to catch errors thrown by this job and continue to the next.
+            // But the most common error is an OutOfMemoryException, and printing its stack trace would
+            // just create another OutOfMemoryException!  Which dies anyway and has a worthless stack
+            // trace as a result.
+                        
+            // try
+                {
+                // load the parameter database (reusing the very first if it exists)
+<span class="nc bnc" id="L746" title="All 2 branches missed.">                if (parameters == null)</span>
+<span class="nc" id="L747">                    parameters = loadParameterDatabase(args);</span>
+                            
+                // Initialize the EvolutionState, then set its job variables
+<span class="nc" id="L750">                state = initialize(parameters, job);                // pass in job# as the seed increment</span>
+<span class="nc" id="L751">                state.output.systemMessage(&quot;Job: &quot; + job);</span>
+<span class="nc" id="L752">                state.job = new Object[1];                                  // make the job argument storage</span>
+<span class="nc" id="L753">                state.job[0] = Integer.valueOf(job);                    // stick the current job in our job storage</span>
+<span class="nc" id="L754">                state.runtimeArguments = args;                              // stick the runtime arguments in our storage</span>
+<span class="nc bnc" id="L755" title="All 2 branches missed.">                if (numJobs &gt; 1)                                                    // only if iterating (so we can be backwards-compatible),</span>
+                    {
+<span class="nc" id="L757">                    String jobFilePrefix = &quot;job.&quot; + job + &quot;.&quot;;</span>
+<span class="nc" id="L758">                    state.output.setFilePrefix(jobFilePrefix);     // add a prefix for checkpoint/output files </span>
+<span class="nc" id="L759">                    state.checkpointPrefix = jobFilePrefix + state.checkpointPrefix;  // also set up checkpoint prefix</span>
+                    }
+                                    
+                // Here you can set up the EvolutionState's parameters further before it's setup(...).
+                // This includes replacing the random number generators, changing values in state.parameters,
+                // changing instance variables (except for job and runtimeArguments, please), etc.
+
+
+
+
+
+                // now we let it go
+<span class="nc" id="L771">                state.run(EvolutionState.C_STARTED_FRESH);</span>
+<span class="nc" id="L772">                cleanup(state);  // flush and close various streams, print out parameters if necessary</span>
+<span class="nc" id="L773">                parameters = null;  // so we load a fresh database next time around</span>
+                }
+            /*
+              catch (Throwable e)  // such as an out of memory error caused by this job
+              {
+              e.printStackTrace();
+              state = null;
+              System.gc();  // take a shot!
+              }
+            */
+            }
+
+<span class="nc" id="L785">        System.exit(0);</span>
+<span class="nc" id="L786">        }</span>
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SPEA2MultiObjectiveFitness.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.multiobjective.spea2</a> &gt; <span class="el_source">SPEA2MultiObjectiveFitness.java</span></div><h1>SPEA2MultiObjectiveFitness.java</h1><pre class="source lang-java linenums">/*
+  Portions copyright 2010 by Sean Luke, Robert Hubley, and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+package ec.multiobjective.spea2;
+
+import java.io.*;
+import ec.util.*;
+import ec.multiobjective.*;
+import ec.*;
+
+/* 
+ * SPEA2MultiObjectiveFitness.java
+ * 
+ * Created: Sat Oct 16 11:24:43 EDT 2010
+ * By: Sean Luke
+ * Replaces earlier class by: Robert Hubley, with revisions by Gabriel Balan and Keith Sullivan
+ */
+
+/**
+ * SPEA2MultiObjectiveFitness is a subclass of MultiObjectiveFitness which adds three auxiliary fitness
+ * measures used in SPEA2: strength S(i), kthNNDistance D(i), and a final fitness value R(i) + D(i).  
+ * Note that so-called &quot;raw fitness&quot; (what Sean calls &quot;Wimpiness&quot; in Essentials of Metaheuristics) is 
+ * not retained.
+ * 
+ * &lt;p&gt;The fitness comparison operators solely use the 'fitness' value R(i) + D(i).
+ */
+
+<span class="fc" id="L31">public class SPEA2MultiObjectiveFitness extends MultiObjectiveFitness</span>
+    {
+    public static final String SPEA2_FITNESS_PREAMBLE = &quot;Fitness: &quot;;
+    public static final String SPEA2_STRENGTH_PREAMBLE = &quot;Strength: &quot;;
+    public static final String SPEA2_DISTANCE_PREAMBLE = &quot;Distance: &quot;;
+
+<span class="nc" id="L37">    public String[] getAuxilliaryFitnessNames() { return new String[] { &quot;Strength&quot;, &quot;Raw Fitness&quot;, &quot;Kth NN Distance&quot; }; }</span>
+<span class="nc" id="L38">    public double[] getAuxilliaryFitnessValues() { return new double[] { strength, fitness, kthNNDistance }; }</span>
+        
+    /** SPEA2 strength (# of nodes it dominates) */
+    public double strength; // S(i)
+
+    /** SPEA2 NN distance */
+    public double kthNNDistance; // D(i)
+
+    /** Final SPEA2 fitness.  Equals the raw fitness R(i) plus the kthNNDistance D(i). */
+    public double fitness;
+
+    public String fitnessToString()
+        {
+<span class="nc" id="L51">        return super.fitnessToString() + &quot;\n&quot; + SPEA2_FITNESS_PREAMBLE + Code.encode(fitness) + &quot;\n&quot; + SPEA2_STRENGTH_PREAMBLE + Code.encode(strength) + &quot;\n&quot; + SPEA2_DISTANCE_PREAMBLE + Code.encode(kthNNDistance);</span>
+        }
+
+    public String fitnessToStringForHumans()
+        {
+<span class="fc" id="L56">        return super.fitnessToStringForHumans() + &quot;\n&quot; + SPEA2_STRENGTH_PREAMBLE + strength + &quot;\n&quot; + SPEA2_DISTANCE_PREAMBLE + kthNNDistance + &quot; &quot; + SPEA2_FITNESS_PREAMBLE + fitness;</span>
+        }
+
+    public void readFitness(final EvolutionState state, final LineNumberReader reader) throws IOException
+        {
+<span class="nc" id="L61">        super.readFitness(state, reader);</span>
+<span class="nc" id="L62">        fitness = Code.readDoubleWithPreamble(SPEA2_FITNESS_PREAMBLE, state, reader);</span>
+<span class="nc" id="L63">        strength = Code.readDoubleWithPreamble(SPEA2_STRENGTH_PREAMBLE, state, reader);</span>
+<span class="nc" id="L64">        kthNNDistance = Code.readDoubleWithPreamble(SPEA2_DISTANCE_PREAMBLE, state, reader);</span>
+<span class="nc" id="L65">        }</span>
+
+    public void writeFitness(final EvolutionState state, final DataOutput dataOutput) throws IOException
+        {
+<span class="nc" id="L69">        super.writeFitness(state, dataOutput);</span>
+<span class="nc" id="L70">        dataOutput.writeDouble(fitness);</span>
+<span class="nc" id="L71">        dataOutput.writeDouble(strength);</span>
+<span class="nc" id="L72">        dataOutput.writeDouble(fitness);</span>
+<span class="nc" id="L73">        dataOutput.writeDouble(kthNNDistance);</span>
+<span class="nc" id="L74">        writeTrials(state, dataOutput);</span>
+<span class="nc" id="L75">        }</span>
+
+    public void readFitness(final EvolutionState state, final DataInput dataInput) throws IOException
+        {
+<span class="nc" id="L79">        super.readFitness(state, dataInput);</span>
+<span class="nc" id="L80">        fitness = dataInput.readDouble();</span>
+<span class="nc" id="L81">        strength = dataInput.readDouble();</span>
+<span class="nc" id="L82">        fitness = dataInput.readDouble();</span>
+<span class="nc" id="L83">        kthNNDistance = dataInput.readDouble();</span>
+<span class="nc" id="L84">        readTrials(state, dataInput);</span>
+<span class="nc" id="L85">        }</span>
+
+    /**
+     * The selection criteria in SPEA2 uses the computed fitness, and not
+     * pareto dominance.
+     */
+    public boolean equivalentTo(Fitness _fitness)
+        {
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        return fitness == ((SPEA2MultiObjectiveFitness)_fitness).fitness;</span>
+        }
+
+    /**
+     * The selection criteria in SPEA2 uses the computed fitness, and not
+     * pareto dominance.
+     */
+    public boolean betterThan(Fitness _fitness)
+        {
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        return fitness &lt; ((SPEA2MultiObjectiveFitness)_fitness).fitness;</span>
+        }
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>

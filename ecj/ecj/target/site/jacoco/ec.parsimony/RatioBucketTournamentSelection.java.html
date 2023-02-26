@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RatioBucketTournamentSelection.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ecj</a> &gt; <a href="index.source.html" class="el_package">ec.parsimony</a> &gt; <span class="el_source">RatioBucketTournamentSelection.java</span></div><h1>RatioBucketTournamentSelection.java</h1><pre class="source lang-java linenums">/*
+  Copyright 2006 by Sean Luke and George Mason University
+  Licensed under the Academic Free License version 3.0
+  See the file &quot;LICENSE&quot; for more information
+*/
+
+
+package ec.parsimony;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+
+import ec.*;
+import ec.util.*;
+import ec.steadystate.*;
+import ec.select.*;
+
+/* 
+ * RatioBucketTournamentSelection.java
+ * 
+ * Created: Mon Apr 09 17:02:30 2001
+ * By: Liviu Panait
+ */
+
+/**
+ *
+ * Does a tournament selection, limited to the subpopulation it's
+ * working in at the time.
+ *
+ * &lt;p&gt;Ratio Bucket Lexicographic Tournament selection works like as follows. The sizes of buckets are
+ * proportioned so that low-fitness individuals are placed into much larger buckets than high-fitness
+ * individuals.  A bucket ratio &lt;i&gt;1/ratio&lt;/i&gt; is specified beforehand.  The bottom &lt;i&gt;1/ratio&lt;/i&gt; individuals
+ * of the population are placed into the bottom bucket. If any individuals remain in the population
+ * with the same fitness as the best individual in the bottom bucket, they too are placed in that bucket.
+ * Of the remaining population, the next &lt;i&gt;1/ratio&lt;/i&gt; individuals are placed into the next bucket, plus any
+ * individuals remaining in the population with the same fitness as the best individual now in that bucket,
+ * and so on.  This continues until every member of the population has been placed in a bucket. Once again,
+ * the fitness of every individual in a bucket is set to the rank of the bucket relative to other buckets.
+ * Ratio bucketing thus allows parsimony to have more of an effect on average when two similar low-fitness
+ * individuals are considered than when two high-fitness individuals are considered.
+ *
+ * After ranking the individuals, &lt;i&gt;size&lt;/i&gt; individuals are chosen at random from the
+ * population. Of those individuals, the one with the highest rank is selected. If the two
+ * individuals are in the same rank, meaning that they have similar fitness, the one
+ * with the smallest size is selected.
+ *
+ * &lt;p&gt;Bucket Lexicographic Tournament selection is so simple that it doesn't
+ * need to maintain a cache of any form, so many of the SelectionMethod methods
+ * just don't do anything at all.
+ *
+
+ &lt;p&gt;&lt;b&gt;Typical Number of Individuals Produced Per &lt;tt&gt;produce(...)&lt;/tt&gt; call&lt;/b&gt;&lt;br&gt;
+ Always 1.
+
+ &lt;p&gt;&lt;b&gt;Parameters&lt;/b&gt;&lt;br&gt;
+ &lt;table&gt;
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;size&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;int &amp;gt;= 1 (default 7)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the tournament size)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;pick-worst&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt; bool = &lt;tt&gt;true&lt;/tt&gt; or &lt;tt&gt;false&lt;/tt&gt; (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(should we pick the &lt;i&gt;worst&lt;/i&gt; individual in the tournament instead of the &lt;i&gt;best&lt;/i&gt;?)&lt;/td&gt;&lt;/tr&gt;
+
+ &lt;tr&gt;&lt;td valign=top&gt;&lt;i&gt;base.&lt;/i&gt;&lt;tt&gt;ratio&lt;/tt&gt;&lt;br&gt;
+ &lt;font size=-1&gt;double &amp;gt;= 2 (default)&lt;/font&gt;&lt;/td&gt;
+ &lt;td valign=top&gt;(the ratio of worst out of remaining individuals that go in the next bucket)&lt;/td&gt;&lt;/tr&gt;
+ &lt;/table&gt;
+
+ &lt;p&gt;&lt;b&gt;Default Base&lt;/b&gt;&lt;br&gt;
+ select.ratio-bucket-tournament
+
+ *
+ * @author Liviu Panait
+ * @version 1.0 
+ */
+
+<span class="nc" id="L79">public class RatioBucketTournamentSelection extends SelectionMethod implements SteadyStateBSourceForm</span>
+    {
+    /** default base */
+    public static final String P_RATIO_BUCKET_TOURNAMENT = &quot;ratio-bucket-tournament&quot;;
+
+    /** size parameter */
+    public static final String P_SIZE = &quot;size&quot;;
+
+    /** Size of the tournament*/
+    public int size;
+
+    /** if the worst individual should be picked in the tournament */
+    public static final String P_PICKWORST = &quot;pick-worst&quot;;
+
+    /** Do we pick the worst instead of the best? */
+    public boolean pickWorst;
+
+    /** The value of RATIO: each step, the worse 1/RATIO individuals are assigned the same fitness */
+    public static final String P_RATIO = &quot;ratio&quot;;
+
+    /** The default value for RATIO */
+<span class="nc" id="L100">    static double defaultRATIO = 2;</span>
+
+    /** The value of RATIO */
+    public double ratio;
+
+    // the indexes of the buckets where the individuals should go (will be used instead of fitness)
+    int[] bucketValues;
+ 
+    public Parameter defaultBase()
+        {
+<span class="nc" id="L110">        return SelectDefaults.base().push(P_RATIO_BUCKET_TOURNAMENT);</span>
+        }
+    
+    public void setup(final EvolutionState state, final Parameter base)
+        {
+<span class="nc" id="L115">        super.setup(state,base);</span>
+        
+<span class="nc" id="L117">        Parameter def = defaultBase();</span>
+
+<span class="nc" id="L119">        size = state.parameters.getInt(base.push(P_SIZE),def.push(P_SIZE),1);</span>
+<span class="nc bnc" id="L120" title="All 2 branches missed.">        if (size &lt; 1)</span>
+<span class="nc" id="L121">            state.output.fatal(&quot;Tournament size must be &gt;= 1.&quot;,base.push(P_SIZE),def.push(P_SIZE));</span>
+
+<span class="nc bnc" id="L123" title="All 2 branches missed.">        if( state.parameters.exists( base.push(P_RATIO), def.push(P_RATIO)))</span>
+            {
+<span class="nc" id="L125">            ratio = state.parameters.getDouble(base.push(P_RATIO),def.push(P_RATIO),2.0f);</span>
+<span class="nc bnc" id="L126" title="All 2 branches missed.">            if( ratio&lt;2 )</span>
+                {
+<span class="nc" id="L128">                state.output.fatal(&quot;The value of b must be &gt;= 2.&quot;,base.push(P_RATIO),def.push(P_RATIO));</span>
+                }
+            }
+        else
+            {
+<span class="nc" id="L133">            ratio = defaultRATIO;</span>
+            }
+
+<span class="nc" id="L136">        pickWorst = state.parameters.getBoolean(base.push(P_PICKWORST),def.push(P_PICKWORST),false);</span>
+<span class="nc" id="L137">        }</span>
+
+    /** Prepare to produce: create the buckets!!!! */
+    public void prepareToProduce(final EvolutionState state, final int subpopulation, final int thread) 
+        {
+<span class="nc" id="L142">        bucketValues = new int[ state.population.subpops.get(subpopulation).individuals.size() ];</span>
+        
+        // correct?
+<span class="nc" id="L145">        Collections.sort(state.population.subpops.get(subpopulation).individuals,</span>
+<span class="nc" id="L146">            new Comparator&lt;Individual&gt;() {</span>
+                public int compare(Individual a, Individual b) {
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                    if (a.fitness.betterThan(b.fitness))</span>
+<span class="nc" id="L149">                        return 1;</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                    if (b.fitness.betterThan(a.fitness))</span>
+<span class="nc" id="L151">                        return -1;</span>
+<span class="nc" id="L152">                    return 0;</span>
+                    }
+                });
+
+        // how many individuals in current bucket
+        int nInd;
+
+<span class="nc" id="L159">        double totalInds = ((double) state.population.subpops.get(subpopulation).individuals.size());</span>
+<span class="nc" id="L160">        double averageBuck = Math.max( totalInds/ratio, 1 );</span>
+
+        // first individual goes into first bucket
+<span class="nc" id="L163">        bucketValues[0] = 0;</span>
+
+        // now there is one individual in the first bucket
+<span class="nc" id="L166">        nInd = 1;</span>
+<span class="nc" id="L167">        totalInds--;</span>
+
+<span class="nc bnc" id="L169" title="All 2 branches missed.">        for(int i = 1; i &lt; state.population.subpops.get(subpopulation).individuals.size() ; i++ )</span>
+            {
+            // if there is still some place left in the current bucket, throw the current individual there too
+<span class="nc bnc" id="L172" title="All 2 branches missed.">            if( nInd &lt; averageBuck )</span>
+                {
+<span class="nc" id="L174">                bucketValues[i] = bucketValues[i-1];</span>
+<span class="nc" id="L175">                nInd++;</span>
+                }
+            else // check if it has the same fitness as last individual
+                {
+<span class="nc bnc" id="L179" title="All 2 branches missed.">                if( ((Individual) state.population.subpops.get(subpopulation).individuals.get(i)).fitness.equivalentTo(</span>
+<span class="nc" id="L180">                        ((Individual) state.population.subpops.get(subpopulation).individuals.get(i - 1)).fitness ) )</span>
+                    {
+                    // now the individual has exactly the same fitness as previous one,
+                    // so we just put it in the same bucket as the previous one(s)
+<span class="nc" id="L184">                    bucketValues[i] = bucketValues[i-1];</span>
+<span class="nc" id="L185">                    nInd++;</span>
+                    }
+                else
+                    {
+                    // new bucket!!!!
+<span class="nc" id="L190">                    averageBuck = Math.max( totalInds/ratio, 1 );</span>
+<span class="nc" id="L191">                    bucketValues[i] = bucketValues[i-1] - 1; // decrease the fitness, so that high fit individuals have lower bucket values</span>
+                    // with only one individual
+<span class="nc" id="L193">                    nInd = 1;</span>
+                    }
+                }
+<span class="nc" id="L196">            totalInds--;</span>
+            }
+<span class="nc" id="L198">        }</span>
+
+    public int produce(final int subpopulation,
+        final EvolutionState state,
+        final int thread)
+        {
+        // pick size random individuals, then pick the best.
+<span class="nc" id="L205">        ArrayList&lt;Individual&gt; oldinds = (state.population.subpops.get(subpopulation).individuals);</span>
+<span class="nc" id="L206">        int i = state.random[thread].nextInt(oldinds.size());</span>
+<span class="nc" id="L207">        long si = 0;</span>
+
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        for (int x=1;x&lt;size;x++)</span>
+            {
+<span class="nc" id="L211">            int j = state.random[thread].nextInt(oldinds.size());</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">            if (pickWorst)</span>
+                {
+<span class="nc bnc" id="L214" title="All 2 branches missed.">                if( bucketValues[j]&gt;bucketValues[i] ) { i = j; si = 0; }</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">                else if( bucketValues[i]&gt;bucketValues[j] ) { } // do nothing</span>
+                else
+                    {
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                    if (si==0)</span>
+<span class="nc" id="L219">                        si = oldinds.get(i).size();</span>
+<span class="nc" id="L220">                    long sj = oldinds.get(j).size();</span>
+
+<span class="nc bnc" id="L222" title="All 2 branches missed.">                    if (sj &gt;= si) // sj's got worse lookin' trees</span>
+<span class="nc" id="L223">                        { i = j; si = sj; }</span>
+<span class="nc" id="L224">                    }</span>
+                }
+            else
+                { 
+<span class="nc bnc" id="L228" title="All 2 branches missed.">                if( bucketValues[j]&lt;bucketValues[i] ) { i = j; si = 0; }</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">                else if( bucketValues[i]&lt;bucketValues[j] ) { } // do nothing</span>
+                else
+                    {
+<span class="nc bnc" id="L232" title="All 2 branches missed.">                    if (si==0)</span>
+<span class="nc" id="L233">                        si = oldinds.get(i).size();</span>
+<span class="nc" id="L234">                    long sj = oldinds.get(j).size();</span>
+
+<span class="nc bnc" id="L236" title="All 2 branches missed.">                    if (sj &lt; si) // sj's got better lookin' trees</span>
+<span class="nc" id="L237">                        { i = j; si = sj; }</span>
+                    }
+                }
+            }
+<span class="nc" id="L241">        return i;</span>
+        }
+
+    // included for SteadyState
+    public void individualReplaced(final SteadyStateEvolutionState state,
+        final int subpopulation,
+        final int thread,
+        final int individual)
+<span class="nc" id="L249">        { return; }</span>
+    
+    public void sourcesAreProperForm(final SteadyStateEvolutionState state)
+<span class="nc" id="L252">        { return; }</span>
+    
+    }
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.5.201910111838</span></div></body></html>
